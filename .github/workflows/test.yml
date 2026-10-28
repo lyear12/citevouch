@@ -21,6 +21,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.10", "3.12", "3.13"]
+        exclude:
+          # macos-latest is arm64, and CPython never published a macOS arm64
+          # build for 3.10 - the interpreter only exists there under Rosetta.
+          # Leaving the cell in does not test old Python on macOS; it sits in
+          # the queue until the run is cancelled, which reads as an infra
+          # flake and hides that the claim was never checkable. 3.10 is
+          # covered on Linux and Windows, where it can actually run.
+          - os: macos-latest
+            python: "3.10"
     steps:
       - uses: actions/checkout@v4
 

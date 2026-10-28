@@ -232,3 +232,23 @@ verb whose job is "leave the user in a working state" has somebody checking what
 `tests/test_cli.py` covered scan, verify, check, report, formats, exit codes, and error paths.
 Now `test_init_demo_writes_a_project_that_the_documented_next_command_accepts` and
 `test_init_demo_refuses_a_directory_that_already_has_something`. Seen 1.
+
+---
+
+## A matrix cell that cannot run is not a passing cell
+
+**Rule.** Every cell in the build matrix has to be one a runner can actually satisfy. If a cell is
+repeatedly queued rather than run, the platform combination does not exist — remove it and say so in
+a comment, do not wait for it.
+
+**Why.** `macos-latest` is arm64 and CPython has no macOS arm64 build for 3.10. That cell never ran:
+first it failed with `Version 3.10 was not found in the local cache`, then, after the interpreter
+setup was pinned differently, it sat in the queue for the life of the run and was cancelled. Both
+outcomes read as infrastructure noise, so both hide the same thing — the combination was never
+tested, while the badge and the docs went on saying "3 OS × 3 Python versions".
+
+**Evidence.** Run 40718071365: `[high] source-missing ...` and `assert 1 == 0` at
+`tests/test_cli.py:36` on `macos-latest, 3.10`, preceded by `Version 3.10 was not found in the
+local cache`. Runs 40723774939 and 40725206004: the same cell `queued` from 16:13 and 16:21 until
+cancelled, while `macos-latest` 3.12 and 3.13 started within seconds. Excluded in the matrix with
+the reason written next to the exclusion. Seen 3.

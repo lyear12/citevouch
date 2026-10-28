@@ -11,7 +11,7 @@ issue  ──►  agent reads AGENTS.md + LESSONS.md + docs/code-standards.md
        ──►  reproduces the report as a failing test
        ──►  fixes the class, runs the acceptance criteria
        ──►  opens one commit that names the failing case
-       ──►  CI: tests on 3 OS × 3 Python versions
+       ──►  CI: tests on every OS/version pair where the interpreter exists (8 cells)
        ──►  tag v0.x.y  ──►  release workflow builds, publishes, signs nothing (pure Python)
        ──►  nightly: the day's commits are reviewed, lessons that recur are promoted
 ```
