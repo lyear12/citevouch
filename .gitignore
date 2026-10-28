@@ -1,0 +1,18 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# citevouch's own extraction cache — regenerated from the sources
+.citevouch/cache/
+
+# Demo extraction cache — a 400 KB cache of a checked-in PDF is not evidence
+# anyone needs to read; it is rebuilt from the PDF in one run.
+demo/.citevouch/

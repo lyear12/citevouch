@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "manuscript": "demo/manuscript.md",
+  "manuscript_sha256": "7538ba9bf125ee90d50f723bc2b07aa4e986e5d9975e155a1a57ef6eed56cd4a",
+  "generated_at": "2026-10-28T15:37:53+00:00",
+  "tool_version": "0.1.0",
+  "sources": {
+    "vaneecke2026cxn": {
+      "key": "vaneecke2026cxn",
+      "path": "papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+      "sha256": "c81a100f1f1fba8b3e2674668ce036289f652f5e2ee103b55c27878d02a82ab5",
+      "pages": 14
+    },
+    "vantrijp2022fcgeditor": {
+      "key": "vantrijp2022fcgeditor",
+      "path": "papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+      "sha256": "c81a100f1f1fba8b3e2674668ce036289f652f5e2ee103b55c27878d02a82ab5",
+      "pages": 14
+    }
+  },
+  "entries": {},
+  "claims": [
+    {
+      "id": "cxn-total",
+      "text": "构式总数为 40,688，其中框架触发 9,800、论元结构 22,568、角色集 8,320。",
+      "source": "vaneecke2026cxn",
+      "quote": "The resulting grammar consists of a network of 40,688 constructions, of which 9,800 are frame-\nevoking constructions, 22,568 are argument structure constructions and 8,320 are roleset construc-\ntions.",
+      "numbers": [
+        "40,688",
+        "9,800",
+        "22,568",
+        "8,320"
+      ],
+      "page": 6,
+      "path": "manuscript.md",
+      "line": 9,
+      "ref": "vaneecke2026learning",
+      "quote_fingerprint": "9f47d213223f0aa9"
+    },
+    {
+      "id": "corpus-size",
+      "text": "训练语料合计 154,391 句 / 440,528 个角色集实例。",
+      "source": "vaneecke2026cxn",
+      "quote": "Together, the combined corpus contains 154,391 utterances, annotated with a total of 440,528\nroleset instances.",
+      "numbers": [
+        "154,391",
+        "440,528"
+      ],
+      "page": 6,
+      "path": "manuscript.md",
+      "line": 18,
+      "ref": "vaneecke2026learning",
+      "quote_fingerprint": "a20a7d29c726145d"
+    },
+    {
+      "id": "hapax-share",
+      "text": "48.4% 的构式为 hapax（只出现一次）。",
+      "source": "vaneecke2026cxn",
+      "quote": "we observe that almost half of the constructions of the network (48.4%) occur only once in the\ncorpus",
+      "numbers": [
+        "48.4%"
+      ],
+      "page": 7,
+      "path": "manuscript.md",
+      "line": 26,
+      "ref": "vaneecke2026learning",
+      "quote_fingerprint": "bb168257a7771a45"
+    },
+    {
+      "id": "avg-degree",
+      "text": "网络平均度：论元结构↔角色集 6.35；框架触发↔角色集 1.46；框架触发↔论元结构 5.47。",
+      "source": "vaneecke2026cxn",
+      "quote": "Average degree (argst-roleset): 6.35 Average degree (fe-roleset): 1.46 Average degree (fe-argst): 5.47",
+      "numbers": [
+        "6.35",
+        "1.46",
+        "5.47"
+      ],
+      "page": 14,
+      "path": "manuscript.md",
+      "line": 34,
+      "ref": "vaneecke2026learning",
+      "quote_fingerprint": "1abcf91c3bad5fcc"
+    },
+    {
+      "id": "fcg-editor",
+      "text": "FCG Editor 是工程化计算构式语法的环境。",
+      "source": "vantrijp2022fcgeditor",
+      "quote": "The FCG Editor is an innovative environment for engineering computational construction grammars.",
+      "numbers": [],
+      "path": "manuscript.md",
+      "line": 43,
+      "ref": "vantrijp2022fcgeditor",
+      "quote_fingerprint": "4c20d70f7fb41ded"
+    }
+  ]
+}

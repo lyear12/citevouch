@@ -1,0 +1,8 @@
+# Normalise every text file to LF in the repository and in checkouts.
+#
+# The project is developed on Windows and tested on Linux and macOS, and a
+# manuscript checked out with CRLF changes the SHA-256 the ledger recorded —
+# which would report `ledger-stale` on a clean clone.  Text is LF everywhere;
+# the PDF fixtures are binary and must not be touched.
+* text=auto eol=lf
+*.pdf binary
