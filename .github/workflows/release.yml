@@ -75,7 +75,15 @@ jobs:
           cd /tmp/smoke && /tmp/clean/bin/citevouch verify manuscript.md
 
       - name: Publish to PyPI
+        id: pypi
         uses: pypa/gh-action-pypi-publish@release/v1
+        # PyPI publication needs a trusted publisher registered on pypi.org for
+        # this repository, which is an account action this workflow cannot take
+        # for itself. It is therefore allowed to fail without failing the
+        # release: the GitHub release carries the same artefacts and is the
+        # distribution that always works. The step *after* this one records
+        # which of the two happened, so "PyPI is not set up yet" is visible in
+        # the run instead of being swallowed by continue-on-error.
         continue-on-error: true
 
       - name: Create the release
@@ -96,5 +104,14 @@ jobs:
       - name: Summarise
         run: |
           echo "### Released ${{ steps.v.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.pypi.outcome }}" = "success" ]; then
+            echo "PyPI: published." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "PyPI: **not published** (the trusted publisher is not registered for" \
+                 "this repository yet). The GitHub release below carries the same wheel" \
+                 "and sdist: \`pip install citevouch\` does not work until PyPI is set up." \
+                 >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
           ls -la dist >> "$GITHUB_STEP_SUMMARY"

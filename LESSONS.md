@@ -252,3 +252,22 @@ tested, while the badge and the docs went on saying "3 OS × 3 Python versions".
 local cache`. Runs 40723774939 and 40725206004: the same cell `queued` from 16:13 and 16:21 until
 cancelled, while `macos-latest` 3.12 and 3.13 started within seconds. Excluded in the matrix with
 the reason written next to the exclusion. Seen 3.
+
+---
+
+## continue-on-error is not "ignore this, it is fine" - it is "check the outcome"
+
+**Rule.** A step with `continue-on-error: true` needs a later step that reads `steps.<id>.outcome`
+and says, in the run summary, which of the two things happened. Otherwise the flag does not mean
+"allowed to fail", it means "failure is invisible".
+
+**Why.** The first release reported success and the PyPI step reported success, while PyPI had in
+fact rejected the upload: no trusted publisher is registered for the repository, so the OIDC token
+had no claim set to match. The run said green, the step said green, and `pip install citevouch`
+returned 404. A release pipeline whose only observable difference between published and not
+published is a green check mark is a pipeline that cannot be trusted about the one thing it does.
+
+**Evidence.** Run 40728041391, step 9: `##[end-action id=__pypa_gh-action-pypi-publish.__self;
+outcome=failure;conclusion=failure]` while the job's own conclusion was `success`. `curl
+https://pypi.org/pypi/citevouch/json` -> 404. The step now carries `id: pypi` and the summary step
+branches on `steps.pypi.outcome`, naming the missing trusted publisher. Seen 1.

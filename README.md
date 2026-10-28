@@ -65,9 +65,16 @@ usage errors. That means a CI job needs no wrapper logic.
 
 ## Install
 
+Not on PyPI yet — the release workflow publishes there once a trusted publisher is registered for
+this repository, and reports whether it did. Until then, install from GitHub:
+
 ```bash
-pip install citevouch          # requires Python 3.10+
+pip install "git+https://github.com/lyear12/citevouch@v0.1.0"
+# or, from a clone:
+pip install .
 ```
+
+Requires Python 3.10+.
 
 PDF text extraction uses [pypdf](https://pypi.org/project/pypdf/); if `pdftotext` (poppler) is on
 `PATH` it is used as a second engine, and plain-text sources work with no dependency at all.
@@ -134,9 +141,12 @@ Fenced blocks (above), HTML comments, and table rows. Pick whichever survives yo
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: pip install citevouch
+- run: pip install "git+https://github.com/lyear12/citevouch@v0.1.0"
 - run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
 ```
+
+Once PyPI publication is set up, the first line shortens to `pip install citevouch`; pinning the tag
+is the safer form for a gate anyway, because a floating install can change the verdict under you.
 
 `--use-recorded` verifies the committed ledger instead of re-deriving it, so the job fails only when
 the PDFs or the manuscript moved underneath the evidence — which is exactly what you want a gate to
