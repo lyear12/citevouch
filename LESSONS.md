@@ -15,9 +15,11 @@ command output that produced it.
 
 ## Reading this file
 
-Newest first. When a lesson stops being possible — because the code moved or the rule became a
-test — delete it and say which test replaced it. A lesson that no longer maps to code is worse than
-no lesson, because the next agent will follow it somewhere it does not apply.
+Oldest first: the lessons from the first build are at the top and each new one is appended, so the
+bottom of this file is the most recent thing learned. When a lesson stops being possible — because
+the code moved or the rule became a test — delete it and say which test replaced it. A lesson that
+no longer maps to code is worse than no lesson, because the next agent will follow it somewhere it
+does not apply.
 
 ---
 
@@ -138,3 +140,61 @@ every agent this must stay true. Seen 1.
 **Evidence.** `no ledger at citevouch.lock.json; run \`citevouch scan\` first` and
 `manuscript.md changed since the ledger was written; run \`citevouch scan\` to re-record the
 evidence` both carry their own next step. Seen 1.
+
+---
+
+## A dependency you did not declare is a platform you did not port to
+
+**Rule.** When the package claims `requires-python = ">=3.10"`, every stdlib import that is newer
+than 3.10 needs a fallback or a test that runs the fallback, and the local interpreter is not
+evidence of either.
+
+**Why.** The developer machine runs one Python. A support floor that is only exercised on the
+newest interpreter is a claim, not a property. The failure is doubly quiet here: the missing
+`tomllib` was caught with a bare `except ImportError: continue`, so instead of an error the
+manifest was dropped and every claim came back `source-missing` — a plausible-looking verdict
+produced by a code path that never ran.
+
+**Evidence.** Run 40718071365: all six 3.10 and 3.13 jobs on Windows passed, both 3.10 jobs on
+Linux and macOS failed, and the 3.12 jobs passed — which looks like a flaky platform and is
+actually a version. Log lines: `[high] source-missing at m.md:1 (c1): claim c1 names source='p' but
+no file matches it` and `KeyError: 'smith2026cxn'`. The fix is `_mini_toml` in
+`sources.py`, plus `test_the_manifest_subset_reads_sources_toml_without_tomllib`, which runs the
+fallback on 3.14 so the next breakage is not invisible until CI. Seen 1.
+
+---
+
+## A step that has never passed is not a step that passes
+
+**Rule.** When a job fails, read the whole job, not the first failing step. A green step above a
+red one may itself be new.
+
+**Why.** The acceptance job hid two independent defects behind one failure. Fixing the first
+revealed the second, and each looked like "the same broken job" from the outside. The second one —
+the offline step needing pytest, which the job never installed — had never run to success in the
+job's lifetime, so its absence from the dependency list had never cost anything before.
+
+**Evidence.** Run 40719079624: `init-demo succeeds` and `the demo still says no to the wrong paper`
+both passed on Linux (`demo acceptance OK: {'checked': 5, 'verified': 4, 'moved': 0,
+'missing': 1, ...}`), and the job still went red on `offline` with
+`/opt/hostedtoolcache/Python/3.12.15/x64/bin/python: No module named pytest`. Run 40719532303 is
+the first green acceptance. Seen 1.
+
+---
+
+## A workflow is code, and it is the least reviewed code in the repository
+
+**Rule.** Assertions inside a CI step get the same treatment as assertions in a test: no heredocs
+inside YAML block scalars, no assumptions about the working directory a previous step left behind,
+and a failure message that says what the expected value was.
+
+**Why.** The acceptance assertion was a `<<'PY'` heredoc nested in a literal block, quoted
+f-strings inside YAML quoting, and a `cd` into a temp directory two steps earlier. None of it
+failed at authoring time, because nothing runs a workflow until it runs on GitHub. The cost of a
+wrong assertion here is worse than in a test: it fails in the one place that gates a release.
+
+**Evidence.** The first version of `the demo still says no to the wrong paper` passed a
+`claim_id` list through an f-string with escaped quotes inside a YAML block; it was replaced by a
+single-line `python -c` with an explicit expected value in the error message. The `init-demo`
+step also called `verify` without recording a ledger first and reported
+`no ledger at citevouch.lock.json; run \`citevouch scan\` first`. Seen 1.

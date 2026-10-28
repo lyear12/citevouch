@@ -1,0 +1,71 @@
+name: Something verified when it should not have, or failed when it should not have
+description: A claim that came back the wrong verdict, or a command that crashed.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most reports here are one of two kinds: a quote that verify said was missing but you
+        can see on the page, or a quote it said was found but you know is not there. Both are
+        bugs, and both become a test before anything else happens.
+
+        Please keep it to a size that can be committed as a fixture. A three-line manuscript
+        plus a one-page source reproduces nearly everything.
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The command and its exit code
+      description: Copy the line you ran and the code it returned. The exit code is the verdict.
+      render: shell
+      placeholder: |
+        $ citevouch verify manuscript.md
+        ...
+        exit 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: The finding codes you got, and the ones you expected
+      description: Codes, not prose. `quote-moved` instead of "it found it on the wrong page".
+      placeholder: |
+        got:      quote-missing (high)
+        expected: quote-found at page 12
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: The smallest manuscript and source that reproduce it
+      description: |
+        If the source is not something you can share, say what shape it is instead: how many
+        pages, whether it was produced by LaTeX, whether the page numbers are printed or counted.
+        Extraction problems and matching problems look identical from outside and are fixed in
+        different files.
+      render: markdown
+      placeholder: |
+        ```claim id=c1 source=p page=1
+        quote: |
+          the sentence that misbehaves
+        ```
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: citevouch version and how it read the PDF
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I have read the three documents an agent will read before touching this (AGENTS.md, LESSONS.md, docs/code-standards.md).
+        - label: This is not a report about a quote I have not actually looked at on the page.
+          required: true
