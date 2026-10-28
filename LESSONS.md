@@ -198,3 +198,37 @@ wrong assertion here is worse than in a test: it fails in the one place that gat
 single-line `python -c` with an explicit expected value in the error message. The `init-demo`
 step also called `verify` without recording a ledger first and reported
 `no ledger at citevouch.lock.json; run \`citevouch scan\` first`. Seen 1.
+
+---
+
+## A scaffold that stops one step short is a broken first run
+
+**Rule.** When the documented first command produces a project, the documented second command must
+succeed on it. Write the acceptance criterion as the pair, not as the first one alone.
+
+**Why.** The same missing `scan` reached four places: the acceptance job, the release smoke test,
+the README's 60-second section, and `init-demo`'s own idea of "done". Each was fixed separately
+before anyone noticed they were one bug, because each looked like a workflow or a documentation
+problem rather than a defect in the command. The class is "the scaffold and the consumer disagree
+about what state the project is in", and it belongs to whoever writes the scaffold.
+
+**Evidence.** `citevouch init-demo my-paper && cd my-paper && citevouch verify manuscript.md`
+printed `citevouch: no ledger at citevouch.lock.json; run \`citevouch scan\` first` and exited 2 —
+the README's own example, failing. `cmd_init_demo` now records the ledger and then verifies, and
+`test_init_demo_writes_a_project_that_the_documented_next_command_accepts` runs the pair. Seen 1.
+
+---
+
+## A command with no test is a command nobody has run
+
+**Rule.** Every CLI verb gets at least one test that runs it end to end and asserts the exit code.
+
+**Why.** `init-demo` was the one verb with no test, and it was the one verb that was wrong in three
+different ways (no ledger, no test coverage of the refusal path, and a "wrote ..." message that
+described files it had not finished making useful). Coverage is not the goal; the goal is that a
+verb whose job is "leave the user in a working state" has somebody checking what state it leaves.
+
+**Evidence.** `grep -rn "init-demo\|init_demo" tests/` returned nothing before this commit, while
+`tests/test_cli.py` covered scan, verify, check, report, formats, exit codes, and error paths.
+Now `test_init_demo_writes_a_project_that_the_documented_next_command_accepts` and
+`test_init_demo_refuses_a_directory_that_already_has_something`. Seen 1.

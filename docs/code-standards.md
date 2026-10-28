@@ -59,10 +59,14 @@ A change is not done until all of these have been run and passed. Run them; do n
    ```bash
    python -m venv .venv && .venv/Scripts/pip install -e . && .venv/Scripts/citevouch --version
    ```
-4. **The documented first run works from a clean directory:**
+4. **The documented first run works from a clean directory**, including the command the README
+   shows next:
    ```bash
-   python -m citevouch init-demo /tmp/cv-acceptance && rm -rf /tmp/cv-acceptance
+   cd "$(mktemp -d)" && python -m citevouch init-demo cv-acceptance \
+     && cd cv-acceptance && python -m citevouch verify manuscript.md
    ```
+   Expected: `1 claim — 1 verified`, exit 0. A scaffold that leaves the user on a project where
+   the next documented command fails is a broken first run, not a scaffold plus a missing step.
 5. **The real demo still says exactly what it should:**
    ```bash
    PYTHONPATH=src python -m citevouch verify demo/manuscript.md --root demo

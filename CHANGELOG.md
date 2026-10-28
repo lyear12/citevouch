@@ -26,8 +26,9 @@ two real PDFs before the version number was written down.
 - **`check`** — scan and verify in one pass, with `--use-recorded` for CI so the job never mutates
   the checkout.
 - **`report`** — re-renders a committed ledger as a table without touching the sources.
-- **`init-demo`** — writes a working example project and verifies it, so the first command a new
-  user runs ends in a summary rather than a list of parse errors.
+- **`init-demo`** — writes a working example project, records its ledger, and verifies it, so the
+  first command a new user runs ends in a summary rather than a list of parse errors, and the
+  next command the README shows already has something to read.
 - **BibTeX reader** — comments, `@string` macros, `#` concatenation, nested braces, quoted values,
   duplicate keys, empty required fields. No dependency on an external BibTeX library.
 - **Three text extractors** — `pypdf`, `pdftotext`, and plain text, with an on-disk content-addressed

@@ -199,33 +199,38 @@ def cmd_init_demo(args: argparse.Namespace) -> int:
     """Scaffold a project that passes, so the first run is not a wall of errors.
 
     Every tool that starts with an empty screen asks its user to guess the
-    format.  `init-demo` writes the three files the format consists of, then
-    runs the verifier over them so the first thing the user sees is a green
-    summary and the shape of a correct claim block.
+    format.  `init-demo` writes the files the format consists of, records the
+    ledger, then runs the verifier over them so the first thing the user sees is
+    a green summary and the shape of a correct claim block.
+
+    Recording is part of scaffolding, not a second step the user has to
+    discover: `verify` reads a ledger, so a scaffold that stops before writing
+    one hands the user a project where the documented next command fails with
+    "no ledger".  That exact failure reached the README, the acceptance job and
+    the release smoke test before it was fixed here.
     """
     target = Path(args.directory)
     if target.exists() and any(target.iterdir()):
         _emit(f"citevouch: {target} is not empty; refusing to overwrite\n", sys.stderr)
         return 2
     target.mkdir(parents=True, exist_ok=True)
-    (target / "manuscript.md").write_text(DEMO_MANUSCRIPT, encoding="utf-8")
+    manuscript = target / "manuscript.md"
+    manuscript.write_text(DEMO_MANUSCRIPT, encoding="utf-8")
     (target / "sources.toml").write_text(
         '[sources]\ndemo_source = "demo_source.txt"\n', encoding="utf-8"
     )
     (target / "demo_source.txt").write_text(DEMO_SOURCE, encoding="utf-8")
-    _emit(f"citevouch: wrote {target / 'manuscript.md'}, sources.toml, demo_source.txt\n")
-    result = main(
-        [
-            "check",
-            str(target / "manuscript.md"),
-            "--root",
-            str(target),
-        ]
+    _emit(
+        f"citevouch: wrote {manuscript}, sources.toml, demo_source.txt\n",
     )
+    recorded = main(["scan", str(manuscript), "--root", str(target), "--quiet"])
+    if recorded != 0:
+        return recorded
+    result = main(["verify", str(manuscript), "--root", str(target)])
     if result == 0:
         _emit(
             "\nNext: replace demo_source.txt with a real PDF, point sources.toml at it,"
-            " and run `citevouch scan`.\n"
+            " and run `citevouch scan` to record the new evidence.\n"
         )
     return result
 

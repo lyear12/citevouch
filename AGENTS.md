@@ -54,7 +54,7 @@ A change is done when all of the following hold. Run them; do not assume.
 ```bash
 python -m pytest -q                                  # all tests
 python -m venv .venv && .venv/bin/pip install -e .   # the package installs
-python -m citevouch init-demo /tmp/x && rm -rf /tmp/x  # the documented first run works
+python -m citevouch init-demo /tmp/x && cd /tmp/x && python -m citevouch verify manuscript.md  # the documented first run works
 ```
 
 and, for anything touching matching, extraction, or normalization:

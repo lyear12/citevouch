@@ -76,8 +76,13 @@ PDF text extraction uses [pypdf](https://pypi.org/project/pypdf/); if `pdftotext
 
 ```bash
 citevouch init-demo my-paper      # scaffold a project that already passes
-cd my-paper && citevouch verify manuscript.md
+cd my-paper
+citevouch verify manuscript.md    # "1 claim — 1 verified"
 ```
+
+`init-demo` writes the three files *and* records the ledger, so the project it hands you is already
+in the state `verify` reads. When you replace the demo source with a real PDF, `citevouch scan`
+records the new evidence, and `verify` is what you run after that — and in CI.
 
 By hand, three files:
 

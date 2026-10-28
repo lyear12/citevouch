@@ -68,12 +68,10 @@ jobs:
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install dist/*.whl
           cd /tmp && /tmp/clean/bin/citevouch --version
-          # init-demo checks but does not record, and verify reads a ledger.
-          # The order below is the one the README documents; running verify
-          # straight after init-demo fails with "no ledger", which is exactly
-          # what the acceptance job did before it was fixed.
+          # init-demo records the ledger, so verify is the whole smoke test:
+          # if the packaged console script cannot scaffold and then check its
+          # own scaffold, the wheel is not installable in any useful sense.
           cd /tmp && /tmp/clean/bin/citevouch init-demo smoke
-          cd /tmp/smoke && /tmp/clean/bin/citevouch scan manuscript.md
           cd /tmp/smoke && /tmp/clean/bin/citevouch verify manuscript.md
 
       - name: Publish to PyPI

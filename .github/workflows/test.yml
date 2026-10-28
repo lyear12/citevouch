@@ -66,10 +66,9 @@ jobs:
         run: |
           cd "$(mktemp -d)"
           python -m citevouch init-demo my-paper
-          # init-demo checks but does not record; verification reads a ledger,
-          # so record one the way the README says to.
+          # init-demo records the ledger too, so the README's next command is
+          # the only thing this step needs to run.
           cd my-paper
-          python -m citevouch scan manuscript.md
           python -m citevouch verify manuscript.md
 
       # The committed demo has exactly one deliberate failure. A greener run

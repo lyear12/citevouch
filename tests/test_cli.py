@@ -215,3 +215,30 @@ def test_a_console_that_cannot_encode_the_manuscript_still_reports(tmp_path: Pat
     # Chinese finding re-encoded to the local codepage is unreadable to them.
     assert "【原文】".encode() in payload
     assert b"claim-without-evidence" in payload
+
+
+def test_init_demo_writes_a_project_that_the_documented_next_command_accepts(tmp_path):
+    # The first command in the README has to lead somewhere. init-demo once
+    # stopped after writing the files, so `verify` - the command the README
+    # shows next - failed with "no ledger". That reached the README, the
+    # acceptance job and the release smoke test before a test existed here.
+    target = tmp_path / "my-paper"
+    assert main(["init-demo", str(target)]) == 0
+    assert (target / "citevouch.lock.json").is_file(), "init-demo must record a ledger"
+
+    # standing in the new directory, exactly as the README has the user do
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.chdir(target)
+        assert main(["verify", "manuscript.md"]) == 0
+    finally:
+        monkeypatch.undo()
+
+
+def test_init_demo_refuses_a_directory_that_already_has_something(tmp_path):
+    target = tmp_path / "my-paper"
+    target.mkdir()
+    (target / "notes.txt").write_text("mine\n", encoding="utf-8")
+    assert main(["init-demo", str(target)]) == 2
+    assert (target / "notes.txt").read_text(encoding="utf-8") == "mine\n"
+    assert not (target / "manuscript.md").exists()
