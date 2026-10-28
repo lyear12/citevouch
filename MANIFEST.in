@@ -1,0 +1,19 @@
+# The sdist ships the tests, so it has to ship what the tests need to run.
+# setuptools' default rules pick up tests/test*.py by name and therefore miss
+# conftest.py, which is where every fixture lives: an sdist built without this
+# line installs a test suite that cannot be collected.
+graft tests
+include LICENSE README.md CHANGELOG.md LESSONS.md AGENTS.md
+recursive-include docs *.md
+recursive-include demo *.md *.toml *.lock.json
+
+# The demo PDFs are real papers included with their licences under
+# demo/papers/README.md. They stay out of the sdist because the demo is part of
+# the repository, not of the installed package, and 650 KB of PDF in a source
+# archive is weight a reader of the source does not need.
+prune demo/papers
+
+# Compiling the test suite leaves bytecode in the tree, and `graft tests` would
+# put interpreter- and version-specific .pyc files into the archive. They are
+# never useful to the person unpacking it.
+global-exclude *.py[cod] __pycache__ .pytest_cache .ruff_cache
