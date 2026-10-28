@@ -9,7 +9,7 @@ Releases are cut by pushing a `v*` tag; `release.yml` refuses to publish if the 
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-10-28
+## [0.1.0] — 2026-10-29
 
 The first release. Everything below was built and verified against a real 39-entry bibliography and
 two real PDFs before the version number was written down.
