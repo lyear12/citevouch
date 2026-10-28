@@ -206,6 +206,91 @@ def _strip_markup(text: str) -> str:
 # Resolving a claim's source= to a file
 
 
+def _mini_toml(text: str) -> dict:
+    """Parse the slice of TOML a sources manifest actually uses.
+
+    Python 3.10 has no :mod:`tomllib`, and ``sources.toml`` is the format the
+    README tells people to write.  A support floor that only holds if the user
+    writes JSON is not a support floor, so the small subset is read here rather
+    than dropping 3.10: ``[section]`` headers, ``key = "value"`` pairs, ``#``
+    comments, and both string quoting styles.  A shape outside that subset
+    raises :class:`ValueError`, which the caller treats exactly like a syntax
+    error from tomllib — the manifest is skipped and filename matching takes
+    over, because that fallback is almost always right.
+
+    This is not a TOML parser and must not grow into one.  If a manifest ever
+    needs dates, arrays, or nested tables, the answer is to require 3.11, not to
+    add features here.
+    """
+    parsed: dict[str, dict[str, str]] = {}
+    section = ""
+    for raw in text.splitlines():
+        line = _strip_toml_comment(raw).strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            name = line[1:-1].strip()
+            if not name or "." in name or name.startswith("["):
+                raise ValueError(f"unsupported table header {line!r}")
+            section = name
+            parsed.setdefault(section, {})
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            raise ValueError(f"expected key = value, got {line!r}")
+        key = key.strip()
+        if not key or key[0] in "\"'":
+            raise ValueError(f"unsupported key {key!r}")
+        parsed.setdefault(section, {})[key] = _toml_string(value.strip())
+    return parsed
+
+
+def _strip_toml_comment(line: str) -> str:
+    """Drop a ``#`` comment, but not one inside a quoted value."""
+    quote = ""
+    for index, char in enumerate(line):
+        if quote:
+            if char == quote and line[index - 1] != "\\":
+                quote = ""
+        elif char in "\"'":
+            quote = char
+        elif char == "#":
+            return line[:index]
+    return line
+
+
+def _toml_string(value: str) -> str:
+    """Read a single- or double-quoted TOML string."""
+    if len(value) < 2 or value[0] not in "\"'" or value[-1] != value[0]:
+        raise ValueError(f"unsupported value {value!r}")
+    body = value[1:-1]
+    if value[0] == "'":
+        return body
+    out: list[str] = []
+    index = 0
+    while index < len(body):
+        char = body[index]
+        if char == "\\" and index + 1 < len(body):
+            escape = body[index + 1]
+            out.append(
+                {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}.get(escape, escape)
+            )
+            index += 2
+            continue
+        out.append(char)
+        index += 1
+    return "".join(out)
+
+
+def _load_toml(text: str) -> dict:
+    """Use the real parser when the interpreter has one, the subset otherwise."""
+    try:
+        import tomllib  # 3.11+, absent on 3.10
+    except ImportError:
+        return _mini_toml(text)
+    return tomllib.loads(text)
+
+
 def load_manifest(root: str | Path) -> dict[str, str]:
     """Read a ``sources`` manifest mapping claim source keys to file paths.
 
@@ -214,9 +299,10 @@ def load_manifest(root: str | Path) -> dict[str, str]:
     * ``sources.json`` — ``{"vaneecke2026": "papers/2026.pdf"}``
     * ``sources.toml`` — ``[sources]`` table, same mapping
 
-    TOML uses :mod:`tomllib` on 3.11+; on 3.10 the JSON form is the way.
-    Unknown or malformed manifests yield an empty mapping rather than an error,
-    because falling back to filename-stem resolution is almost always right.
+    ``sources.toml`` works on 3.10 as well as 3.11+: see :func:`_mini_toml` for
+    why a subset is parsed there.  Unknown or malformed manifests yield an empty
+    mapping rather than an error, because falling back to filename-stem
+    resolution is almost always right.
     """
     root = Path(root)
     for name in MANIFEST_NAMES:
@@ -224,16 +310,13 @@ def load_manifest(root: str | Path) -> dict[str, str]:
         if not path.exists():
             continue
         try:
+            text = path.read_text(encoding="utf-8")
             if name.endswith(".json"):
-                blob = json.loads(path.read_text(encoding="utf-8"))
+                blob = json.loads(text)
                 mapping = blob.get("sources", blob) if isinstance(blob, dict) else {}
-            elif name.endswith((".toml",)):
-                try:
-                    import tomllib
-                except ImportError:
-                    continue
-                blob = tomllib.loads(path.read_text(encoding="utf-8"))
-                mapping = blob.get("sources", {})
+            elif name.endswith(".toml"):
+                blob = _load_toml(text)
+                mapping = blob.get("sources", {}) if isinstance(blob, dict) else {}
             else:
                 continue
         except (OSError, ValueError):

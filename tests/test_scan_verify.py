@@ -303,3 +303,36 @@ def test_missing_manuscript_is_a_usage_error(project: Path):
 
     with pytest.raises(UsageError):
         scan(ScanOptions(manuscript=str(project / "nope.md"), root=str(project)))
+
+
+def test_the_manifest_subset_reads_sources_toml_without_tomllib(project: Path):
+    # Python 3.10 has no tomllib, and sources.toml is what the README tells
+    # people to write.  If the 3.10 fallback silently returned {}, every claim
+    # would come back source-missing there and nowhere else - which is exactly
+    # what CI caught once.  Exercise the fallback on whatever interpreter runs
+    # the suite, so the next breakage shows up here and not only on 3.10.
+    from citevouch.sources import _mini_toml
+
+    text = (
+        "# the sources manifest\n"
+        "[sources]\n"
+        'p = "papers/p.txt"  # trailing comment\n'
+        "q = 'papers/q.txt'\n"
+        'hash = "a#b.txt"\n'
+    )
+    assert _mini_toml(text) == {
+        "sources": {
+            "p": "papers/p.txt",
+            "q": "papers/q.txt",
+            "hash": "a#b.txt",
+        }
+    }
+
+    try:
+        import tomllib
+    except ImportError:
+        expected = None
+    else:
+        expected = tomllib.loads(text)
+    if expected is not None:
+        assert _mini_toml(text) == expected, "the 3.10 fallback drifted from tomllib"

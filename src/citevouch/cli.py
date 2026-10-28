@@ -113,9 +113,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
     payload = _render(findings, ledger, args)
     _emit(payload)
     if not args.dry_run and (args.quiet is False):
-        _emit(f"citevouch: wrote {out} ({len(ledger.claims)} claims)\n", sys.stderr)
+        _emit(f"citevouch: wrote {out} ({_count(len(ledger.claims), 'claim')})\n", sys.stderr)
     elif args.dry_run:
-        _emit(f"citevouch: dry run, {len(ledger.claims)} claims not written\n", sys.stderr)
+        _emit(
+            f"citevouch: dry run, {_count(len(ledger.claims), 'claim')} not written\n",
+            sys.stderr,
+        )
     return _exit_code(findings, args.fail_on)
 
 
@@ -143,13 +146,19 @@ def cmd_check(args: argparse.Namespace) -> int:
     return _exit_code(result.findings, args.fail_on)
 
 
+def _count(count: int, noun: str) -> str:
+    """Write "1 claim" or "5 claims"; the message is read by people."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     ledger = _read_ledger(_ledger_path(args))
     lines = [
         f"# citevouch ledger — {ledger.manuscript}",
         "",
-        f"- records: {len(ledger.claims)} claims against {len(ledger.sources)} sources",
-        f"- bibliography: {len(ledger.entries)} entries",
+        f"- records: {_count(len(ledger.claims), 'claim')} against "
+        f"{_count(len(ledger.sources), 'source')}",
+        f"- bibliography: {_count(len(ledger.entries), 'entry')}",
         f"- written by citevouch {ledger.tool_version} at {ledger.generated_at}",
         "",
         "| claim | source | page | quote |",

@@ -66,7 +66,11 @@ jobs:
         run: |
           cd "$(mktemp -d)"
           python -m citevouch init-demo my-paper
-          cd my-paper && python -m citevouch verify manuscript.md
+          # init-demo checks but does not record; verification reads a ledger,
+          # so record one the way the README says to.
+          cd my-paper
+          python -m citevouch scan manuscript.md
+          python -m citevouch verify manuscript.md
 
       # The committed demo has exactly one deliberate failure. A greener run
       # means matching became more permissive, which is a regression.
@@ -80,17 +84,7 @@ jobs:
             echo "::error::expected exit 1 from the demo (its fcg-editor claim cites the wrong PDF), got $code"
             exit 1
           fi
-          python - <<'PY'
-          import json
-          blob = json.load(open("/tmp/out.json"))
-          codes = [f["code"] for f in blob["findings"]]
-          if "quote-missing" not in codes:
-              raise SystemExit("the deliberate quote-missing is gone; matching got too permissive")
-          missing = [f for f in blob["findings"] if f["code"] == "quote-missing"]
-          if [f.get("claim_id") for f in missing] != ["fcg-editor"]:
-              raise SystemExit(f"unexpected quote-missing claims: {[f.get('claim_id') for f in missing]}")
-          print("demo acceptance OK:", blob["summary"])
-          PY
+          python -c 'import json,sys; b=json.load(open("/tmp/out.json")); m=[f.get("claim_id") for f in b["findings"] if f["code"]=="quote-missing"]; sys.exit("the deliberate quote-missing is gone, or it moved: %r; matching changed" % (m,)) if m!=["fcg-editor"] else print("demo acceptance OK:", b["summary"])'
 
       - name: offline
         run: python -m pytest -q -k "not network"
