@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+"""Decide the next version from the Unreleased section of the changelog.
+
+The release workflow publishes whatever tag it is given; it is deliberately
+ignorant about whether the tag makes sense.  The decision "is there anything to
+release, and what number is it" lives here, where it can be tested, instead of
+in a shell `if` inside YAML that nobody can run locally.
+
+The rules are the pre-1.0 reading of SemVer that this project already writes in
+``docs/maintenance.md``:
+
+* nothing under ``## [Unreleased]``      -> no release (exit code 1, prints nothing)
+* only ``Fixed`` / ``Security`` entries   -> patch   (0.1.0 -> 0.1.1)
+* anything that adds, changes or removes  -> minor   (0.1.0 -> 0.2.0)
+
+Before 1.0.0 every capability change is a minor bump, because "0.x is the API
+still moving" is the promise the README makes.  ``Removed`` and ``Changed`` are
+deliberately *not* patch bumps: a user who has pinned ``0.1.*`` should not
+silently receive a removed feature.
+
+Usage::
+
+    python tools/next_version.py CHANGELOG.md --current 0.1.0
+    python tools/next_version.py CHANGELOG.md --current 0.1.0 --apply --date 2026-10-30
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import re
+import sys
+from pathlib import Path
+
+# Heading -> bump weight.  Higher weight wins when a section has several.
+_WEIGHT = {
+    "added": 2,
+    "changed": 2,
+    "removed": 2,
+    "deprecated": 2,
+    "fixed": 1,
+    "security": 1,
+}
+
+_UNRELEASED = re.compile(r"^## \[Unreleased\][ \t]*$", re.MULTILINE)
+_NEXT_H2 = re.compile(r"^## \[", re.MULTILINE)
+_H3 = re.compile(r"^### (?P<name>[A-Za-z]+)\s*$", re.MULTILINE)
+_BULLET = re.compile(r"^\s*[-*]\s+\S", re.MULTILINE)
+_VERSION = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
+
+
+class ChangelogError(ValueError):
+    """The changelog is not shaped the way this script needs it to be."""
+
+
+def unreleased_body(text: str) -> str:
+    """Return the lines between ``## [Unreleased]`` and the next ``## [`` heading."""
+    start = _UNRELEASED.search(text)
+    if start is None:
+        raise ChangelogError("no '## [Unreleased]' heading")
+    rest = text[start.end() :]
+    nxt = _NEXT_H2.search(rest)
+    return rest[: nxt.start()] if nxt else rest
+
+
+def classify(text: str) -> tuple[str, list[str]]:
+    """Return ``(bump, sections)`` where bump is ``none``, ``patch`` or ``minor``.
+
+    A section counts only if it has at least one bullet: an empty ``### Added``
+    heading is a leftover, not a claim that something was added.
+    """
+    body = unreleased_body(text)
+    found: list[str] = []
+    for block in _split_sections(body):
+        name, content = block
+        if _BULLET.search(content):
+            found.append(name)
+
+    weights = [_WEIGHT.get(name.lower(), 0) for name in found]
+    if not found or max(weights, default=0) == 0:
+        return "none", found
+    return ("minor" if max(weights) >= 2 else "patch"), found
+
+
+def _split_sections(body: str) -> list[tuple[str, str]]:
+    matches = list(_H3.finditer(body))
+    out: list[tuple[str, str]] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(body)
+        out.append((match.group("name"), body[match.end() : end]))
+    return out
+
+
+def bump_version(current: str, bump: str) -> str:
+    parsed = _VERSION.match(current.strip())
+    if parsed is None:
+        raise ChangelogError(f"{current!r} is not MAJOR.MINOR.PATCH")
+    major, minor, patch = (int(parsed.group(k)) for k in ("major", "minor", "patch"))
+    if bump == "minor":
+        return f"{major}.{minor + 1}.0"
+    if bump == "patch":
+        return f"{major}.{minor}.{patch + 1}"
+    if bump == "none":
+        return current
+    raise ChangelogError(f"unknown bump {bump!r}")
+
+
+def apply(text: str, new_version: str, date: str) -> str:
+    """Rewrite the changelog: Unreleased becomes ``new_version``, a new empty one is added."""
+    start = _UNRELEASED.search(text)
+    if start is None:
+        raise ChangelogError("no '## [Unreleased]' heading")
+    body = unreleased_body(text)
+    released = body.strip("\n")
+    if not released.strip():
+        raise ChangelogError("refusing to release an empty Unreleased section")
+    replacement = f"## [Unreleased]\n\n## [{new_version}] — {date}\n{released}\n"
+    return text[: start.start()] + replacement + text[start.end() + len(body) :]
+
+
+def set_pyproject_version(text: str, new_version: str) -> str:
+    replaced, count = re.subn(
+        r'(?m)^(?P<indent>\s*)version\s*=\s*"[^"]*"',
+        lambda m: f'{m.group("indent")}version = "{new_version}"',
+        text,
+        count=1,
+    )
+    if count != 1:
+        raise ChangelogError("could not find a top-level version = in pyproject.toml")
+    return replaced
+
+
+def _today() -> str:
+    return _dt.date.today().isoformat()
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("changelog", type=Path)
+    parser.add_argument("--current", required=True, help="current version, e.g. 0.1.0")
+    parser.add_argument("--apply", action="store_true", help="rewrite the changelog in place")
+    parser.add_argument("--pyproject", type=Path, help="also set the version in this file")
+    parser.add_argument("--date", default=_today())
+    parser.add_argument(
+        "--bump", choices=["none", "patch", "minor"], help="override the decision"
+    )
+    args = parser.parse_args(argv)
+
+    text = args.changelog.read_text(encoding="utf-8")
+    bump, sections = classify(text)
+    if args.bump:
+        bump = args.bump
+    new_version = bump_version(args.current, bump)
+
+    if bump == "none":
+        print("no release: the Unreleased section has no entries", file=sys.stderr)
+        return 1
+
+    if args.apply:
+        args.changelog.write_text(apply(text, new_version, args.date), encoding="utf-8")
+        if args.pyproject:
+            args.pyproject.write_text(
+                set_pyproject_version(args.pyproject.read_text(encoding="utf-8"), new_version),
+                encoding="utf-8",
+            )
+
+    print(new_version)
+    print(f"bump: {bump} (from {', '.join(sections) or 'nothing'})", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

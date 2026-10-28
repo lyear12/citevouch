@@ -1,8 +1,8 @@
 # How this project maintains itself
 
 `citevouch` is developed by an AI agent against the rules in [../AGENTS.md](../AGENTS.md), checked
-by CI, and released by pushing a tag. This document is the operational half: who runs what, and
-which failures stop the line.
+by CI, and released by a workflow that decides on its own when to release. This document is the
+operational half: who runs what, and which failures stop the line.
 
 ## The loop
 
@@ -12,13 +12,31 @@ issue  ──►  agent reads AGENTS.md + LESSONS.md + docs/code-standards.md
        ──►  fixes the class, runs the acceptance criteria
        ──►  opens one commit that names the failing case
        ──►  CI: tests on every OS/version pair where the interpreter exists (8 cells)
-       ──►  tag v0.x.y  ──►  release workflow builds, publishes, signs nothing (pure Python)
+       ──►  green on main  ──►  auto-release reads CHANGELOG's Unreleased section
+       ──►  tools/next_version.py picks the number, writes it, commits, tags
+       ──►  release workflow: suite, build, clean-venv smoke test, publish, release notes
        ──►  nightly: the day's commits are reviewed, lessons that recur are promoted
 ```
 
 There is exactly one place where a human is required: someone has to decide that a reported issue is
 worth fixing. Everything after that — reproducing it as a test, the fix, the commit, the version
-bump, the release — is mechanical enough to be a rule.
+bump, the tag, the release — is mechanical enough to be a rule.
+
+## What decides a version
+
+`tools/next_version.py` reads `## [Unreleased]` in `CHANGELOG.md` and applies one table:
+
+| Unreleased contains | bump | why |
+|---|---|---|
+| nothing | no release | an empty section is not a release, and the workflow says so and stops |
+| only `Fixed` / `Security` | patch | behaviour people rely on stopped being wrong |
+| any `Added` / `Changed` / `Removed` / `Deprecated` | minor | before 1.0, "0.x is moving" is the promise; a pinned `0.1.*` must not lose a feature |
+| a section name this table does not know | no release | an unrecognised name is a mistake in the changelog, not a licence to ship |
+
+The workflow does not ask whether releasing is a good idea. If the changelog says something
+changed, something changed, and the release is the thing that tells users. What guards the release
+is not a person's judgement but `release.yml`, which runs the whole suite on the exact commit before
+it publishes anything.
 
 ## What CI enforces
 
@@ -27,7 +45,8 @@ bump, the release — is mechanical enough to be a rule.
 | `test` | any test fails, on any of the matrix cells |
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
-| `release` | the tag does not match `pyproject.toml` |
+| `auto-release` | the changelog says release but the decided version changes no files, or the tag already exists |
+| `release` | the tag does not match `pyproject.toml`, or the suite is red, or the built wheel cannot scaffold a project and verify it |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a
@@ -63,9 +82,17 @@ the file, so an interrupted review resumes instead of starting over.
 - `0.2.x` — new codes and capability. Additive; an old ledger still verifies.
 - `1.0.0` — the finding codes and the ledger schema are treated as stable API.
 
-A release is a tag. `release.yml` publishes to PyPI, attaches the sdist and wheel, and copies the
-release notes from the commit range. If the tag and `pyproject.toml` disagree, the release fails
-before publishing, not after.
+The numbers in that table are the version policy; the table in "What decides a version" is how the
+policy is executed. They have to agree: when `0.1.x` is declared fixes-only, a `Changed` entry in
+the changelog must produce `0.2.0`, and `tools/next_version.py` is where that promise is enforced
+rather than remembered.
+
+A release is a tag, and since the auto-release workflow exists, usually nobody types it. The release
+workflow still accepts a hand-pushed tag and a `workflow_dispatch` with an explicit version, because
+the machine that decides versions can be wrong and the fix for a wrong version is a person pushing
+the right one. It attaches the sdist and wheel, publishes to PyPI when a trusted publisher is
+configured, and copies the release notes from the commit range. If the tag and `pyproject.toml`
+disagree, the release fails before publishing, not after.
 
 ## Reporting a problem
 

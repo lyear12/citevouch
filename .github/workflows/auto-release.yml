@@ -1,0 +1,163 @@
+name: Auto release
+
+# Nothing here asks a human whether to release. When the Test workflow finishes
+# green on main, this job reads the Unreleased section of CHANGELOG.md, decides
+# the next version, writes it into CHANGELOG.md and pyproject.toml, commits,
+# tags, and hands the tag to release.yml. If Unreleased is empty it does nothing
+# and says so - "no release today" is a normal outcome, not a failure.
+#
+# The decision itself lives in tools/next_version.py, which has tests, because
+# a version number is the one thing this project publishes that cannot be
+# withdrawn afterwards.
+#
+# A note on recursion: events caused by GITHUB_TOKEN do not start new workflow
+# runs. The version-bump commit and the tag push therefore do not re-trigger
+# Test (no loop), and they would not trigger release.yml either - which is why
+# the release is invoked directly below through workflow_call instead of being
+# left to the tag push.
+#
+# A note on the untested commit: because of the same rule, the version-bump
+# commit never runs Test. That is not a hole - release.yml runs the whole suite
+# itself, on that exact commit, before it builds anything, and a red suite there
+# means the tag exists but nothing is published. The tag is cheap; the release
+# is guarded.
+
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+  actions: read
+
+jobs:
+  decide:
+    name: decide whether to release
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      released: ${{ steps.plan.outputs.released }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read the version that is already declared
+        id: current
+        run: |
+          version=$(python -c "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "declared version: $version"
+
+      - name: Decide the next version
+        id: plan
+        run: |
+          set +e
+          next=$(python tools/next_version.py CHANGELOG.md \
+                   --current "${{ steps.current.outputs.version }}" \
+                   --apply --pyproject pyproject.toml \
+                   --date "$(date -u +%F)")
+          status=$?
+          set -e
+          if [ "$status" -eq 1 ]; then
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::nothing under [Unreleased] - no release this time"
+            echo "### No release" >> "$GITHUB_STEP_SUMMARY"
+            echo "The Unreleased section of CHANGELOG.md is empty, so nothing was tagged." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::error::next_version.py exited $status"
+            exit "$status"
+          fi
+          echo "released=true" >> "$GITHUB_OUTPUT"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "::notice::releasing $next"
+
+      - name: Refuse a release that changes no files
+        if: steps.plan.outputs.released == 'true'
+        run: |
+          # next_version.py rewrites two files by construction. If it did not,
+          # something is wrong with the script rather than with the changelog,
+          # and committing nothing and pushing a tag would release old code
+          # under a new number.
+          if git diff --quiet; then
+            echo "::error::decided to release ${{ steps.plan.outputs.version }} but changed nothing"
+            exit 1
+          fi
+          git diff --stat
+
+      - name: Commit the version bump
+        if: steps.plan.outputs.released == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          git config user.name "citevouch release"
+          git config user.email "release@users.noreply.github.com"
+          git add CHANGELOG.md pyproject.toml
+          git commit -m "Release $VERSION
+
+          The Unreleased section of CHANGELOG.md was not empty, so this is the
+          release it described: tools/next_version.py chose the number, moved
+          the entries under a dated heading, and set pyproject.toml to match.
+
+          Not tried: nothing to try by hand; the workflow that runs after this
+          is the test of it.
+          Broken by hand: none.
+          Run: python -m pytest -q (on the workflow that triggered this)."
+          git push origin HEAD:main
+
+      - name: Tag it
+        if: steps.plan.outputs.released == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::tag $tag already exists"
+            exit 1
+          fi
+          git tag -a "$tag" -m "citevouch $VERSION" \
+            -m "Tagged automatically from the CHANGELOG's Unreleased section."
+          git push origin "$tag"
+
+      - name: Summarise
+        if: steps.plan.outputs.released == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          {
+            echo "### Releasing v$VERSION"
+            echo ""
+            echo "Chosen by \`tools/next_version.py\` from the Unreleased section of CHANGELOG.md."
+            echo "The build, tests and publication are in the *release* workflow run started below."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: publish the tag
+    needs: decide
+    if: needs.decide.outputs.released == 'true'
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.decide.outputs.version }}

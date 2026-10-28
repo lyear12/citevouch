@@ -5,6 +5,12 @@ name: Release
 # wheel, checks the built wheel in a clean environment, and only then creates
 # the release. There is no step where a human confirms — the tag *is* the
 # confirmation, and the failure modes below are cheap to re-run.
+#
+# It can be started three ways: by a tag push (a person, or a script, decided to
+# release), by `workflow_dispatch` (a person naming the version), or by
+# `workflow_call` from auto-release.yml, which is the usual path: that workflow
+# reads the changelog, decides the number, commits it, tags it, and calls this
+# one to build it.
 
 on:
   push:
@@ -14,6 +20,12 @@ on:
       version:
         description: "version to release, e.g. 0.1.4 (no leading v)"
         required: true
+  workflow_call:
+    inputs:
+      version:
+        description: "version to release, e.g. 0.1.4 (no leading v)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -35,9 +47,10 @@ jobs:
       - name: Resolve the version
         id: v
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ github.event.inputs.version }}"
-          else
+          # `inputs.version` covers both workflow_dispatch and workflow_call;
+          # a tag push has no inputs, and the tag is the version.
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then
             version="${GITHUB_REF_NAME#v}"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"

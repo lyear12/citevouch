@@ -44,8 +44,28 @@ easier to record but easier to fake, it is the wrong change.
 | `src/citevouch/verify.py` | ledger + files on disk → findings |
 | `src/citevouch/report.py` | text, JSON, SARIF, Markdown renderers |
 | `src/citevouch/cli.py` | argument parsing, exit codes, `init-demo` |
+| `tools/next_version.py` | reads `## [Unreleased]`, decides the next version, rewrites the changelog |
+| `.github/workflows/test.yml` | the gate: 8 matrix cells, lint, acceptance, offline |
+| `.github/workflows/auto-release.yml` | green main → decides a version → commits, tags, calls release |
+| `.github/workflows/release.yml` | tag → suite, build, clean-venv smoke test, publish, release notes |
 
 A behavior change that crosses two of these rows is usually a design change. Say so in the commit.
+
+## How a release happens
+
+You do not tag releases and you do not bump the version in `pyproject.toml`. You write what changed
+under `## [Unreleased]` in `CHANGELOG.md`, using a Keep-a-Changelog heading (`Added`, `Changed`,
+`Fixed`, `Security`, `Removed`, `Deprecated`), and you leave the numbers alone. When the change lands
+and CI is green on `main`, `auto-release.yml` runs `tools/next_version.py`, which reads what you
+wrote and picks the number: `Fixed`/`Security` alone is a patch, anything else is a minor, an empty
+section is no release at all.
+
+Two consequences worth knowing before you write the entry:
+
+- **The section you choose is the version you ship.** A `Changed` entry makes `0.2.0`; putting a
+  behaviour change under `Fixed` to keep the number small is how a pinned `0.1.*` breaks.
+- **A heading the script does not recognise releases nothing.** If you invent a heading, the work
+  sits in Unreleased and no version comes out. Use the six names above.
 
 ## Acceptance criteria
 

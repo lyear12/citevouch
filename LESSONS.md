@@ -271,3 +271,37 @@ published is a green check mark is a pipeline that cannot be trusted about the o
 outcome=failure;conclusion=failure]` while the job's own conclusion was `success`. `curl
 https://pypi.org/pypi/citevouch/json` -> 404. The step now carries `id: pypi` and the summary step
 branches on `steps.pypi.outcome`, naming the missing trusted publisher. Seen 1.
+
+---
+
+## A version number is the one thing you cannot withdraw
+
+**Rule.** Decide versions in code with tests, not in a shell `if` inside YAML. `tools/next_version.py`
+is the only thing allowed to pick a number, and its table is the version policy written once.
+
+**Why.** A package published to a registry under a wrong number cannot be deleted, only superseded,
+and every user who pinned it keeps the mistake. The changelog already said what changed; the only
+real decision left is whether a `Changed` entry may ride in on a patch. It may not, and that belongs
+in a table with a test per row rather than in a run's shell output at 3am.
+
+**Evidence.** Before this, the only thing connecting a changelog entry to a number was a person
+reading it. The release workflow refuses a tag that disagrees with `pyproject.toml`, which catches a
+typo, not a wrong judgement — `0.1.1` containing a removed feature is a perfectly consistent pair of
+files. Seen 1.
+
+---
+
+## A workflow that can release must also be able to say "not today"
+
+**Rule.** The automatic path needs a first-class "nothing to do" outcome, with an exit code and a
+summary line, distinct from failure. `next_version.py` exits 1 for "no entries", the workflow turns
+that into a notice and a green run, and only a nonzero exit that is not 1 fails.
+
+**Why.** The common case is that four pushes in a day contain one release and three non-releases.
+If "nothing to do" reads as failure, the workflow is red most of the time, and a permanently red
+workflow is one people stop reading — which is how the PyPI failure went unnoticed in the first
+place.
+
+**Evidence.** The first attempt at this file would have failed the run on an empty Unreleased
+section. `test_cli_says_nothing_to_release_and_exits_one` pins the exit code, and the workflow's
+`if [ "$status" -eq 1 ]` branch is the only place that mapping is allowed to be spelled. Seen 1.
