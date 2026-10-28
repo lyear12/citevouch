@@ -68,7 +68,13 @@ jobs:
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install dist/*.whl
           cd /tmp && /tmp/clean/bin/citevouch --version
-          cd /tmp && /tmp/clean/bin/citevouch init-demo smoke && cd smoke && /tmp/clean/bin/citevouch verify manuscript.md
+          # init-demo checks but does not record, and verify reads a ledger.
+          # The order below is the one the README documents; running verify
+          # straight after init-demo fails with "no ledger", which is exactly
+          # what the acceptance job did before it was fixed.
+          cd /tmp && /tmp/clean/bin/citevouch init-demo smoke
+          cd /tmp/smoke && /tmp/clean/bin/citevouch scan manuscript.md
+          cd /tmp/smoke && /tmp/clean/bin/citevouch verify manuscript.md
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -80,9 +86,13 @@ jobs:
         run: |
           tag="${{ steps.v.outputs.tag }}"
           notes=$(git log --pretty=format:'- %s' -n 40 "HEAD" -- . | head -60)
+          # --target keeps the workflow_dispatch path working: dispatching for a
+          # version whose tag does not exist yet is the normal way to release,
+          # and `gh release create` without a target fails on a missing tag.
           gh release create "$tag" dist/* \
             --title "$tag" \
             --notes "$notes" \
+            --target "$GITHUB_SHA" \
             || gh release upload "$tag" dist/* --clobber
 
       - name: Summarise
