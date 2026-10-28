@@ -11,6 +11,7 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-28
 ### Changed
 
 - A release that could not publish to PyPI now says so in the run summary instead of reporting a
@@ -30,7 +31,6 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 - A source path is recorded in the ledger relative to `--root` and with forward slashes, so a
   ledger committed on Windows verifies on Linux.
 - The acceptance job installs `pytest` instead of assuming a test runner is present.
-
 ## [0.1.0] — 2026-10-29
 
 The first release. Everything below was built and verified against a real 39-entry bibliography and
