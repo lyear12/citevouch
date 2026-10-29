@@ -11,6 +11,7 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-10-29
 ### Fixed
 
 - The nightly dogfood picks the newest release by version number instead of
@@ -18,7 +19,6 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
   release (as happened for real when the v0.2.1 artefacts were backfilled)
   pointed the nightly at a superseded wheel and would have reported it as
   fresh. Reading a stale pointer to test staleness defeats the check.
-
 ## [0.4.0] — 2026-10-29
 ### Added
 
@@ -140,7 +140,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/lyear12/citevouch/releases/tag/v0.4.1
 [0.4.0]: https://github.com/lyear12/citevouch/releases/tag/v0.4.0
 [0.3.0]: https://github.com/lyear12/citevouch/releases/tag/v0.3.0
 [0.2.2]: https://github.com/lyear12/citevouch/releases/tag/v0.2.2

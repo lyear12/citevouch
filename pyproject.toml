@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "citevouch"
-version = "0.4.0"
+version = "0.4.1"
 description = "Bind every claim in a manuscript to the page of the local PDF that proves it, and fail CI when that evidence drifts."
 readme = "README.md"
 requires-python = ">=3.10"
