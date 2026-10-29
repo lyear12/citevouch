@@ -1,0 +1,88 @@
+name: Nightly dogfood
+
+# The nightly half of docs/maintenance.md's loop. The push CI proves the
+# repository is good; this proves the thing people actually install - the
+# wheel of the latest release, from GitHub's servers, in an environment nobody
+# has cached - still does the documented commands with the documented results.
+#
+# It opens an issue when it fails, because a red scheduled run nobody reads is
+# how drift becomes permanent. The issue is the feedback the maintenance loop
+# consumes; closing it is a person deciding the report was worth fixing, which
+# is the one human step docs/maintenance.md reserves.
+
+on:
+  schedule:
+    # 06:17 UTC daily - off the hour so the fleet of nightly jobs does not
+    # all queue at the same minute.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  latest-release:
+    name: install and run the newest published artefacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Find the latest release
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --json tagName --jq .tagName)
+          url=$(gh release view --json assets --jq '.assets[] | select(.name|endswith(".whl")) | .url' | head -1)
+          if [ -z "$tag" ] || [ -z "$url" ]; then
+            echo "::error::no latest release with a wheel"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "testing $tag"
+
+      - name: Install the wheel in a clean environment and dogfood it
+        id: run
+        run: |
+          python -m venv /tmp/dogfood
+          /tmp/dogfood/bin/pip install "${{ steps.rel.outputs.url }}"
+          cd "$(mktemp -d)"
+          /tmp/dogfood/bin/citevouch --version
+          /tmp/dogfood/bin/citevouch init-demo paper
+          cd paper
+          /tmp/dogfood/bin/citevouch verify manuscript.md
+          # The documented first-run promise: one claim, verified, exit 0.
+          /tmp/dogfood/bin/citevouch verify manuscript.md --format json | python -c '
+          import json,sys
+          b=json.load(sys.stdin)
+          s=b["summary"]
+          if s["verified"] != 1 or s["missing"] != 0 or s["findings"] == 0:
+              sys.exit(f"init-demo project came back wrong: {s}")
+          '
+
+      - name: Open (or update) an issue when the published artefact rotted
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rel.outputs.tag }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="nightly dogfood failed for $TAG"
+          body="The scheduled run that installs the latest release wheel and replays the README's first commands failed on $(date -u +%F).
+          
+          Run log: $RUN
+
+          What this means: people installing \`$TAG\` today may be getting something that does not do what the documentation shows. The run log above has the exact step and its output. This issue was filed by the night itself, not by a person who noticed."
+          existing=$(gh issue list --label "nightly-dogfood" --state open --json title --jq ".[] | select(.title==\"$title\") | .title" | head -1)
+          if [ -n "$existing" ]; then
+            echo "an open dogfood issue for $TAG already exists; refreshing comment"
+            gh issue comment "$(gh issue list --label nightly-dogfood --state open --json number,title --jq ".[] | select(.title==\"$title\") | .number" | head -1)" --body "still failing as of $(date -u +%FT%TZ) — $RUN"
+          else
+            gh issue create --title "$title" --body "$body" --label "nightly-dogfood"
+          fi
