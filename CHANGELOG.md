@@ -11,6 +11,14 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+### Fixed
+
+- The nightly dogfood picks the newest release by version number instead of
+  GitHub's "latest" pointer — which follows creation date, so re-cutting an old
+  release (as happened for real when the v0.2.1 artefacts were backfilled)
+  pointed the nightly at a superseded wheel and would have reported it as
+  fresh. Reading a stale pointer to test staleness defeats the check.
+
 ## [0.4.0] — 2026-10-29
 ### Added
 

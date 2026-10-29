@@ -32,15 +32,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Find the latest release
+      - name: Find the newest release by version
         id: rel
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=$(gh release view --json tagName --jq .tagName)
-          url=$(gh release view --json assets --jq '.assets[] | select(.name|endswith(".whl")) | .url' | head -1)
+          # GitHub's "latest" pointer is the newest release by *creation date*,
+          # not by version number: backfill a release for an old tag and latest
+          # moves to the old version. Trusting it here would have the nightly
+          # install a superseded wheel and call it fresh, which is the opposite
+          # of what a dogfood proves. Sort the version list itself; this
+          # happened for real when v0.2.1 was re-cut and became "latest".
+          tag=$(gh release list --limit 100 --json tagName --jq '.[].tagName' \
+                | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+          tag="v$tag"
+          url=$(gh release view "$tag" --json assets \
+                --jq '.assets[] | select(.name|endswith(".whl")) | .url' | head -1)
           if [ -z "$tag" ] || [ -z "$url" ]; then
-            echo "::error::no latest release with a wheel"
+            echo "::error::no release with a wheel found"
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
