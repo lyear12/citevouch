@@ -329,3 +329,85 @@ def test_cli_readme_flag_is_optional_and_unkind_to_no_pins(tmp_path):
         == 0
     )
     assert readme.read_text(encoding="utf-8") == "pip install citevouch\n"
+
+
+# --------------------------------------------------------------------------
+# The changelog's own link block stays true to its headings
+
+
+def test_update_links_rebuilds_the_block_from_the_headings():
+    text = (
+        "# Changelog\n\n## [Unreleased]\n\n## [0.3.0] - x\n\nbody\n\n"
+        "[Unreleased]: old/compare/v0.1.0...HEAD\n[0.1.0]: old/tag/v0.1.0\n"
+    )
+    out = nv.update_links(text, "0.3.0")
+    assert "[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.3.0...HEAD" in out
+    assert "[0.3.0]: https://github.com/lyear12/citevouch/releases/tag/v0.3.0" in out
+    assert "old/" not in out
+
+
+def test_update_links_adds_a_block_when_there_is_none():
+    out = nv.update_links("# Changelog\n\n## [0.1.0] - x\n\nbody\n", "0.1.0")
+    assert out.rstrip().endswith(
+        "[0.1.0]: https://github.com/lyear12/citevouch/releases/tag/v0.1.0"
+    )
+    assert "[Unreleased]: " in out
+
+
+def test_update_links_keeps_every_released_heading_linked():
+    text = (
+        "## [Unreleased]\n\n## [0.2.1] - a\n\n## [0.2.0] - b\n\n## [0.1.0] - c\n\n"
+        "body\n\n[Unreleased]: x\n"
+    )
+    out = nv.update_links(text, "0.2.1")
+    for v in ("0.2.1", "0.2.0", "0.1.0"):
+        assert f"[{v}]: " in out
+
+
+def test_apply_on_the_real_changelog_keeps_links_consistent(tmp_path):
+    """The promise a release makes: after --apply, every release heading has a
+    link and the Unreleased comparison names the version just released."""
+    repo = Path(__file__).resolve().parent.parent
+    changelog = tmp_path / "CHANGELOG.md"
+    raw = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    # The intro prose mentions `## [Unreleased]` in backticks before the real
+    # heading exists; replacing the first textual hit edits the prose, leaves
+    # the heading empty, and "no release" is the (correct!) result. Anchor on
+    # the heading being its own line.
+    assert "\n## [Unreleased]\n" in raw
+    changelog.write_text(
+        raw.replace(
+            "\n## [Unreleased]\n",
+            "\n## [Unreleased]\n\n### Fixed\n\n- test entry\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    pyproject = tmp_path / "pyproject.toml"
+    import re
+
+    current = re.search(
+        r'(?m)^version = "([^"]+)"', (repo / "pyproject.toml").read_text(encoding="utf-8")
+    ).group(1)
+    pyproject.write_text(f'[project]\nversion = "{current}"\n', encoding="utf-8")
+
+    assert (
+        nv.main(
+            [
+                str(changelog),
+                "--current",
+                current,
+                "--apply",
+                "--pyproject",
+                str(pyproject),
+                "--date",
+                "2026-11-01",
+            ]
+        )
+        == 0
+    )
+    out = changelog.read_text(encoding="utf-8")
+    new = nv.bump_version(current, "patch")
+    assert f"## [{new}] — 2026-11-01" in out
+    assert f"[Unreleased]: https://github.com/lyear12/citevouch/compare/v{new}...HEAD" in out
+    assert f"[{new}]: https://github.com/lyear12/citevouch/releases/tag/v{new}" in out

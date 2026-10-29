@@ -147,6 +147,32 @@ def set_doc_pins(text: str, new_version: str) -> tuple[str, int]:
     return _DOC_PIN.subn(rf"\g<1>v{new_version}", text)
 
 
+REPO_URL = "https://github.com/lyear12/citevouch"
+_LINK_SECTION = re.compile(r"^\[[^\]]+\]: \S+\n(?:\[[^\]]+\]: \S+\n)*", re.MULTILINE)
+_RELEASE_HEADING = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
+
+
+def update_links(text: str, new_version: str, repo: str = REPO_URL) -> str:
+    """Regenerate the changelog's link definitions from its own headings.
+
+    Keep a Changelog renders `[0.2.2]` through a definitions block at the foot
+    of the file, and a human-kept block goes stale the way every other
+    human-kept version in this repository did: the file gained three releases
+    while its footer still compared "unreleased" to v0.1.0 and linked only
+    that one version. The headings are the ground truth - every `## [X.Y.Z]`
+    is a release that exists - so the block is rebuilt from them on every
+    release, which is the only moment it could ever be wrong to rebuild it.
+    """
+    releases = _RELEASE_HEADING.findall(text)
+    lines = [f"[Unreleased]: {repo}/compare/v{new_version}...HEAD"]
+    lines += [f"[{v}]: {repo}/releases/tag/v{v}" for v in releases]
+    block = "\n".join(lines) + "\n"
+    section = _LINK_SECTION.search(text)
+    if section is None:
+        return text.rstrip() + "\n\n" + block
+    return text[: section.start()] + block
+
+
 def _today() -> str:
     return _dt.date.today().isoformat()
 
@@ -181,7 +207,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.apply:
-        args.changelog.write_text(apply(text, new_version, args.date), encoding="utf-8")
+        args.changelog.write_text(
+            update_links(apply(text, new_version, args.date), new_version), encoding="utf-8"
+        )
         if args.pyproject:
             args.pyproject.write_text(
                 set_pyproject_version(args.pyproject.read_text(encoding="utf-8"), new_version),
