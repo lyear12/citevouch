@@ -364,39 +364,52 @@ def test_update_links_keeps_every_released_heading_linked():
         assert f"[{v}]: " in out
 
 
-def test_apply_on_the_real_changelog_keeps_links_consistent(tmp_path):
+def test_apply_keeps_links_consistent_on_a_real_shaped_changelog(tmp_path):
     """The promise a release makes: after --apply, every release heading has a
-    link and the Unreleased comparison names the version just released."""
-    repo = Path(__file__).resolve().parent.parent
-    changelog = tmp_path / "CHANGELOG.md"
-    raw = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
-    # The intro prose mentions `## [Unreleased]` in backticks before the real
-    # heading exists; replacing the first textual hit edits the prose, leaves
-    # the heading empty, and "no release" is the (correct!) result. Anchor on
-    # the heading being its own line.
-    assert "\n## [Unreleased]\n" in raw
-    changelog.write_text(
-        raw.replace(
-            "\n## [Unreleased]\n",
-            "\n## [Unreleased]\n\n### Fixed\n\n- test entry\n",
-            1,
-        ),
-        encoding="utf-8",
-    )
-    pyproject = tmp_path / "pyproject.toml"
-    import re
+    link and the Unreleased comparison names the version just released.
 
-    current = re.search(
-        r'(?m)^version = "([^"]+)"', (repo / "pyproject.toml").read_text(encoding="utf-8")
-    ).group(1)
-    pyproject.write_text(f'[project]\nversion = "{current}"\n', encoding="utf-8")
+    This test started life reading the repository's real CHANGELOG.md and
+    computing its next version - and then asserted a patch bump while the file
+    legitimately held an `Added`, so the moment the repository had something
+    new to release, the test that checked the release machinery broke CI on
+    every OS at once (run 40842840982, red on all three OSes for the same
+    reason). A test that reads a file the release is about to change is a race
+    with the repository itself; the synthetic file below has the same shape -
+    stale link block, real-looking headings - and belongs to no one else.
+    """
+    source = (
+        "# Changelog\n"
+        "\n"
+        "prose mentioning `## [Unreleased]` in backticks before the heading.\n"
+        "\n"
+        "## [Unreleased]\n"
+        "\n"
+        "### Fixed\n"
+        "\n"
+        "- Something that was wrong.\n"
+        "\n"
+        "## [0.4.1] - 2026-10-01\n"
+        "\n"
+        "- earlier work\n"
+        "\n"
+        "## [0.4.0] - 2026-09-01\n"
+        "\n"
+        "- older work\n"
+        "\n"
+        "[Unreleased]: https://example.invalid/compare/v0.1.0...HEAD\n"
+        "[0.1.0]: https://example.invalid/releases/tag/v0.1.0\n"
+    )
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(source, encoding="utf-8")
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\nversion = "0.4.1"\n', encoding="utf-8")
 
     assert (
         nv.main(
             [
                 str(changelog),
                 "--current",
-                current,
+                "0.4.1",
                 "--apply",
                 "--pyproject",
                 str(pyproject),
@@ -407,7 +420,29 @@ def test_apply_on_the_real_changelog_keeps_links_consistent(tmp_path):
         == 0
     )
     out = changelog.read_text(encoding="utf-8")
-    new = nv.bump_version(current, "patch")
-    assert f"## [{new}] — 2026-11-01" in out
-    assert f"[Unreleased]: https://github.com/lyear12/citevouch/compare/v{new}...HEAD" in out
-    assert f"[{new}]: https://github.com/lyear12/citevouch/releases/tag/v{new}" in out
+    assert "## [0.4.2] — 2026-11-01" in out  # Fixed-only -> patch
+    links = out[out.index("[Unreleased]:") :]
+    assert "[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.4.2...HEAD" in links
+    for version in ("0.4.2", "0.4.1", "0.4.0"):
+        assert (
+            f"[{version}]: https://github.com/lyear12/citevouch/releases/tag/v{version}"
+            in links
+        )
+    assert "example.invalid" not in links  # the stale block is gone, not amended
+
+
+def test_the_repository_changelog_and_pyproject_stay_consistent():
+    """A guard on the real files that cannot break when they change: pyproject's
+    version must name a release heading that exists in CHANGELOG.md, and the
+    link block must carry a link for it. True before and after every release,
+    because both halves move together by construction of `--apply`."""
+    repo = Path(__file__).resolve().parent.parent
+    import re
+
+    declared = re.search(
+        r'(?m)^version = "([^"]+)"',
+        (repo / "pyproject.toml").read_text(encoding="utf-8"),
+    ).group(1)
+    text = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert f"## [{declared}]" in text, f"{declared} is declared but not in the changelog"
+    assert f"[{declared}]: {nv.REPO_URL}/releases/tag/v{declared}" in text

@@ -369,3 +369,26 @@ at the heredoc-appended tests in `tests/test_next_version.py`, and auto-release 
 the gate did its job, the list had not. Reproduced locally: `ruff check .` passes, `ruff format
 --check .` fails. Both halves are in the acceptance list now, in AGENTS.md and
 docs/code-standards.md. Seen 1.
+
+---
+
+## A test that reads state it does not own races the repository
+
+**Rule.** A test may compute its fixtures, but it may not read the repository's living files and
+assert what their *current content* implies. Copy the shape into the test; guard the real files only
+with assertions that stay true under every legal change to them.
+
+**Why.** `test_apply_on_the_real_changelog_keeps_links_consistent` read the real CHANGELOG.md,
+injected a `### Fixed` entry, and asserted the result was a patch bump - while forgetting that the
+file it was reading is the queue the release pipeline drains, and the day it legitimately held an
+`Added`, "patch" became "minor" by design. The test of the release machinery broke the release it
+guarded, on all three OSes, at the exact moment the project had its first real feature entry. The
+repository changes under a test that reads it; the test is not wrong then, it is a race.
+
+**Evidence.** Run 40842840982 (push 8f3129a, the changelog catch-up): all eight matrix cells red on
+`assert '## [0.2.3] — 2026-11-01' in ...` while the tool correctly printed `0.3.0` and `bump: minor
+(from Added, Fixed)`. Meanwhile auto-release had already consumed that Unreleased section into
+v0.3.0 - with regenerated links and re-pointed README pins - so the repository was correct and the
+test was the only thing broken. Now the test builds its own stale-block changelog in `tmp_path`, and
+the guard that does read the real files asserts only an invariant that survives every release:
+pyproject's version has a heading and a link. Seen 1.
