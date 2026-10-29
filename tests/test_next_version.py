@@ -268,7 +268,7 @@ def test_this_repository_changelog_parses():
 def test_set_doc_pins_moves_every_pin():
     text = (
         'pip install "git+https://github.com/lyear12/citevouch@v0.1.0"\n'
-        "- run: pip install \"git+https://github.com/lyear12/citevouch@v0.1.0\"\n"
+        '- run: pip install "git+https://github.com/lyear12/citevouch@v0.1.0"\n'
     )
     out, count = nv.set_doc_pins(text, "0.3.1")
     assert count == 2
@@ -290,18 +290,21 @@ def test_cli_readme_flag_rewrites_the_document(tmp_path):
     readme = tmp_path / "README.md"
     readme.write_text("pip install .../citevouch@v0.9.9\n", encoding="utf-8")
 
-    assert nv.main(
-        [
-            str(changelog_path),
-            "--current",
-            "0.9.9",
-            "--apply",
-            "--readme",
-            str(readme),
-            "--date",
-            "2026-11-01",
-        ]
-    ) == 0
+    assert (
+        nv.main(
+            [
+                str(changelog_path),
+                "--current",
+                "0.9.9",
+                "--apply",
+                "--readme",
+                str(readme),
+                "--date",
+                "2026-11-01",
+            ]
+        )
+        == 0
+    )
     assert "citevouch@v0.9.10" in readme.read_text(encoding="utf-8")
 
 

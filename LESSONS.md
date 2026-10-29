@@ -349,3 +349,23 @@ before it passed, so the comment's claim looked corroborated right up to the ste
 its own confusing `release not found` under it. Both are fixed: the flag only on the create-tag
 path, and the fallback demoted to a named step gated on `steps.create.outcome == 'failure'`, so the
 second error cannot be printed unless the first happened. Seen 1.
+
+---
+
+## The acceptance list is the gate; CI's commands belong in it verbatim
+
+**Rule.** Every check CI runs must appear in AGENTS.md's acceptance block spelled exactly as CI
+spells it. An agent works the list, not the workflow files, and a check missing from the list is a
+check that will not be run.
+
+**Why.** The lint job runs `ruff check .` **and** `ruff format --check .`. The acceptance block
+listed pytest, install, and init-demo - no lint line at all. So a change whose tests were written
+through a heredoc, unformatted, passed every item on the list and still turned CI red: `check` is
+clean on that file, only `format --check` rejects it. The list let an agent be honest and complete
+and fail the gate anyway, which is the one thing an acceptance list is not allowed to do.
+
+**Evidence.** Run 40819203256 on bb35ad1: lint failed with `1 file would be reformatted` pointing
+at the heredoc-appended tests in `tests/test_next_version.py`, and auto-release correctly skipped -
+the gate did its job, the list had not. Reproduced locally: `ruff check .` passes, `ruff format
+--check .` fails. Both halves are in the acceptance list now, in AGENTS.md and
+docs/code-standards.md. Seen 1.

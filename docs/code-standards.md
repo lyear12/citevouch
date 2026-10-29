@@ -51,9 +51,11 @@ quietly breaking the rule is not.
 A change is not done until all of these have been run and passed. Run them; do not assume.
 
 1. **A test that fails without the change.** Name it in the commit message.
-2. **The full suite**, not just the touched file:
+2. **The full suite**, not just the touched file, plus both halves of CI's lint job — `check`
+   passes files that `format --check` rejects, and running one is not running the gate:
    ```bash
    python -m pytest -q
+   python -m ruff check . && python -m ruff format --check .
    ```
 3. **The package still installs and the entry point resolves:**
    ```bash
