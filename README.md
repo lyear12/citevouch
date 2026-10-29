@@ -170,8 +170,11 @@ watch. Upload the SARIF to code scanning and findings appear inline on the PR.
 
 ## Status
 
-Pre-1.0, versioned so that `0.1.x` are additive fixes and `0.2.0` is the first schema-affecting
-change. The ledger `schema` field gates compatibility.
+Pre-1.0. Versioned as [docs/maintenance.md](docs/maintenance.md) spells it: patch releases carry
+fixes, minor releases carry capability, and the ledger's `schema` field — still `1`, unchanged since
+the first commit — is what gates reading an old ledger. A ledger written by one version verifies
+under the next; when a release does change the shape, it bumps that field and says so here, and
+`verify` refuses a schema it cannot read instead of guessing at it.
 
 ## License
 

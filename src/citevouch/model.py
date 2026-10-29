@@ -39,6 +39,11 @@ CODES = {
 
 _SEVERITY_RANK = {name: i for i, name in enumerate(SEVERITIES)}
 
+# The ledger format this code writes and the highest format it can read.  One
+# number, owned here: a future version that changes the ledger shape raises
+# SUPPORTED_SCHEMA *and* keeps reading schema 1, so old lockfiles never strand.
+SUPPORTED_SCHEMA = 1
+
 
 def severity_of(code: str) -> str:
     return CODES.get(code, "medium")
@@ -200,9 +205,13 @@ class Ledger:
 
     Written by ``citevouch scan`` and read by ``citevouch verify``.  Treat it
     as a lockfile: commit it, review its diff, and do not hand-edit it.
+
+    ``schema`` is the ledger format version, and ``SUPPORTED_SCHEMA`` the
+    highest one this code can read; :func:`citevouch.cli._read_ledger` refuses
+    anything above it rather than half-parsing it.
     """
 
-    schema: int = 1
+    schema: int = field(default=SUPPORTED_SCHEMA)
     manuscript: str = ""
     manuscript_sha256: str = ""
     generated_at: str = ""

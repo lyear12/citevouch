@@ -22,7 +22,7 @@ from pathlib import Path
 
 from . import __version__
 from .errors import CitevouchError, UsageError
-from .model import SEVERITIES, Finding, Ledger
+from .model import SEVERITIES, SUPPORTED_SCHEMA, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, scan
 from .verify import VerifyResult, verify
@@ -102,6 +102,22 @@ def _read_ledger(path: Path) -> Ledger:
         raise UsageError(f"ledger {path} is not readable JSON: {exc}") from exc
     if not isinstance(blob, dict) or "claims" not in blob:
         raise UsageError(f"ledger {path} is not a citevouch ledger")
+    # The ledger is a lockfile, and a schema number is how it says so. Reading
+    # a future ledger with today's parser would half-parse it: fields the next
+    # version added or renamed would come back empty, and "source-missing" on a
+    # half-read claim is the false verdict this tool exists to avoid. Refuse
+    # the file instead, and say which tool can read it.
+    try:
+        schema = int(blob.get("schema", 1))
+    except (TypeError, ValueError):
+        raise UsageError(
+            f"ledger {path} has a non-numeric schema {blob.get('schema')!r}"
+        ) from None
+    if schema > SUPPORTED_SCHEMA:
+        raise UsageError(
+            f"ledger {path} is schema {schema}, newer than this citevouch "
+            f"(understands up to {SUPPORTED_SCHEMA}); upgrade citevouch to read it"
+        )
     return Ledger.from_json(blob)
 
 

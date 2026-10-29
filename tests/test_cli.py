@@ -242,3 +242,43 @@ def test_init_demo_refuses_a_directory_that_already_has_something(tmp_path):
     assert main(["init-demo", str(target)]) == 2
     assert (target / "notes.txt").read_text(encoding="utf-8") == "mine\n"
     assert not (target / "manuscript.md").exists()
+
+
+def _write_ledger_with_schema(root: Path, schema: object) -> Path:
+    path = root / "citevouch.lock.json"
+    main(["scan", "m.md", "--root", str(root), "--quiet"])
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    blob["schema"] = schema
+    path.write_text(json.dumps(blob), encoding="utf-8")
+    return path
+
+
+def test_a_ledger_from_the_future_is_refused_not_guessed(tmp_path: Path, capsys):
+    """A schema this code has never seen would half-parse: added or renamed
+    fields come back empty, and "source-missing" on a half-read claim is a
+    false verdict from the one tool that exists to avoid those. Refuse the
+    file, exit 2, and name the fix."""
+    root = _project(tmp_path)
+    _write_ledger_with_schema(root, 2)
+    assert main(["verify", "m.md", "--root", str(root)]) == 2
+    err = capsys.readouterr().err
+    assert "schema 2" in err
+    assert "upgrade citevouch" in err
+
+
+def test_a_ledger_without_a_schema_key_is_still_readable(tmp_path: Path):
+    """Silence where there is nothing wrong: the default schema must not start
+    refusing files written before the field meant anything."""
+    root = _project(tmp_path)
+    path = _write_ledger_with_schema(root, None)
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    del blob["schema"]
+    path.write_text(json.dumps(blob), encoding="utf-8")
+    assert main(["verify", "m.md", "--root", str(root)]) == 0
+
+
+def test_a_non_numeric_schema_is_a_usage_error(tmp_path: Path, capsys):
+    root = _project(tmp_path)
+    _write_ledger_with_schema(root, "two")
+    assert main(["verify", "m.md", "--root", str(root)]) == 2
+    assert "non-numeric schema" in capsys.readouterr().err
