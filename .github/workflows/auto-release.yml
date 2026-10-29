@@ -72,7 +72,7 @@ jobs:
           set +e
           next=$(python tools/next_version.py CHANGELOG.md \
                    --current "${{ steps.current.outputs.version }}" \
-                   --apply --pyproject pyproject.toml --readme README.md \
+                   --apply --pyproject pyproject.toml --readme README.md --readme README.zh-CN.md \
                    --date "$(date -u +%F)")
           status=$?
           set -e

@@ -3,7 +3,7 @@
 # conftest.py, which is where every fixture lives: an sdist built without this
 # line installs a test suite that cannot be collected.
 graft tests
-include LICENSE README.md CHANGELOG.md LESSONS.md AGENTS.md
+include LICENSE README.md README.zh-CN.md CHANGELOG.md LESSONS.md AGENTS.md
 recursive-include docs *.md
 recursive-include demo *.md *.toml *.lock.json
 

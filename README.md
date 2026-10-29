@@ -1,5 +1,7 @@
 # citevouch
 
+**English** · [简体中文](README.zh-CN.md)
+
 **Bind every claim in your manuscript to the page of the PDF that proves it — and fail CI when that evidence drifts.**
 
 `citevouch` is not another "does this DOI exist" checker. Plenty of those exist, and they answer a
@@ -58,10 +60,22 @@ rots:
 | `bib-duplicate-key` | high | two entries share a key |
 | `bib-field-empty` | medium | a required field is present but empty |
 | `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block |
-| `quote-found` / `quote-moved` / `quote-missing` | | |
 
 Exit code is `0` when nothing reaches `--fail-on` (default `high`), `1` when something does, `2` for
 usage errors. That means a CI job needs no wrapper logic.
+
+## Is this for you?
+
+**Use it when**: you hold a pile of PDFs (or exported text) and a manuscript full of
+"this sentence has a source, this number came from that paper" claims, and you want a machine to
+re-check every one of them on every commit, before submission, before release — literature
+reviews, system reviews, lecture notes, fact-checked long-form, AI-assisted drafts whose numbers
+you have not personally re-verified.
+
+**Skip it when**: your question is "does this paper exist, was it retracted" — that is what DOI
+checkers like citegate do, and running both is the point. And if the references live only online
+with no local file, there is nothing here to check against: the tool deliberately never goes to the
+network; everything happens between files on your machine.
 
 ## Install
 
@@ -122,6 +136,11 @@ citevouch check  manuscript.md --root . --format markdown # PR comment
 
 Commit `citevouch.lock.json`. It is the memory that makes drift detectable: without it, `verify`
 can only say "found", never "moved".
+
+The [demo/](demo/) directory is a complete, runnable real project: five claims taken from two
+published papers, one of them deliberately backed by the wrong paper so the tool must refuse it —
+that refusal is the repository's standing regression test, not a defect. Point CI at it and see
+what a red evidence gate looks like.
 
 ### Three claim dialects
 
