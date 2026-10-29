@@ -11,6 +11,7 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-29
 ### Added
 
 - The lint job now runs `tools/check_repo_rules.py`, which decides the project's
@@ -35,7 +36,6 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
   change". It was not — the ledger schema has never moved — and it implied a
   guard (`verify` rejects unknown schemas) that did not exist until the fix
   above made it true.
-
 ## [0.2.2] — 2026-10-29
 ### Fixed
 
@@ -116,5 +116,9 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lyear12/citevouch/releases/tag/v0.3.0
+[0.2.2]: https://github.com/lyear12/citevouch/releases/tag/v0.2.2
+[0.2.1]: https://github.com/lyear12/citevouch/releases/tag/v0.2.1
+[0.2.0]: https://github.com/lyear12/citevouch/releases/tag/v0.2.0
 [0.1.0]: https://github.com/lyear12/citevouch/releases/tag/v0.1.0
