@@ -70,13 +70,14 @@ jobs:
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
             git -c advice.detachedHead=false checkout --force "refs/tags/$tag"
             echo "building $tag at $(git rev-parse --short HEAD)"
-            echo "ref=$tag" >> "$GITHUB_OUTPUT"
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
           else
             # workflow_dispatch for a version whose tag does not exist yet is
-            # the documented way to release by hand; `gh release create
-            # --target` below creates the tag at this commit.
+            # the documented way to release by hand; the create step below names
+            # this commit as the tag's target, which is the only case where
+            # target_commitish is both needed and valid.
             echo "no tag $tag yet; building the checked-out commit $(git rev-parse --short HEAD)"
-            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Tag and pyproject must agree
@@ -123,21 +124,48 @@ jobs:
         continue-on-error: true
 
       - name: Create the release
+        id: create
+        # The recovery step below decides whether this failure is fine (the
+        # release exists already - a re-run of an interrupted release) or fatal
+        # (the API said no for a reason we should read). Gating on this step's
+        # outcome is why it is not `if: failure()`: that would also fire when
+        # the build or the smoke test failed, two steps whose logs are the
+        # whole point.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.v.outputs.tag }}"
           notes=$(git log --pretty=format:'- %s' -n 40 "HEAD" -- . | head -60)
-          # --target keeps the workflow_dispatch path working: dispatching for a
-          # version whose tag does not exist yet is the normal way to release,
-          # and `gh release create` without a target fails on a missing tag.
-          # When the tag does exist, --target is ignored in favour of it, which
-          # is what we want: the tag is the artifact.
-          gh release create "$tag" dist/* \
-            --title "$tag" \
-            --notes "$notes" \
-            --target "${{ steps.at.outputs.ref }}" \
-            || gh release upload "$tag" dist/* --clobber
+          # target_commitish is a branch name or a commit SHA, never a tag name,
+          # and it is unused when the tag already exists. Passing the tag was
+          # what failed the first automatic release (0.2.1): the API answered
+          # "Release.target_commitish is invalid". So the flag belongs only to
+          # the path that has to create the tag.
+          if [ "${{ steps.at.outputs.tag_exists }}" = "true" ]; then
+            gh release create "$tag" dist/* --title "$tag" --notes "$notes"
+          else
+            gh release create "$tag" dist/* --title "$tag" --notes "$notes" \
+              --target "$GITHUB_SHA"
+          fi
+      - name: Re-attach artefacts if the release already existed
+        # Runs only when the create step above failed, which continue-on-error
+        # lets reach here. If the release exists, the failure was "already
+        # created" - an interrupted release being resumed - and attaching the
+        # fresh artefacts is the right repair. Anything else stays red with the
+        # create step's own error visible above.
+        if: steps.create.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.v.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag already exists; re-attaching artefacts"
+            gh release upload "$tag" dist/* --clobber
+          else
+            echo "::error::release $tag could not be created and does not exist"
+            exit 1
+          fi
 
       - name: Summarise
         run: |

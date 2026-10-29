@@ -130,6 +130,23 @@ def set_pyproject_version(text: str, new_version: str) -> str:
     return replaced
 
 
+# Any `citevouch@vX.Y.Z`: the install line and the CI example that copies it.
+_DOC_PIN = re.compile(r"(citevouch@)v\d+\.\d+\.\d+")
+
+
+def set_doc_pins(text: str, new_version: str) -> tuple[str, int]:
+    """Point every pinned install example at the version being released.
+
+    Releases are cut by a machine now, so a hand-kept tag in a document is
+    stale the moment the machine works - the README told people to install
+    ``@v0.1.0`` two releases after that stopped being the newest version. The
+    release names the version in every file it touches, and the pins are one of
+    those files. Zero matches is fine, not an error: once PyPI is configured the
+    pins go away, and the script must not be the reason they come back.
+    """
+    return _DOC_PIN.subn(rf"\g<1>v{new_version}", text)
+
+
 def _today() -> str:
     return _dt.date.today().isoformat()
 
@@ -140,6 +157,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--current", required=True, help="current version, e.g. 0.1.0")
     parser.add_argument("--apply", action="store_true", help="rewrite the changelog in place")
     parser.add_argument("--pyproject", type=Path, help="also set the version in this file")
+    parser.add_argument(
+        "--readme",
+        type=Path,
+        action="append",
+        default=[],
+        help="re-point citevouch@vX.Y.Z install pins in this document (repeatable)",
+    )
     parser.add_argument("--date", default=_today())
     parser.add_argument(
         "--bump", choices=["none", "patch", "minor"], help="override the decision"
@@ -163,6 +187,12 @@ def main(argv: list[str] | None = None) -> int:
                 set_pyproject_version(args.pyproject.read_text(encoding="utf-8"), new_version),
                 encoding="utf-8",
             )
+        for doc in args.readme:
+            current = doc.read_text(encoding="utf-8")
+            rewritten, moved = set_doc_pins(current, new_version)
+            if moved:
+                doc.write_text(rewritten, encoding="utf-8")
+            print(f"{doc}: {moved} install pin(s) moved to v{new_version}", file=sys.stderr)
 
     print(new_version)
     print(f"bump: {bump} (from {', '.join(sections) or 'nothing'})", file=sys.stderr)

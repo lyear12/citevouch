@@ -259,3 +259,70 @@ def test_this_repository_changelog_parses():
     found = re.search(r'(?m)^version\s*=\s*"([^"]+)"', declared)
     assert found, "pyproject.toml has no version"
     assert nv._VERSION.match(found.group(1)), "the declared version is not MAJOR.MINOR.PATCH"
+
+
+# --------------------------------------------------------------------------
+# Keeping install pins in documents honest
+
+
+def test_set_doc_pins_moves_every_pin():
+    text = (
+        'pip install "git+https://github.com/lyear12/citevouch@v0.1.0"\n'
+        "- run: pip install \"git+https://github.com/lyear12/citevouch@v0.1.0\"\n"
+    )
+    out, count = nv.set_doc_pins(text, "0.3.1")
+    assert count == 2
+    assert "@v0.3.1" in out
+    assert "@v0.1.0" not in out
+
+
+def test_set_doc_pins_ignores_text_that_is_not_a_pin():
+    """A version mentioned in prose stays prose."""
+    text = "`0.2.0` is the first schema-affecting change; citevouch 0.1 is fine too.\n"
+    out, count = nv.set_doc_pins(text, "0.3.0")
+    assert count == 0
+    assert out == text
+
+
+def test_cli_readme_flag_rewrites_the_document(tmp_path):
+    changelog_path = tmp_path / "CHANGELOG.md"
+    changelog_path.write_text(changelog("### Fixed\n\n- x\n"), encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text("pip install .../citevouch@v0.9.9\n", encoding="utf-8")
+
+    assert nv.main(
+        [
+            str(changelog_path),
+            "--current",
+            "0.9.9",
+            "--apply",
+            "--readme",
+            str(readme),
+            "--date",
+            "2026-11-01",
+        ]
+    ) == 0
+    assert "citevouch@v0.9.10" in readme.read_text(encoding="utf-8")
+
+
+def test_cli_readme_flag_is_optional_and_unkind_to_no_pins(tmp_path):
+    changelog_path = tmp_path / "CHANGELOG.md"
+    changelog_path.write_text(changelog("### Fixed\n\n- x\n"), encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text("pip install citevouch\n", encoding="utf-8")
+    assert (
+        nv.main(
+            [
+                str(changelog_path),
+                "--current",
+                "0.1.0",
+                "--apply",
+                "--readme",
+                str(readme),
+                "--date",
+                "2026-11-01",
+            ]
+        )
+        == 0
+    )
+    assert readme.read_text(encoding="utf-8") == "pip install citevouch\n"

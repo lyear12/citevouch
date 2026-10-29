@@ -72,7 +72,7 @@ jobs:
           set +e
           next=$(python tools/next_version.py CHANGELOG.md \
                    --current "${{ steps.current.outputs.version }}" \
-                   --apply --pyproject pyproject.toml \
+                   --apply --pyproject pyproject.toml --readme README.md \
                    --date "$(date -u +%F)")
           status=$?
           set -e
@@ -95,10 +95,11 @@ jobs:
       - name: Refuse a release that changes no files
         if: steps.plan.outputs.released == 'true'
         run: |
-          # next_version.py rewrites two files by construction. If it did not,
-          # something is wrong with the script rather than with the changelog,
-          # and committing nothing and pushing a tag would release old code
-          # under a new number.
+          # next_version.py rewrites CHANGELOG.md and pyproject.toml by
+          # construction, and README.md when it holds install pins. If nothing
+          # changed, something is wrong with the script rather than with the
+          # changelog, and committing nothing and pushing a tag would release
+          # old code under a new number.
           if git diff --quiet; then
             echo "::error::decided to release ${{ steps.plan.outputs.version }} but changed nothing"
             exit 1
@@ -112,12 +113,13 @@ jobs:
         run: |
           git config user.name "citevouch release"
           git config user.email "release@users.noreply.github.com"
-          git add CHANGELOG.md pyproject.toml
+          git add CHANGELOG.md pyproject.toml README.md
           git commit -m "Release $VERSION
 
           The Unreleased section of CHANGELOG.md was not empty, so this is the
           release it described: tools/next_version.py chose the number, moved
-          the entries under a dated heading, and set pyproject.toml to match.
+          the entries under a dated heading, set pyproject.toml to match, and
+          re-pointed any citevouch@v install pin in README.md.
 
           Not tried: nothing to try by hand; the workflow that runs after this
           is the test of it.

@@ -11,6 +11,18 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+### Fixed
+
+- The automatic release path now actually creates the GitHub release. `target_commitish` accepts a
+  branch or a commit, never a tag name, and the workflow passed the tag — so the first fully
+  automatic release (0.2.1) tagged itself, built, smoke-tested and passed every check, then died
+  with `Release.target_commitish is invalid`. The flag is now used only on the path that has to
+  create the tag, and a failed create resolves to exactly one of two outcomes: the release already
+  exists (re-attach and go green) or it does not (stay red with the API's own error visible).
+- `auto-release` re-points `citevouch@vX.Y.Z` install pins in README.md as part of the bump commit.
+  The document told people to install `@v0.1.0` for two releases after that stopped being the
+  newest version, because a machine was writing version numbers into files a human still pinned.
+
 ## [0.2.1] — 2026-10-29
 ### Fixed
 

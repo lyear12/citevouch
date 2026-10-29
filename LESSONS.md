@@ -329,3 +329,23 @@ declaring 0.1.0, while it was asked to publish 0.2.0. Because `main` still point
 release was re-cut by hand (workflow_dispatch, version 0.2.0, from b100b92) and `gh release view
 v0.2.0` now lists both artefacts. The fix adds a `Build the tag...` step before the agreement check.
 Seen 1.
+
+---
+
+## A confident comment about an API's behaviour is a bug report waiting to happen
+
+**Rule.** When a comment states what an external API does, it needs the request that proves it, not
+the belief that produced it. "X is ignored when Y" sentences in YAML are the most dangerous kind,
+because nobody argues with a comment on first read.
+
+**Why.** `gh release create --target "$tag"` failed 0.2.1's publication with
+`Release.target_commitish is invalid`. The line above it read: "When the tag does exist, --target
+is ignored in favour of it, which is what we want." It had never been executed - the dispatch
+re-cut of 0.2.0 took the *no-tag* branch, so the tag branch had never reached the API. Every step
+before it passed, so the comment's claim looked corroborated right up to the step that disproved it.
+
+**Evidence.** Run 40818189710: every step green through Smoke-test and Publish, then
+`HTTP 422 ... Release.target_commitish is invalid`, then the `|| gh release upload` fallback printed
+its own confusing `release not found` under it. Both are fixed: the flag only on the create-tag
+path, and the fallback demoted to a named step gated on `steps.create.outcome == 'failure'`, so the
+second error cannot be printed unless the first happened. Seen 1.
