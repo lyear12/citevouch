@@ -11,6 +11,22 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+### Added
+
+- A nightly workflow installs the wheel from the latest GitHub release in a
+  clean environment and replays the README's first commands, opening (or
+  refreshing) a labeled issue when the published artefact no longer does what
+  the documentation shows.
+
+### Fixed
+
+- The release machinery's own test stopped reading the live CHANGELOG.md. It
+  asserted the next bump would be a patch while the file legitimately held an
+  `Added`, so the gate turned red on every OS the moment the changelog described
+  a feature — the machinery was fine, the test was racing it. The check now
+  owns its fixture; a separate invariant test guards the real files with
+  assertions that survive every release.
+
 ## [0.3.0] — 2026-10-29
 ### Added
 
