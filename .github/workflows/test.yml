@@ -50,6 +50,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # The repository-rules check reads commit messages, which a shallow
+        # checkout does not have. fetch-depth: 0 is honest cost for a small
+        # repository; a deeper failure path would skip the check instead of
+        # silently passing it.
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -58,6 +64,22 @@ jobs:
         run: |
           ruff check .
           ruff format --check .
+      - name: repository rules
+        # The rules this project states about itself, checked rather than
+        # remembered: commit-message evidence sections and lesson promotions.
+        # On a push, police exactly the commits the push carried; on anything
+        # else (PR, dispatch) fall back to the last ten, which still catches
+        # a nonconforming head commit.
+        run: |
+          base="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "$base" ] \
+             && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            range="$base..$GITHUB_SHA"
+          else
+            range="$(git rev-parse HEAD~10 2>/dev/null || git rev-parse HEAD^)..HEAD"
+          fi
+          echo "policing commits in $range"
+          python tools/check_repo_rules.py --range "$range"
 
   acceptance:
     name: acceptance (the documented first run)
