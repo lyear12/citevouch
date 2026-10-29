@@ -11,6 +11,7 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-10-29
 ### Fixed
 
 - The release workflow now builds the commit the version tag points at. Called from the automatic
@@ -20,7 +21,6 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 - `v0.2.0` itself nearly became that bug's first victim: the bump and tag were created
   automatically, the called release failed on the version agreement check, and the GitHub release
   did not exist until it was re-cut by hand from the tagged commit while `main` still pointed at it.
-
 ## [0.2.0] — 2026-10-28
 ### Changed
 
