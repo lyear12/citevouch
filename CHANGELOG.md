@@ -11,6 +11,31 @@ release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagr
 
 ## [Unreleased]
 
+### Added
+
+- The lint job now runs `tools/check_repo_rules.py`, which decides the project's
+  own mechanical rules: every non-release commit carries the
+  `Run:` / `Not tried:` / `Broken by hand:` evidence sections, and every lesson
+  marked `Seen` three or more times in LESSONS.md has been promoted into
+  docs/code-standards.md. Rules the project states about itself stop being
+  prose.
+
+### Fixed
+
+- The release bump regenerates CHANGELOG.md's link-definition block from the
+  file's own release headings. It had drifted the way every human-kept version
+  does: three releases after 0.1.0, the footer still compared "unreleased" to
+  v0.1.0 and linked only that version.
+- `verify` refuses a ledger whose `schema` is newer than the code understands,
+  instead of half-parsing it: a field renamed by a future version would read
+  back empty and produce a confident `source-missing` — the false verdict this
+  tool exists to avoid. A ledger with no `schema` key still reads (the default),
+  and the refusal names the fix (`upgrade citevouch`).
+- The README's Status section claimed 0.2.0 was "the first schema-affecting
+  change". It was not — the ledger schema has never moved — and it implied a
+  guard (`verify` rejects unknown schemas) that did not exist until the fix
+  above made it true.
+
 ## [0.2.2] — 2026-10-29
 ### Fixed
 
