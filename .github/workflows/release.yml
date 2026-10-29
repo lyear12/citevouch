@@ -56,11 +56,34 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
+      - name: Build the tag, not the commit this run happened to start from
+        id: at
+        run: |
+          # A reusable workflow called from auto-release is started by the
+          # workflow_run event, whose checkout is the commit main pointed at
+          # *when the event fired* - which is the commit before the version
+          # bump. Building that would publish 0.2.0's number on 0.1.0's code.
+          # The tag is the artifact; if it exists, everything downstream reads
+          # that and only that.
+          tag="${{ steps.v.outputs.tag }}"
+          git fetch --tags --force origin "+refs/tags/$tag:refs/tags/$tag" 2>/dev/null || true
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            git -c advice.detachedHead=false checkout --force "refs/tags/$tag"
+            echo "building $tag at $(git rev-parse --short HEAD)"
+            echo "ref=$tag" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_dispatch for a version whose tag does not exist yet is
+            # the documented way to release by hand; `gh release create
+            # --target` below creates the tag at this commit.
+            echo "no tag $tag yet; building the checked-out commit $(git rev-parse --short HEAD)"
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Tag and pyproject must agree
         run: |
           declared=$(python -c "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
           if [ "$declared" != "${{ steps.v.outputs.version }}" ]; then
-            echo "::error::tag says ${{ steps.v.outputs.version }}, pyproject.toml says $declared"
+            echo "::error::releasing ${{ steps.v.outputs.version }} from $(git rev-parse --short HEAD) but pyproject.toml there says $declared"
             exit 1
           fi
 
@@ -108,10 +131,12 @@ jobs:
           # --target keeps the workflow_dispatch path working: dispatching for a
           # version whose tag does not exist yet is the normal way to release,
           # and `gh release create` without a target fails on a missing tag.
+          # When the tag does exist, --target is ignored in favour of it, which
+          # is what we want: the tag is the artifact.
           gh release create "$tag" dist/* \
             --title "$tag" \
             --notes "$notes" \
-            --target "$GITHUB_SHA" \
+            --target "${{ steps.at.outputs.ref }}" \
             || gh release upload "$tag" dist/* --clobber
 
       - name: Summarise

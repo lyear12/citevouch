@@ -305,3 +305,27 @@ place.
 **Evidence.** The first attempt at this file would have failed the run on an empty Unreleased
 section. `test_cli_says_nothing_to_release_and_exits_one` pins the exit code, and the workflow's
 `if [ "$status" -eq 1 ]` branch is the only place that mapping is allowed to be spelled. Seen 1.
+
+---
+
+## A tag is the artifact; building "wherever this run happened to start" is not
+
+**Rule.** When one workflow hands a version to another, the release must check out the object named
+by that version — the tag — not whatever commit the trigger left in the working directory. Assert
+`pyproject.toml == tag` *after* that checkout, so the assertion proves the pairing rather than
+luckily matching.
+
+**Why.** `auto-release` bumps the version, commits, tags, and calls `release.yml`. But a reusable
+workflow's `checkout` lands on `github.sha` — the commit that started the whole chain, which is the
+one *before* the bump. Without re-checkout, release builds the previous code, the tag/code agreement
+check passes only because it is comparing the new number to the old file and failing — so it caught
+itself, which is good — but the moment that check is loosened, a numbered release of stale code ships
+silently. The safe thing is to build the tag itself, so "tag matches pyproject" is true by
+construction.
+
+**Evidence.** Run 40730668174: `decide` committed `b100b92 Release 0.2.0` and tagged `v0.2.0`, then
+the called `release` failed at `Tag and pyproject must agree` — its checkout was `f342af0`, still
+declaring 0.1.0, while it was asked to publish 0.2.0. Because `main` still pointed at the bump, the
+release was re-cut by hand (workflow_dispatch, version 0.2.0, from b100b92) and `gh release view
+v0.2.0` now lists both artefacts. The fix adds a `Build the tag...` step before the agreement check.
+Seen 1.
