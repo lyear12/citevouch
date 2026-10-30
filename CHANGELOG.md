@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.7] — 2026-10-30
 ### Fixed
 
 - A rejected tag push no longer strands the version number in silence.
@@ -26,7 +27,6 @@ tag and that file disagree.
   failure), and if it is not, the error names the command that fixes
   it by hand instead of leaving a reader to re-run a workflow that
   cannot help.
-
 ## [0.19.6] — 2026-10-30
 ### Fixed
 
@@ -1094,7 +1094,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.6...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.7...HEAD
+[0.19.7]: https://github.com/lyear12/citevouch/releases/tag/v0.19.7
 [0.19.6]: https://github.com/lyear12/citevouch/releases/tag/v0.19.6
 [0.19.5]: https://github.com/lyear12/citevouch/releases/tag/v0.19.5
 [0.19.4]: https://github.com/lyear12/citevouch/releases/tag/v0.19.4
