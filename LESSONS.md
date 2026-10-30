@@ -815,6 +815,45 @@ latest release. `sort -V` does not fix this — it also orders `1.0.0-rc1` above
 `tests/test_critic_round6.py::test_a_prerelease_never_wins_the_nightly` pipes
 `v1.0.0-rc1` and `v0.8.0` through the workflow's own pipeline. Seen 1.
 
+## A file that exists on PATH is not a program that runs
+
+**Rule.** When a test invokes an external interpreter, make the test ask that
+interpreter to run something before trusting it. `shutil.which("bash")` answers
+"there is a file with this name"; it says nothing about whether the file can do
+the job.
+
+**Why.** Three tests ran `bash --noprofile --norc -eo pipefail tools/...` and
+passed on this machine. On the Windows runners they failed with `assert 1 == 0`
+and stdout full of UTF-16: `C:\Windows\System32\bash.exe` is the WSL stub,
+which answers every command with "Windows Subsystem for Linux has no installed
+distributions" and exits 1. The same class of mistake as assuming `python`
+means the interpreter you meant, one layer further out: the tests were correct
+about the script and wrong about the shell.
+
+**Evidence.** The seventh review's fix introduced these tests, and the first
+Windows run after pushing them went red - `test_the_release_notes_script_...`
+and `test_a_prerelease_never_wins_the_nightly`, all three on windows-latest.
+`_bash()` now probes each candidate with `echo ok` and skips with a named reason
+when none of them can run. Seen 1.
+
+## A script the index stores at 644 is a script that only runs where mode does not matter
+
+**Rule.** If a shell script must be executed, call it through its interpreter
+(`bash tools/x.sh`), not by path. The executable bit lives in the index; a
+checkout that does not carry it cannot run the file, and the failure is
+"Permission denied" on exactly the machine you cannot test locally.
+
+**Why.** `tools/release_notes.sh` was created on Windows, where every file with
+a shebang looks executable to the shell, and committed at mode 100644. The
+release workflow called `tools/release_notes.sh "$tag"`, which works here and is
+a hard failure on a Linux runner. Both facts - the mode and the invocation -
+were invisible from the machine that wrote them.
+
+**Evidence.** Seventh review, major-1, fixed in the same commit as the fallback;
+`tests/test_critic_round6.py::test_the_script_is_invoked_through_an_interpreter`
+asserts the workflow says `bash tools/release_notes.sh` and not the bare path.
+Seen 1.
+
 ## An acceptance list that names one platform's path is an acceptance list for one platform
 
 **Rule.** When a document gives a command that differs by platform, write every
