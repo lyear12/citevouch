@@ -67,6 +67,7 @@ worst severity: high
 | `source-no-text` | high | PDF 读成功但一个字的文本都没有——它是扫描件，需要 OCR |
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
+| `check-unavailable` | high | `doctor` 有一项检查过不去：没有 PDF 库、解释器版本不支持、缓存不可写 |
 | `bib-key-missing` | high | claim 引用的书目键不存在 |
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
 | `bib-duplicate-key` | high | 两个条目共用一个键 |

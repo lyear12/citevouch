@@ -139,12 +139,20 @@ class TestHowItReads:
         assert "-> Pass the path you meant" in out
         assert "1 of" in out and "checks failed" in out
 
-    def test_broken_checks_become_findings_under_an_existing_code(self, tmp_path: Path):
+    def test_broken_checks_become_findings_under_their_own_code(self, tmp_path: Path):
         found = doctor.findings(doctor.diagnose(root=tmp_path, manuscript="nope.md"))
-        assert [finding.code for finding in found] == ["source-unreadable"]
-        # Reusing the code keeps one vocabulary for one problem; inventing a
-        # second name for "cannot read the source" would split the inventory.
+        assert [finding.code for finding in found] == ["check-unavailable"]
         assert "manuscript" in found[0].message
+
+    def test_the_code_does_not_borrow_a_source_code_for_a_machine_problem(self, tmp_path: Path):
+        """A missing interpreter is not a broken PDF, and GitHub shows the rule.
+
+        The code, not the message, decides the rule line a reader sees in the
+        code-scanning tab. `source-unreadable` told them "A source file could
+        not be read." above a line saying the cache directory is read-only.
+        """
+        found = doctor.findings(doctor.diagnose(root=tmp_path, manuscript="nope.md"))
+        assert "source-unreadable" not in [finding.code for finding in found]
 
 
 class TestTheCommand:
@@ -169,7 +177,21 @@ class TestTheCommand:
         main(["doctor", "--root", str(tmp_path), "--format", "sarif"])
         payload = json.loads(capsys.readouterr().out)
         results = payload["runs"][0]["results"]
-        assert [entry["ruleId"] for entry in results] == ["source-unreadable"]
+        assert [entry["ruleId"] for entry in results] == ["check-unavailable"]
+        # The rule line a reader sees has to describe the check that failed.
+        rules = payload["runs"][0]["tool"]["driver"]["rules"]
+        assert [rule["id"] for rule in rules] == ["check-unavailable"]
+
+    def test_json_is_the_format_that_carries_every_check(self, tmp_path: Path, capsys):
+        """`findings()` feeds SARIF only; json needs the passing checks too.
+
+        Its docstring used to claim the opposite, which is the kind of sentence
+        nothing checks and everybody believes.
+        """
+        main(["doctor", "--root", str(tmp_path), "--format", "json"])
+        payload = json.loads(capsys.readouterr().out)
+        assert len(payload["checks"]) > 1
+        assert all("ok" in check for check in payload["checks"])
 
     def test_it_runs_inside_the_repository_demo(self):
         # The demo is the project's own claim that it works; doctor must agree

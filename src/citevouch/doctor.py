@@ -245,16 +245,24 @@ def render(reports: list[Report], stream=None) -> None:
 
 
 def findings(reports: list[Report]) -> list[Finding]:
-    """The broken checks, as findings, so ``--format json`` has something to say.
+    """The broken checks, as findings, so ``--format sarif`` has something to say.
 
-    ``source-unreadable`` is the closest existing code and it is the honest one:
-    a machine that cannot read a PDF is a machine whose every quote would be
-    reported unreadable. Reusing it keeps the code inventory from growing a
-    second vocabulary for the same problem.
+    Only the SARIF branch uses this; ``--format json`` carries every check,
+    passing or not, because a machine-readable diagnosis is worth having
+    whether or not anything is wrong.
+
+    The code is ``check-unavailable`` and not ``source-unreadable``.  It used to
+    be the latter, on the theory that one vocabulary per problem beats two - but
+    SARIF is what a reader sees in the GitHub code-scanning tab, and the rule
+    line above each result comes from the code, not from the message.  So a
+    three-year-old interpreter and a read-only cache directory were both
+    displayed under "A source file could not be read.", which is not what
+    either of them is.  The message was always right; the word above it was
+    borrowed from a neighbouring problem.
     """
     return [
         Finding(
-            code="source-unreadable",
+            code="check-unavailable",
             message=f"{report.name}: {report.detail}",
         )
         for report in problems(reports)

@@ -2131,3 +2131,38 @@ change, and the note is what makes the design's limit visible instead of
 silent.
 
 Seen 1.
+
+## A code borrowed from a neighbour is a word the reader sees and you do not
+
+**Rule.** A finding code is not an internal label. It is the sentence a reader
+sees above the message - in the SARIF rule table, in the README severity table,
+in the exit-code conversation. Reusing a neighbouring code to keep the
+inventory small is only honest when the neighbour is true; when it is merely
+close, the reader is told about a different problem than the one they have.
+
+**Why.** `doctor` reports a machine that cannot check anything: an interpreter
+below the supported version, no PDF library, a cache directory nobody can
+write, a project without the files it claims. All of them were emitted as
+`source-unreadable`, with a docstring arguing that one vocabulary per problem
+beats two and that "a machine that cannot read a PDF is a machine whose every
+quote would be reported unreadable." That reasoning is about the
+*consequence*; the field is about the *cause*. In `--format text` nobody
+noticed, because the message carries the fact: "cache: not writable; every run
+will re-extract". In SARIF the rule line comes from the code, so the code
+scanning tab displayed
+
+    A source file could not be read.
+    cache: not writable; every run will re-extract
+
+and the second line correctly diagnoses a problem the first line does not
+name. The choice was made against a rendering the author never looks at, which
+is why "does it read well in the terminal" could not catch it.
+
+**Evidence.** Emitting all four failures through `doctor.findings()` and
+reading the SARIF `ruleId` and the rule text showed every one of them under "A
+source file could not be read."
+`tests/test_doctor.py::TestHowItReads::test_the_code_does_not_borrow_a_source_code_for_a_machine_problem`
+and `TestTheCommand::test_sarif_carries_the_broken_checks` hold the new
+`check-unavailable` code in place, and the four symmetry guards (`CODES`,
+`SARIF_RULES`, both README tables) go red at once if a code is added to one
+and not the others. Seen 1.

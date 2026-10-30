@@ -11,6 +11,21 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`doctor` reports a machine problem under its own code, not a source
+  code.** Every failing check - an interpreter older than the package supports,
+  no PDF library, a cache directory nobody can write to, a project missing the
+  files it says it has - was emitted as `source-unreadable`, on the theory that
+  one vocabulary per problem beats two. But SARIF is what a reader sees in the
+  code-scanning tab, and the rule line above each result comes from the code,
+  not the message, so a read-only cache directory was displayed under "A source
+  file could not be read." The message was always right; the word above it was
+  borrowed from a neighbouring problem. There is now a `check-unavailable` code
+  (`high`), documented in both READMEs and in the SARIF rule table. The same
+  commit corrects the docstring on `doctor.findings()`, which claimed to exist
+  for `--format json` - that branch carries every check, passing or not, and
+  never calls it.
 
 ## [0.19.13] — 2026-10-30
 ### Fixed

@@ -70,6 +70,7 @@ rots:
 | `source-no-text` | high | the PDF was read and held no text at all - it is a scan, and OCR is what it needs |
 | `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |
 | `ledger-stale` | high | the manuscript changed since the ledger was recorded |
+| `check-unavailable` | high | `doctor` found a check it cannot pass: no PDF library, an unsupported interpreter, a cache it cannot write |
 | `bib-key-missing` | high | the claim cites a bibliography key that is not there |
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
 | `bib-duplicate-key` | high | two entries share a key |

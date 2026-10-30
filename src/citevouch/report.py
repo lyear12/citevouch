@@ -63,6 +63,7 @@ SARIF_RULES = {
     "claim-without-evidence": "A claim carries no verifiable evidence.",
     "ledger-stale": "The ledger predates the manuscript.",
     "no-claim-blocks": "A manuscript holds no claim blocks, so nothing in it was checked.",
+    "check-unavailable": "This machine cannot run the checks at all.",
 }
 
 _LEVEL = {"high": "error", "medium": "warning", "low": "note", "info": "note"}

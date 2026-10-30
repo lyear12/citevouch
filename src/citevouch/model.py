@@ -71,6 +71,20 @@ CODES = {
     # because the CI job that would have reported it green is the job somebody
     # is trusting.
     "no-claim-blocks": "high",
+    # A check `doctor` could not pass: no PDF library, an interpreter older than
+    # the package supports, a cache directory nobody can write to, a project
+    # without the files it says it has.  High, because every one of them ends
+    # the same way - a run that reports quotes as missing when the truth is that
+    # nothing could be read - and the user is about to conclude the tool is
+    # wrong about their paper.
+    #
+    # This code exists because `source-unreadable` was the wrong word for it.
+    # doctor used to reuse that code, which made GitHub display a missing
+    # interpreter as "A source file could not be read."; the message was right
+    # and the rule above it was about a different thing.  One vocabulary per
+    # problem, and "this machine cannot run the checker" is not "this PDF is
+    # broken".
+    "check-unavailable": "high",
 }
 
 _SEVERITY_RANK = {name: i for i, name in enumerate(SEVERITIES)}
