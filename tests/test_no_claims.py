@@ -68,16 +68,12 @@ class TestWhatGetsReported:
         assert findings[0].line == 3
         assert "line 3" in findings[0].message
 
-    def test_the_four_backtick_message_says_how_many_ticks_were_found(
-        self, tmp_path: Path
-    ):
+    def test_the_four_backtick_message_says_how_many_ticks_were_found(self, tmp_path: Path):
         root = _project(tmp_path, FOUR_TICKS)
         _ledger, findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
         assert "4 backticks" in findings[0].message
 
-    def test_the_capitalised_message_says_the_case_is_the_problem(
-        self, tmp_path: Path
-    ):
+    def test_the_capitalised_message_says_the_case_is_the_problem(self, tmp_path: Path):
         root = _project(tmp_path, CAPITAL)
         _ledger, findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
         assert "case" in findings[0].message
@@ -146,9 +142,7 @@ class TestTheCommandLine:
         root = _project(tmp_path, REAL)
         assert main(["check", "m.md", "--root", str(root)]) == 0
 
-    def test_the_summary_line_no_longer_claims_info_as_the_worst(
-        self, tmp_path: Path, capsys
-    ):
+    def test_the_summary_line_no_longer_claims_info_as_the_worst(self, tmp_path: Path, capsys):
         """The old output was the actual bug, so pin the shape of the new one.
 
         The verdict was literally `worst severity: info` next to a green exit
