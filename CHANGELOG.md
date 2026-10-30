@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.17.1] — 2026-10-30
 ### Fixed
 
 - `scan`, `verify` and `check` accepted a `.tex` manuscript and reported `0 claims — 0 verified, 0
@@ -25,7 +27,6 @@ tag and that file disagree.
   without a readable number is reported instead of skipped. Widening it surfaced a real debt the
   narrow pattern had been hiding: a lesson already at `Seen 3` had never been promoted, and is now a
   rule in `docs/code-standards.md`.
-
 ## [0.17.0] — 2026-10-30
 ### Added
 
@@ -779,7 +780,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.17.1...HEAD
+[0.17.1]: https://github.com/lyear12/citevouch/releases/tag/v0.17.1
 [0.17.0]: https://github.com/lyear12/citevouch/releases/tag/v0.17.0
 [0.16.5]: https://github.com/lyear12/citevouch/releases/tag/v0.16.5
 [0.16.4]: https://github.com/lyear12/citevouch/releases/tag/v0.16.4
