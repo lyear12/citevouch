@@ -23,6 +23,7 @@ from .sources import (
     discover_sources,
     extract_pages,
     near_misses,
+    page_hint_is_valid,
     resolve_source,
     sha256_file,
 )
@@ -173,7 +174,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
         # silently ignored by the matcher, which then reports a false
         # `quote-moved` ("found on page 1, the ledger says 0") for a claim
         # whose hint was simply not a page.
-        if claim.page is not None and pages and not 1 <= claim.page <= len(pages):
+        if not page_hint_is_valid(claim.page, len(pages)):
             findings.append(
                 Finding(
                     code="page-out-of-range",

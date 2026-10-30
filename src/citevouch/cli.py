@@ -255,6 +255,13 @@ def cmd_init_demo(args: argparse.Namespace) -> int:
     the release smoke test before it was fixed here.
     """
     target = Path(args.directory)
+    # A path that is a file is not an empty directory, and letting `iterdir`
+    # discover that raises NotADirectoryError out of a command whose whole
+    # contract is "0, 1, or 2". The check is here rather than in an except
+    # clause because the useful sentence - this is a file - is already known.
+    if target.exists() and not target.is_dir():
+        _emit(f"citevouch: {target} is a file, not a directory\n", sys.stderr)
+        return 2
     if target.exists() and any(target.iterdir()):
         _emit(f"citevouch: {target} is not empty; refusing to overwrite\n", sys.stderr)
         return 2

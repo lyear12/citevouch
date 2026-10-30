@@ -274,6 +274,39 @@ branches on `steps.pypi.outcome`, naming the missing trusted publisher. Seen 1.
 
 ---
 
+## A removal announced in one file is not a removal
+
+**Rule.** When a behaviour is deleted, `grep` for the behaviour, not for the
+name you gave it in the docstring. The function that performed it is usually
+called something else, and it usually lives one layer below the place the
+comment talks about.
+
+**Why.** A round of review found that discovery bound a claim to a file when
+the claim's key was a prefix of a real key. The fix written was to the
+`discover_sources` docstring plus one test of `discover_sources` - and the
+CHANGELOG said the guessing was gone. It was not: the two prefix loops were in
+`resolve_source`, which `discover_sources` calls, and the diff had not opened
+that function. The announced removal was a false statement in the changelog, in
+a commit whose entire subject was "stop inferring bindings", and it survived
+two further reviews because both read the diff and neither re-ran the case. A
+claim naming `vaneecke2026cxnWRONGSUFFIX` - a key that exists in no manifest
+anywhere - still bound to the CoNLL paper and still produced `quote-found` at
+exit 0.
+
+The reason this class repeats is structural: a docstring is where you look up
+the behaviour, so it is where you patch the belief. The code that holds the
+belief is one call away and has no reason to appear in the same hunk.
+
+**Evidence.** Third review, N1. `grep -rn "startswith" src/citevouch/` returned
+the two live loops in `resolve_source` after the commit that claimed to delete
+them; `grep -rn "resolve_source" tests/` was empty, which is the second half of
+the same fact - the function no inference was supposed to happen in had no test
+at all. `tests/test_critic_round3.py::TestNoInferenceByPrefix` now covers it,
+including the end-to-end case where the typo must reach the reader as
+`source-missing`. Seen 1.
+
+---
+
 ## A version number is the one thing you cannot withdraw
 
 **Rule.** Decide versions in code with tests, not in a shell `if` inside YAML. `tools/next_version.py`
@@ -385,6 +418,8 @@ file it was reading is the queue the release pipeline drains, and the day it leg
 guarded, on all three OSes, at the exact moment the project had its first real feature entry. The
 repository changes under a test that reads it; the test is not wrong then, it is a race.
 
+**How to recognise it.** The failure is unconditional and delayed, not flaky: green for weeks, then red on a change that is correct. That shape reads as a real regression to whoever sees it first, which is why it survives review.
+
 **Evidence.** Run 40842840982 (push 8f3129a, the changelog catch-up): all eight matrix cells red on
 `assert '## [0.2.3] — 2026-11-01' in ...` while the tool correctly printed `0.3.0` and `bump: minor
 (from Added, Fixed)`. Meanwhile auto-release had already consumed that Unreleased section into
@@ -441,26 +476,6 @@ failed with `source-missing` because they bound `source=src` and wrote
 documentation was fiction; `load_manifest`'s docstring carried the same claim
 ("falling back to filename-stem resolution is almost always right") and so did
 `_mini_toml`'s. All three now describe the behaviour that exists. Seen 1.
-
----
-
-## A test that reads state it does not own races the repository
-
-**Rule.** A test may build a fixture and read it back; it may not read a live
-project file and assert what that file currently says.
-
-**Why.** The release-machinery test read the real `CHANGELOG.md` and asserted
-the next bump would be a patch. The file legitimately held an `Added` entry, so
-the assertion became false the moment the changelog described a feature, and all
-eight matrix cells went red for a change that was correct. The distinguishing
-feature of this failure is that it is not flaky: it is unconditional and
-delayed, which makes it read as a real regression to whoever sees it first. The
-replacement builds a changelog with the same shape in `tmp_path`, and a separate
-invariant test guards the real files with assertions that survive every release.
-
-**Evidence.** Run 40842840982, all eight cells red on
-`assert '## [0.2.3] — 2026-11-01' in ...` while the tool correctly printed
-`0.3.0`. Seen 1.
 
 ---
 

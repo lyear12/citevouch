@@ -46,7 +46,7 @@ it publishes anything.
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
 | `auto-release` | the changelog says release but the decided version changes no files, or the tag already exists |
-| `release` | the tag does not match `pyproject.toml`, or the suite is red, or the built wheel cannot scaffold a project and verify it |
+| `release` | the tag does not match `src/citevouch/_version.py`, or the suite is red, or the built wheel cannot scaffold a project and verify it |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a
@@ -91,8 +91,8 @@ A release is a tag, and since the auto-release workflow exists, usually nobody t
 workflow still accepts a hand-pushed tag and a `workflow_dispatch` with an explicit version, because
 the machine that decides versions can be wrong and the fix for a wrong version is a person pushing
 the right one. It attaches the sdist and wheel, publishes to PyPI when a trusted publisher is
-configured, and copies the release notes from the commit range. If the tag and `pyproject.toml`
-disagree, the release fails before publishing, not after.
+configured, and copies the release notes from the commit range. If the tag and
+`src/citevouch/_version.py` disagree, the release fails before publishing, not after.
 
 ## Reporting a problem
 

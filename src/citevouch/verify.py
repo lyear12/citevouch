@@ -23,7 +23,13 @@ from .bibtex import doi_of, field_findings
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
 from .scan import ScanOptions, _resolve, scan
-from .sources import discover_sources, extract_pages, resolve_source, sha256_file
+from .sources import (
+    discover_sources,
+    extract_pages,
+    page_hint_is_valid,
+    resolve_source,
+    sha256_file,
+)
 from .textnorm import canonical_number
 
 
@@ -194,16 +200,36 @@ def verify(
                 )
             )
 
-        match = find_in_pages(claim.quote, pages, claim.page)
+        # The hint is judged by the same rule scan uses. A ledger edited by
+        # hand, or written by an older build, can reach here with a page the
+        # document does not have; handing that to the matcher makes it search
+        # page 0, miss, search everywhere, find page 1, and report
+        # `quote-moved` - a true sentence about a false premise.
+        usable_page = claim.page if page_hint_is_valid(claim.page, len(pages)) else None
+        if claim.page is not None and usable_page is None:
+            result.findings.append(
+                Finding(
+                    code="page-out-of-range",
+                    message=(
+                        f"claim {claim.id} points at page {claim.page} but "
+                        f"{Path(path).name} has pages 1-{len(pages)}"
+                    ),
+                    claim_id=claim.id,
+                    path=claim.path,
+                    line=claim.line,
+                )
+            )
+
+        match = find_in_pages(claim.quote, pages, usable_page)
         if match.found:
-            if claim.page is not None and match.page != claim.page:
+            if usable_page is not None and match.page != usable_page:
                 result.moved += 1
                 result.findings.append(
                     Finding(
                         code="quote-moved",
                         message=(
                             f"claim {claim.id}: quote is on page {match.page}, "
-                            f"the ledger says {claim.page}"
+                            f"the ledger says {usable_page}"
                         ),
                         claim_id=claim.id,
                         path=claim.path,

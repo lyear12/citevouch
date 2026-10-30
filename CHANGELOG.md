@@ -14,6 +14,38 @@ tag and that file disagree.
 
 ### Fixed
 
+- A claim whose source key is a prefix, or a superset, of a real key no longer
+  binds to that key's file. The prefix rule was written out of
+  `discover_sources`' docstring in the previous round, but the two loops lived
+  in `resolve_source`, one level below discovery, and they were never deleted:
+  a claim naming `vaneecke2026cxnWRONGSUFFIX`, a key that exists in no manifest
+  anywhere, silently bound itself to `2026_VanEecke-Beuls_CoNLL2026_...pdf` and
+  `check` reported `quote-found` with exit 0. A typo now reports
+  `source-missing` and names the files it thinks you meant.
+- The suggestion list in that message works on real filenames. Matching was by
+  substring, and `vaneecke2026cxn` and
+  `2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG` contain neither the other, so
+  the candidates came back empty - a strict resolver whose error message was a
+  dead end. Tokens, split at letter/digit boundaries, find the `vaneecke` and
+  the `2026` the two names actually share.
+- `verify` applies the same page rule as `scan`. A ledger edited to say
+  `page: 0`, or one written by an older build, was passed to the matcher, which
+  searched page 0, missed, searched everywhere, found page 1, and reported
+  `quote-moved`: "quote is on page 1, the ledger says 0". The sentence was true
+  and the diagnosis was wrong, so the author went looking for a restructuring
+  that had not happened. `--use-recorded` reads ledgers it did not write, which
+  is exactly the path that reaches here.
+- A directory passed to `--source`, or listed in `sources.toml`, is ignored
+  instead of raising `PermissionError` out of `scan`. `init-demo` on a path that
+  is a file says "is a file, not a directory" and exits 2 instead of raising
+  `NotADirectoryError`. Both used to escape the 0/1/2 exit contract as a
+  traceback, which a caller cannot tell apart from a crash.
+- `AGENTS.md` and `docs/maintenance.md` no longer send an agent to bump the
+  version in `pyproject.toml`, which has not held a version since it moved to
+  `src/citevouch/_version.py`. `AGENTS.md` now names the file, and a test fails
+  if any document again describes the version as living in `pyproject.toml`:
+  a stale instruction is executed by the next agent, so it is a bug, not a typo.
+
 - A quoted value in a brace-delimited entry can hold a literal `%`
   (`title = "A study of 78% of cases"`). The brace scanner began comment
   scanning inside quoted values, cut the line there, lost the entry's closing
@@ -62,6 +94,12 @@ tag and that file disagree.
   and nothing rewrote the literal in `__init__.py`. The version now lives in
   `src/citevouch/_version.py` and `pyproject.toml` reads it dynamically; a test
   fails if a second copy appears anywhere in `src/`.
+
+### Added
+
+- `tests/test_critic_round3.py`: one or more tests per finding above, including
+  the end-to-end case where a mistyped source key reaches the reader as
+  `source-missing` instead of a confident `quote-found` on the wrong paper.
 
 ### Changed
 

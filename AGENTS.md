@@ -53,7 +53,11 @@ A behavior change that crosses two of these rows is usually a design change. Say
 
 ## How a release happens
 
-You do not tag releases and you do not bump the version in `pyproject.toml`. You write what changed
+The version is written exactly once, in `src/citevouch/_version.py`. `pyproject.toml` declares
+`dynamic = ["version"]` and reads that attribute, so there is no second copy to drift.
+`tests/test_critic_round2.py` fails if any other file in `src/` assigns `__version__`.
+
+You do not tag releases and you do not bump the version in `src/citevouch/_version.py`. You write what changed
 under `## [Unreleased]` in `CHANGELOG.md`, using a Keep-a-Changelog heading (`Added`, `Changed`,
 `Fixed`, `Security`, `Removed`, `Deprecated`), and you leave the numbers alone. When the change lands
 and CI is green on `main`, `auto-release.yml` runs `tools/next_version.py`, which reads what you

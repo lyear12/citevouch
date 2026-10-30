@@ -352,7 +352,7 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
         path = Path(raw)
         if not path.is_absolute():
             path = root / path
-        if path.exists():
+        if path.is_file():
             found[path.stem] = str(path)
 
     manifest = load_manifest(root)
@@ -360,9 +360,30 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
         path = Path(value)
         if not path.is_absolute():
             path = root / path
-        if path.exists():
+        if path.is_file():
             found[key] = str(path)
     return found
+
+
+def page_hint_is_valid(page: int | None, page_count: int) -> bool:
+    """Whether ``page`` names a page this document actually has.
+
+    One rule, used by both ``scan`` and ``verify``. They used to disagree: scan
+    rejected ``page: 0`` as ``page-out-of-range``, and verify - which is the
+    half that a reader runs, and the half ``check --use-recorded`` trusts -
+    passed the same 0 to the matcher, got page 1 back, and reported
+    ``quote-moved``: "quote is on page 1, the ledger says 0". The finding was
+    true and the diagnosis was wrong, so the author went hunting for a
+    restructuring that never happened. A hint that is not a page is not a page
+    hint.
+
+    ``page_count == 0`` means the document yielded no pages; that is a problem
+    with the file, reported elsewhere, and not something this predicate can
+    judge, so it says yes and lets the caller decide.
+    """
+    if page is None or page_count <= 0:
+        return True
+    return 1 <= page <= page_count
 
 
 def candidate_files(root: str | Path) -> list[str]:
@@ -388,27 +409,61 @@ def candidate_files(root: str | Path) -> list[str]:
     return sorted(found)
 
 
+# Split on anything that is not alphanumeric, and again between letters and
+# digits: ``vaneecke2026cxn`` should offer the ``vaneecke`` and the ``2026`` it
+# shares with a file named ``2026_VanEecke-Beuls_CoNLL2026_...``.
+_SPLIT = re.compile(r"[^a-z0-9]+|(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])")
+
+
+def _tokens(text: str) -> set[str]:
+    return {part for part in _SPLIT.split(text.lower()) if part}
+
+
 def near_misses(key: str, candidates: list[str], limit: int = 3) -> list[str]:
-    """Names from ``candidates`` that resemble ``key``, for an error message.
+    """Names from ``candidates`` that share tokens with ``key``, for a message.
 
     Suggestions to read, never bindings to use. Printing candidates is what
     lets discovery stay strict: the tool names what it saw, the author decides
     what it means.
+
+    Matching is by whole tokens, not substring. A real project's key is
+    ``vaneecke2026cxn`` and its file is
+    ``2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf``; neither name
+    contains the other, so a substring test reported no candidates at all and
+    the strict resolver's error message was the unhelpful kind. Tokens find the
+    ``vaneecke`` the two do share.
     """
     if not key:
         return []
-    needle = key.lower()
+    want = _tokens(key)
+    if not want:
+        return []
     scored: list[tuple[int, str]] = []
     for name in candidates:
-        stem = Path(name).stem.lower()
-        if needle in stem or stem in needle:
-            scored.append((abs(len(stem) - len(needle)), name))
+        have = _tokens(Path(name).stem)
+        shared = want & have
+        if shared:
+            # More shared tokens first; on a tie, the name that is not wildly
+            # longer, since a short file is likelier to be the one intended.
+            scored.append((-len(shared), abs(len(have) - len(want)), name))
     scored.sort()
-    return [name for _distance, name in scored[:limit]]
+    return [name for _shared, _spread, name in scored[:limit]]
 
 
 def resolve_source(key: str, known: dict[str, str]) -> str | None:
-    """Best-effort lookup of a claim's source key among discovered files."""
+    """Look up a claim's source key. Exact, or differing only in case.
+
+    Prefix matching used to live here: a claim naming ``vaneecke2026`` bound
+    itself to whatever key started with that string, and so did a claim naming
+    ``vaneecke2026cxnWRONGSUFFIX`` - a key that exists in no manifest anywhere.
+    A typo therefore resolved to a real PDF and produced a confident
+    ``quote-found`` on the wrong paper, which is worse than reporting that the
+    key is unknown: the author never learns the page number it just cited came
+    from a document they did not name.
+
+    Exact-or-case-insensitive is the whole rule. If a project wants a shorter
+    name, the manifest can map one: ``[sources]`` exists for exactly that.
+    """
     if not key:
         return None
     if key in known:
@@ -416,11 +471,5 @@ def resolve_source(key: str, known: dict[str, str]) -> str | None:
     lowered = key.lower()
     for name, path in known.items():
         if name.lower() == lowered:
-            return path
-    for name, path in known.items():
-        if name.lower().startswith(lowered):
-            return path
-    for name, path in known.items():
-        if lowered.startswith(name.lower()):
             return path
     return None
