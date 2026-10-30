@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.6.1] — 2026-10-30
 ### Fixed
 
 - The guard that keeps documents from describing the version as living in
@@ -22,7 +24,6 @@ tag and that file disagree.
   test now checks any line that mentions `pyproject.toml` for a statement of
   what it actually does, and it scans `.github/workflows/*.yml` too - the guard
   had been excluding the files it was never pointed at.
-
 ## [0.6.0] — 2026-10-30
 ### Fixed
 
@@ -344,7 +345,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/lyear12/citevouch/releases/tag/v0.6.1
 [0.6.0]: https://github.com/lyear12/citevouch/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lyear12/citevouch/releases/tag/v0.5.0
 [0.4.1]: https://github.com/lyear12/citevouch/releases/tag/v0.4.1
