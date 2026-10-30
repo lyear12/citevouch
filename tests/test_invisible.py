@@ -70,15 +70,70 @@ class TestTheClassIsTheCategory:
         ]
         assert missing == [], [hex(cp) for cp in missing]
 
-    def test_nothing_outside_the_category_is_removed(self):
+    def test_nothing_outside_the_table_is_removed(self):
         # The other direction matters as much: a class that also swallowed
-        # ordinary letters would silently change what a quote says.
+        # ordinary letters would silently change what a quote says.  The
+        # expectation here is the table, not `unicodedata.category`, because
+        # the table is a snapshot of a *later* Unicode version than some
+        # interpreters ship: U+0890/U+0891 and the Egyptian hieroglyph format
+        # controls are `Cf` in Unicode 14 and ordinary assigned characters in
+        # Unicode 13, which is what CPython 3.10 carries.  Removing them there
+        # is forward-looking and harmless; what must never happen is removing
+        # something the table does not name.
+        from citevouch.textnorm import _FORMAT_RANGES
+
+        allowed = {cp for lo, hi in _FORMAT_RANGES for cp in range(lo, hi + 1)}
         extra = [
             cp
             for cp in range(0x110000)
-            if unicodedata.category(chr(cp)) != "Cf" and strip_format(chr(cp)) != chr(cp)
+            if cp not in allowed and strip_format(chr(cp)) != chr(cp)
         ]
         assert extra == [], [hex(cp) for cp in extra]
+
+    def test_the_table_never_drops_a_character_this_interpreter_calls_format(self):
+        # The direction that must hold on every interpreter: whatever this
+        # `unicodedata` knows to be invisible has to be in the table.  If a
+        # Unicode release adds one, this is where it fails - the direction
+        # above cannot see a character its own database does not have.
+        missing = [
+            cp
+            for cp in range(0x110000)
+            if unicodedata.category(chr(cp)) == "Cf" and strip_format(chr(cp)) != ""
+        ]
+        assert missing == [], [hex(cp) for cp in missing]
+
+    def test_the_table_may_be_ahead_of_this_interpreter(self):
+        """A snapshot newer than the runtime is fine, and worth stating.
+
+        CPython 3.10 ships Unicode 13; the table was written from 14.  The
+        characters in between are removed on 3.10 for no benefit - nobody
+        writes them yet - and that is a limit on being *newer*, not a fault.
+        Pinning it here means a later reader sees the asymmetry explained
+        rather than meeting it as a mystery failing matrix cell.
+        """
+        from citevouch.textnorm import _FORMAT_RANGES
+
+        ahead = [
+            cp
+            for lo, hi in _FORMAT_RANGES
+            for cp in range(lo, hi + 1)
+            if unicodedata.category(chr(cp)) != "Cf"
+        ]
+        # Whatever the interpreter, these are only ever extra removals.
+        assert all(strip_format(chr(cp)) == "" for cp in ahead)
+        # On this interpreter that set is either empty (Unicode >= 14) or made
+        # only of exactly the characters that became format characters in 14.
+        assert set(ahead) <= {
+            0x0890,
+            0x0891,
+            0x13439,
+            0x1343A,
+            0x1343B,
+            0x1343C,
+            0x1343D,
+            0x1343E,
+            0x1343F,
+        }, [hex(cp) for cp in ahead]
 
     def test_the_sample_in_this_file_is_really_invisible(self):
         # Otherwise the test data could quietly become ordinary letters.
