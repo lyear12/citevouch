@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.16.2] — 2026-10-30
 ### Fixed
 
 - `tools/check_repo_rules.py` no longer assumes one suite per commit. A commit
@@ -63,7 +65,6 @@ tag and that file disagree.
   less evidence; waving through is what the gate exists to prevent. It caught
   this very commit: `says 508 passed, the suites measured 515` on run
   41065479029.
-
 ## [0.16.1] — 2026-10-30
 ### Fixed
 
@@ -717,7 +718,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.2...HEAD
+[0.16.2]: https://github.com/lyear12/citevouch/releases/tag/v0.16.2
 [0.16.1]: https://github.com/lyear12/citevouch/releases/tag/v0.16.1
 [0.16.0]: https://github.com/lyear12/citevouch/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lyear12/citevouch/releases/tag/v0.15.0
