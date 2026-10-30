@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.8.0] — 2026-10-30
 ### Added
 
 - `sources.toml` on Python 3.10 tolerates a non-string value. A manifest holding
@@ -52,7 +54,6 @@ tag and that file disagree.
 - `AGENTS.md` and `docs/code-standards.md` name the venv path each platform
   actually has. `.venv/bin/pip` does not exist on Windows, and a list a reader
   has to translate is a list they skip.
-
 ## [0.7.0] — 2026-10-30
 ### Added
 
@@ -437,7 +438,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/lyear12/citevouch/releases/tag/v0.8.0
 [0.7.0]: https://github.com/lyear12/citevouch/releases/tag/v0.7.0
 [0.6.1]: https://github.com/lyear12/citevouch/releases/tag/v0.6.1
 [0.6.0]: https://github.com/lyear12/citevouch/releases/tag/v0.6.0
