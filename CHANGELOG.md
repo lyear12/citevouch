@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `citevouch report` printed `0 entrys`, and left a `|` inside a claim id or a
+  source key unescaped.  The table therefore gained a column and every row below
+  it shifted.  The quote was escaped from the first version, which is what made
+  the row look finished: whoever wrote it knew about the pipe and stopped at one
+  cell.  Both now go through one `_cell` helper, and `_count` takes the plural
+  it should print instead of appending an `s` to whatever noun it was given.
+  `report` had no test before this, which is why two defects in eleven lines of
+  formatting survived four releases.
+
 ## [0.18.3] — 2026-10-30
 ### Fixed
 

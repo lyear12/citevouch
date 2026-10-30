@@ -284,6 +284,68 @@ def test_a_non_numeric_schema_is_a_usage_error(tmp_path: Path, capsys):
     assert "non-numeric schema" in capsys.readouterr().err
 
 
+class TestTheTableIsATable:
+    """`report` had no test at all, so it had two defects nobody had seen.
+
+    Its rows escaped `|` in the quote and nowhere else, so a claim id holding a
+    pipe ended the column and every row below it shifted.  And the summary line
+    pluralised by appending an "s", which printed "0 entrys" on the demo - the
+    one project in this repository - where anybody would have seen it.
+    """
+
+    MANUSCRIPT = "```claim id=c|1 source=s\nWe train on two corpora | and one pipe.\n```\n"
+
+    def _project(self, root):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "sources.toml").write_text(
+            '[sources]\ns = "s.txt"\n', encoding="utf-8", newline="\n"
+        )
+        (root / "s.txt").write_text(
+            "We train on two corpora | and one pipe.\n", encoding="utf-8", newline="\n"
+        )
+        (root / "manuscript.md").write_text(self.MANUSCRIPT, encoding="utf-8", newline="\n")
+        return root
+
+    @staticmethod
+    def _columns(line):
+        """Count the separators, not the pipes.
+
+        An escaped pipe is visible to `str.count` and is not a column edge,
+        so counting raw pipes fails the very fix it should be checking.
+        """
+        unescaped = line.replace("\\\\", chr(0)).replace("\\|", chr(0))
+        return unescaped.count("|")
+
+    def _report(self, root, capsys):
+        assert main(["scan", str(root / "manuscript.md"), "--root", str(root)]) == 0
+        capsys.readouterr()
+        assert main(["report", "--root", str(root)]) == 0
+        return capsys.readouterr().out
+
+    def test_a_pipe_inside_a_cell_does_not_add_a_column(self, tmp_path, capsys):
+        out = self._report(self._project(tmp_path / "p"), capsys)
+        rows = [ln for ln in out.split("\n") if ln.startswith("| ")]
+        assert len({self._columns(ln) for ln in rows}) == 1, out
+
+    def test_the_pipe_the_reader_sees_is_escaped(self, tmp_path, capsys):
+        out = self._report(self._project(tmp_path / "p"), capsys)
+        assert "c" + chr(92) + "|1" in out
+        assert "corpora " + chr(92) + "| and" in out
+
+    def test_an_empty_bibliography_is_not_called_entrys(self, tmp_path, capsys):
+        out = self._report(self._project(tmp_path / "p"), capsys)
+        assert "0 entries" in out
+        assert "entrys" not in out
+
+    def test_every_row_of_the_demo_has_the_same_shape(self, capsys):
+        demo = Path(__file__).resolve().parent.parent / "demo"
+        assert main(["report", "--root", str(demo)]) == 0
+        out = capsys.readouterr().out
+        assert "entrys" not in out
+        rows = [ln for ln in out.split("\n") if ln.startswith("| ")]
+        assert len({self._columns(ln) for ln in rows}) == 1, out
+
+
 class TestAPathThatCannotBeWrittenIsAUsageError:
     """The exit code has to say "bad path", not "your manuscript failed".
 

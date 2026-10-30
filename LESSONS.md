@@ -228,10 +228,15 @@ different ways (no ledger, no test coverage of the refusal path, and a "wrote ..
 described files it had not finished making useful). Coverage is not the goal; the goal is that a
 verb whose job is "leave the user in a working state" has somebody checking what state it leaves.
 
-**Evidence.** `grep -rn "init-demo\|init_demo" tests/` returned nothing before this commit, while
-`tests/test_cli.py` covered scan, verify, check, report, formats, exit codes, and error paths.
-Now `test_init_demo_writes_a_project_that_the_documented_next_command_accepts` and
-`test_init_demo_refuses_a_directory_that_already_has_something`. Seen 1.
+**Evidence.** `grep -rn "init-demo\|init_demo" tests/` returned nothing before this commit.  Now
+`test_init_demo_writes_a_project_that_the_documented_next_command_accepts` and
+`test_init_demo_refuses_a_directory_that_already_has_something`.
+
+**Seen 2.** The first version of this lesson made the same mistake inside its own evidence: it said
+`tests/test_cli.py` covered "scan, verify, check, report, formats, exit codes, and error paths".
+`report` had no test at all.  It printed `0 entrys` and left a `|` in a claim id unescaped, and both
+survived four releases because the sentence listing what was covered had been written from memory
+rather than from `grep`.  A claim about coverage is a measurement; measure it.
 
 ---
 

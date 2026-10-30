@@ -243,9 +243,29 @@ def cmd_check(args: argparse.Namespace) -> int:
     return _exit_code(result.findings, args.fail_on)
 
 
-def _count(count: int, noun: str) -> str:
-    """Write "1 claim" or "5 claims"; the message is read by people."""
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+def _cell(text: str) -> str:
+    """Escape one markdown table cell.
+
+    A pipe inside a cell ends the column and a newline ends the row, so a
+    claim id, a source key or a quote holding either one rewrites the table
+    shape for every row after it.  The quote was escaped from the start,
+    which is what made this look finished: whoever wrote it knew about the
+    pipe and stopped at one cell.
+    """
+    return text.replace("|", "\\|").replace("\n", " ")
+
+
+def _count(count: int, noun: str, plural: str = "") -> str:
+    """Write "1 claim" or "5 claims"; the message is read by people.
+
+    `plural` exists because adding an "s" is an English rule, not a fact
+    about the word.  A ledger with no bibliography printed "0 entrys",
+    which is the kind of detail that makes a careful reader stop
+    trusting the numbers printed next to it.
+    """
+    if count == 1:
+        return f"{count} {noun}"
+    return f"{count} {plural or noun + 's'}"
 
 
 def cmd_draft(args: argparse.Namespace) -> int:
@@ -374,14 +394,14 @@ def cmd_report(args: argparse.Namespace) -> int:
         "",
         f"- records: {_count(len(ledger.claims), 'claim')} against "
         f"{_count(len(ledger.sources), 'source')}",
-        f"- bibliography: {_count(len(ledger.entries), 'entry')}",
+        f"- bibliography: {_count(len(ledger.entries), 'entry', 'entries')}",
         f"- written by citevouch {ledger.tool_version} at {ledger.generated_at}",
         "",
         "| claim | source | page | quote |",
         "|---|---|---|---|",
     ]
     for claim in ledger.claims:
-        quote = claim.quote.replace("|", "\\|").replace("\n", " ")
+        quote = _cell(claim.quote)
         if len(quote) > 80:
             quote = quote[:79] + "…"
         # `claim.page or '—'` rendered page 0 as an em dash: the author asked
@@ -389,7 +409,9 @@ def cmd_report(args: argparse.Namespace) -> int:
         # "no page"; a 0 is a number the reader is entitled to see, and one
         # worth seeing.
         page_cell = "—" if claim.page is None else claim.page
-        lines.append(f"| `{claim.id}` | {claim.source} | {page_cell} | {quote} |")
+        lines.append(
+            f"| {_cell('`' + claim.id + '`')} | {_cell(claim.source)} | {page_cell} | {quote} |"
+        )
     _emit("\n".join(lines) + "\n")
     return 0
 
