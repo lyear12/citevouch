@@ -2090,4 +2090,15 @@ behaviours - `findings: len(findings)`, `worst` over the short list, dropping
 the `hidden` field, or the CLI not passing `everything=` - turns
 `tests/test_report.py::TestTheJsonDescribesTheRunAndSaysWhatItLeftOut` red.
 
-Seen 2.
+The third occurrence was `--format markdown`, and it is the one that shows why
+this keeps happening. The JSON fix moved the filter up into `_render`, a single
+place every format passes through - and that made the markdown writer worse, not
+better, because now `_render` shortened the list before markdown saw it and
+markdown had no way to describe a run it was never shown. The repair is not
+"filter in `_render`" and it is not "filter in each writer"; it is that every
+writer which prints a summary line gets the whole list and filters for itself,
+and the only two left in the upstream `if` are the two that print no summary at
+all. Upstream was the tempting place to fix this, and it was the wrong place
+twice running.
+
+Seen 3. Promoted to `docs/code-standards.md`.

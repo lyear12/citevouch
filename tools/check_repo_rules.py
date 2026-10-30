@@ -167,6 +167,27 @@ def formatted_count_mismatches(notes: str, actual: int) -> list[str]:
     return bad
 
 
+def _lessons(lessons_text: str) -> list[tuple[str, str]]:
+    """Every lesson as `(title, body)`, split on the headings rather than on `---`.
+
+    The first version split the file on `\\n---\\n` and took the first heading in
+    each piece. That held while every lesson ended with a separator, and then
+    stopped holding: lessons appended later had none, so thirty-five of them
+    landed in one piece, `_LESSON_HEADING.search` found only the first title,
+    and `max(counts)` took the largest Seen number in the whole piece and
+    attributed it to that first title. Every other lesson in the piece was never
+    examined at all, and the one that was got a count belonging to a neighbour.
+
+    A separator is a thing a person can forget to type. A heading is the lesson.
+    """
+    matches = list(_LESSON_HEADING.finditer(lessons_text))
+    lessons: list[tuple[str, str]] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(lessons_text)
+        lessons.append((match.group("title").strip(), lessons_text[match.start() : end]))
+    return lessons
+
+
 def lesson_promotions_due(lessons_text: str, standards_text: str) -> list[str]:
     """Lesson titles seen on >= 3 days that code-standards.md does not carry yet.
 
@@ -178,12 +199,7 @@ def lesson_promotions_due(lessons_text: str, standards_text: str) -> list[str]:
     """
     unreadable: list[str] = []
     due: list[str] = []
-    blocks = re.split(r"\n---\n", lessons_text)
-    for block in blocks:
-        heading = _LESSON_HEADING.search(block)
-        if heading is None:
-            continue
-        title = heading.group("title").strip()
+    for title, block in _lessons(lessons_text):
         if not title or title.startswith("Reading"):
             continue
         seen = [

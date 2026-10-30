@@ -509,6 +509,10 @@ def _render(
         # renderer alone, so `--quiet --format sarif` uploaded the info-level
         # findings into code scanning and the flag did nothing where it was
         # most likely to be used (a CI gate).
+        #
+        # Text and markdown are not filtered here: both print a summary line of
+        # their own that has to describe the run rather than the screen, so
+        # both are handed `run` and decide for themselves what to leave out.
         findings = [f for f in findings if f.severity not in ("info", "low")]
     if fmt == "json":
         # `run` is every finding; the JSON writer needs it to describe the run
@@ -517,7 +521,13 @@ def _render(
     if fmt == "sarif":
         return render_sarif(findings, __version__, args.root)
     if fmt == "markdown":
-        return render_markdown(findings, result, args.fail_on)
+        # Markdown does its own filtering, like text does, because it prints a
+        # summary line of its own and that line has to describe the run.  It
+        # used to receive the list after this function had shortened it, so
+        # `--quiet --format markdown` produced a report with no findings and no
+        # summary for a run that exited 1 - and a PR comment is exactly where
+        # the reviewer looks for the reason.
+        return render_markdown(run, result, args.fail_on, show_info=not args.quiet)
     # Text keeps the full list: its summary line has to describe the run, not
     # the lines `--quiet` left on screen.
     return render_text(findings, result, show_info=not args.quiet, fail_on=args.fail_on)

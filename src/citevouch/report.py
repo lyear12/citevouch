@@ -301,6 +301,7 @@ def render_markdown(
     findings: Iterable[Finding],
     result: VerifyResult | None = None,
     fail_on: str = "high",
+    show_info: bool = True,
 ) -> str:
     """A report body suitable for a PR comment or a job summary.
 
@@ -325,8 +326,15 @@ def render_markdown(
     medium finding is the reason the job is red while the report files it
     under Other.  The heading that answers "why did this fail" now answers it
     from the same threshold the exit code uses.
+
+    `--quiet` was honoured by the text renderer alone, so this one printed a
+    report with no findings in it for a run that exited 1.  It now takes the
+    whole list and decides what to leave out itself, the way `render_text`
+    does, and says so in the body - a PR comment is where the reviewer finds
+    out why the job is red, so it cannot be the one writer that says nothing.
     """
-    findings = list(findings)
+    everything = list(findings)
+    findings = [f for f in everything if not _hidden_by_quiet(f, show_info)]
     max_total = 200
     per_section = 50
     bullets = findings[:max_total]
@@ -337,6 +345,18 @@ def render_markdown(
             f"**{result.verified}** verified · "
             f"**{result.moved}** moved · **{result.missing}** missing"
         )
+        # The summary describes the run, not the shortened list, for the same
+        # reason the text summary does: the finding that failed the run may be
+        # one this report was told to leave out.
+        lines.append(f"**worst severity:** {worst(f.severity for f in everything)}")
+        if failing := _failing_hidden(
+            [f for f in everything if _hidden_by_quiet(f, show_info)], fail_on
+        ):
+            lines.append(
+                f"**{len(failing)}** {_word(len(failing), 'finding')} at or above "
+                f"`--fail-on {fail_on}` {_plural_verb(len(failing))} hidden by "
+                "`--quiet`; that is why this run failed."
+            )
         lines.append("")
     threshold = SEVERITIES.index(fail_on) if fail_on in SEVERITIES else len(SEVERITIES)
     blocking_codes = [_is_blocking(f, threshold) for f in bullets]

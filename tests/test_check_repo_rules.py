@@ -242,3 +242,29 @@ def test_a_number_in_the_prose_is_not_a_claim_about_this_run():
 def test_a_number_inside_the_run_section_is_still_policed():
     body = "Subject\n\nRun: pytest (317 passed)\n\nNot tried: x\n"
     assert cr.passed_count_mismatches(cr._run_section(body), 511)
+
+
+def test_each_lesson_is_read_as_its_own_lesson():
+    """Two lessons in one piece of text are two lessons, not one with the other's count.
+
+    The splitter used a `---` line, which is a separator a person types.
+    Lessons appended later had none, so thirty-five of them shared a piece: the
+    heading search found only the first title, and `max(counts)` handed that
+    title the largest Seen number in the whole piece. The other thirty-four were
+    never looked at, and the one that was borrowed a neighbour's evidence. So a
+    real `Seen 3` debt sat unreported while a `Seen 1` lesson was accused of
+    being one.
+    """
+    nl = chr(10)
+    first = "## First lesson" + nl + nl + "**Evidence.** a. Seen 1." + nl
+    second = "## Second lesson" + nl + nl + "**Evidence.** b. Seen 3." + nl
+    assert cr.lesson_promotions_due(first + second, "") == ["Second lesson"]
+
+
+def test_a_separator_between_lessons_changes_nothing():
+    """A `---` line is optional decoration, not the thing that ends a lesson."""
+    nl = chr(10)
+    first = "## First lesson" + nl + nl + "**Evidence.** a. Seen 5." + nl
+    second = "## Second lesson" + nl + nl + "**Evidence.** b. Seen 1." + nl
+    sep = "---" + nl
+    assert cr.lesson_promotions_due(first + sep + second, "") == ["First lesson"]

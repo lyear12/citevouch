@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import ClassVar
 from urllib.parse import unquote
 
+from citevouch.cli import main
 from citevouch.model import SEVERITIES, Finding
 from citevouch.report import (
     SARIF_RULES,
@@ -513,3 +516,100 @@ class TestTheSummaryDescribesTheRunNotTheScreen:
         assert "worst severity: high" in shown
         assert "worst severity: high" in hidden
         assert "hidden by --quiet" not in hidden
+
+
+class TestTheMarkdownReportSaysWhyTheJobIsRed:
+    """The same defect as the one above, in the writer a reviewer actually reads.
+
+    `--quiet` was honoured by the text renderer alone; `_render` shortened the
+    list before handing it to markdown.  A run that exited 1 under `--quiet
+    --format markdown` produced a report with a clean summary, no `### Blocking`
+    section, and not one word about what failed - in a PR comment, which is the
+    one place a reader goes to find out why the job is red.
+
+    The fix moved the decision into the renderer, the way `render_text` already
+    did, so the summary can describe the run while the body lists only what
+    `--quiet` allowed.
+    """
+
+    def _finding(self, severity, message="m"):
+        return Finding(code="page-unreadable", severity=severity, message=message)
+
+    def _result(self):
+        return VerifyResult(checked=1, verified=1)
+
+    def test_a_hidden_finding_still_decides_the_worst_severity(self):
+        findings = [self._finding("low", "hidden one"), self._finding("info")]
+        out = render_markdown(findings, self._result(), show_info=False)
+        # The low line is hidden by --quiet, and it is still the run's worst.
+        assert "**worst severity:** low" in out
+        # Hidden means hidden: the bullet is gone.  Asserting on the message
+        # rather than the code, because the code is the same one this report
+        # would print if it printed the line.
+        assert "hidden one" not in out
+
+    def test_a_run_failed_by_a_hidden_finding_says_so(self):
+        findings = [self._finding("low")]
+        out = render_markdown(findings, self._result(), fail_on="low", show_info=False)
+        assert "hidden by `--quiet`" in out
+        assert "that is why this run failed" in out
+        assert "**1** finding at or above `--fail-on low`" in out
+
+    def test_a_hidden_finding_below_the_threshold_is_not_blamed(self):
+        findings = [self._finding("low")]
+        out = render_markdown(findings, self._result(), fail_on="high", show_info=False)
+        assert "hidden by `--quiet`" not in out
+
+    def test_several_hidden_findings_agree_with_the_plural(self):
+        findings = [self._finding("low", "a"), self._finding("low", "b")]
+        out = render_markdown(findings, self._result(), fail_on="low", show_info=False)
+        assert "**2** findings at or above" in out
+        assert "were hidden" in out
+
+    def test_showing_everything_changes_only_which_lines_print(self):
+        findings = [self._finding("high")]
+        shown = render_markdown(findings, self._result(), show_info=True)
+        hidden = render_markdown(findings, self._result(), show_info=False)
+        assert shown == hidden
+        assert "hidden by `--quiet`" not in hidden
+
+    def test_the_command_line_hides_the_line_and_keeps_the_reason(self, tmp_path: Path):
+        """The unit tests above can pass while `_render` still shortens the list.
+
+        This one goes through `main`, because that is where the filter used to
+        live: the renderer could compute the right answer from the wrong input
+        and no assertion on the renderer alone would notice.
+        """
+        root = tmp_path
+        (root / "p.txt").write_text("We train on two corpora.\n", encoding="utf-8")
+        (root / "sources.toml").write_text('[sources]\np = "p.txt"\n', encoding="utf-8")
+        (root / "m.md").write_text(
+            "```claim id=c1 source=p page=1\nWe train on two corpora.\n```\n"
+            "\n"
+            "\u3010\u63a8\u6d4b\u3011the trend probably holds elsewhere.\n",
+            encoding="utf-8",
+        )
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = main(
+                [
+                    "check",
+                    "m.md",
+                    "--root",
+                    str(root),
+                    "--format",
+                    "markdown",
+                    "--fail-on",
+                    "low",
+                    "--quiet",
+                ]
+            )
+        assert code == 1
+        text = out.getvalue()
+        # It failed, so the report has to say why.
+        assert "hidden by `--quiet`" in text
+        assert "that is why this run failed" in text
+        # And `--quiet` still does its job: the low line does not get printed
+        # as a bullet.  Without this the report could print everything and the
+        # flag would be a no-op in the one writer that ignores it.
+        assert "the trend probably holds elsewhere" not in text

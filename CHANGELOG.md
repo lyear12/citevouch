@@ -11,6 +11,21 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`--format markdown` says why the job is red, and `--quiet` still
+  hides what it hides.** This is the same defect as the text one above, in the
+  writer a reviewer actually reads. `_render` shortened the list before handing
+  it to the markdown writer, so `check --quiet --format markdown` on a run that
+  exited 1 produced a report with a clean summary, no `### Blocking` section and
+  not one word about what failed — in a PR comment, which is the one place
+  someone goes to find out why the job is red. The renderer now receives the
+  whole list and decides for itself what to leave out, the way the text renderer
+  always did, so it can describe the run in the summary while the body still
+  obeys `--quiet`. It also gained the two lines the text summary has had since
+  v0.18.7: `**worst severity:**`, and, when `--quiet` hid a finding at or above
+  `--fail-on`, `**N** findings … were hidden by --quiet; that is why this run
+  failed.` Five mutations are caught, including the original one.
 
 ## [0.19.11] — 2026-10-30
 ### Fixed
