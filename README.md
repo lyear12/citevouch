@@ -277,6 +277,13 @@ The shortest form is the action. It installs the tag it is pinned to and runs th
     manuscript: manuscript.md
 ```
 
+It runs `check --use-recorded`, which reads the ledger out of the repository instead of re-deriving
+it — so **commit `citevouch.lock.json` first** (see [Use it in 60 seconds](#use-it-in-60-seconds)).
+On a repository that has never been scanned the job exits 2 with `no ledger at
+citevouch.lock.json; run \`citevouch scan\` first`. That is a setup error, not a verdict about the
+manuscript, which is why the action stops on it rather than reporting a green job for a check that
+never ran.
+
 It writes a SARIF file and exposes its path as the `sarif` output, so adding a code-scanning upload
 is one more step:
 

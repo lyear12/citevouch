@@ -244,6 +244,11 @@ citevouch draft paper.tex --bib refs.bib -o claims.md
     manuscript: manuscript.md
 ```
 
+它会跑 `check --use-recorded`，读的是仓库里的账本而不是重新解析——所以**先把 `citevouch.lock.json`
+提交进去**（见 [60 秒上手](#60-秒上手)）。在从没扫过的仓库上，这个岗位会以退出码 2 结束并说
+`no ledger at citevouch.lock.json; run \`citevouch scan\` first`。这是配置错误，不是对稿件的判决，
+所以 action 在这里停下，而不是对一次根本没跑过的检查报绿。
+
 它会写出 SARIF 文件，并把路径作为 `sarif` 输出交出来，所以再加一步就能传给 code scanning：
 
 ```yaml

@@ -12,6 +12,10 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `tests/test_child_env.py` walked `tests/` only, so it could not see `tools/make_figures.py` doing the very thing it exists to prevent: the figure generator's first version replaced the environment, lost `PATH`, and drew a picture of a broken installation. The scan now covers `tools/` as well.
+
 ## [0.16.3] — 2026-10-30
 ### Fixed
 

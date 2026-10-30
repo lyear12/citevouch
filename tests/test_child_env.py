@@ -12,8 +12,14 @@ written twice, in `test_critic_round2.py` and again in `test_precommit.py`, each
 time found by a red Windows job rather than by reading the code.
 
 The rule: a dict handed to `env=` must carry `**os.environ`. These tests read
-the test sources with `ast`, so prose that mentions the pattern is not matched
-and a real one cannot hide behind a comment.
+the sources with `ast`, so prose that mentions the pattern is not matched and a
+real one cannot hide behind a comment.
+
+The scan covers `tools/` as well as `tests/`, because it was written over
+`tests/` alone and `tools/make_figures.py` then did exactly this: the first
+version of the figure generator handed `env={"PYTHONPATH": ...}` to the demo run,
+which on Windows removed `PATH`, lost `pdftotext`, and drew a picture of a broken
+installation. A guard whose list of files is a guess protects only the guess.
 """
 
 from __future__ import annotations
@@ -25,8 +31,15 @@ ROOT = Path(__file__).resolve().parent.parent
 TESTS = ROOT / "tests"
 
 
-def _test_sources() -> list[Path]:
-    return sorted(path for path in TESTS.glob("test_*.py"))
+SCANNED = (TESTS, ROOT / "tools")
+
+
+def _sources() -> list[Path]:
+    """Every Python file this repository runs by hand or in CI."""
+    found: list[Path] = []
+    for directory in SCANNED:
+        found.extend(sorted(directory.glob("*.py")))
+    return found
 
 
 def _expands_os_environ(node: ast.Dict) -> bool:
@@ -56,9 +69,12 @@ def _replacing_envs(path: Path) -> list[int]:
 
 def test_the_scan_finds_the_files_it_is_meant_to_scan() -> None:
     """A guard over an empty list passes forever."""
-    sources = _test_sources()
+    sources = _sources()
     assert len(sources) > 15, len(sources)
     assert (TESTS / "test_precommit.py") in sources
+    assert (ROOT / "tools" / "make_figures.py") in sources, (
+        "the file that actually made this mistake is not in the scan"
+    )
 
 
 def test_the_detector_recognises_both_shapes() -> None:
@@ -69,10 +85,11 @@ def test_the_detector_recognises_both_shapes() -> None:
     assert _expands_os_environ(bad.value.keywords[0].value) is False
 
 
-def test_no_test_replaces_the_environment_with_a_literal() -> None:
+def test_nothing_replaces_the_environment_with_a_literal() -> None:
+    """`tests/` and `tools/` alike: the same `env=` kills a child in both."""
     offenders = [
         f"{path.name}:{line}"
-        for path in _test_sources()
+        for path in _sources()
         for line in _replacing_envs(path)
         if path.name != Path(__file__).name
     ]

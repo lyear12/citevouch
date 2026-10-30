@@ -1401,3 +1401,23 @@ and `test_a_shell_step_is_never_handed_an_env_var_it_ignores` (every `env:` key 
 referenced in its own step's body, allowing `${KEY:-default}` and `$KEY`).
 Restoring the old `action.yml` turns the first and third red; the old test stayed
 green. Seen 1.
+
+## A guard that names its own files protects only the files it named
+
+**Rule.** When a guard scans a set of paths, the set is part of the guard. If it
+walks one directory because that is where the mistake was first seen, it will
+miss the second place the same mistake is written — and it will report success
+the whole time.
+
+**Why.** A green guard is read as "this defect is not here." That reading costs
+nothing to produce and is expensive to disprove, because the next person has to
+suspect the guard itself before they suspect the code.
+
+**Evidence.** `tests/test_child_env.py` exists because
+`subprocess.run(..., env={...})` replaces the environment, removes `SYSTEMROOT`
+on Windows, and aborts CPython before it can say what happened. It was written
+after the same defect appeared twice in `tests/`, so it scanned `tests/`. Then
+`tools/make_figures.py` — which renders the README figures by running the demo —
+did it again: the first version handed `env={"PYTHONPATH": ...}` to the demo, lost
+`PATH`, lost `pdftotext`, and drew a picture of a broken installation. The guard
+was green the entire time, because `tools/` was not on its list. Seen 1.
