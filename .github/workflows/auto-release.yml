@@ -77,7 +77,7 @@ jobs:
           next=$(python tools/next_version.py CHANGELOG.md \
                    --current "${{ steps.current.outputs.version }}" \
                    --apply --pyproject src/citevouch/_version.py \
-                   --readme README.md --readme README.zh-CN.md \
+                   --pins-root . \
                    --date "$(date -u +%F)")
           status=$?
           set -e
@@ -124,7 +124,15 @@ jobs:
           # runner's checkout and thrown away - the file committed here was the
           # one from before the release. A step is not done until its output is
           # in the commit.
-          git add CHANGELOG.md src/citevouch/_version.py README.md README.zh-CN.md
+          #
+          # `docs/` is here for the same reason, one level up: the launch copy
+          # under `docs/launch/` quotes the install line, `--pins-root` rewrites
+          # it, and the tag v0.16.1 was spent on a release that died because this
+          # line did not carry it. Listing paths by hand is what failed twice;
+          # `--pins-root .` in the step above and `docs` here have to stay in
+          # step, and `tests/test_next_version.py` holds `PIN_GLOBS` to the files
+          # that actually carry pins.
+          git add CHANGELOG.md src/citevouch/_version.py README.md README.zh-CN.md docs
           git commit -m "Release $VERSION
 
           The Unreleased section of CHANGELOG.md was not empty, so this is the

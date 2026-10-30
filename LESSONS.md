@@ -1249,3 +1249,32 @@ and `tests/test_demo_fixture.py::test_the_committed_ledger_is_one_this_version_w
 which re-scans `demo/` and requires the committed lockfile to match field for
 field except `generated_at` and `tool_version`. Seen 2 - the first was
 `test_the_ledger_records_a_portable_path`, and it only ever checked sources.
+
+---
+
+## A tag that fails its own gate has already been spent
+
+**Rule.** Everything a release step can change has to be rewritten by the same
+step, found by a rule rather than by a list. When a release fails after the tag
+is pushed, the tag is gone: repair the tree, then either move the tag by hand or
+burn the number - do not "re-run the workflow and hope", because no workflow can
+un-publish a tag.
+
+**Why.** `tools/next_version.py` took `--readme PATH`, repeatable, and
+`auto-release.yml` passed the two files it knew about. Then `docs/launch/`
+arrived: two files quoting the install line, both carrying `citevouch@v0.16.0`.
+The bump rewrote the READMEs and not them, the release job ran the suite on the
+*tag*, the new `tests/test_launch.py` pin guard failed, and the run died after
+the tag had been created - `origin/main` moved to `Release 0.16.1` with
+`_version.py` at 0.16.1, while `gh release list` still showed 0.16.0 as latest
+and no assets existed for the number. The guard was right; the plumber was
+wrong, and the plumbing was a hand-kept list of three names.
+
+**Evidence.** `tools/next_version.py`'s `PIN_GLOBS` and `pin_documents()`;
+`--pins-root .` in `auto-release.yml` with `docs` in its `git add`;
+`tests/test_next_version.py::test_the_pinned_documents_are_the_ones_that_actually_carry_pins`,
+which walks the repository for markdown that carries a pin and fails if
+`PIN_GLOBS` does not cover it (verified by dropping a stray pin into a new
+`stray.md`, which turned it red). The tag `v0.16.1` was repaired by moving the
+release commit onto a tree whose pins already said 0.16.1 and force-updating the
+tag, because nothing had been published under it. Seen 1.

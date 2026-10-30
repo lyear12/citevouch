@@ -21,6 +21,13 @@ tag and that file disagree.
   project, so a committed ledger could only be regenerated from one directory.
   `demo/citevouch.lock.json` is re-recorded; existing ledgers keep working,
   because `verify` only ever reads the file name out of that field.
+- `tools/next_version.py` now finds the documents to re-pin by pattern
+  (`PIN_GLOBS`, `--pins-root`) instead of taking one `--readme` path per file.
+  The hand-kept list missed `docs/launch/`, whose two files quote the install
+  line; the first release after they landed bumped the READMEs and not them,
+  and the tagged commit failed its own suite, leaving a tag with no release
+  under it. `tests/test_next_version.py` now fails if a markdown file carries a
+  pin that `PIN_GLOBS` does not cover.
 ## [0.16.0] — 2026-10-30
 ### Added
 

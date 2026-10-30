@@ -168,6 +168,40 @@ def set_doc_pins(text: str, new_version: str) -> tuple[str, int]:
 
 
 REPO_URL = "https://github.com/lyear12/citevouch"
+
+# Every document in this repository that may carry an install pin.
+#
+# `--readme` used to take one path per file and the caller listed the files it
+# remembered. That worked until `docs/launch/` arrived: the launch copy quotes
+# the install line, both pins there went stale the moment the first release
+# happened after those files existed, and the *tagged* commit failed its own
+# test suite - the tag was pushed, the release died, and the number was spent
+# (see LESSONS.md, "A tag that fails its own gate has already been spent").
+#
+# A glob is the same mistake one level up unless the glob is the contract, so
+# this tuple is the contract: `tests/test_next_version.py` fails if a markdown
+# file carries a pin that these patterns do not cover.
+PIN_GLOBS = (
+    "README.md",
+    "README.zh-CN.md",
+    "docs/**/*.md",
+)
+
+
+def pin_documents(root: Path) -> list[Path]:
+    """Every document under ``root`` that may carry an install pin.
+
+    Sorted, because two runs of the release workflow must produce the same
+    commit: an unordered glob makes the diff depend on the filesystem.
+    """
+    found: set[Path] = set()
+    for pattern in PIN_GLOBS:
+        for path in root.glob(pattern):
+            if path.is_file():
+                found.add(path)
+    return sorted(found)
+
+
 _LINK_SECTION = re.compile(r"^\[[^\]]+\]: \S+\n(?:\[[^\]]+\]: \S+\n)*", re.MULTILINE)
 _RELEASE_HEADING = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
 
@@ -228,12 +262,16 @@ def main(argv: list[str] | None = None) -> int:
             "(current) or pyproject.toml (older checkouts)"
         ),
     )
+    # Every markdown file that may carry a pin, by pattern. Naming files one at
+    # a time is how `docs/launch/` was missed: the caller listed what it
+    # remembered, and a tag was spent proving it.
     parser.add_argument(
-        "--readme",
+        "--pins-root",
         type=Path,
-        action="append",
-        default=[],
-        help="re-point citevouch@vX.Y.Z install pins in this document (repeatable)",
+        help=(
+            "re-point citevouch@vX.Y.Z install pins in every document under this "
+            "root that may carry one (README.md, README.zh-CN.md, docs/**/*.md)"
+        ),
     )
     parser.add_argument("--date", default=_today())
     parser.add_argument(
@@ -261,12 +299,16 @@ def main(argv: list[str] | None = None) -> int:
                 args.pyproject,
                 set_pyproject_version(args.pyproject.read_text(encoding="utf-8"), new_version),
             )
-        for doc in args.readme:
-            current = doc.read_text(encoding="utf-8")
-            rewritten, moved = set_doc_pins(current, new_version)
-            if moved:
-                _write_lf(doc, rewritten)
-            print(f"{doc}: {moved} install pin(s) moved to v{new_version}", file=sys.stderr)
+        if args.pins_root:
+            for doc in pin_documents(args.pins_root):
+                current = doc.read_text(encoding="utf-8")
+                rewritten, moved = set_doc_pins(current, new_version)
+                if moved:
+                    _write_lf(doc, rewritten)
+                    print(
+                        f"{doc}: {moved} install pin(s) moved to v{new_version}",
+                        file=sys.stderr,
+                    )
 
     print(new_version)
     print(f"bump: {bump} (from {', '.join(sections) or 'nothing'})", file=sys.stderr)

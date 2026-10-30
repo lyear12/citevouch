@@ -280,7 +280,7 @@ def test_set_doc_pins_ignores_text_that_is_not_a_pin():
     assert out == text
 
 
-def test_cli_readme_flag_rewrites_the_document(tmp_path):
+def test_cli_pins_root_rewrites_every_document_under_it(tmp_path):
     changelog_path = tmp_path / "CHANGELOG.md"
     changelog_path.write_text(changelog("### Fixed\n\n- x\n"), encoding="utf-8")
     readme = tmp_path / "README.md"
@@ -293,8 +293,8 @@ def test_cli_readme_flag_rewrites_the_document(tmp_path):
                 "--current",
                 "0.9.9",
                 "--apply",
-                "--readme",
-                str(readme),
+                "--pins-root",
+                str(tmp_path),
                 "--date",
                 "2026-11-01",
             ]
@@ -304,7 +304,7 @@ def test_cli_readme_flag_rewrites_the_document(tmp_path):
     assert "citevouch@v0.9.10" in readme.read_text(encoding="utf-8")
 
 
-def test_cli_readme_flag_is_optional_and_unkind_to_no_pins(tmp_path):
+def test_cli_pins_root_is_optional_and_unkind_to_no_pins(tmp_path):
     changelog_path = tmp_path / "CHANGELOG.md"
     changelog_path.write_text(changelog("### Fixed\n\n- x\n"), encoding="utf-8")
     readme = tmp_path / "README.md"
@@ -316,8 +316,8 @@ def test_cli_readme_flag_is_optional_and_unkind_to_no_pins(tmp_path):
                 "--current",
                 "0.1.0",
                 "--apply",
-                "--readme",
-                str(readme),
+                "--pins-root",
+                str(tmp_path),
                 "--date",
                 "2026-11-01",
             ]
@@ -454,3 +454,48 @@ def test_the_repository_changelog_and_pyproject_stay_consistent():
     text = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
     assert f"## [{declared}]" in text, f"{declared} is declared but not in the changelog"
     assert f"[{declared}]: {nv.REPO_URL}/releases/tag/v{declared}" in text
+
+
+# --------------------------------------------------------------------------
+# The glob is the contract, not a convenience
+
+
+def test_the_pinned_documents_are_the_ones_that_actually_carry_pins():
+    """Every markdown file with a pin in it must be covered by PIN_GLOBS.
+
+    This is the test that would have caught the release that died on
+    v0.16.1: `docs/launch/` was added, both files quoted the install line,
+    and the caller passed `--readme` twice because that is what the flag
+    took. The tag was pushed, the tag's own suite failed, and 0.16.1 was
+    spent - a number that cannot be withdrawn.
+
+    A literal pin in a changelog entry or a lesson is history and must not be
+    rewritten, so only files whose pin sits on a line that is not prose are
+    considered. `citevouch@vX.Y.Z` in a document describing the mechanism is
+    a placeholder, not a version.
+    """
+    repository = TOOL.parent.parent
+    covered = {path.resolve() for path in nv.pin_documents(repository)}
+
+    carried = {
+        path.resolve()
+        for path in repository.glob("**/*.md")
+        if path.is_file()
+        and path.name not in {"CHANGELOG.md", "LESSONS.md"}
+        and "/.git/" not in path.as_posix()
+        and nv._DOC_PIN.search(path.read_text(encoding="utf-8"))
+    }
+
+    # One direction only: a glob may cover documents that happen to carry no
+    # pin today (and most of `docs/` does not), but a document that carries one
+    # must be covered. The reverse would force every docs file to grow a pin.
+    assert carried <= covered, sorted(str(p) for p in carried - covered)
+    assert covered, "no documents matched PIN_GLOBS at all"
+
+
+def test_the_pinned_documents_are_sorted(tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "b.md").write_text("x", encoding="utf-8")
+    (tmp_path / "docs" / "a.md").write_text("x", encoding="utf-8")
+    found = nv.pin_documents(tmp_path)
+    assert [p.name for p in found] == sorted(p.name for p in found)
