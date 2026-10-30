@@ -502,7 +502,7 @@ def _render(
     if fmt == "sarif":
         return render_sarif(findings, __version__, args.root)
     if fmt == "markdown":
-        return render_markdown(findings, result)
+        return render_markdown(findings, result, args.fail_on)
     return render_text(findings, result, show_info=not args.quiet)
 
 

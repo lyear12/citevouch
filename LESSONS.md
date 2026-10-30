@@ -219,6 +219,32 @@ the README's own example, failing. `cmd_init_demo` now records the ledger and th
 
 ---
 
+## A report and an exit code that answer different questions
+
+**Rule.** Anything that highlights what is wrong takes its threshold from the same value the
+exit code takes.  A summary is not allowed to have its own opinion about what matters.
+
+**Why.** `render_markdown` split findings into `### Blocking` and `### Other` by severity:
+everything `high` blocking, everything else not.  The run fails when a finding reaches
+`--fail-on`, which is `high` by default and therefore agreed with the report in every case
+anybody tried.  At `--fail-on medium` the two disagree, and the report puts the entire
+reason for a red build under Other.  The person reading that report is reading it because
+they do not trust the exit code alone; sending them to the wrong section is worse than
+sending them nowhere.
+
+This is the third variant of one defect in this file: a second thing that describes the
+same fact and is computed by a different rule.  The first two were the plural typed into a
+template while the package had a helper, and truncation counted at one level while it
+happened at two.
+
+**Evidence.** `citevouch check --format markdown --fail-on medium` exited 1 with the only
+cause under `### Other (1)` before this change, and `--fail-on high` versus `--fail-on
+info` produced identical headings.  The unit tests of the renderer could not catch it
+because they call `render_markdown` directly and never exercise `main` - the reverse
+verification of the *caller* stayed green until `TestTheReportAgreesWithTheExitCode` went
+through the command line.  Seen 3.
+
+---
 ## A report that stops listing has to say where it stopped
 
 **Rule.** When output is capped, the cap is stated in the output itself, at the level where it

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from citevouch.model import Finding
+from citevouch.model import SEVERITIES, Finding
 from citevouch.report import (
     SARIF_RULES,
     render_json,
@@ -169,3 +169,45 @@ class TestTheMarkdownReportCountsWhatItPrints:
 def test_markdown_without_a_result_still_renders():
     out = render_markdown(_findings())
     assert out.startswith("## citevouch evidence report")
+
+
+class TestTheHeadingAgreesWithTheExitCode:
+    """The section that answers "why did this fail" is decided by the same rule.
+
+    Both headings used to come from severity alone: everything `high` under
+    `### Blocking`, everything else under `### Other`.  But the failing
+    threshold is `--fail-on`, so at `--fail-on medium` a medium finding is the
+    entire reason the job is red while the report files it under Other.  The
+    reader looking for the cause of a red build is sent to the wrong section -
+    by a report they are reading precisely because they do not trust the exit
+    code alone.
+    """
+
+    def test_a_medium_finding_is_blocking_at_medium(self):
+        findings = [Finding(code="page-unreadable", severity="medium", message="m")]
+        out = render_markdown(findings, fail_on="medium")
+        assert "### Blocking (1)" in out
+        assert "### Other" not in out
+
+    def test_the_same_finding_is_merely_other_at_high(self):
+        findings = [Finding(code="page-unreadable", severity="medium", message="m")]
+        out = render_markdown(findings, fail_on="high")
+        assert "### Other (1)" in out
+        assert "### Blocking" not in out
+
+    def test_every_severity_lands_where_the_exit_code_says_it_does(self):
+        for threshold in SEVERITIES:
+            for severity in SEVERITIES:
+                findings = [Finding(code="page-unreadable", severity=severity, message="m")]
+                out = render_markdown(findings, fail_on=threshold)
+                should_block = SEVERITIES.index(severity) >= SEVERITIES.index(threshold)
+                assert ("### Blocking" in out) is should_block, (threshold, severity)
+
+    def test_an_unknown_severity_does_not_raise(self):
+        findings = [Finding(code="page-unreadable", severity="bogus", message="m")]
+        out = render_markdown(findings, fail_on="high")
+        assert "### Other (1)" in out
+
+    def test_the_default_is_the_default_threshold(self):
+        findings = [Finding(code="page-unreadable", severity="medium", message="m")]
+        assert render_markdown(findings) == render_markdown(findings, fail_on="high")

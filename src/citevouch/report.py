@@ -11,7 +11,7 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
-from .model import Finding, Ledger, worst
+from .model import SEVERITIES, Finding, Ledger, worst
 from .verify import VerifyResult
 
 SARIF_RULES = {
@@ -223,7 +223,11 @@ def render_sarif(
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
 
 
-def render_markdown(findings: Iterable[Finding], result: VerifyResult | None = None) -> str:
+def render_markdown(
+    findings: Iterable[Finding],
+    result: VerifyResult | None = None,
+    fail_on: str = "high",
+) -> str:
     """A report body suitable for a PR comment or a job summary.
 
     Two things in here were wrong in ways a green suite could not see.
@@ -240,6 +244,13 @@ def render_markdown(findings: Iterable[Finding], result: VerifyResult | None = N
     about the other ten.  A report that stops listing without saying so is the
     same defect as a run that stops checking: the reader counts what they can
     see and concludes those are all of them.
+
+    The two section headings used to be decided by severity alone: everything
+    `high` went under `### Blocking` and everything else under `### Other`.
+    But what makes a run fail is `--fail-on`, and at `--fail-on medium` a
+    medium finding is the reason the job is red while the report files it
+    under Other.  The heading that answers "why did this fail" now answers it
+    from the same threshold the exit code uses.
     """
     findings = list(findings)
     max_total = 200
@@ -253,10 +264,12 @@ def render_markdown(findings: Iterable[Finding], result: VerifyResult | None = N
             f"**{result.moved}** moved · **{result.missing}** missing"
         )
         lines.append("")
+    threshold = SEVERITIES.index(fail_on) if fail_on in SEVERITIES else len(SEVERITIES)
+    blocking_codes = [_is_blocking(f, threshold) for f in bullets]
     omitted: list[str] = []
     for title, group in (
-        ("Blocking", [f for f in bullets if f.severity == "high"]),
-        ("Other", [f for f in bullets if f.severity != "high"]),
+        ("Blocking", [f for f, b in zip(bullets, blocking_codes, strict=True) if b]),
+        ("Other", [f for f, b in zip(bullets, blocking_codes, strict=True) if not b]),
     ):
         if not group:
             continue
@@ -276,6 +289,19 @@ def render_markdown(findings: Iterable[Finding], result: VerifyResult | None = N
         lines.append("Truncated: " + "; ".join(omitted) + ".")
         lines.append("")
     return chr(10).join(lines).rstrip() + chr(10)
+
+
+def _is_blocking(finding: Finding, threshold: int) -> bool:
+    """Whether this finding is a reason the run exits 1.
+
+    The same question `cli._exit_code` asks, with the same answer, so the
+    section a reader is pointed at and the exit code cannot disagree.  An
+    unknown severity ranks at the bottom the way `_exit_code` treats it,
+    rather than raising: a crash here would escape as exit 1, and 1 means
+    "findings reached the threshold" to every caller that reads it.
+    """
+    rank = SEVERITIES.index(finding.severity) if finding.severity in SEVERITIES else 0
+    return rank >= threshold
 
 
 def _word(count: int, noun: str) -> str:

@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- The markdown report chose its two headings from severity alone: every `high`
+  finding went under `### Blocking` and everything else under `### Other`.  But
+  the threshold that actually fails a run is `--fail-on`, so at
+  `--fail-on medium` the report filed the only reason for a red build under
+  Other.  Somebody reading the report *because* they do not trust a bare exit
+  code was pointed at the wrong section.  The renderer now takes `fail_on` and
+  the two headings are decided by the same rule the exit code uses, so they
+  cannot disagree.
+
 ## [0.18.5] — 2026-10-30
 ### Fixed
 

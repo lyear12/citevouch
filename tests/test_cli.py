@@ -448,3 +448,59 @@ class TestAMessageAboutAPathIsTrueAboutThatPath:
         err = capsys.readouterr().err
         assert "is a directory, not a file" in err
         assert "Traceback" not in err
+
+
+class TestTheReportAgreesWithTheExitCode:
+    """A report is read by somebody who did not trust the exit code alone.
+
+    `render_markdown` used to decide its two headings from severity: `high`
+    under Blocking, everything else under Other.  The thing that actually
+    fails a run is `--fail-on`, so at `--fail-on medium` the report put the
+    only reason for a red build under Other.  The unit tests of the renderer
+    pass `fail_on` directly, which means they would all still pass if `main`
+    forgot to hand it over - so this goes through the command line.
+    """
+
+    def _project(self, root):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "s.txt").write_text(
+            "A plain sentence with nothing special in it." + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+        (root / "sources.toml").write_text(
+            "[sources]" + chr(10) + 's = "s.txt"' + chr(10), encoding="utf-8", newline=chr(10)
+        )
+        # A page hint that is not a number is a medium finding: the quote is
+        # still located, the instruction was ignored.
+        (root / "manuscript.md").write_text(
+            "```claim id=c1 source=s page=banana"
+            + chr(10)
+            + ">> A plain sentence with nothing special in it."
+            + chr(10)
+            + "```"
+            + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+        return root
+
+    def test_the_blocking_section_follows_the_threshold(self, tmp_path: Path, capsys):
+        root = self._project(tmp_path)
+        for threshold, should_block in (("high", False), ("medium", True), ("info", True)):
+            capsys.readouterr()
+            code = main(
+                [
+                    "check",
+                    "manuscript.md",
+                    "--root",
+                    str(root),
+                    "--format",
+                    "markdown",
+                    "--fail-on",
+                    threshold,
+                ]
+            )
+            out = capsys.readouterr().out
+            assert ("### Blocking" in out) is should_block, (threshold, out)
+            assert (code == 1) is should_block, (threshold, code)
