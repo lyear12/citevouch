@@ -224,6 +224,30 @@ def _markup_pages(path: str | Path) -> list[str] | None:
     return [_strip_markup(text)]
 
 
+def _no_text_problem(pages: list[PageText], path: Path) -> Finding | None:
+    """A file that yielded no text at all, said in the words that fix it.
+
+    Two very different files reach this point looking identical: a scan of a
+    printed page, and a PDF built from screenshots.  Neither has a text layer,
+    so both extract "successfully" and return empty strings - which the rest of
+    the pipeline can only read as "your quote is not in this file".  That is a
+    verdict about the author's quote when the fact is about their PDF, and the
+    fix it suggests (install pypdf) is already done.  Naming the real problem
+    costs one sentence and saves a user who assumes the tool is broken.
+    """
+    if any(page.text.strip() for page in pages):
+        return None
+    return Finding(
+        code="source-no-text",
+        message=(
+            f"found no text at all in {path.name} ({len(pages)} page(s)); a scan "
+            "has no text layer, and OCR is what turns one into a file that can be "
+            "searched (for example `ocrmypdf {0} out.pdf`)".format(path.name)
+        ),
+        path=str(path),
+    )
+
+
 def extract_pages(
     path: str | Path, root: str | Path, use_cache: bool = True
 ) -> tuple[list[PageText], Finding | None]:
@@ -245,7 +269,13 @@ def extract_pages(
     if use_cache:
         cached = _load_cache(root, sha, extractor_candidates(suffix))
         if cached is not None:
-            return cached, None
+            # The cache holds pages, not a verdict.  A file with no text and a
+            # file whose text was never asked for look the same from here, so
+            # the check below has to apply to hits as well as misses; otherwise
+            # the first run reports source-no-text and every run after it,
+            # reading the same empty pages out of the cache, reports
+            # quote-missing instead.
+            return cached, _no_text_problem(cached, path)
 
     # Whichever reader answers is the one recorded. Naming it from the suffix
     # alone would claim pypdf for files only pdftotext could open, and then
@@ -281,7 +311,7 @@ def extract_pages(
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
     _store_cache(root, sha, pages, used)
-    return pages, None
+    return pages, _no_text_problem(pages, path)
 
 
 # Two things this has to get right.  `>` is legal inside a quoted attribute

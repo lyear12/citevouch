@@ -12,6 +12,20 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A source that was read successfully and held no text at all is now
+  reported as `source-no-text` (high) instead of being searched and
+  reported as `quote-missing`.  A scan has no text layer, so `pypdf` and
+  `pdftotext` both return empty pages for it - not a failure either can
+  admit to - and the matcher then said the author's quote was not in the
+  file.  That sentence is about their PDF, and the fix it used to suggest
+  (install pypdf) was already done.  The new finding names the file, the
+  page count and OCR.  It is judged in one place for both paths, because
+  the cache stores pages rather than verdicts: had only the extraction
+  path judged, the first run would be diagnosed and every run after it
+  would read the same empty pages out of the cache and blame the quotes.
+
 ## [0.19.0] — 2026-10-30
 ### Added
 

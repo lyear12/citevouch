@@ -67,6 +67,7 @@ rots:
 | `source-changed` | medium | the PDF is byte-different from the one the ledger recorded |
 | `source-missing` | high | the PDF the claim names cannot be found |
 | `source-unreadable` | high | the PDF exists but no text could be extracted |
+| `source-no-text` | high | the PDF was read and held no text at all - it is a scan, and OCR is what it needs |
 | `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |
 | `ledger-stale` | high | the manuscript changed since the ledger was recorded |
 | `bib-key-missing` | high | the claim cites a bibliography key that is not there |

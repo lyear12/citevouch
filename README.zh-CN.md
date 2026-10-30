@@ -64,6 +64,7 @@ worst severity: high
 | `source-changed` | medium | PDF 与账本记录的那份字节不同 |
 | `source-missing` | high | 账本要的那份 PDF 找不到了 |
 | `source-unreadable` | high | PDF 在，但抽不出文本 |
+| `source-no-text` | high | PDF 读成功但一个字的文本都没有——它是扫描件，需要 OCR |
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
 | `bib-key-missing` | high | claim 引用的书目键不存在 |

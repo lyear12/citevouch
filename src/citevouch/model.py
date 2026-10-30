@@ -32,6 +32,7 @@ CODES = {
     "source-missing": "high",
     "source-changed": "medium",
     "source-unreadable": "high",
+    "source-no-text": "high",
     "bib-key-missing": "high",
     "bib-key-unused": "info",
     "bib-field-empty": "medium",

@@ -32,6 +32,7 @@ SARIF_RULES = {
     "source-missing": ("A source file is missing.", "blocking"),
     "source-changed": ("A source file differs from the recorded copy.", "warning"),
     "source-unreadable": ("A source file could not be read.", "blocking"),
+    "source-no-text": ("A source file was read and held no text at all.", "blocking"),
     "bib-key-missing": ("A cited key is absent from the bibliography.", "blocking"),
     "bib-key-unused": ("A bibliography entry is never cited.", "note"),
     "bib-field-empty": ("A required bibliography field is empty.", "warning"),

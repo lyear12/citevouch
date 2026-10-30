@@ -219,3 +219,37 @@ not what changed, but what proves the change works.
   blurred GIF is worse than the two sharp stills that are there. Revisit if the
   README ever gets a full-width section where a 12-second loop can be seen at
   its real size.
+
+## P4 — inputs nobody tried
+
+These are not features. They are the shapes of input a real user's machine
+produces, listed because each one is a place where the tool can come back green
+without having read anything. Every entry here was found by asking "what file
+would a person actually have on disk", not by reading the code.
+
+- [x] **A file saved in a desktop encoding.** Notepad's "Unicode" and Excel's
+  text export write UTF-16. Read as UTF-8 that becomes replacement characters
+  and NULs, and the run finished green. Fixed in v0.19.0: `read_text` honours
+  the byte-order marks and the NUL pattern, and `parse_bib` reports
+  `bib-unreadable` (high) when a non-empty file yields no entries.
+
+- [ ] **A PDF that is a scan.** `pypdf` and `pdftotext` both return nothing for
+  an image-only PDF, so every quote in it is `quote-missing` (high) - loud, but
+  it reads as "your quote is not there", and the actual answer is "this file has
+  no text layer". *Done when* the first page of extraction returns empty for a
+  file that renders, the report says so in those words, and the fix line names
+  OCR as the thing to run. Who is blocked: anyone whose library is scanned
+  rather than downloaded, which is most people working on older papers.
+
+- [ ] **A right-to-left manuscript.** Arabic and Hebrew text normalises to runs
+  that the quote matcher never lines up, so every claim reads `quote-missing`.
+  This is a whole-script gap like the CJK one that needed its own tier, not a
+  bug to patch. *Done when* a right-to-left fixture verifies, or the tool says
+  plainly that it cannot read that script instead of blaming the author's
+  quotes. Who is blocked: every author in those scripts.
+
+- [ ] **A manuscript over a network path.** `\\server\share\paper.md` on
+  Windows, or a file that disappears mid-run. *Done when* the run either works
+  or names the path it could not reach, rather than reporting it as a missing
+  claim block.
+
