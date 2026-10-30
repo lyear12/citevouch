@@ -233,13 +233,20 @@ would a person actually have on disk", not by reading the code.
   the byte-order marks and the NUL pattern, and `parse_bib` reports
   `bib-unreadable` (high) when a non-empty file yields no entries.
 
-- [ ] **A PDF that is a scan.** `pypdf` and `pdftotext` both return nothing for
+- [x] **A PDF that is a scan.** `pypdf` and `pdftotext` both return nothing for
   an image-only PDF, so every quote in it is `quote-missing` (high) - loud, but
   it reads as "your quote is not there", and the actual answer is "this file has
-  no text layer". *Done when* the first page of extraction returns empty for a
-  file that renders, the report says so in those words, and the fix line names
-  OCR as the thing to run. Who is blocked: anyone whose library is scanned
-  rather than downloaded, which is most people working on older papers.
+  no text layer". *Done in v0.19.1:* `source-no-text` (high) names the file, the
+  page count and OCR. The interesting part was where the verdict is produced:
+  both extractors return *successfully* with a list of empty strings, so the
+  check cannot live in an except clause. It also has to run on the cache-hit
+  path, because the cache stores pages rather than verdicts - judging only the
+  extraction path would diagnose the first run and let every later run read the
+  same empty pages back out and blame the quotes again. Three mutations are red.
+  The fixture is a PDF written by hand (a page whose content stream draws a
+  rectangle and sets no text) rather than one built with `pymupdf`, which is what
+  the first version did: that library is not installed on CI, so the tests
+  skipped, and the lint job fails on any skip.
 
 - [ ] **A right-to-left manuscript.** Arabic and Hebrew text normalises to runs
   that the quote matcher never lines up, so every claim reads `quote-missing`.

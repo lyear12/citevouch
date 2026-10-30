@@ -12,6 +12,22 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A number written in another script's digits is now the same number as
+  its ASCII form.  An author reading a paper printed in Cairo types
+  `40688`; the PDF's extraction says `٤٠٦٨٨`.  NFKC folds the
+  full-width forms but not Arabic-Indic, Persian or Devanagari digits, so
+  the quote differed from the page by one character, missed the exact and
+  squashed tiers, and landed in the numbers tier - the tier that exists to
+  report a typo.  The tool therefore said `number-absent-in-quote` about a
+  number printed on the page in front of the author.  `normalize` now folds
+  every decimal digit to ASCII with `unicodedata.decimal`, and
+  `canonical_number` accepts the Arabic thousands (U+066C), decimal
+  (U+066B) and percent (U+066A) signs, so `40٬688` and `40,688` still
+  agree.  A genuinely different number still reaches the numbers tier:
+  `40699` against `40688` is still a number problem, not a missing quote.
+
 ## [0.19.1] — 2026-10-30
 ### Fixed
 
