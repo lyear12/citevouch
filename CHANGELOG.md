@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.18.1] — 2026-10-30
 ### Fixed
 
 - `draft` could write its proposals over the manuscript it was reading. `-o manuscript.md --force`
@@ -29,7 +31,6 @@ tag and that file disagree.
 - The `draft` help called the manuscript "never modified" and both READMEs said the proposal file is
   written "next to it". Neither was true of the code. The first is now "never written to" (also
   true of `--output` colliding with it), and the READMEs say the file lands under `--root`.
-
 ## [0.18.0] — 2026-10-30
 ### Added
 
@@ -818,7 +819,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.1...HEAD
+[0.18.1]: https://github.com/lyear12/citevouch/releases/tag/v0.18.1
 [0.18.0]: https://github.com/lyear12/citevouch/releases/tag/v0.18.0
 [0.17.1]: https://github.com/lyear12/citevouch/releases/tag/v0.17.1
 [0.17.0]: https://github.com/lyear12/citevouch/releases/tag/v0.17.0
