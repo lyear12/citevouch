@@ -1677,3 +1677,24 @@ and the fix did not travel to the two places that reused the pattern. The same
 review found `--source <a directory>` being dropped from the source map in
 silence, which produces the same wasted search two steps later: the claim
 reports `source-missing` for a file that is present. Seen 1.
+
+## A summary of what was printed is not a summary of what happened
+
+**Rule.** When a flag hides output, the summary keeps describing the whole
+run.  If hiding took away the reason the run failed, say that in the output.
+
+**Why.** `check --fail-on low --quiet` printed
+
+    citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+    worst severity: info
+
+and exited 1.  The reader of that CI log has one line saying nothing is wrong
+and one exit code saying the opposite, and no way to find out which.  The
+filter was correct and the exit code was correct; only the sentence that
+explains them was computed over the wrong list.
+
+**Evidence.** `_render` filtered for `--quiet` before calling
+`render_text`, which computes `worst severity` from its argument.  Unit tests
+of the renderer could not catch this because the filter lived in the caller;
+the end-to-end test added with this fix is the one that fails when the filter
+moves back.  Seen 1.

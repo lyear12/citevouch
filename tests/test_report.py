@@ -211,3 +211,55 @@ class TestTheHeadingAgreesWithTheExitCode:
     def test_the_default_is_the_default_threshold(self):
         findings = [Finding(code="page-unreadable", severity="medium", message="m")]
         assert render_markdown(findings) == render_markdown(findings, fail_on="high")
+
+
+class TestTheSummaryDescribesTheRunNotTheScreen:
+    """`--quiet` hid the line and then the summary lied about why the run failed.
+
+    The filtered list was handed to the renderer, which computed `worst
+    severity` from it.  So `check --fail-on low --quiet` exited 1 while
+    printing `worst severity: info` and not one finding: the reader of a CI
+    log could not tell why the job was red, and the report actively said
+    nothing was wrong.
+    """
+
+    def _finding(self, severity, message="m"):
+        return Finding(code="page-unreadable", severity=severity, message=message)
+
+    def _result(self):
+        # The summary line only prints when a result is supplied, and it is
+        # the summary line that carries `worst severity`.
+        return VerifyResult(checked=1, verified=1)
+
+    def test_the_worst_severity_counts_hidden_findings(self):
+        findings = [self._finding("medium"), self._finding("info")]
+        out = render_text(findings, self._result(), show_info=False, fail_on="medium")
+        # `--quiet` hides info and low, so the medium line does print; the
+        # info line does not, and `worst severity` still names the run's worst.
+        assert "worst severity: medium" in out
+        assert "[info]" not in out
+
+    def test_a_run_failed_by_a_hidden_finding_says_so(self):
+        findings = [self._finding("low")]
+        out = render_text(findings, self._result(), show_info=False, fail_on="low")
+        assert "hidden by --quiet" in out
+        assert "1 finding at or above --fail-on low" in out
+        assert "was hidden" in out
+
+    def test_a_hidden_finding_below_the_threshold_is_not_blamed(self):
+        findings = [self._finding("low")]
+        out = render_text(findings, self._result(), show_info=False, fail_on="high")
+        assert "hidden by --quiet" not in out
+
+    def test_several_hidden_findings_agree_with_the_plural(self):
+        findings = [self._finding("low", "a"), self._finding("low", "b")]
+        out = render_text(findings, self._result(), show_info=False, fail_on="low")
+        assert "2 findings at or above --fail-on low were hidden" in out
+
+    def test_showing_everything_changes_only_which_lines_print(self):
+        findings = [self._finding("high")]
+        shown = render_text(findings, self._result(), show_info=True)
+        hidden = render_text(findings, self._result(), show_info=False)
+        assert "worst severity: high" in shown
+        assert "worst severity: high" in hidden
+        assert "hidden by --quiet" not in hidden

@@ -504,3 +504,58 @@ class TestTheReportAgreesWithTheExitCode:
             out = capsys.readouterr().out
             assert ("### Blocking" in out) is should_block, (threshold, out)
             assert (code == 1) is should_block, (threshold, code)
+
+
+class TestQuietNeverHidesTheReasonForFailing:
+    """The end-to-end shape: a red exit code must have a visible cause.
+
+    `_render` filtered the finding list for `--quiet` and then handed the
+    filtered list to `render_text`, whose summary line reports the worst
+    severity it can see.  At `--fail-on low` that printed `worst severity:
+    info` next to exit code 1, with no finding on screen at all.  Unit tests
+    of the renderer cannot catch this: the filter lived in the caller.
+    """
+
+    def _project(self, root):
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "p.txt").write_text(
+            "We trained on two corpora and counted 40,688 entries." + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+        (root / "sources.toml").write_text(
+            "[sources]" + chr(10) + 'p = "p.txt"' + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+        # A stray marker outside any claim block is a `low` finding.
+        (root / "m.md").write_text(
+            "Prose with an unbound marker 【原文】 in it."
+            + chr(10)
+            + chr(10)
+            + "```claim id=c1 source=p"
+            + chr(10)
+            + ">> We trained on two corpora and counted 40,688 entries."
+            + chr(10)
+            + "```"
+            + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+        return root
+
+    def test_the_reason_a_quiet_run_failed_is_on_screen(self, tmp_path: Path, capsys):
+        root = self._project(tmp_path)
+        code = main(["check", "m.md", "--root", str(root), "--fail-on", "low", "--quiet"])
+        out = capsys.readouterr().out
+        assert code == 1
+        assert "hidden by --quiet" in out
+        assert "worst severity: low" in out
+
+    def test_a_passing_quiet_run_still_describes_the_whole_run(self, tmp_path: Path, capsys):
+        root = self._project(tmp_path)
+        code = main(["check", "m.md", "--root", str(root), "--fail-on", "high", "--quiet"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "worst severity: low" in out
+        assert "hidden by --quiet" not in out

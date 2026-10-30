@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `check --quiet --fail-on low` exited 1 while printing `worst severity: info`
+  and not one finding.  `_render` filtered the finding list for `--quiet` and
+  then handed the filtered list to the text renderer, which computes the
+  summary line from what it can see.  The summary now describes the run rather
+  than the screen, and when `--quiet` hid the finding that failed the run it
+  says so in as many words: `1 finding at or above --fail-on low was hidden by
+  --quiet; that is why this run failed`.
+- `--quiet`'s help said it hides "info-level lines" while it has hidden
+  `info` and `low` since it was written.  The help now says both, and says the
+  verdict is unchanged.
 
 ## [0.18.6] — 2026-10-30
 ### Fixed

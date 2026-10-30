@@ -490,7 +490,7 @@ def _render(
     result: VerifyResult | None = None,
 ) -> str:
     fmt = args.format
-    if args.quiet:
+    if args.quiet and fmt != "text":
         # `--quiet` means "I only want the things that are wrong", and that
         # sentence is format-independent. It used to be honoured by the text
         # renderer alone, so `--quiet --format sarif` uploaded the info-level
@@ -503,7 +503,9 @@ def _render(
         return render_sarif(findings, __version__, args.root)
     if fmt == "markdown":
         return render_markdown(findings, result, args.fail_on)
-    return render_text(findings, result, show_info=not args.quiet)
+    # Text keeps the full list: its summary line has to describe the run, not
+    # the lines `--quiet` left on screen.
+    return render_text(findings, result, show_info=not args.quiet, fail_on=args.fail_on)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -541,7 +543,11 @@ def build_parser() -> argparse.ArgumentParser:
             default="text",
             help="output format",
         )
-        p.add_argument("--quiet", action="store_true", help="hide info-level lines")
+        p.add_argument(
+            "--quiet",
+            action="store_true",
+            help="hide info- and low-severity lines (the verdict is unchanged)",
+        )
         p.add_argument(
             "--fail-on",
             choices=SEVERITIES,

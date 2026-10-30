@@ -72,17 +72,15 @@ def render_text(
     findings: Iterable[Finding],
     result: VerifyResult | None = None,
     show_info: bool = True,
+    fail_on: str = "high",
 ) -> str:
     # Materialise once.  The body both prints the findings and then asks for
     # the worst severity among them; with a generator, the second pass would
     # see an exhausted iterator and report the worst of nothing.  The bug was
     # invisible because every caller happens to pass a list today.
     findings = list(findings)
-    lines: list[str] = []
-    for finding in findings:
-        if not show_info and finding.severity in ("info", "low"):
-            continue
-        lines.append(finding.one_line())
+    hidden = [f for f in findings if _hidden_by_quiet(f, show_info)]
+    lines = [f.one_line() for f in findings if not _hidden_by_quiet(f, show_info)]
     if result is not None:
         lines.append("")
         lines.append(
@@ -90,8 +88,37 @@ def render_text(
             f"{result.moved} moved, {result.missing} missing"
             + (f", {result.skipped} skipped" if result.skipped else "")
         )
+        # The summary describes the run, not the display.  Computing it from
+        # the lines that survived `--quiet` reported `worst severity: info` for
+        # a run that exited 1, because the finding that failed it had been
+        # filtered out two lines earlier.
         lines.append(f"worst severity: {worst(f.severity for f in findings)}")
+        if failing := _failing_hidden(hidden, fail_on):
+            lines.append(
+                f"{_plural(len(failing), 'finding')} at or above --fail-on {fail_on}"
+                f" {_plural_verb(len(failing))} hidden by --quiet; that is why this run failed"
+            )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _hidden_by_quiet(finding: Finding, show_info: bool) -> bool:
+    """Whether `--quiet` keeps this finding out of the printed lines."""
+    return not show_info and finding.severity in ("info", "low")
+
+
+def _failing_hidden(hidden: list[Finding], fail_on: str) -> list[Finding]:
+    """The hidden findings that on their own are enough to fail the run."""
+    threshold = SEVERITIES.index(fail_on) if fail_on in SEVERITIES else len(SEVERITIES)
+    return [
+        f
+        for f in hidden
+        if (SEVERITIES.index(f.severity) if f.severity in SEVERITIES else 0) >= threshold
+    ]
+
+
+def _plural_verb(count: int) -> str:
+    """`was` or `were`, to agree with `_plural(count, noun)`."""
+    return "was" if count == 1 else "were"
 
 
 def _plural(count: int, noun: str) -> str:
