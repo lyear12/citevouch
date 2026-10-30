@@ -654,3 +654,22 @@ without knowing which interpretation the tool picked.
 **Evidence.** The fifth review found `` ```python `` left open swallowing a
 claim and exiting 0; the fourth fixed only the `` ```claim `` path and left this
 one. Seen 2.
+
+## A measurement that can come back empty must be treated as a failure, not a zero
+
+**Rule.** When a script derives a number by parsing another tool's output, an
+empty parse is a hard error. Check that the parse produced something before you
+compare it with anything, and make the silent path fail loudly.
+
+**Why.** `passed=$(... | grep -oE '[0-9]+ passed' ... | cut -d' ' -f1)` reads
+"nothing matched" and "the suite passed zero tests" as the same value, so a
+change to the command's verbosity turns a working gate into a gate that fails
+every commit with a confident, wrong accusation. The failure is indistinguishable
+from the check doing its job, which is exactly the shape of bug this project
+exists to catch in manuscripts.
+
+**Evidence.** The `_passed` rule added in the fifth review broke its own first
+CI run: `pyproject.toml` already sets `addopts = "-q"`, so the step's
+`pytest -q` was really `-qq`, which drops the summary line. Run 41015105068's
+lint job printed `the suite reports 0 passing tests` next to
+`Answer the fifth review ... says 288 passed, the suite reports 0`. Seen 1.

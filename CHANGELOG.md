@@ -32,6 +32,12 @@ tag and that file disagree.
 
 ### Fixed
 
+- The `N passed` check no longer reads a silent suite as zero passing tests.
+  `pyproject.toml` already sets `addopts = "-q"`, so the workflow's
+  `pytest -q` was really `-qq`, which suppresses the summary line the count is
+  parsed from; the grep then returned the empty string and the gate failed
+  every commit with "the suite reports 0". The step now runs the suite plainly,
+  fails if the suite fails, and fails separately if the summary line is missing.
 - A non-claim fence that is never closed no longer swallows the rest of the
   file in silence. ` ```python ` left open, and the first claim inside it
   opened inside the code sample, after which every remaining claim was read as

@@ -82,10 +82,24 @@ jobs:
             range="$(git rev-parse HEAD~10 2>/dev/null || git rev-parse HEAD^)..HEAD"
           fi
           echo "policing commits in $range"
-          passed=$(python -m pytest -q 2>&1 | tee /tmp/suite.log | grep -oE '[0-9]+ passed' | tail -1 | cut -d' ' -f1)
-          tail -3 /tmp/suite.log
-          echo "the suite reports ${passed:-0} passing tests"
-          python tools/check_repo_rules.py --range "$range" --passed "${passed:-0}"
+          # The pytest config already passes -q, so the count comes from a
+          # plain run: -qq is a different verbosity and drops the summary line
+          # the number lives in.  Reading 0 out of that silence is how this
+          # step first failed on the very change that introduced it.
+          if ! python -m pytest > /tmp/suite.log 2>&1; then
+            tail -40 /tmp/suite.log
+            echo "::error::the suite did not pass, so the counts cannot be compared"
+            exit 1
+          fi
+          passed=$(grep -oE '[0-9]+ passed' /tmp/suite.log | tail -1 | cut -d' ' -f1)
+          tail -2 /tmp/suite.log
+          if [ -z "$passed" ]; then
+            tail -40 /tmp/suite.log
+            echo "::error::the suite ran but its summary line was not found, so no count can be compared"
+            exit 1
+          fi
+          echo "the suite reports $passed passing tests"
+          python tools/check_repo_rules.py --range "$range" --passed "$passed"
 
   acceptance:
     name: acceptance (the documented first run)
