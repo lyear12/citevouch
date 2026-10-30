@@ -194,22 +194,26 @@ def test_a_cache_written_by_another_reader_is_not_trusted(tmp_path):
     assert rewritten["extractor"] == "plain"
 
 
-def test_the_cache_names_the_extractor_for_each_kind():
-    assert sources.extractor_name(".txt") == "plain"
-    assert sources.extractor_name(".MD") == "plain"
-    named = sources.extractor_name(".pdf")
-    assert named is not None and named.startswith(("pypdf-", "pdftotext"))
-    assert sources.extractor_name(".docx") is None
+def test_the_cache_names_every_extractor_that_could_run():
+    assert sources.extractor_candidates(".txt") == ("plain",)
+    assert sources.extractor_candidates(".MD") == ("plain",)
+    pdf = sources.extractor_candidates(".pdf")
+    assert pdf[-1] == "pdftotext" and pdf[0].startswith(("pypdf-", "pdftotext"))
+    # An unknown suffix goes through pdftotext and falls back to a plain read,
+    # so both names must be acceptable on a cache hit.
+    assert sources.extractor_candidates(".docx") == ("pdftotext", "plain")
 
 
 # --- m2: release notes describe this release ------------------------------
 
 
 def test_the_release_notes_come_from_the_range_since_the_previous_tag():
-    text = (REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert "git describe --tags --abbrev=0" in text
-    assert "previous..$tag" in text or 'range="$previous..$tag"' in text
-    assert "-n 40" not in text, "the last forty commits is not a release range"
+    """The logic lives in tools/release_notes.sh so a test can run it. Asserting
+    on the workflow text would only prove the string was typed."""
+    script = (REPO / "tools" / "release_notes.sh").read_text(encoding="utf-8")
+    assert "git describe --tags --abbrev=0" in script
+    assert 'range="${previous}..${tag}"' in script
+    assert "-n 40" not in script, "the last forty commits is not a release range"
 
 
 # --- m3 / m4: what the documents promise ----------------------------------

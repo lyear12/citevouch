@@ -713,7 +713,7 @@ fails without `~{3,}` in the pattern. Seen 1.
 
 **Rule.** A parser that only supports a subset must distinguish "this file is
 structurally broken" from "this file contains something I do not represent".
-Broken files fail whole; unrepresentable values drop themselves.
+Broken files fail whole; unrepresentable *keys and values* drop themselves.
 
 **Why.** `_mini_toml` raised on `enabled = true`, and its only caller treats a
 raise as "unreadable manifest" — so on Python 3.10 one boolean unbound every key
@@ -722,7 +722,10 @@ all. The bug was invisible on the development interpreter by construction: the
 fallback only runs where the real parser is absent. A support floor is not a
 claim about `pyproject.toml`; it is a claim about every path that runs there.
 
-**Evidence.** Sixth review, major-3. Seen 1.
+**Evidence.** Sixth review, major-3, for values; seventh review, major-2, for
+keys — the value branch was fixed and the key branch beside it was not, because
+the fix was written against the reported input rather than against the
+distinction. Seen 2.
 
 ## A cache keyed by the input forgets that the reader changed
 
@@ -755,6 +758,62 @@ about the release.
 
 **Evidence.** Sixth review, minor-2; `test_the_release_notes_come_from_the_range_since_the_previous_tag`
 asserts `git describe --tags` and the absence of `-n 40`. Seen 1.
+
+## A step that cannot run for one input is a step that runs for none
+
+**Rule.** A shell step in a workflow must be exercised in every state it can be
+reached in, and the states that are hard to reach are the ones the step exists
+for. If the only way to test it is to run it, move it out of YAML into a script
+a test can call.
+
+**Why.** The release-notes step began with `git describe --tags --abbrev=0
+"${tag}^"`, which fails when the tag does not exist — and that is precisely the
+`workflow_dispatch` path documented as the way to release by hand and the way to
+recover a release that broke. Under `set -eo pipefail` the failure killed the
+job after the build and the wheel smoke test had already run, so the expensive
+half succeeded and the cheap half was unreachable. Nothing could catch it: the
+step lived in YAML, and the test that claimed to cover it asserted on the YAML
+text.
+
+**Evidence.** Seventh review, major-1. `tools/release_notes.sh` now takes the
+tag, falls back to `HEAD` when it is untagged, and
+`tests/test_critic_round6.py::test_the_release_notes_script_survives_a_tag_that_does_not_exist`
+runs it. Seen 1.
+
+## A rebuild that returns the new head forgets the rest of the file
+
+**Rule.** Any function that rebuilds one section of a document must return
+`before + new + after`. Returning `before + new` is not "replacing a section";
+it is truncating the file at that point.
+
+**Why.** `update_links` returned `text[: section.start()] + block`. It looked
+right in every test because the link block is the last thing in the CHANGELOG
+those tests used — the tests did not put anything after it, so the missing tail
+was invisible. This is the shape of bug that survives automated releases: the
+first run that appends a section below the links silently deletes it, and the
+commit is authored by a bot at 3am.
+
+**Evidence.** Seventh review, minor-4.
+`tests/test_critic_round6.py::test_rebuilding_the_links_keeps_what_follows_them`
+appends a section and asserts it survives. Seen 1.
+
+## A sort that has not been shown a pre-release is a sort that has not been tested
+
+**Rule.** Ordering versions with `sort -t. -k1,1n` treats the patch field as a
+number, so `1.0.0-rc1` ties with `1.0.0` and the tie is broken by a whole-line
+comparison in which `-` (0x2D) sorts above `0` (0x30). Filter the shapes you do
+not mean before you sort the ones you do.
+
+**Why.** The nightly job picks the version to dogfood out of
+`gh release list`. Every release so far was a plain `x.y.z`, so the tie never
+happened; the first `1.0.0-rc1` would have been selected over `0.8.0` and the
+nightly would have replayed a pre-release while reporting that it replayed the
+latest release. `sort -V` does not fix this — it also orders `1.0.0-rc1` above
+`0.8.0` — so the fix is a filter, not a better comparator.
+
+**Evidence.** Seventh review, minor-5.
+`tests/test_critic_round6.py::test_a_prerelease_never_wins_the_nightly` pipes
+`v1.0.0-rc1` and `v0.8.0` through the workflow's own pipeline. Seen 1.
 
 ## An acceptance list that names one platform's path is an acceptance list for one platform
 

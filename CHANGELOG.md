@@ -12,6 +12,43 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- The release-notes step no longer kills a release whose tag does not exist yet.
+  `git describe --tags --abbrev=0 "${tag}^"` fails on a tag that is not there, and
+  the step runs under `set -eo pipefail`, so `workflow_dispatch` for an untagged
+  version — the documented way to release by hand, and the documented recovery
+  path — died before `gh release create` while the build and the wheel smoke test
+  had already been paid for. The notes now live in `tools/release_notes.sh`,
+  which falls back to `HEAD` in that case and can be run by a test instead of
+  being reasoned about inside YAML. The workflow invokes it as
+  `bash tools/release_notes.sh`, because the index cannot carry the executable
+  bit here and a fresh checkout on a Linux runner lands at 644.
+- A quoted key in `sources.toml` no longer takes the whole manifest down on
+  Python 3.10. `"vaneecke2026cxn" = "papers/x.pdf"` is valid TOML that `tomllib`
+  binds on 3.11+, but the fallback reader raised, and a raise is treated as an
+  unreadable manifest — every other key stopped binding and every claim reported
+  `source-missing`. A key outside the subset now drops one line, which is the
+  same treatment a value outside it already got.
+- The extraction cache records the reader that actually produced the text rather
+  than the one the suffix predicted. A PDF whose pypdf read fails is read by
+  `pdftotext`, and the entry used to claim `pypdf-<version>` anyway, so upgrading
+  poppler never invalidated it.
+- `tools/next_version.py` no longer deletes whatever follows the link block when
+  it rebuilds that block. `update_links` returned `text[: start] + block` and
+  stopped there, so an `--apply` run would have dropped any section written
+  below the links.
+- The nightly job can no longer pick a pre-release as the latest release.
+  `-k3,3n` reads `1.0.0-rc1` as `1.0.0` and falls back to a whole-line comparison
+  in which `-` sorts above `0`, so `v1.0.0-rc1` beat `v0.8.0`. Pre-release tags
+  are now filtered out before the sort.
+
+### Changed
+
+- The offline replay in CI no longer carries `-k "not network"`. There is no such
+  marker, so it selected every test while reading like a filter that excluded
+  something.
+
 ## [0.8.0] — 2026-10-30
 ### Added
 

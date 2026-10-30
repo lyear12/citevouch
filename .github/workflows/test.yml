@@ -137,7 +137,12 @@ jobs:
           python -c 'import json,sys; b=json.load(open("/tmp/out.json")); m=[f.get("claim_id") for f in b["findings"] if f["code"]=="quote-missing"]; sys.exit("the deliberate quote-missing is gone, or it moved: %r; matching changed" % (m,)) if m!=["fcg-editor"] else print("demo acceptance OK:", b["summary"])'
 
       - name: offline
-        run: python -m pytest -q -k "not network"
+        # The same suite again with the proxies pointed at a closed port: a
+        # real network call in src/ fails here instead of succeeding quietly
+        # on a machine that happens to have one. This read `-k "not network"`
+        # for a while, which selected every test - no such marker exists, and
+        # a filter that matches everything reads like it is doing something.
+        run: python -m pytest
         env:
           # Nothing in src/ may reach the network; the suite proves it by
           # running with proxies pointed at a closed port.

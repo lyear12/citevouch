@@ -79,14 +79,21 @@ def _cache_file(root: str | Path, sha: str) -> Path:
     return cache_root(root) / f"{sha}.json"
 
 
-def extractor_name(suffix: str) -> str | None:
-    """Which extractor would run for ``suffix``, named so a cache can check it.
+def extractor_candidates(suffix: str) -> tuple[str, ...]:
+    """The readers that could produce this file's text, best first.
 
     A cache keyed only by the source's own hash is a cache that never notices
-    the *reader* changing. Upgrading pypdf, or replacing pdftotext, can change
-    the text a page yields - and a ledger verified against the old text would
-    go on saying ``quote-found`` about a page that no longer contains the
-    quote. The name is part of the cache key for exactly that reason.
+    the *reader* changing. Upgrading pypdf can change the text a page yields -
+    and a ledger verified against the old text would go on saying
+    ``quote-found`` about a page that no longer contains the quote. So the
+    reader is part of the cache key.
+
+    Both ends are named. This function says which readers *could* run, which is
+    all a cache lookup can know before extracting; ``extract_pages`` records
+    the one that actually ran, and a hit requires the recorded name to be one
+    of these. Recording the prediction instead was a real bug: pypdf is present
+    but cannot read a given PDF, pdftotext does the work, and the entry says
+    "pypdf" - so upgrading poppler never invalidates it.
 
     The pypdf name carries its version because that is the library whose
     extraction we are trusting; "pdftotext" does not, because asking its
@@ -94,19 +101,21 @@ def extractor_name(suffix: str) -> str | None:
     rarely upgraded in place.
     """
     suffix = suffix.lower()
-    if suffix == ".txt" or suffix == ".md":
-        return "plain"
+    if suffix in (".txt", ".md", ".text"):
+        return ("plain",)
+    if suffix in (".html", ".htm", ".xml"):
+        return ("markup",)
     if suffix == ".pdf":
         try:
             import pypdf
 
-            return f"pypdf-{getattr(pypdf, '__version__', 'unknown')}"
+            return (f"pypdf-{getattr(pypdf, '__version__', 'unknown')}", "pdftotext")
         except ImportError:
-            return "pdftotext"
-    return None
+            return ("pdftotext",)
+    return ("pdftotext", "plain")
 
 
-def _load_cache(root: str | Path, sha: str, extractor: str) -> list[PageText] | None:
+def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[PageText] | None:
     path = _cache_file(root, sha)
     if not path.exists():
         return None
@@ -116,7 +125,7 @@ def _load_cache(root: str | Path, sha: str, extractor: str) -> list[PageText] | 
         return None
     if blob.get("schema") != 1:
         return None
-    if blob.get("tool") != __version__ or blob.get("extractor") != extractor:
+    if blob.get("tool") != __version__ or blob.get("extractor") not in accepted:
         # Written by another build, or by a reader that is not the one about to
         # run. Re-extracting costs a second; trusting stale text costs a
         # verdict, and a wrong verdict is the only failure this tool cannot
@@ -151,11 +160,14 @@ def _store_cache(root: str | Path, sha: str, pages: list[PageText], extractor: s
         pass
 
 
-def _pypdf_pages(path: str | Path) -> list[str] | None:
+def _pypdf_pages(path: str | Path) -> tuple[list[str], str] | None:
+    """Pages from pypdf, named with the version whose behaviour they encode."""
     try:
+        import pypdf
         from pypdf import PdfReader
     except ImportError:
         return None
+    name = f"pypdf-{getattr(pypdf, '__version__', 'unknown')}"
     try:
         reader = PdfReader(str(path))
         if reader.is_encrypted:
@@ -163,12 +175,12 @@ def _pypdf_pages(path: str | Path) -> list[str] | None:
                 reader.decrypt("")
             except Exception:  # noqa: BLE001 - any failure means "cannot read"
                 return None
-        return [(page.extract_text() or "") for page in reader.pages]
+        return [(page.extract_text() or "") for page in reader.pages], name
     except Exception:  # noqa: BLE001 - a corrupt PDF is a finding, not a crash
         return None
 
 
-def _pdftotext_pages(path: str | Path) -> list[str] | None:
+def _pdftotext_pages(path: str | Path) -> tuple[list[str], str] | None:
     """Fallback extractor, used when pypdf is unavailable or fails."""
     for argv in (
         ["pdftotext", "-layout", str(path), "-"],
@@ -188,14 +200,26 @@ def _pdftotext_pages(path: str | Path) -> list[str] | None:
         if proc.returncode != 0 or not proc.stdout.strip():
             continue
         # pdftotext separates pages with a form feed.
-        return proc.stdout.split("\f")
+        return proc.stdout.split("\f"), "pdftotext"
     return None
 
 
-def _plain_text_pages(path: str | Path) -> list[str]:
+def _plain_text_pages(path: str | Path) -> list[str] | None:
     """Plain text, split on form feeds so a pdftotext dump keeps its pages."""
-    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
     return text.split("\f")
+
+
+def _markup_pages(path: str | Path) -> list[str] | None:
+    """One page of tag-stripped text, or ``None`` when the file is unreadable."""
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return [_strip_markup(text)]
 
 
 def extract_pages(
@@ -215,22 +239,35 @@ def extract_pages(
             path=str(path),
         )
     sha = sha256_file(path)
-    extractor = extractor_name(path.suffix) or "unknown"
+    suffix = path.suffix.lower()
     if use_cache:
-        cached = _load_cache(root, sha, extractor)
+        cached = _load_cache(root, sha, extractor_candidates(suffix))
         if cached is not None:
             return cached, None
 
-    suffix = path.suffix.lower()
-    raw: list[str] | None
-    if suffix == ".pdf":
-        raw = _pypdf_pages(path) or _pdftotext_pages(path)
-    elif suffix in (".txt", ".md", ".text"):
-        raw = _plain_text_pages(path)
+    # Whichever reader answers is the one recorded. Naming it from the suffix
+    # alone would claim pypdf for files only pdftotext could open, and then
+    # upgrading poppler would never invalidate the cache entry.
+    raw: list[str] | None = None
+    used = "unknown"
+    if suffix in (".txt", ".md", ".text"):
+        raw, used = _plain_text_pages(path), "plain"
     elif suffix in (".html", ".htm", ".xml"):
-        raw = [_strip_markup(Path(path).read_text(encoding="utf-8", errors="replace"))]
+        raw, used = _markup_pages(path), "markup"
+    elif suffix == ".pdf":
+        # No plain-text fallback for a PDF. Reading one as UTF-8 yields pages of
+        # binary noise, which is not "unreadable" as far as the rest of the
+        # pipeline can tell: it would search the noise, find nothing, and report
+        # quote-missing against the author's quote.
+        found = _pypdf_pages(path) or _pdftotext_pages(path)
+        if found is not None:
+            raw, used = found
     else:
-        raw = _pdftotext_pages(path) or _plain_text_pages(path)
+        found = _pdftotext_pages(path)
+        if found is not None:
+            raw, used = found
+        else:
+            raw, used = _plain_text_pages(path), "plain"
     if raw is None:
         return [], Finding(
             code="source-unreadable",
@@ -241,7 +278,7 @@ def extract_pages(
             path=str(path),
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
-    _store_cache(root, sha, pages, extractor)
+    _store_cache(root, sha, pages, used)
     return pages, None
 
 
@@ -274,12 +311,14 @@ def _mini_toml(text: str) -> dict:
     meant to bind reports ``source-missing`` naming the file rather than
     binding evidence the author never chose.
 
-    A *value* that is not a string is a different thing. tomllib accepts
-    ``enabled = true`` on 3.11+ and hands back a bool, so refusing the whole
-    manifest over it would be a 3.10-only failure - and a total one, since
-    every other key binds nothing once the manifest is gone. An unrepresentable
-    value therefore drops that one key. Nothing downstream can consume a
-    non-string anyway: a path is a path.
+    A *key* or a *value* outside that subset is a different thing. tomllib
+    accepts ``enabled = true`` and ``"quoted" = "x"`` on 3.11+, so refusing the
+    whole manifest over either would be a 3.10-only failure - and a total one,
+    since every other key binds nothing once the manifest is gone. Both
+    therefore drop the one line: the rest of the manifest still binds. Nothing
+    downstream can consume a non-string anyway: a path is a path, and a key
+    this subset cannot spell is a key it cannot promise to bind identically on
+    every interpreter.
 
     This is not a TOML parser and must not grow into one.  If a manifest ever
     needs dates, arrays, or nested tables, the answer is to require 3.11, not to
@@ -303,7 +342,13 @@ def _mini_toml(text: str) -> dict:
             raise ValueError(f"expected key = value, got {line!r}")
         key = key.strip()
         if not key or key[0] in "\"'":
-            raise ValueError(f"unsupported key {key!r}")
+            # A quoted key means the same thing as a bare one, but this subset
+            # does not carry the distinction, and raising here would take the
+            # whole manifest down with it - the exact failure this function's
+            # docstring describes. Dropping the key is the same treatment a
+            # value outside the subset already gets: tomllib binds it on 3.11+,
+            # so a 3.10-only refusal of a file 3.11 accepts is the bug.
+            continue
         text_value = _toml_string_or_none(value.strip())
         if text_value is None:
             # A non-string value (true, 3.5, [a, b], {..}) is not a path, so
@@ -332,6 +377,11 @@ def _strip_toml_comment(line: str) -> str:
 def _toml_string_or_none(value: str) -> str | None:
     """Read a quoted TOML string, or ``None`` when the value is not one."""
     if len(value) < 2 or value[0] not in "\"'" or value[-1] != value[0]:
+        return None
+    if value[:3] == value[0] * 3:
+        # A multi-line string is outside the subset. Handing it back verbatim
+        # would return a "path" still wearing its own quotes - a wrong answer
+        # that never raises, which is worse than a dropped key.
         return None
     return _toml_string(value)
 

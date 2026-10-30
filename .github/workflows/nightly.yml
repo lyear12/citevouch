@@ -43,7 +43,13 @@ jobs:
           # install a superseded wheel and call it fresh, which is the opposite
           # of what a dogfood proves. Sort the version list itself; this
           # happened for real when v0.2.1 was re-cut and became "latest".
+          # Pre-releases are dropped before sorting: `-k3,3n` reads "0-rc1"
+          # as 0, the keys then tie, and the line comparison puts "1.0.0-rc1"
+          # after "1.0.0" because "-" (0x2D) beats nothing. The nightly then
+          # tests a version nobody installs, which is the one thing a
+          # dogfood must not do.
           tag=$(gh release list --limit 100 --json tagName --jq '.[].tagName' \
+                | grep -v -- '-' \
                 | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
           tag="v$tag"
           url=$(gh release view "$tag" --json assets \

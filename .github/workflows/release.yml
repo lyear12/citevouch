@@ -142,19 +142,20 @@ jobs:
           # The notes describe *this* release, so they are the commits since
           # the previous tag - not "the last forty commits", which is what this
           # said first and what made v0.2.0's notes list 0.1.0's work plus a
-          # dozen "Release x.y.z" subjects of its own. A first release has no
-          # previous tag; then there is nothing to compare against and the
-          # whole history is the honest answer.
-          previous=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
-          if [ -n "$previous" ]; then
-            range="$previous..$tag"
-          else
-            range="$tag"
-          fi
-          notes=$(git log --pretty=format:'- %s' "$range" -- . | grep -v '^- Release ' | head -60)
-          if [ -z "$notes" ]; then
-            notes="No commits between $range (the tag itself carries the change)."
-          fi
+          # dozen "Release x.y.z" subjects of its own.
+          #
+          # The logic is a script, not a block, because a block cannot be run
+          # by a test without transplanting the YAML around it - and the case
+          # that broke was the one nobody runs by hand: a hand-dispatched
+          # version whose tag does not exist yet, where `git describe` exits
+          # non-zero and `set -e` turned a missing range into a dead release.
+          #
+          # It is invoked through `bash`, not by path. The index stores the file
+          # without the executable bit, so a fresh checkout on a Linux runner
+          # gets 644 and a bare `tools/release_notes.sh` is "Permission denied" -
+          # a failure that cannot happen locally on Windows, where every file
+          # with a shebang looks executable.
+          notes=$(bash tools/release_notes.sh "$tag")
           # target_commitish is a branch name or a commit SHA, never a tag name,
           # and it is unused when the tag already exists. Passing the tag was
           # what failed the first automatic release (0.2.1): the API answered

@@ -190,7 +190,12 @@ def update_links(text: str, new_version: str, repo: str = REPO_URL) -> str:
     section = _LINK_SECTION.search(text)
     if section is None:
         return text.rstrip() + "\n\n" + block
-    return text[: section.start()] + block
+    # Whatever follows the definitions block is somebody else's text - an
+    # acknowledgements section, a licensing note, anything the changelog
+    # grew below the links. Dropping it here would delete content from the
+    # repository inside an automatic release commit, which is the worst
+    # place to lose a sentence nobody is watching.
+    return text[: section.start()] + block + text[section.end() :]
 
 
 def _today() -> str:
