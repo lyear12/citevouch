@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.18.6] — 2026-10-30
 ### Fixed
 
 - The markdown report chose its two headings from severity alone: every `high`
@@ -22,7 +23,6 @@ tag and that file disagree.
   code was pointed at the wrong section.  The renderer now takes `fail_on` and
   the two headings are decided by the same rule the exit code uses, so they
   cannot disagree.
-
 ## [0.18.5] — 2026-10-30
 ### Fixed
 
@@ -875,7 +875,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.5...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.6...HEAD
+[0.18.6]: https://github.com/lyear12/citevouch/releases/tag/v0.18.6
 [0.18.5]: https://github.com/lyear12/citevouch/releases/tag/v0.18.5
 [0.18.4]: https://github.com/lyear12/citevouch/releases/tag/v0.18.4
 [0.18.3]: https://github.com/lyear12/citevouch/releases/tag/v0.18.3
