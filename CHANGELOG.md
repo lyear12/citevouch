@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.1] — 2026-10-30
 ### Fixed
 
 - A source that was read successfully and held no text at all is now
@@ -25,7 +26,6 @@ tag and that file disagree.
   the cache stores pages rather than verdicts: had only the extraction
   path judged, the first run would be diagnosed and every run after it
   would read the same empty pages out of the cache and blame the quotes.
-
 ## [0.19.0] — 2026-10-30
 ### Added
 
@@ -968,7 +968,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/lyear12/citevouch/releases/tag/v0.19.1
 [0.19.0]: https://github.com/lyear12/citevouch/releases/tag/v0.19.0
 [0.18.10]: https://github.com/lyear12/citevouch/releases/tag/v0.18.10
 [0.18.9]: https://github.com/lyear12/citevouch/releases/tag/v0.18.9
