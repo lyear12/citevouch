@@ -1873,3 +1873,33 @@ value, so `"yes" or "no"` is content and keeps both marks, while a lone `"` is
 left alone. Three mutations are red - put `verify` back on `parsed.claims`,
 stop calling `_unquote`, and drop the inside-check that makes `_unquote`
 conservative. Seen 1.
+
+## A step that cannot be re-run has to say what to do instead
+
+Every step in a release workflow should be assumed re-runnable, and the one
+that is not must fail loudly enough to be fixed by hand.
+
+**Rule.** When step N commits something that makes step N+1 impossible to
+retry - here, pushing the version bump empties the changelog section that
+decides whether to release at all - step N+1 may not fail with the remote's
+own words. It retries, then asks the remote for the state it wanted, and if
+the state is not there it prints the command that establishes it. A bare
+`exit 1` tells a reader to re-run the workflow, which is the one thing that
+cannot work.
+
+**Why.** The failure and its reason live in different places: the remote
+says `(failed)` and nothing else, and the reason a re-run cannot help is two
+steps up in the same file. Whoever reads the red X has the log and not the
+file. An error message is the only place those two can meet.
+
+**Evidence.** `v0.19.6` was bumped and committed to `main` as `977dbd5`,
+and then `git push origin v0.19.6` was rejected with
+`! [remote rejected] v0.19.6 -> v0.19.6 (failed)` and no reason, seconds
+after `git push origin HEAD:main` to the same remote succeeded. The
+repository has no tag ruleset (`gh api repos/lyear12/citevouch/rulesets`
+returns `[]` and `.../tags/protection` is 404), so the rejection was
+transient and one retry would have absorbed it. It was recovered by tagging
+from a workstation, which is exactly what the new message now spells out.
+The guards in `tests/test_tag_push.py` run the step's shell body against a
+stub `git`: dropping the retry loop, dropping the `ls-remote` check, and
+deleting the explanation from the error each turn one of them red. Seen 1.

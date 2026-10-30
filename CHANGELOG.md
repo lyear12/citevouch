@@ -12,6 +12,21 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A rejected tag push no longer strands the version number in silence.
+  `Commit the version bump` pushes to `main` before `Tag it` runs, so a
+  push that is refused leaves the version bumped and the Unreleased
+  section empty - and re-running the workflow then decides there is
+  nothing to release. That is what happened to v0.19.6:
+  `! [remote rejected] v0.19.6 -> v0.19.6 (failed)`, with no reason
+  given, seconds after the branch push to the same remote succeeded.
+  The step now retries three times, then asks the remote whether the
+  tag is there anyway (a push can be accepted and still report
+  failure), and if it is not, the error names the command that fixes
+  it by hand instead of leaving a reader to re-run a workflow that
+  cannot help.
+
 ## [0.19.6] — 2026-10-30
 ### Fixed
 

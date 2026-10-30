@@ -158,7 +158,32 @@ jobs:
           fi
           git tag -a "$tag" -m "citevouch $VERSION" \
             -m "Tagged automatically from the CHANGELOG's Unreleased section."
-          git push origin "$tag"
+          # The commit above is already on main, which means a tag push that
+          # fails leaves the version bumped and the Unreleased section empty:
+          # re-running this workflow then decides there is nothing to release
+          # and the number is stranded. That happened once, with
+          # `! [remote rejected] v0.19.6 -> v0.19.6 (failed)` and no reason
+          # given, seconds after the branch push to the same remote succeeded -
+          # a transient rejection one retry would have absorbed.
+          pushed=0
+          for attempt in 1 2 3; do
+            if git push origin "$tag"; then
+              pushed=1
+              break
+            fi
+            echo "::warning::pushing $tag failed (attempt $attempt of 3)"
+            sleep "$((attempt * 10))"
+          done
+          if [ "$pushed" -ne 1 ]; then
+            # A push can be accepted and still report failure, so the remote is
+            # what settles this, not which attempt returned zero.
+            if git ls-remote --tags --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
+              echo "::notice::$tag is on the remote even though no attempt exited zero"
+              exit 0
+            fi
+            echo "::error::could not push $tag after 3 attempts, and the bump is already on main, so re-running this workflow will decide there is nothing to release. Tag it by hand: git fetch origin main && git tag -a $tag -m 'citevouch $VERSION' origin/main && git push origin $tag"
+            exit 1
+          fi
 
       - name: Summarise
         if: steps.plan.outputs.released == 'true'
