@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.12] — 2026-10-30
 ### Fixed
 
 - **`--format markdown` says why the job is red, and `--quiet` still
@@ -26,7 +28,6 @@ tag and that file disagree.
   v0.18.7: `**worst severity:**`, and, when `--quiet` hid a finding at or above
   `--fail-on`, `**N** findings … were hidden by --quiet; that is why this run
   failed.` Five mutations are caught, including the original one.
-
 ## [0.19.11] — 2026-10-30
 ### Fixed
 
@@ -1180,7 +1181,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.11...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.12...HEAD
+[0.19.12]: https://github.com/lyear12/citevouch/releases/tag/v0.19.12
 [0.19.11]: https://github.com/lyear12/citevouch/releases/tag/v0.19.11
 [0.19.10]: https://github.com/lyear12/citevouch/releases/tag/v0.19.10
 [0.19.9]: https://github.com/lyear12/citevouch/releases/tag/v0.19.9
