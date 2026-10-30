@@ -1218,3 +1218,34 @@ is the property the figure needs, not the number that happened to come out.
 **Evidence.** `tools/make_figures.py::page_excerpt`, and
 `tests/test_figures.py::test_the_page_figure_is_an_excerpt_not_a_whole_page`,
 which fails if the crop grows back into a whole-page screenshot. Seen 1.
+
+---
+
+## A file that records a command records the argument, not the intention
+
+**Rule.** When something is written into a committed artefact, store it in the
+form the artefact needs to be read from anywhere - relative to a declared root,
+with a separator that is the same on every platform - and never the string the
+user happened to type. If two ways of naming the same file produce two different
+files, the tool has a bug even when both outputs are correct.
+
+**Why.** `scan` stored source paths through `_ledger_path(root, path)` from the
+first version, so a ledger survived a clone onto Linux. It stored the
+*manuscript* path as `str(options.manuscript)` - whatever the user typed. So
+`scan demo/manuscript.md --root demo` wrote `"manuscript": "demo/manuscript.md"`
+and `cd demo && scan manuscript.md` wrote `"manuscript": "manuscript.md"`. Both
+are true sentences about the same project; only one of them can be in the file.
+The consequence was not cosmetic: `demo/citevouch.lock.json` could only be
+regenerated from one working directory, which is why it sat at tool_version
+0.5.0 through eleven releases without anyone being able to ask whether it was
+still what this version writes. The half that was fixed in round 4 (sources) and
+the half that was not (the manuscript) looked identical in review, because the
+fix had been reported as "the ledger records portable paths" rather than
+"every path in the ledger goes through one function".
+
+**Evidence.** `src/citevouch/scan.py`, the `manuscript=` field of `Ledger`;
+`tests/test_scan_verify.py::test_the_ledger_names_the_manuscript_the_same_way_from_any_directory`
+and `tests/test_demo_fixture.py::test_the_committed_ledger_is_one_this_version_would_write`,
+which re-scans `demo/` and requires the committed lockfile to match field for
+field except `generated_at` and `tool_version`. Seen 2 - the first was
+`test_the_ledger_records_a_portable_path`, and it only ever checked sources.

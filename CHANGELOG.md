@@ -11,6 +11,14 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `scan` now records the manuscript path relative to `--root`, the way it has
+  always recorded source paths. Before this, `scan demo/manuscript.md --root
+  demo` and `cd demo && scan manuscript.md` wrote two different ledgers for one
+  project, so a committed ledger could only be regenerated from one directory.
+  `demo/citevouch.lock.json` is re-recorded; existing ledgers keep working,
+  because `verify` only ever reads the file name out of that field.
 
 ## [0.16.0] — 2026-10-30
 ### Added
