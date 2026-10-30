@@ -93,7 +93,7 @@ jobs:
 
       - name: Run the suite before building anything
         run: |
-          python -m pip install -e . pytest ruff
+          python -m pip install -e ".[dev]"
           python -m pytest -q
           ruff check .
           ruff format --check .

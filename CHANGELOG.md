@@ -31,6 +31,17 @@ tag and that file disagree.
   with a space stays one argument, that exits 0 and 1 pass through unchanged,
   and that exit 2 is reported as "could not run" rather than as a verdict.
 
+### Fixed
+
+- The CI jobs now install `-e ".[dev]"` instead of naming `pytest` and `ruff`
+  by hand, and the `dev` extra declares PyYAML. `tests/test_action.py` imports
+  yaml to read `action.yml`, so every job on all three operating systems failed
+  collection with `ModuleNotFoundError: No module named 'yaml'`: a dependency the
+  tests use but the extra does not promise is the same defect as a feature
+  declared and not built. `tests/test_extras.py::test_every_run_only_dependency_is_used_by_a_command`
+  now walks the `dev` extra and fails when a member is neither imported under
+  `tests/`/`src/`/`tools/` nor named by a workflow.
+
 ## [0.12.0] — 2026-10-30
 ### Removed
 

@@ -50,7 +50,7 @@ dependencies = ["pypdf>=4.0"]
 # did not have. Reading a spreadsheet of references is a real feature and it can
 # be added as one; it cannot be added by declaring it.
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+dev = ["pytest>=8.0", "ruff>=0.6", "PyYAML>=6.0"]
 
 [project.urls]
 Homepage = "https://github.com/lyear12/citevouch"

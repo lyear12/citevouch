@@ -1045,3 +1045,26 @@ pin the release tool would rewrite. Both checks are red against the rebased
 tree and green after the pins were moved by hand. The general lesson is the one
 worth keeping: an automated rewrite and a hand-written example will drift, so
 the drift has to be an assertion, not an observation.
+## A dependency the tests import is a dependency the install step must install
+
+**Rule.** When a test imports a package, that package belongs in the extras the
+CI installs, and the install step belongs in the repository - not in a list of
+names copied into each job. Name the extra, not its members.
+
+**Why.** `tests/test_action.py` reads `action.yml` with `yaml`, and every job ran
+`pip install -e . pytest ruff`. On this machine PyYAML was already present, so
+the suite passed 385 times locally; on GitHub's runners every one of the ten
+jobs failed collection with `ModuleNotFoundError: No module named 'yaml'` before
+running a single test. A dependency used and not declared is the same defect as
+a feature declared and not built, seen from the other side, and it is invisible
+from the only machine the developer looks at.
+
+**Evidence.** Run 41046307783 on `b5a07ad` is red in all ten jobs with the same
+import error. The fix is three characters of promise (`PyYAML>=6.0` in the `dev`
+extra) and one habit changed (`pip install -e ".[dev]"` in both workflows), and
+two checks keep it fixed:
+`tests/test_extras.py::test_every_run_only_dependency_is_used_by_a_command`
+walks the extra and refuses a member that nothing imports or invokes, and
+`::test_every_workflow_installs_the_dev_extra` refuses a workflow that installs
+the package without it. Both are red against the old install line. Seen 1.
+
