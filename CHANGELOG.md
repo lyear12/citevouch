@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.16.3] — 2026-10-30
 ### Fixed
 
 - The `citevouch` GitHub action declared a `python-version` input, passed it to
@@ -22,7 +23,6 @@ tag and that file disagree.
   step that can act on it, and every `env:` key on a shell step must appear in
   that step's body. The test that was supposed to cover this had a comment
   describing the wiring it never checked.
-
 ## [0.16.2] — 2026-10-30
 ### Fixed
 
@@ -729,7 +729,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.3...HEAD
+[0.16.3]: https://github.com/lyear12/citevouch/releases/tag/v0.16.3
 [0.16.2]: https://github.com/lyear12/citevouch/releases/tag/v0.16.2
 [0.16.1]: https://github.com/lyear12/citevouch/releases/tag/v0.16.1
 [0.16.0]: https://github.com/lyear12/citevouch/releases/tag/v0.16.0

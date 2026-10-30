@@ -65,7 +65,7 @@ Three things I think are worth the attention:
   a hundred of these by hand is the reason tools like this do not get used.
 
 ```
-pip install "git+https://github.com/lyear12/citevouch@v0.16.2"
+pip install "git+https://github.com/lyear12/citevouch@v0.16.3"
 cd demo && citevouch verify manuscript.md
 ```
 
