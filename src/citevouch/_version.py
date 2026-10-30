@@ -13,4 +13,4 @@ out of ``__init__`` means the build never pays for importing the package, and
 
 from __future__ import annotations
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"

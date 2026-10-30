@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-30
 ### Fixed
 
 - The release-notes step no longer kills a release whose tag does not exist yet.
@@ -48,7 +49,6 @@ tag and that file disagree.
 - The offline replay in CI no longer carries `-k "not network"`. There is no such
   marker, so it selected every test while reading like a filter that excluded
   something.
-
 ## [0.8.0] — 2026-10-30
 ### Added
 
@@ -475,7 +475,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/lyear12/citevouch/releases/tag/v0.9.0
 [0.8.0]: https://github.com/lyear12/citevouch/releases/tag/v0.8.0
 [0.7.0]: https://github.com/lyear12/citevouch/releases/tag/v0.7.0
 [0.6.1]: https://github.com/lyear12/citevouch/releases/tag/v0.6.1

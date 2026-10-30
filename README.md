@@ -97,7 +97,7 @@ Not on PyPI yet — the release workflow publishes there once a trusted publishe
 this repository, and reports whether it did. Until then, install from GitHub:
 
 ```bash
-pip install "git+https://github.com/lyear12/citevouch@v0.8.0"
+pip install "git+https://github.com/lyear12/citevouch@v0.9.0"
 # or, from a clone:
 pip install .
 ```
@@ -180,7 +180,7 @@ sample" unambiguously.
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: pip install "git+https://github.com/lyear12/citevouch@v0.8.0"
+- run: pip install "git+https://github.com/lyear12/citevouch@v0.9.0"
 - run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
 ```
 
