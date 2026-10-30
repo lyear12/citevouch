@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,47 @@ import pytest
 from citevouch import sources
 
 REPO = Path(__file__).resolve().parent.parent
+
+_WINDOWS_GIT_BASH = (
+    Path("C:/Program Files/Git/bin/bash.exe"),
+    Path("C:/Program Files/Git/usr/bin/bash.exe"),
+    Path("C:/Program Files (x86)/Git/bin/bash.exe"),
+)
+
+
+def _bash() -> str:
+    """A bash that can actually run a POSIX script on this machine.
+
+    ``bash`` on a Windows GitHub runner is the WSL stub in System32, and it
+    answers every command with "Windows Subsystem for Linux has no installed
+    distributions" - exit code 1, UTF-16 noise on stdout. Testing for a file on
+    PATH therefore proves nothing; the candidate has to be asked to run a
+    command. Git for Windows ships a real bash, and the runner has it even
+    though PATH points at the stub, so it is tried by absolute path after the
+    PATH entry fails.
+    """
+    candidates = [shutil.which("bash"), *(str(p) for p in _WINDOWS_GIT_BASH)]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            probe = subprocess.run(
+                [candidate, "-c", "echo ok"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if probe.returncode == 0 and probe.stdout.strip() == "ok":
+            return candidate
+    pytest.skip("no working bash on this machine: the release scripts cannot be run here")
+
+
+def _sh_path(path: Path) -> str:
+    """Forward slashes: Git bash reads `D:\\a\\b` as an escape soup."""
+    return path.as_posix()
 
 
 def _run(cmd: list[str], cwd: Path, **kwargs) -> subprocess.CompletedProcess:
@@ -38,7 +80,7 @@ def test_the_release_notes_script_survives_a_tag_that_does_not_exist(tmp_path: P
     repo = _repo_with_tag(tmp_path)
     script = REPO / "tools" / "release_notes.sh"
     proc = _run(
-        ["bash", "--noprofile", "--norc", "-eo", "pipefail", str(script), "v9.9.9"],
+        [_bash(), "--noprofile", "--norc", "-eo", "pipefail", _sh_path(script), "v9.9.9"],
         repo,
     )
     assert proc.returncode == 0, proc.stderr
@@ -56,7 +98,8 @@ def test_the_release_notes_script_reads_a_real_range(tmp_path: Path):
 
     script = REPO / "tools" / "release_notes.sh"
     proc = _run(
-        ["bash", "--noprofile", "--norc", "-eo", "pipefail", str(script), "v0.2.0"], repo
+        [_bash(), "--noprofile", "--norc", "-eo", "pipefail", _sh_path(script), "v0.2.0"],
+        repo,
     )
     assert proc.returncode == 0, proc.stderr
     assert "the second thing" in proc.stdout
@@ -236,7 +279,7 @@ def test_a_prerelease_never_wins_the_nightly():
     pipeline = _nightly_version_pipeline()
     for tags in ("v1.0.0-rc1\nv0.8.0\n", "v0.8.0\nv1.0.0-rc1\n"):
         proc = subprocess.run(
-            ["bash", "-c", f"printf '{tags}' | {pipeline}"],
+            [_bash(), "-c", f"printf '{tags}' | {pipeline}"],
             capture_output=True,
             text=True,
             check=False,
