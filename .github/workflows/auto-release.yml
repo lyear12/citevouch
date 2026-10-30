@@ -2,7 +2,8 @@ name: Auto release
 
 # Nothing here asks a human whether to release. When the Test workflow finishes
 # green on main, this job reads the Unreleased section of CHANGELOG.md, decides
-# the next version, writes it into CHANGELOG.md and pyproject.toml, commits,
+# the next version, writes it into CHANGELOG.md, src/citevouch/_version.py and
+# whichever README still carries an install pin, commits,
 # tags, and hands the tag to release.yml. If Unreleased is empty it does nothing
 # and says so - "no release today" is a normal outcome, not a failure.
 #

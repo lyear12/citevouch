@@ -1,8 +1,8 @@
 name: Release
 
 # A release is a tag. Pushing `v0.1.4` runs this workflow, which refuses to
-# publish unless the tag and pyproject.toml agree, then builds the sdist and
-# wheel, checks the built wheel in a clean environment, and only then creates
+# publish unless the tag and the declared version agree, then builds the sdist
+# and wheel, checks the built wheel in a clean environment, and only then creates
 # the release. There is no step where a human confirms — the tag *is* the
 # confirmation, and the failure modes below are cheap to re-run.
 #

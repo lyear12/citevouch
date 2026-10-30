@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The guard that keeps documents from describing the version as living in
+  `pyproject.toml` now fails closed, and it covers the workflows. It used to
+  match a list of known-wrong sentences in `AGENTS.md`, the two READMEs and
+  `docs/` only, so the headers of `auto-release.yml` and `release.yml` went on
+  saying the release step "writes it into CHANGELOG.md and pyproject.toml" for
+  the two releases after the version moved to `src/citevouch/_version.py`. The
+  test now checks any line that mentions `pyproject.toml` for a statement of
+  what it actually does, and it scans `.github/workflows/*.yml` too - the guard
+  had been excluding the files it was never pointed at.
 
 ## [0.6.0] — 2026-10-30
 ### Fixed

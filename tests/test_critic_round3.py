@@ -271,23 +271,44 @@ class TestUsageMistakesStayInsideTheExitContract:
 class TestTheDocumentsDescribeThisRepository:
     def test_no_document_says_the_version_lives_in_pyproject(self):
         """The version moved to src/citevouch/_version.py; a file that still
-        sends an agent to edit pyproject.toml sends it to edit nothing."""
+        sends an agent to edit pyproject.toml sends it to edit nothing.
+
+        This used to match a list of known-wrong phrasings, which only ever
+        catches the sentences someone already thought of. It now checks the
+        other way round: every line that mentions pyproject.toml has to say
+        what pyproject.toml actually does (declares the version as dynamic, or
+        hands the reader to _version.py). A sentence that describes it as the
+        place the version is written is stale no matter how it is worded.
+
+        The workflows are scanned too. The first version of this test covered
+        only AGENTS.md, the READMEs and docs/, and both workflow headers went
+        on saying "writes it into CHANGELOG.md and pyproject.toml" for the two
+        releases after the version moved - the guard excluded the files it had
+        never been pointed at.
+        """
+        allowed = ("declares", "reads it", "dynamic", "attr", "older checkouts", "--pyproject")
         repo = _repo()
+        files = ["AGENTS.md", "README.md", "README.zh-CN.md"]
+        files += [f"docs/{p.name}" for p in sorted((repo / "docs").glob("*.md"))]
+        files += [
+            f".github/workflows/{p.name}"
+            for p in sorted((repo / ".github/workflows").glob("*.yml"))
+        ]
         stale = []
-        for name in ("AGENTS.md", "README.md", "README.zh-CN.md"):
+        for name in files:
             path = repo / name
             if not path.exists():
                 continue
-            text = path.read_text(encoding="utf-8")
-            for bad in ("version = in pyproject.toml", "pyproject.toml's version"):
-                if bad in text:
-                    stale.append(f"{name}: {bad}")
-        for path in (repo / "docs").glob("*.md"):
-            text = path.read_text(encoding="utf-8")
-            for bad in ("version = in pyproject.toml", "pyproject.toml's version"):
-                if bad in text:
-                    stale.append(f"docs/{path.name}: {bad}")
-        assert stale == []
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if "pyproject.toml" not in line:
+                    continue
+                if any(marker in line for marker in allowed):
+                    continue
+                stale.append(f"{name}:{number}: {line.strip()}")
+        assert stale == [], (
+            "these lines describe pyproject.toml as the place the version is written, "
+            "but it reads the version from src/citevouch/_version.py:\n" + "\n".join(stale)
+        )
 
     def test_the_version_file_is_named_in_the_agent_contract(self):
         text = (_repo() / "AGENTS.md").read_text(encoding="utf-8")

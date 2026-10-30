@@ -566,14 +566,11 @@ before the fix and `| c1 | p | 0 |` after. Seen 1.
 
 ## A file the tool both writes and reads is written the way it is committed
 
-**Rule.** Use `newline="
-"` (or `os.linesep`-free bytes) for anything this
+**Rule.** Use `newline="\n"` (or `os.linesep`-free bytes) for anything this
 project produces and then reads back. Never let the platform pick.
 
 **Why.** `_write_ledger` used `Path.write_text`, which opens in text mode with
-universal newlines. On Windows that turned every `
-` into `
-`, so the
+universal newlines. On Windows that turned every `\n` into `\r\n`, so the
 lockfile landed on disk in one encoding and in the repository in another, git
 printed "CRLF will be replaced by LF" after every scan, and a colleague cloning
 on Linux and running `verify` saw a byte-different file from the one the author
@@ -584,6 +581,34 @@ matters.
 **Evidence.** `git diff demo/citevouch.lock.json` after a plain
 `citevouch scan` on Windows showed 11 changed lines that were not changed;
 `tests/test_critic_round4.py::test_the_ledger_is_written_with_lf_endings_on_every_platform`
-fails if `
-` appears in a freshly written ledger. Seen 1.
+fails if `\r\n` appears in a freshly written ledger. Seen 1.
 
+---
+
+## A guard that lists the files it protects protects only those files
+
+**Rule.** A test that keeps documents honest has to decide which files are
+documents by scanning for them, not by naming the three that came to mind. When
+a file type is added to the repository, the guard has to already be looking
+there.
+
+**Why.** `test_no_document_says_the_version_lives_in_pyproject` (in
+`tests/test_critic_round3.py`) was written to stop a file from sending an agent
+to edit a version that lives somewhere else. It scanned `AGENTS.md`, the two
+READMEs and `docs/*.md`, and it matched a list of two known-wrong phrasings. The
+version then moved to `src/citevouch/_version.py`, and the header of
+`auto-release.yml` and `release.yml` went on saying the release step "writes it
+into CHANGELOG.md and pyproject.toml" for two releases. Both defects are the
+same defect: the guard encoded what someone had thought of, so it could only
+ever catch what someone had already thought of. A list of known-bad strings is
+a record of past bugs, not a rule.
+
+The fix is in the same file: scan `.github/workflows/*.yml` as well, and for any
+line mentioning `pyproject.toml`, require it to also say what `pyproject.toml`
+actually does (`declares`, `reads it`, `dynamic`, `attr`). Adding a fourth
+wrong phrasing no longer buys silence; a sentence that is wrong in a new way
+still fails.
+
+**Evidence.** `grep -n "pyproject" .github/workflows/*.yml` after v0.6.0 showed
+two stale header comments that the guard had been passing over since v0.5.0.
+Seen 1.
