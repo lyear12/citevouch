@@ -11,6 +11,25 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- `no-claim-blocks` (high): a run that read a manuscript holding no claim blocks now says so instead
+  of reporting `0 claims — 0 verified, 0 moved, 0 missing` with `worst severity: info` and exit 0.
+  That summary is the shape of a passing gate, and over such a file it was a verdict about nothing -
+  the same failure `.tex` input had before v0.17.1, reached through Markdown instead of an
+  extension. It now exits 1 and names the closest thing to a claim block it could find: a
+  near-miss fence opening with four or more backticks, a capitalised `Claim`, or a file with no
+  claim-shaped line at all (where the message points at `citevouch draft`, the command that writes
+  real ones). A file whose only block is *broken* still reports the actual defect
+  (`claim-uncheckable`, `claim-block-unclosed`) and not this one on top - one fact, one vocabulary.
+  `verify` reaches the same verdict over a ledger that recorded no claims, because an empty ledger
+  written by an older version is a false green that already reached disk.
+
+### Fixed
+
+- `verify` returned exit 0 over a committed ledger whose `claims` list was empty, printing the same
+  `0 claims` / `worst severity: info` summary. Reading the recording back does not make that verdict
+  true; it only means the false green was written before it was read.
 
 ## [0.17.1] — 2026-10-30
 ### Fixed

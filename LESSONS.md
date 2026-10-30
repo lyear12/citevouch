@@ -1529,3 +1529,28 @@ never seen. Widening the pattern to `Seen (\d+)(?:\.|\s|$)` and adding a
 fail-closed "says Seen but names no number" branch immediately turned the gate
 red: a lesson already at `Seen 3` had never been promoted. The hole was hiding a
 real debt for as long as it existed. Seen 1.
+
+## A green summary of nothing is the worst thing a checker can print
+
+**Rule.** When the input makes the check impossible to run, say that. Never let
+the absence of things to check produce the same output as everything passing.
+And when you close that hole for one way of reaching it, grep for the other
+ways: a file extension is a shape, not the class.
+
+**Why.** Every other finding in this tool describes something that was looked at
+and failed. "Nothing was looked at" has the same summary line - `0 claims - 0
+verified, 0 moved, 0 missing`, `worst severity: info` - because the summary
+counts claims, and zero is a number the reader is used to seeing from a clean
+run. The two outputs are identical and the exit codes were identical, so a CI
+job went green over a document no claim in which had ever been read.
+
+**Evidence.** v0.17.1 refused `.tex` manuscripts for exactly this reason,
+quoting "Scanning the .tex would record zero claims and report a clean run for a
+manuscript nothing checked" - and the fix tested the suffix. A Markdown file
+with no claim blocks did the same thing two releases later, and so did a
+Markdown file whose blocks were written with four backticks or a capitalised
+`Claim`; the second and third are worse, because the author believes they wrote
+a claim block. `tests/test_scan_verify.py` had the bug written down as an
+expectation (`assert findings == []` over a prose-only manuscript), which is how
+it survived review: a test that asserts the wrong behaviour is a lock, not a
+detector. Seen 1.

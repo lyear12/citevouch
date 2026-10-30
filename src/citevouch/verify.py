@@ -22,7 +22,7 @@ from pathlib import Path
 from .bibtex import doi_of, field_findings
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
-from .scan import ScanOptions, _resolve, scan
+from .scan import ScanOptions, _no_claim_blocks_finding, _resolve, scan
 from .sources import (
     discover_sources,
     extract_pages,
@@ -114,6 +114,20 @@ def verify(
             )
             result.skipped = len(ledger.claims)
             return result
+
+    # A ledger that recorded no claims is the recording of a run that checked
+    # nothing, and reading it back produces the same shape as the manuscript
+    # with no claim blocks: `0 claims - 0 verified`, worst `info`, exit 0.  The
+    # recording does not make that verdict true - it only means the false green
+    # reached disk first.  An empty ledger can also arrive from an older
+    # version of this tool, so the guard belongs here and not only in `scan`.
+    if not ledger.claims:
+        try:
+            text = manuscript_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        result.findings.append(_no_claim_blocks_finding(text, manuscript_path.name))
+        return result
 
     known = discover_sources(root, options.sources)
     pages_cache: dict[str, tuple[list, str]] = {}

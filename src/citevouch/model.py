@@ -58,6 +58,13 @@ CODES = {
     # was supposed to be checked and was not.
     "claim-without-evidence": "low",
     "ledger-stale": "high",
+    # A manuscript holding no claim blocks at all.  Every other code describes a
+    # claim that failed; this one describes a run in which no claim was ever
+    # looked at, and calling that clean is the one verdict this tool must never
+    # give.  A `.tex` manuscript is refused outright for the same reason.  High,
+    # because the CI job that would have reported it green is the job somebody
+    # is trusting.
+    "no-claim-blocks": "high",
 }
 
 _SEVERITY_RANK = {name: i for i, name in enumerate(SEVERITIES)}

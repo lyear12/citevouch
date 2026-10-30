@@ -17,7 +17,7 @@ from . import __version__
 from .bibtex import parse_bib
 from .errors import UsageError
 from .latex import looks_like_latex
-from .manuscript import parse_manuscript, scan_unbound_markers
+from .manuscript import _CLAIMISH, parse_manuscript, scan_unbound_markers
 from .model import Finding, Ledger, SourceRef
 from .sources import (
     candidate_files,
@@ -53,6 +53,62 @@ def _resolve(root: Path, raw: str) -> Path:
     if path.exists():
         return path
     return root / path
+
+
+def _no_claim_blocks_finding(text: str, path: str) -> Finding:
+    """Report a manuscript that produced no claim blocks at all.
+
+    The message tries to be useful in the order the reader needs it: what
+    happened, the closest thing to a claim block in the file (usually a
+    near miss - a capitalised ``Claim``, four backticks, a stray indent), and
+    the command that would write correct blocks for them.
+
+    ``no-claim-blocks`` is the only finding that can be true of a file holding
+    no claims, and it is deliberately the *last* thing checked: a manuscript
+    whose one block is broken already reports why (``claim-uncheckable``,
+    ``claim-block-unclosed``), and adding "and there are no claims either" on
+    top would be the same fact said twice in two vocabularies.
+    """
+    lines = text.splitlines()
+    near = next(
+        (number for number, line in enumerate(lines, start=1) if _CLAIMISH.match(line)),
+        None,
+    )
+    if near is None:
+        detail = (
+            "a claim block opens with three backticks, the word `claim`, then "
+            "`id=` and `source=`. This file has none. If its citations are "
+            f"already written, `citevouch draft {path} -o claims.md` proposes "
+            "blocks for them."
+        )
+    else:
+        line = lines[near - 1].strip()
+        ticks = len(line) - len(line.lstrip("`~"))
+        # Name the near miss precisely.  "Four backticks" and "a capital C" are
+        # the two ways to write something that reads like a claim block and is
+        # not one, and telling the author which they did is the whole value of
+        # this message.  The sample is indented rather than backtick-quoted on
+        # purpose: a fenced line inside backticks renders as a longer fence.
+        if ticks > 3:
+            why = f"it opens with {ticks} backticks and a claim fence has three"
+        elif "claim" not in line:
+            why = "the keyword is spelled in a case the parser does not accept"
+        else:
+            why = "claim fences are three backticks followed by the word `claim`"
+        detail = (
+            f"line {near} reads like a claim block but is not one the parser "
+            f"accepts ({why}). The line is:\n    {line[:100]}\n"
+            "Nothing in this file was checked."
+        )
+    return Finding(
+        code="no-claim-blocks",
+        message=f"{path} contains no claim blocks, so nothing was checked: {detail}",
+        path=path,
+        # ``Finding`` is frozen, so the line goes in at construction; the hint
+        # is the near miss when there is one, and 0 ("no line") when the file
+        # simply has no claim-shaped line at all.
+        line=near if near is not None else 0,
+    )
 
 
 def _ledger_path(root: Path, path: str | Path) -> str:
@@ -123,6 +179,18 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     text = manuscript_path.read_text(encoding="utf-8", errors="replace")
     parsed = parse_manuscript(text, path=manuscript_path.name)
     findings.extend(parsed.findings)
+    # No claim blocks at all.  Every other finding describes a claim that was
+    # checked and failed; this one describes a run in which nothing was checked,
+    # and the summary line for it says "0 claims - 0 verified, 0 moved, 0
+    # missing" with `worst severity: info` and exit 0.  A reader sees a green
+    # run of a check that never happened: the CI job goes green, the section of
+    # the release checklist is ticked, and the manuscript was never read.  The
+    # `.tex` refusal above closes exactly this hole for one file extension; a
+    # Markdown file with no blocks - or with blocks written in a dialect the
+    # parser does not accept - is the same hole with a different name, so it
+    # gets the same answer.
+    if not parsed.claims and not any(f.code.startswith("claim-") for f in parsed.findings):
+        findings.append(_no_claim_blocks_finding(text, manuscript_path.name))
     # A credibility marker outside a claim block is the most common way a
     # manuscript looks verified while nothing can be checked.  Passing the
     # claim spans keeps documented claims from being reported as unbound.

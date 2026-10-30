@@ -82,6 +82,7 @@ rots:
 | `claim-block-unclosed` | high | a `` ```claim `` block never closes, so every claim after it was read as part of it |
 | `claim-uncheckable` | high | a claim block cannot be looked up at all - no `source=`, no quote, no id, or an id used twice so the second block is dropped |
 | `page-unreadable` | medium | a `page=` hint is not a number, so it is ignored and the quote is located by search |
+| `no-claim-blocks` | high | the manuscript holds no claim blocks at all, so nothing in it was checked |
 
 Exit code is `0` when nothing reaches `--fail-on` (default `high`), `1` when something does, `2` for
 usage errors. That means a CI job needs no wrapper logic.

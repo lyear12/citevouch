@@ -48,6 +48,12 @@ _TABLE_CLAIM = re.compile(
     r"\s*(?P<page>\d+|-)\s*\|\s*(?P<quote>[^|]+?)\s*\|\s*(?P<text>[^|]+?)\s*\|"
 )
 _ATTR = re.compile(r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)\s*=\s*(?P<value>\"[^\"]*\"|'[^']*'|\S+)")
+# A line a human would read as "here begins a claim block", in any of the
+# spellings close enough to the real one to be a mistake rather than prose.
+# Used only to explain a file that yielded no claims: naming the line that was
+# almost right is the difference between "the tool is broken" and "look at line
+# 12".  Deliberately permissive - it is a hint generator, never a gate.
+_CLAIMISH = re.compile(r"^\s*(?:`{3,}|~{3,}|<!--)\s*[*_]*\s*claim\b", re.IGNORECASE)
 _FIELD_KEY = re.compile(r"^\s*(?P<key>quote|claim|numbers?)\s*:\s*(?P<rest>.*)$")
 
 # The credibility markers the surrounding workflow already uses.  Kept as data

@@ -306,11 +306,41 @@ def test_number_check_is_silent_when_the_page_has_the_number(project: Path):
     assert "number-absent-in-quote" not in {f.code for f in findings}
 
 
-def test_scan_with_no_claims_is_clean(project: Path):
+def test_scan_with_no_claims_says_so_instead_of_reporting_clean(project: Path):
+    """A manuscript with no claim blocks is not a clean manuscript.
+
+    This test used to assert ``findings == []`` here, which is the bug written
+    down as an expectation: the run printed "0 claims - 0 verified, 0 moved, 0
+    missing", "worst severity: info" and exited 0, so CI went green over a
+    manuscript no claim in which had ever been looked at.  The zero-claim case
+    is not the absence of a problem, it is the absence of a check.
+    """
     manuscript = _write(project, "m.md", "Just prose, nothing to verify.\n")
     ledger, findings = scan(ScanOptions(manuscript=str(manuscript), root=str(project)))
     assert ledger.claims == []
-    assert findings == []
+    assert [f.code for f in findings] == ["no-claim-blocks"]
+    assert findings[0].severity == "high"
+
+
+def test_a_manuscript_whose_only_block_is_broken_reports_why_and_not_also_emptiness(
+    project: Path,
+):
+    """Say the real problem once.
+
+    A file whose one claim block is missing its ``source=`` already gets
+    ``claim-uncheckable``, which names the line and the reason.  Adding "and
+    there are no claim blocks either" on top would be the same fact in a second
+    vocabulary, and the reader would have to work out which one to act on.
+    """
+    manuscript = _write(
+        project,
+        "m.md",
+        "```claim id=c1\nquote: |\n  Something asserted without a source.\n```\n",
+    )
+    _ledger, findings = scan(ScanOptions(manuscript=str(manuscript), root=str(project)))
+    codes = [f.code for f in findings]
+    assert "claim-uncheckable" in codes
+    assert "no-claim-blocks" not in codes
 
 
 def test_missing_manuscript_is_a_usage_error(project: Path):
