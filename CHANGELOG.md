@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.3] — 2026-10-30
 ### Fixed
 
 - A source document written entirely in Chinese or Russian, saved as
@@ -47,7 +49,6 @@ tag and that file disagree.
   edit a line that needed no edit.  The empty-ledger path now asks
   `parse_manuscript` first and says "the ledger recorded none; run
   `citevouch scan`" when the blocks are there.
-
 ## [0.19.2] — 2026-10-30
 ### Fixed
 
@@ -1020,7 +1021,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.3...HEAD
+[0.19.3]: https://github.com/lyear12/citevouch/releases/tag/v0.19.3
 [0.19.2]: https://github.com/lyear12/citevouch/releases/tag/v0.19.2
 [0.19.1]: https://github.com/lyear12/citevouch/releases/tag/v0.19.1
 [0.19.0]: https://github.com/lyear12/citevouch/releases/tag/v0.19.0
