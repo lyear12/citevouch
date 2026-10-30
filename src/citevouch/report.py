@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .model import SEVERITIES, Finding, Ledger, worst
+from .textnorm import count_of, verb_for, word_for
 from .verify import VerifyResult
 
 SARIF_RULES = {
@@ -124,11 +125,11 @@ def _failing_hidden(hidden: list[Finding], fail_on: str) -> list[Finding]:
 
 def _plural_verb(count: int) -> str:
     """`was` or `were`, to agree with `_plural(count, noun)`."""
-    return "was" if count == 1 else "were"
+    return verb_for(count)
 
 
 def _plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+    return count_of(count, noun)
 
 
 def render_json(
@@ -347,4 +348,4 @@ def _is_blocking(finding: Finding, threshold: int) -> bool:
 
 def _word(count: int, noun: str) -> str:
     """`claim` or `claims`, for a template that wants the bare word."""
-    return noun if count == 1 else noun + "s"
+    return word_for(count, noun)

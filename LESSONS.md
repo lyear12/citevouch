@@ -1967,3 +1967,64 @@ Evidence: `_probe_uri.py` over six file names (`m.md`, `my paper.md`, `论文.md
 after; `tests/test_report.py::TestTheSarifUriIsAUri` asserts the round trip
 (`unquote(uri) == name`) rather than a literal, so the encoding cannot drift
 from what a reader would decode. Seen 1.
+
+## There are two of every branch, and the test only covers the branch you were looking at
+
+**Rule.** When a defect has N code paths that produce it, the fix is not done
+until N tests fail without it. Enumerate the branches first and write the paths
+down; "I fixed the bug" means "I fixed every site the bug can be produced at",
+and the count of sites is a fact you measure, not a feeling.
+
+**Why.** A reader with two ways to report the same finding looks like one piece
+of logic, because it prints one message. The message text is written twice, and
+the second copy is invisible from the first one - you find it by grepping for
+the sentence you just changed, not by reading the function you just opened.
+
+**What it cost.** The bibliography reader reports stray text in two places: after
+the last entry, and between two entries. The probe that found the defect - one
+stray character after a single entry - only walked the first path. The fix
+changed both, but the test covered one, and the first reverse-verification
+printed `GREEN (guard is not guarding)` for the other. Had that check been
+skipped, half the fix would have been a claim rather than a change.
+
+**How it was caught.** The reverse verification ran each branch separately and
+reported GREEN for the uncovered one. The useful signal was not "a mutation
+survived" but *which* mutation survived: the branch name in the case label is
+what pointed at the untested path.
+
+Evidence: `_rev_counts.py` reported `bibtex stray plural (old inline message):
+GREEN (guard is not guarding)`; `tests/test_counts.py` then gained
+`test_stray_text_between_two_entries_counts_the_same_way` and
+`test_text_between_two_entries_is_plural_for_several`, and re-running the same
+five mutations printed RED for all five. Seen 2 (the same shape as the
+`--formatted` line matcher that stopped matching its subject, and the
+`_no_text_problem` call that was added to the extraction path but not the cache
+path).
+
+## A sentence has more than one word that agrees with the count
+
+**Rule.** When a count drives a message, every agreeing word in that message is
+part of the fix, not just the first one. Fix the sentence, then read it out loud
+with the count set to 1.
+
+**Why.** English agreement is spread out: "1 character was between entries and
+was not read" has the verb twice and the noun once, while "3 characters were
+between entries and were not read" has them all in the plural. Changing the
+number and the first noun produces a sentence that looks repaired at the top and
+contradicts itself at the bottom.
+
+**What it cost.** One extra round trip. The first version of this fix changed
+`characters` to `count_of(...)` and `were` to `verb_for(...)` for the first
+clause only; the probe printed `1 character ... was between entries and were not
+read`, which reads worse than the original because the disagreement is now
+inside one sentence.
+
+**How it was caught.** Running the command and reading the output, which is
+different from running the tests and reading the exit code. The test written
+afterwards asserts on `"were" not in line`, which is the assertion that would
+have failed on the half-fix.
+
+Evidence: the probe output `1 char -> 1 character at line 1 was between entries
+and were not read` before the second edit, and `... and was not read` after it;
+`tests/test_counts.py::TestTheBibliographyReaderAgreesWithItsCount` asserts the
+absence of the plural verb, not just the presence of the singular one. Seen 1.

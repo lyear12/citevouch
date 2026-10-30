@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- Counts now agree with their nouns and verbs everywhere. Four modules spelled
+  "N <noun>" six different ways; two of them spelled it inline and both shipped
+  the plural with a count of one: a one-entry bibliography printed "1
+  bibliography entries are cited by no claim", and one stray character in a
+  `.bib` printed "1 characters at line 1 were between entries and were not
+  read". The second sentence has two verbs, and the first attempt at this fix
+  changed only the first of them - "1 character ... was between entries and
+  were not read" - which is why the tests assert on the whole sentence, and
+  why both branches of that reader are covered now. The rules live in
+  `textnorm.count_of` / `word_for` / `verb_for` / `is_are`; `report.py` and
+  `cli.py` keep their private names as one-line forwards, and a test fails if
+  a message module spells a plural with `noun + "s"` again.
 
 ## [0.19.8] — 2026-10-30
 ### Fixed

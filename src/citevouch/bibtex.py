@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 
 from .biblex import OPAQUE_TYPES, Lex
 from .model import BibEntry, Finding
+from .textnorm import count_of, verb_for
 
 # One definition of "an entry starts here", shared by the comment stripper and
 # the parser.  The type token is deliberately permissive (`@in-book`, `@misc2`)
@@ -218,8 +219,9 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
             if remainder:
                 report(
                     "bib-entry-header-unparsed",
-                    f"{len(remainder)} characters at line {line_of(i)} were between "
-                    f"entries and were not read: {remainder[:60]!r}. Usually an "
+                    f"{count_of(len(remainder), 'character')} at line {line_of(i)} "
+                    f"{verb_for(len(remainder))} between entries and "
+                    f"{verb_for(len(remainder))} not read: {remainder[:60]!r}. Usually an "
                     "escaped brace or a missing close-brace closed the previous "
                     "entry too early.",
                     line_of(i),
@@ -229,8 +231,9 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
             gap = text[i : m.start()].strip()
             report(
                 "bib-entry-header-unparsed",
-                f"{len(gap)} characters at line {line_of(i)} were between entries "
-                f"and were not read: {gap[:60]!r}. Usually an escaped brace or a "
+                f"{count_of(len(gap), 'character')} at line {line_of(i)} "
+                f"{verb_for(len(gap))} between entries "
+                f"and {verb_for(len(gap))} not read: {gap[:60]!r}. Usually an escaped brace or a "
                 "missing close-brace closed the previous entry too early.",
                 line_of(i),
             )

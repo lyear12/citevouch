@@ -362,3 +362,40 @@ def read_text(path: Path | str) -> str:
     four ways this bug came back.
     """
     return _decode_text(Path(path).read_bytes())
+
+
+def count_of(count: int, noun: str, plural: str = "") -> str:
+    """Write ``1 claim`` or ``5 claims``; people read these messages.
+
+    ``plural`` exists because adding an "s" is an English rule, not a fact
+    about the word.  A ledger with no bibliography printed "0 entrys", which
+    is exactly the kind of detail that makes a careful reader stop trusting
+    the numbers printed next to it.
+
+    This lives here, in the leaf module, because the sentence "N <noun>" is
+    written in six places across four modules.  Four of them called a helper
+    and came out right; the two that spelled it inline - the bibliography
+    reader and the verifier - both shipped the plural with a count of one,
+    printing "1 bibliography entries are cited by no claim" and "1 characters
+    at line 1 were between entries".  A hand-rolled plural is a rule that only
+    gets exercised on the day a count is 1, and that day is never the day the
+    code is written.
+    """
+    if count == 1:
+        return f"{count} {noun}"
+    return f"{count} {plural or noun + 's'}"
+
+
+def word_for(count: int, noun: str) -> str:
+    """``claim`` or ``claims``, for a template that wants the bare word."""
+    return noun if count == 1 else noun + "s"
+
+
+def verb_for(count: int) -> str:
+    """``was`` or ``were``, to agree with :func:`count_of`."""
+    return "was" if count == 1 else "were"
+
+
+def is_are(count: int) -> str:
+    """``is`` or ``are``, for a sentence about what the file holds now."""
+    return "is" if count == 1 else "are"

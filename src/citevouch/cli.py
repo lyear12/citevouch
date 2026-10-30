@@ -34,7 +34,7 @@ from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, scan
 from .sources import discover_sources
-from .textnorm import read_text
+from .textnorm import count_of, read_text
 from .verify import VerifyResult, verify
 
 DEFAULT_LEDGER = "citevouch.lock.json"
@@ -276,16 +276,8 @@ def _clip(text: str, limit: int) -> str:
 
 
 def _count(count: int, noun: str, plural: str = "") -> str:
-    """Write "1 claim" or "5 claims"; the message is read by people.
-
-    `plural` exists because adding an "s" is an English rule, not a fact
-    about the word.  A ledger with no bibliography printed "0 entrys",
-    which is the kind of detail that makes a careful reader stop
-    trusting the numbers printed next to it.
-    """
-    if count == 1:
-        return f"{count} {noun}"
-    return f"{count} {plural or noun + 's'}"
+    """Write "1 claim" or "5 claims"; the message is read by people."""
+    return count_of(count, noun, plural)
 
 
 def cmd_draft(args: argparse.Namespace) -> int:

@@ -32,7 +32,7 @@ from .sources import (
     resolve_source,
     sha256_file,
 )
-from .textnorm import canonical_number, read_text
+from .textnorm import canonical_number, count_of, is_are, read_text
 
 
 @dataclass
@@ -401,7 +401,8 @@ def verify(
         result.findings.append(
             Finding(
                 code="bib-key-unused",
-                message=f"{len(unused)} bibliography entries are cited by no claim: {shown}",
+                message=f"{count_of(len(unused), 'bibliography entry', 'bibliography entries')}"
+                f" {is_are(len(unused))} cited by no claim: {shown}",
             )
         )
     for claim in ledger.claims:
