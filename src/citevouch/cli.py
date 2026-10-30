@@ -100,6 +100,28 @@ def _ledger_path(args: argparse.Namespace) -> Path:
     return path if path.is_absolute() else Path(args.root) / path
 
 
+def _writable_target(path: Path) -> None:
+    """Raise ``UsageError`` when ``path`` cannot be a file this tool writes.
+
+    Everything this tool writes goes through :func:`_write_text_lf`, and a path
+    that lands on a directory - or under a parent that is a file - reached that
+    writer as an ``OSError``: ``PermissionError`` from ``os.replace`` when the
+    target is a directory, ``FileExistsError`` from ``mkdir`` when the parent is
+    a file. Both escaped ``main()`` as tracebacks and exited 1, which in this
+    tool's contract means "findings reached the --fail-on threshold" - a caller
+    cannot tell a bad ``--ledger`` from a manuscript that failed its check.
+
+    The read side was already protected: ``_read_ledger`` turns ``OSError`` into
+    a usage error. This is the same guard on the write side, so the two halves
+    agree about what a bad path means.
+    """
+    if path.is_dir():
+        raise UsageError(f"{path} is a directory, not a file")
+    parent = path.parent
+    if parent.exists() and not parent.is_dir():
+        raise UsageError(f"cannot write {path}: {parent} is a file, not a directory")
+
+
 def _write_text_lf(path: Path, text: str) -> None:
     """Write UTF-8 with LF endings on every platform.
 
@@ -110,16 +132,29 @@ def _write_text_lf(path: Path, text: str) -> None:
     prints "CRLF will be replaced by LF" after each run, and the file the tool
     reads back is not the file it wrote. The repository promises LF
     (``.gitattributes``), so the writer promises it too.
+
+    A path that cannot be written is a usage error rather than an exception:
+    see :func:`_writable_target` for why the difference matters to a caller.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
+    _writable_target(path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    except OSError as exc:
+        raise UsageError(f"cannot write {path}: {exc}") from exc
 
 
 def _write_ledger(ledger: Ledger, path: Path) -> None:
+    # Checked on the final name as well as the temporary one: a directory only
+    # fails at ``replace`` time, after the work is done and the tree is dirty.
+    _writable_target(path)
     tmp = path.with_suffix(path.suffix + ".tmp")
     _write_text_lf(tmp, json.dumps(ledger.to_json(), indent=2, ensure_ascii=False) + "\n")
-    tmp.replace(path)
+    try:
+        tmp.replace(path)
+    except OSError as exc:
+        raise UsageError(f"cannot write {path}: {exc}") from exc
 
 
 def _read_ledger(path: Path) -> Ledger:

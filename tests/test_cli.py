@@ -282,3 +282,67 @@ def test_a_non_numeric_schema_is_a_usage_error(tmp_path: Path, capsys):
     _write_ledger_with_schema(root, "two")
     assert main(["verify", "m.md", "--root", str(root)]) == 2
     assert "non-numeric schema" in capsys.readouterr().err
+
+
+class TestAPathThatCannotBeWrittenIsAUsageError:
+    """The exit code has to say "bad path", not "your manuscript failed".
+
+    Every one of these used to escape ``main`` as an ``OSError`` traceback and
+    exit 1 - and 1 is the code this tool reserves for "findings reached the
+    --fail-on threshold". A CI job could not tell a mistyped ``--ledger`` from a
+    paper whose quotes were wrong, which is exactly the confusion the whole exit
+    contract exists to prevent. The read path already turned ``OSError`` into a
+    usage error; these are the write paths, which did not.
+    """
+
+    def test_a_ledger_that_is_a_directory_is_refused(self, tmp_path: Path, capsys):
+        root = _project(tmp_path)
+        (root / "adir").mkdir()
+        assert main(["scan", "m.md", "--root", str(root), "--ledger", "adir"]) == 2
+        assert "is a directory" in capsys.readouterr().err
+
+    def test_a_ledger_under_a_file_is_refused(self, tmp_path: Path, capsys):
+        root = _project(tmp_path)
+        assert main(["scan", "m.md", "--root", str(root), "--ledger", "m.md/x.json"]) == 2
+        assert "is a file, not a directory" in capsys.readouterr().err
+
+    def test_a_draft_output_under_a_file_is_refused(self, tmp_path: Path, capsys):
+        root = _project(tmp_path)
+        assert main(["draft", "m.md", "--root", str(root), "-o", "m.md/x.md"]) == 2
+        assert "is a file, not a directory" in capsys.readouterr().err
+
+    def test_no_traceback_reaches_the_caller(self, tmp_path: Path, capsys):
+        """Exit 2 and a sentence, not a stack trace.
+
+        A traceback is not merely ugly here: ``python -m citevouch`` would exit
+        1 for it, and 1 is a verdict. The assertion is on the message shape
+        because that is the part a caller pastes into a bug report.
+        """
+        root = _project(tmp_path)
+        (root / "adir").mkdir()
+        for argv in (
+            ["scan", "m.md", "--root", str(root), "--ledger", "adir"],
+            ["scan", "m.md", "--root", str(root), "--ledger", "m.md/x.json"],
+            ["draft", "m.md", "--root", str(root), "-o", "m.md/x.md"],
+        ):
+            assert main(argv) == 2, argv
+            err = capsys.readouterr().err
+            assert "Traceback" not in err, argv
+            assert err.startswith("citevouch: "), argv
+
+    def test_the_directory_is_still_a_directory_afterwards(self, tmp_path: Path, capsys):
+        """A refused write leaves the target alone and no staging file behind.
+
+        ``scan`` stages the ledger as ``<name>.tmp`` and replaces it. The guard
+        runs on the final name before the temporary file is created, so a
+        refusal must leave no ``.tmp`` beside it. Asserted as those two facts
+        rather than as a whole-directory listing: ``scan`` extracts pages before
+        it writes anything, so the ``.citevouch`` cache directory is there
+        either way and a listing assertion would be testing that instead.
+        """
+        root = _project(tmp_path)
+        (root / "adir").mkdir()
+        assert main(["scan", "m.md", "--root", str(root), "--ledger", "adir"]) == 2
+        capsys.readouterr()
+        assert (root / "adir").is_dir()
+        assert not (root / "adir.tmp").exists()

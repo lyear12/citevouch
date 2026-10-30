@@ -1580,3 +1580,28 @@ instead. Both exited 0. `draft manuscript.md --root . -o manuscript.md
 guards and their four tests are in
 `tests/test_draft.py::TestTheOutputPathCannotCostYouThePaper`, and each of the
 three reverts was checked to turn a test red. Seen 1.
+
+## An exit code that means two things means nothing
+
+**Rule.** A crash and a verdict must never share an exit code. If a command can
+fail because its arguments were wrong, that failure has to leave through the
+same door as every other usage error - not as an exception that happens to exit
+1 like a failing check does.
+
+**Why.** This tool's whole contract is a small set of exit codes, and 1 is the
+most load-bearing of them: findings reached the `--fail-on` threshold. A
+traceback also exits 1. So `citevouch scan --ledger some/directory` looked to a
+caller exactly like `citevouch scan` over a manuscript whose quotes were wrong,
+and the only difference was a stack trace on stderr that a CI log buries under
+two hundred lines. The read path had already learned this - `_read_ledger`
+catches `OSError` and raises a usage error - and the write path had not, which
+is the same defect shape as "the guard lists tests/ and the next bug lands in
+tools/": the rule was applied where the bug was first seen, not to the class it
+belongs to.
+
+**Evidence.** `scan --ledger <a directory>` raised
+`PermissionError: [WinError 5] ... 'dir.tmp' -> 'dir'` from `os.replace`, and
+`--ledger <a file>/x.json` raised `FileExistsError: [WinError 183] ... 's.txt'`
+from `mkdir`; both exited 1. `verify --ledger <a directory>` exited 2 over the
+same path, because the read side was already guarded - the two halves of one
+command disagreed about what a bad path means. Seen 1.

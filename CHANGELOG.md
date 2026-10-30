@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A path this tool cannot write to is now a usage error (exit 2) instead of a traceback that exits 1.
+  `scan --ledger <a directory>` died in `os.replace` with `PermissionError`, and
+  `--ledger <a file>/x.json` died in `mkdir` with `FileExistsError`; both escaped `main()` as
+  tracebacks. Exit 1 is this tool's code for "findings reached the `--fail-on` threshold", so a CI
+  job could not tell a mistyped `--ledger` from a paper whose quotes were wrong. The read side
+  already did this (`_read_ledger` turns `OSError` into a usage error); the write side now matches,
+  through one `_writable_target` guard on every write path, plus an `OSError` barrier so a full disk
+  or a locked file reads as a refused write rather than a crash. The guard also runs on the final
+  ledger name before the `<name>.tmp` staging file is created, so a refusal leaves nothing behind.
 
 ## [0.18.1] — 2026-10-30
 ### Fixed
