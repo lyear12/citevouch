@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.0] — 2026-10-30
 ### Added
 
 - `bib-unreadable` (high): a bibliography the parser could read *no*
@@ -35,7 +37,6 @@ tag and that file disagree.
 - `textnorm.read_text` carried a `try: ... except OSError: raise`, which
   reads like error handling and is exactly nothing.  Removed; the
   callers that do care catch `OSError` themselves.
-
 ## [0.18.10] — 2026-10-30
 ### Fixed
 
@@ -953,7 +954,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.10...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/lyear12/citevouch/releases/tag/v0.19.0
 [0.18.10]: https://github.com/lyear12/citevouch/releases/tag/v0.18.10
 [0.18.9]: https://github.com/lyear12/citevouch/releases/tag/v0.18.9
 [0.18.8]: https://github.com/lyear12/citevouch/releases/tag/v0.18.8
