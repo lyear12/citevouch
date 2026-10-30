@@ -219,6 +219,24 @@ the README's own example, failing. `cmd_init_demo` now records the ledger and th
 
 ---
 
+## A report that stops listing has to say where it stopped
+
+**Rule.** When output is capped, the cap is stated in the output itself, at the level where it
+applied, and a test covers the band between the caps and not only the case above all of them.
+
+**Why.** `render_markdown` capped the list at 200 and each section at 50, then printed "and N more"
+by comparing the total against the first cap alone.  Sixty findings rendered fifty bullets under a
+heading reading `### Blocking (60)` and said nothing about the other ten.  Nobody noticed because
+the one truncation test used 250 findings - above both caps - so the middle band, where the two
+numbers disagree, had no test at all.  A truncated report and a complete one look identical to the
+reader; the count in the heading is what they trust.
+
+**Evidence.** `tests/test_report.py::test_markdown_marks_truncation` used `range(250)` and asserted
+`"more" in out`.  It passed throughout.  Now
+`test_a_section_that_stops_early_says_how_many_it_dropped` uses 60 and
+`test_both_caps_are_reported_when_both_bite` uses 260.  Seen 1.
+
+---
 ## A command with no test is a command nobody has run
 
 **Rule.** Every CLI verb gets at least one test that runs it end to end and asserts the exit code.

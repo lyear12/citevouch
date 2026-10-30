@@ -109,6 +109,63 @@ def test_markdown_marks_truncation():
     assert "more" in out
 
 
+class TestTheMarkdownReportCountsWhatItPrints:
+    """Two defects that no test could see, because both live in formatting.
+
+    The header said `**1** claims` for a one-claim manuscript - the exact shape
+    the README walks a new user through.  And each section printed at most 50
+    of the findings it was handed while the header counted all of them, so
+    sixty findings produced fifty visible bullets under `### Blocking (60)`
+    with no line anywhere saying ten were missing.  The existing truncation
+    test used 250 findings, which is above every cap, so it never reached the
+    middle band where the two caps disagreed.
+    """
+
+    def test_one_claim_is_not_called_claims(self):
+        out = render_markdown(
+            [Finding(code="quote-found", severity="info", message="x")],
+            VerifyResult(checked=1, verified=1),
+        )
+        summary = out.split("\n")[2]
+        assert "**1** claim " in summary
+        assert "1** claims" not in summary
+
+    def test_two_claims_are_called_claims(self):
+        out = render_markdown(
+            [Finding(code="quote-found", severity="info", message="x")],
+            VerifyResult(checked=2, verified=2),
+        )
+        assert "**2** claims" in out
+
+    def test_a_section_that_stops_early_says_how_many_it_dropped(self):
+        findings = [
+            Finding(code="quote-missing", severity="high", message=f"m{i}") for i in range(60)
+        ]
+        out = render_markdown(findings)
+        bullets = [ln for ln in out.split("\n") if ln.startswith("- ")]
+        assert len(bullets) == 50
+        assert "### Blocking (60)" in out
+        assert "Truncated:" in out
+        assert "10 more under Blocking" in out
+
+    def test_a_list_short_enough_to_fit_says_nothing_about_truncation(self):
+        findings = [
+            Finding(code="quote-missing", severity="high", message=f"m{i}") for i in range(50)
+        ]
+        out = render_markdown(findings)
+        assert "Truncated" not in out
+
+    def test_both_caps_are_reported_when_both_bite(self):
+        findings = [
+            Finding(code="quote-missing", severity="high", message=f"m{i}") for i in range(260)
+        ]
+        out = render_markdown(findings)
+        # 260 findings: 200 are counted, 50 of those are printed, so 60 fall
+        # outside the total cap and 150 behind the per-section one.
+        assert "60 beyond the first 200" in out
+        assert "150 more under Blocking" in out
+
+
 def test_markdown_without_a_result_still_renders():
     out = render_markdown(_findings())
     assert out.startswith("## citevouch evidence report")

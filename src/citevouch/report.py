@@ -224,30 +224,60 @@ def render_sarif(
 
 
 def render_markdown(findings: Iterable[Finding], result: VerifyResult | None = None) -> str:
-    """A report body suitable for a PR comment or a job summary."""
+    """A report body suitable for a PR comment or a job summary.
+
+    Two things in here were wrong in ways a green suite could not see.
+
+    The summary printed `**1** claims`.  Every count in this package has a
+    plural helper; this one was a template string with the plural written into
+    it, so a single-claim manuscript - the shape the README walks a new user
+    through - read `1 claims`.
+
+    And the truncation was counted at the wrong level.  `bullets` capped the
+    list at 200 and then each section printed at most 50, but the "and more"
+    line compared the total against the first cap only.  Sixty findings printed
+    fifty bullets under a heading reading `### Blocking (60)` and said nothing
+    about the other ten.  A report that stops listing without saying so is the
+    same defect as a run that stops checking: the reader counts what they can
+    see and concludes those are all of them.
+    """
     findings = list(findings)
-    bullets = findings[:200]
+    max_total = 200
+    per_section = 50
+    bullets = findings[:max_total]
     lines = ["## citevouch evidence report", ""]
     if result is not None:
         lines.append(
-            f"**{result.checked}** claims · **{result.verified}** verified · "
+            f"**{result.checked}** {_word(result.checked, 'claim')} · "
+            f"**{result.verified}** verified · "
             f"**{result.moved}** moved · **{result.missing}** missing"
         )
         lines.append("")
-    blocking = [f for f in bullets if f.severity == "high"]
-    if blocking:
-        lines.append(f"### Blocking ({len(blocking)})")
+    omitted: list[str] = []
+    for title, group in (
+        ("Blocking", [f for f in bullets if f.severity == "high"]),
+        ("Other", [f for f in bullets if f.severity != "high"]),
+    ):
+        if not group:
+            continue
+        lines.append(f"### {title} ({len(group)})")
         lines.append("")
-        for finding in blocking[:50]:
+        for finding in group[:per_section]:
             lines.append(f"- `{finding.code}` {finding.message}")
         lines.append("")
-    rest = [f for f in bullets if f.severity != "high"]
-    if rest:
-        lines.append(f"### Other ({len(rest)})")
-        lines.append("")
-        for finding in rest[:50]:
-            lines.append(f"- `{finding.code}` {finding.message}")
-        lines.append("")
+        if len(group) > per_section:
+            omitted.append(f"{len(group) - per_section} more under {title}")
     if len(findings) > len(bullets):
-        lines.append(f"…and {len(findings) - len(bullets)} more.")
-    return "\n".join(lines).rstrip() + "\n"
+        omitted.insert(
+            0,
+            f"{len(findings) - len(bullets)} beyond the first {max_total}, not counted above",
+        )
+    if omitted:
+        lines.append("Truncated: " + "; ".join(omitted) + ".")
+        lines.append("")
+    return chr(10).join(lines).rstrip() + chr(10)
+
+
+def _word(count: int, noun: str) -> str:
+    """`claim` or `claims`, for a template that wants the bare word."""
+    return noun if count == 1 else noun + "s"

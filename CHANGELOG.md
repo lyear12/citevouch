@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- The markdown report said `**1** claims` for a one-claim manuscript, and every
+  section printed at most 50 findings while the heading above it counted all of
+  them, so sixty findings produced fifty visible bullets under
+  `### Blocking (60)` with nothing anywhere saying ten were missing.  The
+  summary now uses the package's plural helper, and the report names what it
+  truncated (`Truncated: 10 more under Blocking.`) instead of relying on the
+  reader noticing.  The old truncation test used 250 findings, above every cap,
+  and so never reached the band where the two caps disagreed.
+
 ## [0.18.4] — 2026-10-30
 ### Fixed
 
