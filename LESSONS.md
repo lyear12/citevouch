@@ -1323,3 +1323,55 @@ and `passed_count_mismatches(notes, actual, others=())` accepts any member of
 `{actual, *others}`. `tests/test_check_repo_rules.py` has three cases: two true
 numbers pass, one unmeasured number fails, one number still has to be right.
 Seen 1.
+
+## A job that forbids skips is the last job that may skip
+
+**Rule.** When one job in a workflow is the place that refuses a skip, that
+job must build everything an honest skip would need before it runs the suite.
+
+**Why.** The `sdist` test skips when there is no archive to read, which is
+right everywhere and wrong in the lint job, whose next step fails on any
+`skipped` line at all. On its first run that job failed with four skips - two
+because there was no `dist/`, two more because the archive test itself had
+just been taught to skip. The rule was not too strict, it was placed in a job
+that had not been given the inputs to satisfy it.
+
+**Evidence.** `test.yml`: the `repository rules` step now runs `python -m build
+--sdist --no-isolation` before pytest and fails loudly if the build does. Seen 1.
+
+## `--no-isolation` builds fail where `pip install -e .` succeeded
+
+**Rule.** If a job runs `python -m build --no-isolation`, it must name the build
+backend in its own install step. An editable install says nothing about what
+is importable afterwards.
+
+**Why.** `pip install -e .` builds inside an isolated environment that is
+thrown away, so it proves the backend can be fetched, not that it is present.
+The `sdist` job failed its very first run with `BackendUnavailable: Cannot import` followed by
+`No module named setuptools`, right after a green editable install in the
+step above that read like a green light.
+
+**Evidence.** Both jobs that build now install `build setuptools` by name;
+`Cannot import 'setuptools.build_meta'` is in the log of run 41063081151. Seen 1.
+
+## A guard that slices the file at the wrong place checks nothing
+
+**Rule.** When a test reads a configuration file as text and asserts something
+about one section of it, assert that the section it found is not empty, and
+count how many sections it checked. Then break the thing it guards and watch
+it go red.
+
+**Why.** A new test sliced each job out of `test.yml` with
+`workflow.find` with a newline and two spaces as the needle. Every job's own body is indented four spaces,
+so the first newline-plus-two-spaces is three characters into the job: the
+block came back empty, and an empty block satisfies every `for line in
+block` assertion. It reported green while the file still said exactly what the
+fix was meant to remove. The reverse check caught it - that is what reverse
+checks are for, and it is why they belong in the change rather than in a later
+review.
+
+**Evidence.** `tests/test_critic_round7.py::_job_block` now returns 4,806 and
+2,783 characters for the two jobs it is asked about, asserts a
+`--no-isolation` build is inside each, and the caller asserts it checked two
+jobs. Removing `setuptools` from the install line turns it red with
+`lint: runs a --no-isolation build but never installs setuptools`. Seen 1.

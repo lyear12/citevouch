@@ -114,11 +114,26 @@ def _joined_paths(path: Path) -> list[str]:
 _PATHLIKE = re.compile(r"^(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$")
 
 
+def _tracked_files() -> set[str]:
+    """Paths the index carries, or skip: an unpacked archive has no index.
+
+    This module is shipped inside the archive it describes, so unpacking it
+    runs these tests where `git ls-files` answers 128.  That is not a failure
+    of the manifest - there is nothing to compare the manifest against - so it
+    skips, loudly, and the job that unpacks the archive counts the skips.
+    """
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError) as problem:
+        pytest.skip(f"not a git checkout ({problem}): there is no index to compare")
+    return set(listed.stdout.split())
+
+
 def _referenced_paths() -> set[str]:
     """Tracked repository paths that the suite names, as archive-relative paths."""
-    tracked = subprocess.run(
-        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
-    ).stdout.split()
+    tracked = sorted(_tracked_files())
     tracked_set = set(tracked)
     # A path the suite builds by joining may name a directory rather than a
     # tracked file (`.github/workflows`), so both the exact path and every
@@ -158,7 +173,7 @@ def test_every_tracked_path_the_suite_names_is_in_the_archive() -> None:
     )
 
 
-def test_the_walk_finds_something(tmp_path: Path) -> None:
+def test_the_walk_finds_something() -> None:
     """A scan that finds nothing passes every assertion about what it found."""
     referenced = _referenced_paths()
     assert len(referenced) >= 20, (

@@ -59,7 +59,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ".[dev]" build
+      # setuptools is named here because this job builds the sdist below with
+      # --no-isolation, and an editable install builds through its own isolated
+      # environment: it leaves no build backend behind. Without the name, the
+      # build step fails with "Cannot import 'setuptools.build_meta'" - which is
+      # exactly how this job first failed after the sdist test was added.
+      - run: python -m pip install -e ".[dev]" build setuptools
       - name: ruff
         # format --check runs through tools/format_check.sh: it measures the
         # tracked files, not whatever happens to be in the working tree. The
@@ -87,6 +92,14 @@ jobs:
             range="$(git rev-parse HEAD~10 2>/dev/null || git rev-parse HEAD^)..HEAD"
           fi
           echo "policing commits in $range"
+          # Build the archive before running the suite: one test in it reads
+          # `dist/`, and this job refuses to skip. Building it here is also the
+          # only place the manifest is exercised before a release.
+          python -m build --sdist --no-isolation > /tmp/build.log 2>&1 || {
+            cat /tmp/build.log
+            echo "::error::python -m build failed, so one test would have skipped"
+            exit 1
+          }
           # The pytest config already passes -q, so the count comes from a
           # plain run: -qq is a different verbosity and drops the summary line
           # the number lives in.  Reading 0 out of that silence is how this
@@ -107,6 +120,12 @@ jobs:
           # A skip is a test that did not run. The shell tests skip only on a
           # Windows machine with no bash; left unreported, that is a suite that
           # shrank without anyone saying so - a gate that opens itself.
+          #
+          # This lint job is the "no skips" job, so it must not be the job that
+          # skips. `tests/test_sdist_contents.py` needs a built archive and
+          # skips loudly without one ("no sdist in dist/"), which is the right
+          # behaviour everywhere except here: build it first, so this run has
+          # no honest reason to skip anything.
           if grep -qE '[0-9]+ skipped' /tmp/suite.log; then
             grep -E 'skipped|SKIPPED' /tmp/suite.log | tail -20
             echo "::error::the suite skipped tests; a skipped test proves nothing"
@@ -173,7 +192,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ".[dev]" build
+      - run: python -m pip install -e ".[dev]" build setuptools
 
       # The release workflow smoke-tests the wheel and never looks at the
       # sdist, so for a while the source archive shipped `graft tests` without
@@ -188,10 +207,14 @@ jobs:
           cd /tmp/unpacked/citevouch-*
           PYTHONPATH=src python -m pytest
 
-      # Two tests count tracked files, which has no meaning outside a checkout,
-      # so they skip themselves there by design. A skip is also how a suite goes
-      # quiet, so count them and require the number that was designed for.
-      - name: only the two documented skips may be skipped
+      # Skips are allowed here, but only for reasons that are about the
+      # checkout rather than about the code: an unpacked archive has no `git`
+      # index, so the tests that count tracked files skip themselves, and it
+      # has no `dist/`, so the tests that read the archive it is itself in
+      # skip too. Any other skip would be a test going quiet, which is the
+      # failure mode this job exists to catch - so each SKIPPED line must name
+      # one of those two reasons, whatever the count.
+      - name: every skip in an unpacked sdist says why it is not a checkout
         run: |
           mkdir -p /tmp/unpacked2
           tar xzf dist/*.tar.gz -C /tmp/unpacked2
@@ -201,9 +224,20 @@ jobs:
             echo "::error::the unpacked archive's suite failed; see above"
             exit 1
           }
-          skipped=$(grep -c "^SKIPPED" /tmp/sdist.log || true)
-          if [ "$skipped" != "2" ]; then
-            grep "^SKIPPED" /tmp/sdist.log || true
-            echo "::error::expected exactly 2 skips in an unpacked sdist, found $skipped"
+          skips=$(grep "^SKIPPED" /tmp/sdist.log || true)
+          if [ -z "$skips" ]; then
+            echo "::error::the unpacked suite skipped nothing at all, which means"
+            echo "::error::the checkout-dependent tests did not notice they were in"
+            echo "::error::an unpacked archive; that is a guard that stopped guarding"
             exit 1
           fi
+          unexplained=$(printf '%s\n' "$skips" \
+            | grep -vE 'not a git checkout|no sdist in dist/' || true)
+          if [ -n "$unexplained" ]; then
+            printf '%s\n' "$unexplained"
+            echo "::error::the archive's suite skipped for a reason that is not"
+            echo "::error::about being unpacked; a test went quiet"
+            exit 1
+          fi
+          printf '%s\n' "$skips" | sed 's/^/  expected: /'
+          echo "all $(printf '%s\n' "$skips" | wc -l | tr -d ' ') skips are about the unpacked checkout"

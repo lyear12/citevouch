@@ -37,9 +37,25 @@ tag and that file disagree.
   and say why. The script they exercise already answered an unpacked archive
   correctly (exit 2, "no tracked files to check; is this a checkout?"); the tests
   were demanding a count that has no meaning there. `test.yml` gained an `sdist`
-  job that unpacks the archive, runs its suite, and requires the skip count to be
-  exactly the two that are designed to skip - a suite that goes quiet is the
-  failure mode a skip-count guard exists to catch.
+  job that unpacks the archive, runs its suite, and requires every skip it
+  reports to be about the unpacked checkout (`not a git checkout`, `no sdist in
+  dist/`) rather than about the code. A fixed skip count was the first version
+  and it was wrong twice over: it hard-coded a number nobody had measured, and
+  it would have refused the honest skips the archive test added. A suite that
+  goes quiet is the failure mode, and "each skip says why" names that failure
+  instead of guessing at its size.
+- `test.yml`'s lint job builds the archive before running the suite, and names
+  `setuptools` in its install step. Two real failures on the first run of the
+  `sdist` job: the lint job refuses any skip, so the archive-reading test had
+  to find a `dist/` there; and `python -m build --no-isolation` needs the build
+  backend installed, which an editable install does not leave behind (it builds
+  inside its own isolated environment) - `Cannot import 'setuptools.build_meta'`.
+  The lint job is the "no skips" job, so it is the last job that may skip.
+- `tests/test_sdist_contents.py` skips instead of crashing outside a checkout.
+  It ships inside the archive it describes, so unpacking that archive runs it
+  where `git ls-files` answers 128. Comparing the manifest against an index
+  that does not exist is not a manifest failure, so it says so and the sdist
+  job counts it.
 
 ## [0.16.1] — 2026-10-30
 ### Fixed

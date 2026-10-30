@@ -45,6 +45,77 @@ def test_the_lint_job_refuses_a_suite_that_skipped():
     assert "::error::the suite skipped tests" in workflow
 
 
+def test_the_job_that_refuses_skips_builds_what_a_skip_would_need():
+    """The no-skip job must not be the one job that cannot satisfy it.
+
+    `tests/test_sdist_contents.py` skips when there is no archive to compare
+    against - correct everywhere, fatal in a job that fails on any skip. It
+    failed that way on the first run of the `sdist` job: four skips, two of
+    them in the archive test that had just been taught to skip. The fix is the
+    archive, built before pytest, not a looser rule.
+    """
+    workflow = (REPO / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    lint = workflow[workflow.index("  lint:") : workflow.index("  acceptance:")]
+    build = lint.index("python -m build --sdist --no-isolation")
+    suite = lint.index("python -m pytest > /tmp/suite.log")
+    refuses = lint.index("the suite skipped tests")
+    assert build < suite < refuses, (
+        "the archive has to exist before the suite runs, and the skip refusal "
+        "comes after: build=" + str(build) + " suite=" + str(suite)
+    )
+
+
+def _job_block(workflow: str, name: str) -> str:
+    """The lines of one job, from its two-space header to the next one.
+
+    Slicing on the first newline-plus-two-spaces found after the header stops
+    three characters into the job, at its own four-space `name:` line. That
+    produced an empty block, and an empty block passes every assertion about
+    what is in it - the guard below was checking nothing until this was fixed.
+    """
+    lines = workflow.splitlines(keepends=True)
+    header = "  " + name
+    start = None
+    for index, line in enumerate(lines):
+        if line.rstrip(chr(10)) == header:
+            start = index
+            break
+    assert start is not None, f"no job named {name} in the workflow"
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        stripped = lines[index].rstrip(chr(10))
+        if (
+            stripped.startswith("  ")
+            and not stripped.startswith("   ")
+            and stripped.endswith(":")
+        ):
+            end = index
+            break
+    return "".join(lines[start:end])
+
+
+def test_every_build_step_names_the_backend_it_needs_by_name():
+    """`pip install -e .` proves the backend can be fetched, not that it is there.
+
+    It builds inside an isolated environment and throws it away, so the very
+    next `python -m build --no-isolation` failed with `Cannot import
+    setuptools.build_meta` in the same job that had just installed cleanly.
+    """
+    workflow = (REPO / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    checked = 0
+    for job_name in ("lint:", "sdist:"):
+        block = _job_block(workflow, job_name)
+        assert "--no-isolation" in block, f"{job_name} lost the build this test exists for"
+        checked += 1
+        installs = [line for line in block.splitlines() if "pip install" in line]
+        assert installs, f"{job_name} builds without isolation and installs nothing"
+        assert any("setuptools" in line for line in installs), (
+            f"{job_name} runs a --no-isolation build but never installs "
+            f"setuptools; its install lines are {installs}"
+        )
+    assert checked == 2, f"only {checked} job(s) were checked; the slicing is broken"
+
+
 # --- minor-3: every number a message claims is measured --------------------
 
 
