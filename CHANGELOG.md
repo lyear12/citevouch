@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.16.0] — 2026-10-30
 ### Added
 
 - Two figures at the top of both READMEs, generated from the demo by
@@ -25,7 +27,6 @@ tag and that file disagree.
 - The Chinese README kept an untranslated English paragraph in the middle of its
   opening section. Rewriting that paragraph is how the second figure got in;
   the figure is not why it was wrong.
-
 ## [0.15.0] — 2026-10-30
 ### Added
 
@@ -648,7 +649,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/lyear12/citevouch/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lyear12/citevouch/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lyear12/citevouch/releases/tag/v0.14.0
 [0.13.0]: https://github.com/lyear12/citevouch/releases/tag/v0.13.0
