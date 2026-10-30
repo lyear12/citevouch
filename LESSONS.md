@@ -1759,3 +1759,26 @@ Seen 1.
 **Why.** The failure is not an exception; it is a *tier change*. The quote misses `exact`, misses `squashed` because one character differs, and falls into the tier that exists to say "the words match but the digits do not". So the tool kept working, kept finding the page, kept naming the right passage — and reported the one thing it must never report by accident: that a number printed on the page is not on the page. A crash would have been cheaper.
 
 **Evidence.** An author reading a paper printed in Cairo types `40688`; the PDF's extraction says `٤٠٦٨٨`. `unicodedata.normalize("NFKC", …)` folds the full-width `４０６８８` to `40688` and leaves Arabic-Indic, Persian and Devanagari digits untouched, because they are ordinary characters rather than compatibility variants — so `normalize` was correct for the case anyone had tried and wrong for three scripts nobody had. `find_in_pages` returned `tier=numbers` for `٤٠٦٨٨` against `40688` and `exact` the other way, and `verify` then printed `number-absent-in-quote`: "the words match page 1 but the numbers do not". `_ascii_digits` now folds every `unicodedata.decimal` character, which needs no table and picks up scripts added later; `canonical_number` also accepts U+066C/U+066B/U+066A, the Arabic thousands/decimal/percent signs, so `40٬688` and `40,688` agree. Both mutations are red: drop the call from `normalize` and the matcher test fails; drop the folding from `canonical_number` and the comparison test fails. The case that must keep failing still does: `40699` against `40688` stays in the numbers tier. Seen 1.
+
+## A byte pattern is a fact about an alphabet, not about an encoding
+
+**Rule.** When deciding how to decode a file, judge the *decoded* text, not the bytes. A pattern that
+holds for one script holds for the alphabet it grew up in; ask "what does a wrong reading look like"
+and count that, because it looks the same in every script.
+
+**Why.** The NUL heuristic is a good test that is wrong for most of the world. It asks whether one
+side of every 16-bit pair is a zero byte, which is true of Latin text and false of every script whose
+characters have a low byte order — a Han character's high byte is `0x4E`-`0x9F`, a Cyrillic one is
+`0x04`. So a document written entirely in Chinese or Russian contains no NULs at all and the detector
+never fires, which is the worst shape a detector can have: it is right often enough to look correct,
+and its failures cluster on one kind of user.
+
+**Evidence.** A UTf-16-LE file without a mark, holding `构式网络很小，训练语料合计 154,391 句`, decoded as
+UTF-8 to replacement characters; every claim quoting it came back `quote-missing` at high severity,
+which is a finding that accuses the author of not quoting a page whose only problem was the save
+dialog. `_noise` now counts replacement characters and C0 controls — both appear only when bytes were
+split at the wrong boundary, in every script — and the decoder takes the little-endian reading when it
+leaves less of either. Big-endian without a mark is still refused rather than guessed: swap a Han
+character's bytes and you get another Han character, so for single-script prose the two readings are
+equally clean and a rule that picked one would be a coin flip; `test_big_endian_without_a_mark_is_admitted_not_guessed`
+pins that limit so an improvement to it has to change the docstring too. Both mutations are red. Seen 1.

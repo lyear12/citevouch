@@ -199,3 +199,38 @@ class TestTheCommandLine:
             next((root / ".citevouch" / "cache").glob("*.json")).read_text("utf-8")
         )
         assert all(not page["text"].strip() for page in blob["pages"])
+
+    def test_every_unreadable_source_is_named_not_just_the_first(self, tmp_path):
+        """This finding is about a file, not about a claim.
+
+        `check` merges the scan pass and the verify pass and drops repeats by
+        (code, claim).  `source-no-text` carries no claim id, so for three
+        unreadable PDFs that key collapsed all three into whichever arrived
+        first: the reviewer OCRs a.pdf, re-runs, and meets b.pdf as though it
+        had just appeared.  The path belongs in the key.
+        """
+        root = tmp_path
+        for name in ("a", "b", "c"):
+            _blank_pdf(root / f"{name}.pdf")
+        nl = chr(10)
+        blocks = "".join(
+            f"```claim id=c{name} source=s{name} page=1{nl}"
+            f">> The resulting grammar consists of 40,688 entries.{nl}"
+            f"```{nl}"
+            for name in ("a", "b", "c")
+        )
+        (root / "manuscript.md").write_text(blocks, encoding="utf-8", newline=nl)
+        (root / "sources.toml").write_text(
+            "[sources]"
+            + nl
+            + "".join(f's{name} = "{name}.pdf"{nl}' for name in ("a", "b", "c")),
+            encoding="utf-8",
+            newline=nl,
+        )
+
+        proc = _run("check", "manuscript.md", "--root", str(root), root=root)
+        assert proc.returncode == 1
+        for name in ("a.pdf", "b.pdf", "c.pdf"):
+            assert name in proc.stdout, f"{name} was never mentioned in the report"
+        assert proc.stdout.count("source-no-text") == 3
+        assert "3 skipped" in proc.stdout

@@ -11,6 +11,42 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A source document written entirely in Chinese or Russian, saved as
+  UTF-16 without a byte-order mark, is now read correctly instead of
+  decoding to replacement characters.  The detector asked whether one
+  side of every 16-bit pair was a zero byte, which is true of Latin text
+  and false of every other script: a Han character's high byte lies in
+  `0x4E`-`0x9F` and a Cyrillic one is `0x04`, so neither document
+  contained a single NUL and the test never fired.  The bytes then
+  decoded as UTF-8 into text the pipeline treated as real, and every
+  quote in the document came back `quote-missing` at high severity -
+  accusing the author of not quoting a page whose only problem was how
+  the file had been saved.  The judge is now the decoded text rather
+  than a byte pattern: `_noise` counts replacement characters and C0
+  controls, both of which appear only when bytes were split at the wrong
+  boundary, and the little-endian reading is taken when it leaves less of
+  either.  Big-endian without a mark is still not guessed, and the
+  docstring now says so: swapping a Han character's bytes yields another
+  Han character, so for single-script prose the two readings are equally
+  clean and equally plausible, and a rule that picked one would be a coin
+  flip dressed up as a decision.
+
+- `check` names every unreadable source instead of only the first.  It
+  merges the scan and verify passes and drops repeats by `(code,
+  claim_id)`, but `source-no-text` is true of a *file* and carries no
+  claim id, so three scanned PDFs collapsed into whichever arrived
+  first - a reviewer OCRs `a.pdf`, re-runs, and meets `b.pdf` as though
+  it had just appeared.  The path is part of the key now.
+
+- `verify` no longer tells an author that a well-formed claim block "is
+  not one the parser accepts".  That sentence belongs to a manuscript
+  with no blocks; on an empty ledger it was reused for a file whose
+  blocks are fine and whose *recording* is stale, sending the reader to
+  edit a line that needed no edit.  The empty-ledger path now asks
+  `parse_manuscript` first and says "the ledger recorded none; run
+  `citevouch scan`" when the blocks are there.
 
 ## [0.19.2] — 2026-10-30
 ### Fixed

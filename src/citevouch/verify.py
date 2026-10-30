@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .bibtex import doi_of, field_findings
+from .manuscript import parse_manuscript
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
 from .scan import ScanOptions, _no_claim_blocks_finding, _resolve, scan
@@ -126,7 +127,29 @@ def verify(
             text = read_text(manuscript_path)
         except OSError:
             text = ""
-        result.findings.append(_no_claim_blocks_finding(text, manuscript_path.name))
+        # The near-miss sentence in `_no_claim_blocks_finding` says a line
+        # "reads like a claim block but is not one the parser accepts", which is
+        # the right thing to tell someone who is looking at a manuscript with no
+        # blocks.  Here the file may hold perfectly good blocks that the ledger
+        # never recorded - an empty ledger can arrive from an older version of
+        # this tool - and then that sentence names a fault on the line that is
+        # not faulty, while the real cause (the recording, not the text) goes
+        # unsaid.  Ask the parser before borrowing its words.
+        parsed = parse_manuscript(text, manuscript_path.name)
+        if parsed.claims:
+            result.findings.append(
+                Finding(
+                    code="no-claim-blocks",
+                    message=(
+                        f"{manuscript_path.name} has {len(parsed.claims)} claim block(s), but "
+                        "the ledger recorded none; run `citevouch scan` to record them - "
+                        "this run checked nothing"
+                    ),
+                    path=str(manuscript_path),
+                )
+            )
+        else:
+            result.findings.append(_no_claim_blocks_finding(text, manuscript_path.name))
         return result
 
     known = discover_sources(root, options.sources)

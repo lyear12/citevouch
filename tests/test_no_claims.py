@@ -180,6 +180,48 @@ class TestTheRecordedLedger:
         )
         assert main(["verify", "m.md", "--root", str(root), "--allow-stale"]) == 1
 
+    def test_a_ledger_that_recorded_none_does_not_blame_the_manuscript(
+        self, tmp_path: Path, capsys
+    ):
+        """An empty ledger and a manuscript with no blocks are not the same fault.
+
+        The message for the second one names the closest thing to a claim block
+        and explains why the parser rejected it.  Reusing that message for the
+        first says a line "reads like a claim block but is not one the parser
+        accepts" about a line the parser *does* accept - the file is fine and
+        the recording is stale.  Whoever reads it edits a block that needed no
+        edit and still fails the build.
+        """
+        root = _project(tmp_path, PROSE)
+        nl = chr(10)
+        # A real, accepted block, which the ledger below will fail to mention.
+        (root / "m.md").write_text(
+            "```claim id=c1 source=s" + nl + ">> one two three" + nl + "```" + nl,
+            encoding="utf-8",
+            newline=nl,
+        )
+        (root / "citevouch.lock.json").write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "tool_version": "0.17.1",
+                    "generated_at": "2026-10-30T00:00:00+00:00",
+                    "manuscript": "m.md",
+                    "manuscript_sha256": "",
+                    "claims": [],
+                    "sources": {},
+                    "entries": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+        assert main(["verify", "m.md", "--root", str(root), "--allow-stale"]) == 1
+        report = capsys.readouterr().out
+        assert "no-claim-blocks" in report
+        assert "not one the parser accepts" not in report
+        assert "the ledger recorded none" in report
+        assert "citevouch scan" in report
+
 
 class TestTheLatexRefusalStillStands:
     def test_a_tex_file_is_refused_rather_than_read_as_empty(self, tmp_path: Path):

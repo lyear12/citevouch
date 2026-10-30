@@ -230,15 +230,22 @@ def cmd_check(args: argparse.Namespace) -> int:
         result = verify(ledger, options, check_manuscript_hash=False)
         # Scan findings come first: a claim that could not be bound to a source
         # explains why the verification below it says nothing about that claim.
-        # One finding per (code, claim) pair, because the same unreadable PDF is
-        # discovered by the scan pass and again by the verify pass, and a reader
-        # shown the identical line twice learns nothing and trusts the list less.
+        # One finding per (code, claim, path) triple, because the same
+        # unreadable PDF is discovered by the scan pass and again by the verify
+        # pass, and a reader shown the identical line twice learns nothing and
+        # trusts the list less.  The path belongs in the key because a finding
+        # can be true of a *file* rather than of a claim: `source-no-text` is
+        # reported once per source and carries no claim id, so a key of
+        # (code, claim) collapsed every unreadable source into the first one -
+        # the reviewer OCRs a.txt, re-runs, and meets b.txt for the first time.
         combined = scan_findings + result.findings
-        seen: set[tuple[str, str]] = set()
+        seen: set[tuple[str, str, str]] = set()
         result.findings = [
             f
             for f in combined
-            if not ((f.code, f.claim_id) in seen or seen.add((f.code, f.claim_id)))
+            if not (
+                (f.code, f.claim_id, f.path) in seen or seen.add((f.code, f.claim_id, f.path))
+            )
         ]
     _emit(_render(result.findings, ledger, args, result))
     return _exit_code(result.findings, args.fail_on)

@@ -203,24 +203,58 @@ def _strip_bom(text: str) -> str:
     return text[1:] if text.startswith(_BOM) else text
 
 
+def _noise(text: str) -> int:
+    """Count the characters a text file should not contain.
+
+    A replacement character means a byte sequence that was not valid in the
+    encoding we tried.  A C0 control character other than tab, newline,
+    carriage return and form feed means the same thing more quietly: the bytes
+    were valid UTF-8 purely because ASCII is a subset of it.  Both are what a
+    misread text file is made of, and neither belongs in a manuscript.
+    """
+    return sum(1 for ch in text if ch == "\ufffd" or (ch < " " and ch not in "\t\n\r\f"))
+
+
 def _decode_text(raw: bytes) -> str:
     """Decode text bytes the way the program that wrote them meant them.
 
     Files reach this tool from editors, not from a protocol.  On Windows the
     default "Unicode" save in Notepad is UTF-16, and Excel exports UTF-16 too;
-    a byte-order mark is how they say so.  Decoding those bytes as UTF-8 does
-    not fail loudly - it produces one replacement character and then a NUL
-    between every letter, which the rest of the pipeline treats as text:
+    a byte-order mark is how they say so.  Without one the bytes have to be
+    judged, and decoding them as UTF-8 never fails - it produces text that is
+    structurally valid and substantively wrong:
 
     * a bibliography saved that way parsed to zero entries, and since the
       report only names entries it read, the run finished with exit 0 and a
       medium finding about an "unparsed header" - quieter than the missing-key
-      error It would have raised if the file had been read correctly.
+      error it would have raised if the file had been read correctly;
+    * a source saved that way produced ``quote-missing`` at high severity for
+      every claim that quoted it, accusing the author of not quoting a page
+      whose only problem was how the file was saved.
 
-    With no mark to go on, a NUL byte is the tell: no text file this tool reads
-    contains one, and a file of 16-bit code units is mostly NULs on one side of
-    every pair.  The threshold is deliberately high, because guessing wrong on
-    a genuinely binary file only replaces one kind of noise with another.
+    The judge is the decoded text, not a byte pattern.  Counting NUL bytes
+    looks like the same thing and is not: the high byte of a Han character is
+    0x4E-0x9F and of a Cyrillic one 0x04, so neither a Chinese nor a Russian
+    document has any NULs at all, and a detector built on NULs silently skips
+    both.  Counting characters no text contains - replacement characters and
+    C0 controls - is true of every script, because those appear only when the
+    bytes were split at the wrong boundary.
+
+    Only little-endian is tried without a mark, and the restriction is a fact
+    about the problem rather than an omission.  Swapping the bytes of a 16-bit
+    code unit usually lands on a character no font has, so the noise score
+    decides; but for a document written entirely in one script the swapped text
+    is often *also* a run of assigned characters - a Han character swapped is a
+    different Han character - and then the two readings are equally clean,
+    equally long, and genuinely indistinguishable.  UTF-16-LE is what
+    ``iconv -t UTF-16LE`` and the exporters that omit the mark actually write,
+    so it is the reading worth trying; picking big-endian there would be a coin
+    flip dressed up as a rule.
+
+    The fallback only runs when the UTF-8 reading is noisier than two percent
+    of its length, so a file that decoded cleanly is never reinterpreted: the
+    cost of being wrong is turning good text into rubbish, and that has to be
+    improbable before it is worth any gain.
     """
     for mark, codec in _BYTE_BOMS:
         if raw.startswith(mark):
@@ -233,7 +267,13 @@ def _decode_text(raw: bytes) -> str:
                 return _strip_bom(raw.decode("utf-16-le", errors="replace"))
             if head[0::2].count(0) > pairs * 0.6:
                 return _strip_bom(raw.decode("utf-16-be", errors="replace"))
-    return _strip_bom(raw.decode("utf-8", errors="replace"))
+    decoded = _strip_bom(raw.decode("utf-8", errors="replace"))
+    noise = _noise(decoded)
+    if noise >= max(4, len(decoded) // 50):
+        candidate = _strip_bom(raw.decode("utf-16-le", errors="replace"))
+        if _noise(candidate) < noise:
+            decoded = candidate
+    return decoded
 
 
 def read_text(path: Path | str) -> str:

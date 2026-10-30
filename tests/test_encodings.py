@@ -16,10 +16,18 @@ over an unreadable bibliography was *quieter* than the run over one missing a
 single key - the wrong way round for a tool whose whole job is to fail on the
 things nobody checked.
 
-There is deliberately no test here asserting that a *source* document in UTF-16
-is handled the same way.  Source text is only ever searched, and a mangled
+Source text is the third case and it used to be left out on purpose: a mangled
 source produces ``quote-missing`` against a page the author is looking at,
-which is loud.  The two cases above are the ones that were silent.
+which is loud, so the argument went that it did not need a test.  Being loud is
+not the same as being right.  That finding is a *high* one and it accuses the
+author of misquoting a page whose only problem is how the file was saved, so
+``TestADocumentWhoseCharactersAreNotLatin`` covers it too.
+
+The detector is the interesting half.  It asks whether one side of every 16-bit
+pair is zero, which is true of Latin text and false of anything else: a Han
+character's high byte lies in 0x4E-0x9F.  A Chinese document saved as UTF-16
+without a mark therefore had no NULs at all, missed the detector, and decoded
+into replacement characters.
 """
 
 from __future__ import annotations
@@ -52,10 +60,15 @@ DESKTOP = (
 )
 
 
-def _project(tmp_path: Path, encoding: str = "utf-8", bib_encoding: str | None = None) -> Path:
+def _project(
+    tmp_path: Path,
+    encoding: str = "utf-8",
+    bib_encoding: str | None = None,
+    body: str = GOOD,
+) -> Path:
     root = tmp_path / "p"
     root.mkdir(parents=True, exist_ok=True)
-    (root / "p.txt").write_bytes(GOOD.encode("utf-8"))
+    (root / "p.txt").write_bytes(body.encode("utf-8"))
     (root / "sources.toml").write_text(
         "[sources]" + NL + 'p = "p.txt"' + NL, encoding="utf-8", newline=NL
     )
@@ -114,6 +127,85 @@ class TestTheFileIsDecodedTheWayItWasWritten:
         code = main(["check", "m.md", "--root", str(root), "--bib", "refs.bib"])
         assert code == 1
         assert "bib-unreadable" in capsys.readouterr().out
+
+
+class TestADocumentWhoseCharactersAreNotLatin:
+    """The NUL heuristic asked whether one side of every pair is zero.
+
+    That is a fact about Latin text, not about UTF-16.  A Han character encoded
+    as UTF-16 has a high byte in 0x4E-0x9F and a Cyrillic one 0x04, so neither
+    a Chinese nor a Russian document has any NULs at all, the detector never
+    fired, the bytes decoded as UTF-8 into replacement characters, every quote
+    missed, and the run ended with a high finding that accused the author of
+    not quoting a page whose only problem was how the file was saved.
+
+    The previous version of this file argued that a mangled *source* is loud
+    enough not to need a test.  It is loud - and it says the wrong thing, in
+    the one vocabulary this tool must never misuse.
+
+    Every case below is little-endian, and that is not a gap in the test: with
+    no mark to go on, a big-endian document in a single script is genuinely
+    undecidable.  Swapping a Han character's bytes yields another Han
+    character, so both readings are equally clean, equally long and both
+    plausible; a decoder that picked one would be guessing.  The tool reads the
+    shape exporters produce and the docstring says only that much, which is the
+    difference between a limit and a lie.
+    """
+
+    CHINESE = "构式网络很小，训练语料合计 154,391 句，角色集实例 440,528 个。" + NL
+    RUSSIAN = "Корпус содержит 154,391 предложение и 440,528 конструкций." + NL
+
+    @pytest.mark.parametrize("text", (CHINESE, RUSSIAN))
+    def test_a_non_latin_document_saved_as_utf16_is_still_read(self, tmp_path: Path, text: str):
+        from citevouch.textnorm import read_text
+
+        path = tmp_path / "x.txt"
+        path.write_bytes(text.encode("utf-16-le"))
+        assert read_text(path) == text
+
+    def test_the_quote_is_found_instead_of_missing(self, tmp_path: Path, capsys):
+        # End to end, because the encoding is only ever a problem through the
+        # verdict it produces.  A file read as mojibake yields `quote-missing`
+        # at high severity; a file read correctly yields `quote-found`.
+        for text, name in ((self.CHINESE, "chinese"), (self.RUSSIAN, "russian")):
+            root = tmp_path / name
+            root.mkdir()
+            claim = "```claim id=c1 source=p" + NL + ">> " + text.strip() + NL + "```" + NL
+            (root / "p.txt").write_bytes(text.encode("utf-16-le"))
+            (root / "sources.toml").write_text(
+                "[sources]" + NL + 'p = "p.txt"' + NL, encoding="utf-8", newline=NL
+            )
+            (root / "m.md").write_text(claim, encoding="utf-8", newline=NL)
+
+            code = main(["check", "m.md", "--root", str(root)])
+            report = capsys.readouterr().out
+            assert _codes(report) == ["quote-found"], (name, report)
+            assert code == 0
+
+    def test_big_endian_without_a_mark_is_admitted_not_guessed(self, tmp_path: Path):
+        """The limit is stated, so it is pinned.
+
+        If someone later teaches the decoder to try big-endian too, this test
+        fails and forces the docstring to say so as well.  That is the point:
+        an undocumented improvement is a documented promise nobody checked.
+        """
+        from citevouch.textnorm import read_text
+
+        path = tmp_path / "x.txt"
+        text = self.CHINESE
+        path.write_bytes(text.encode("utf-16-be"))
+        assert read_text(path) != text
+
+    def test_a_clean_utf8_file_is_never_reinterpreted(self, tmp_path: Path):
+        from citevouch.textnorm import read_text
+
+        # The fallback only runs when the UTF-8 reading is self-evidently
+        # wrong, so the common case must be provably untouched - including the
+        # one text in this file that holds both scripts.
+        for body in (self.CHINESE, self.RUSSIAN, GOOD):
+            path = tmp_path / "x.txt"
+            path.write_bytes(body.encode("utf-8"))
+            assert read_text(path) == body
 
 
 class TestABibliographyNobodyCouldReadIsNotAnEmptyOne:
