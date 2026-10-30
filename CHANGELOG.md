@@ -12,6 +12,14 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A `>` inside a quoted attribute value no longer ends a tag early.
+  `_strip_markup` matched `<[^>]+>`, so `<a title="a > b">click</a>` left `b">`
+  in the page text and a manuscript quoting that sentence reported
+  `quote-missing` against a page that contains it. The pattern now skips over
+  quoted attribute values.
+
 ## [0.10.0] — 2026-10-30
 ### Fixed
 

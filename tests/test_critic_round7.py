@@ -104,6 +104,14 @@ def test_entities_are_decoded_after_the_tags_are_gone():
     assert sources._strip_markup("<p>a&amp;b &lt;tag&gt; c</p>").strip() == "a&b <tag> c"
 
 
+def test_a_greater_than_inside_an_attribute_does_not_end_the_tag():
+    """`>` is legal inside a quoted attribute value.  A `<[^>]+>` regex stops at
+    the first one and leaves `b">` glued to the page text, so the sentence an
+    author quoted is searched for in a string nobody wrote."""
+    assert sources._strip_markup('<a title="a > b">click</a> text').strip() == "click text"
+    assert sources._strip_markup("<span data-x='1 > 0'>x</span>").strip() == "x"
+
+
 def test_a_quote_whose_sentence_holds_an_entity_still_verifies(tmp_path: Path):
     page = tmp_path / "page.html"
     page.write_text(

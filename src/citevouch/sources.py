@@ -283,7 +283,10 @@ def extract_pages(
     return pages, None
 
 
-_TAG = re.compile(r"<[^>]+>")
+# A naive `<[^>]+>` stops at the first `>`, and `>` is legal inside a quoted
+# attribute value - `<a title="a > b">` would leave `b">` in the page text and
+# the sentence an author quoted would be searched for in the wrong string.
+_TAG = re.compile(r"<(?:[^<>\"']|\"[^\"]*\"|'[^']*')*?>")
 
 
 def _strip_markup(text: str) -> str:
