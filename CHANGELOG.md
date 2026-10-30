@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-10-30
 ### Fixed
 
 - A `<` in prose is no longer treated as the start of a tag.
@@ -19,7 +20,6 @@ tag and that file disagree.
   "5 2" and a manuscript quoting that sentence against an html source reported
   `quote-missing` on a page that contains it. A tag now has to start with a
   name character, `/`, `!` or `?`.
-
 ## [0.10.1] — 2026-10-30
 ### Fixed
 
@@ -519,7 +519,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/lyear12/citevouch/releases/tag/v0.10.2
 [0.10.1]: https://github.com/lyear12/citevouch/releases/tag/v0.10.1
 [0.10.0]: https://github.com/lyear12/citevouch/releases/tag/v0.10.0
 [0.9.0]: https://github.com/lyear12/citevouch/releases/tag/v0.9.0
