@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.5] — 2026-10-30
 ### Fixed
 
 - A path on a share that is not mounted is no longer called missing.  Windows
@@ -29,7 +31,6 @@ tag and that file disagree.
   this tool's word for "the manuscript has findings", so the author read a crash
   as a verdict about their citations.  It is judged with `is_file()` now and
   reported as `ledger-stale`, and the sentence says "is now a directory".
-
 ## [0.19.4] — 2026-10-30
 ### Fixed
 
@@ -1059,7 +1060,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.4...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.5...HEAD
+[0.19.5]: https://github.com/lyear12/citevouch/releases/tag/v0.19.5
 [0.19.4]: https://github.com/lyear12/citevouch/releases/tag/v0.19.4
 [0.19.3]: https://github.com/lyear12/citevouch/releases/tag/v0.19.3
 [0.19.2]: https://github.com/lyear12/citevouch/releases/tag/v0.19.2
