@@ -13,6 +13,7 @@ from typing import ClassVar
 
 import pytest
 
+from citevouch.errors import UsageError
 from citevouch.model import Ledger
 from citevouch.sources import (
     discover_sources,
@@ -211,10 +212,18 @@ class TestPageHintIsValid:
 
 
 class TestUsageMistakesStayInsideTheExitContract:
-    def test_a_directory_passed_as_a_source_is_ignored_not_raised(self, project):
+    def test_a_directory_passed_as_a_source_is_refused_not_ignored(self, project):
+        """It used to be dropped from the map in silence.
+
+        Silence reads as "no such key was needed", so the claim the caller
+        meant to bind reported `source-missing` and the author went looking
+        for a PDF that was on disk the whole time. A path the caller named
+        and this tool cannot use is a usage error.
+        """
         (project / "adir").mkdir(exist_ok=True)
-        found = discover_sources(project, [str(project / "adir")])
-        assert str(project / "adir") not in found.values()
+        with pytest.raises(UsageError) as caught:
+            discover_sources(project, [str(project / "adir")])
+        assert "is a directory, not a file" in str(caught.value)
 
     def test_a_directory_in_the_manifest_is_ignored_too(self, project):
         (project / "adir").mkdir(exist_ok=True)
@@ -262,7 +271,11 @@ class TestUsageMistakesStayInsideTheExitContract:
             env=_env(),
         )
         assert "Traceback" not in result.stderr
-        assert result.returncode in (0, 1)
+        # 2 is the usage-error code. It used to be 0 or 1 because the
+        # directory was dropped silently; 1 would also have read as a
+        # verdict about the manuscript, which this is not.
+        assert result.returncode == 2
+        assert "is a directory, not a file" in result.stderr
 
 
 # --- N5: the documents must describe the code that exists ------------------

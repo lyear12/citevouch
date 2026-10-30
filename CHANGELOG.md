@@ -11,6 +11,16 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A message about a path is now true about that path. `--bib <a directory>` reported
+  `bib file adir does not exist`, which is false: the judgement was `is_file()` and the sentence
+  said `exists()`. It now says `is a directory, not a file`, in both places that word it (`scan`
+  and `draft`). `sources.py` had already made this distinction for source files, so this is the
+  same defect as any other guard that learned a rule at one site and not at its neighbours.
+- `--source <a path that is not a file>` is a usage error (exit 2) instead of being dropped from the
+  source map in silence. Silence read as "no key needed this", so the claim the caller meant to bind
+  reported `source-missing` and the author went looking for a PDF that was on disk the whole time.
 
 ## [0.18.2] — 2026-10-30
 ### Fixed

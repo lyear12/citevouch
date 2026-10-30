@@ -32,7 +32,7 @@ from .bibtex import parse_bib
 from .errors import CitevouchError, UsageError
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
-from .scan import ScanOptions, _resolve, scan
+from .scan import ScanOptions, _resolve, _why_not_a_file, scan
 from .sources import discover_sources
 from .verify import VerifyResult, verify
 
@@ -300,7 +300,8 @@ def cmd_draft(args: argparse.Namespace) -> int:
     for raw in args.bib:
         bib_path = _resolve(root, raw)
         if not bib_path.is_file():
-            raise UsageError(f"bib file {bib_path} does not exist")
+            raise UsageError(f"bib file {bib_path} {_why_not_a_file(bib_path)}")
+
         parsed = parse_bib(
             bib_path.read_text(encoding="utf-8", errors="replace"), str(bib_path)
         )

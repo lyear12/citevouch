@@ -40,6 +40,17 @@ class ScanOptions:
     now: str = ""
 
 
+def _why_not_a_file(path: Path) -> str:
+    """Say what is wrong with a path that was expected to be a file.
+
+    "does not exist" about a directory is a false sentence, and a false
+    sentence sends the reader to look for the wrong problem. `sources.py`
+    already words this distinction for source files; these were the two
+    places that judged with `is_file()` and explained with `exists()`.
+    """
+    return "is a directory, not a file" if path.is_dir() else "does not exist"
+
+
 def _resolve(root: Path, raw: str) -> Path:
     """Resolve ``raw`` against ``root``, but accept a path that already works.
 
@@ -283,7 +294,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             findings.append(
                 Finding(
                     code="source-missing",
-                    message=f"bib file {bib_path} does not exist",
+                    message=(f"bib file {bib_path} {_why_not_a_file(bib_path)}"),
                     path=str(bib_path),
                 )
             )

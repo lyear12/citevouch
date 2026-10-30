@@ -346,3 +346,43 @@ class TestAPathThatCannotBeWrittenIsAUsageError:
         capsys.readouterr()
         assert (root / "adir").is_dir()
         assert not (root / "adir.tmp").exists()
+
+
+class TestAMessageAboutAPathIsTrueAboutThatPath:
+    """``is_file()`` judged the path; ``exists()`` wrote the sentence.
+
+    A directory is not a file, so it cannot be a bib file - but it does exist,
+    and the finding said it did not. The author then goes looking for a file
+    that was never missing. ``sources.py`` already worded this distinction for
+    source files; these were the places that did not.
+    """
+
+    def test_a_directory_bib_is_said_to_be_a_directory(self, tmp_path: Path, capsys):
+        root = _project(tmp_path)
+        (root / "adir").mkdir()
+        assert main(["check", "m.md", "--root", str(root), "--bib", "adir"]) == 1
+        out = capsys.readouterr().out
+        assert "is a directory, not a file" in out
+        assert "does not exist" not in out
+
+    def test_a_missing_bib_is_still_said_to_be_missing(self, tmp_path: Path, capsys):
+        root = _project(tmp_path)
+        assert main(["check", "m.md", "--root", str(root), "--bib", "nope.bib"]) == 1
+        out = capsys.readouterr().out
+        assert "does not exist" in out
+        assert "is a directory" not in out
+
+    def test_draft_words_a_directory_bib_the_same_way(self, tmp_path: Path, capsys):
+        root = _project(tmp_path)
+        (root / "adir").mkdir()
+        assert main(["draft", "m.md", "--root", str(root), "--bib", "adir"]) == 2
+        assert "is a directory, not a file" in capsys.readouterr().err
+
+    def test_a_bad_source_path_is_refused_rather_than_dropped(self, tmp_path: Path, capsys):
+        """Silence here costs a false ``source-missing`` two steps later."""
+        root = _project(tmp_path)
+        (root / "adir").mkdir()
+        assert main(["check", "m.md", "--root", str(root), "--source", "adir"]) == 2
+        err = capsys.readouterr().err
+        assert "is a directory, not a file" in err
+        assert "Traceback" not in err

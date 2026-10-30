@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ._version import __version__
+from .errors import UsageError
 from .model import Finding, SourceRef
 from .textnorm import fold
 
@@ -504,8 +505,14 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
         path = Path(raw)
         if not path.is_absolute():
             path = root / path
-        if path.is_file():
-            found[path.stem] = str(path)
+        if not path.is_file():
+            # Refused rather than skipped. ``--source`` names a file the
+            # caller wants bound to a key; dropping it silently means the
+            # claim it was meant for reports ``source-missing``, and the
+            # author goes looking for a missing PDF that is not missing.
+            what = "is a directory, not a file" if path.is_dir() else "does not exist"
+            raise UsageError(f"source {path} {what}")
+        found[path.stem] = str(path)
 
     manifest = load_manifest(root)
     for key, value in manifest.items():

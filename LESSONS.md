@@ -1605,3 +1605,26 @@ belongs to.
 from `mkdir`; both exited 1. `verify --ledger <a directory>` exited 2 over the
 same path, because the read side was already guarded - the two halves of one
 command disagreed about what a bad path means. Seen 1.
+
+## A message about a path has to be true about that path
+
+**Rule.** When a finding or an error names a path, the sentence has to describe
+the condition that was actually tested. If the judgement is `is_file()`, the
+sentence may not say `exists()`; it has to say which of the two failed.
+
+**Why.** Both sentences send the reader somewhere, and they send them to
+different places. "Does not exist" sends them to look for a missing download, a
+wrong directory, a typo. "Is a directory" sends them to look at what they
+passed. When the words and the test disagree, the reader does the first when the
+second is true, finds the file sitting exactly where they left it, and concludes
+the tool is broken. That is a worse outcome than a vaguer message, because it
+spends the reader's trust on a defect that is real.
+
+**Evidence.** `scan` and `draft` both reported `bib file adir does not exist`
+for a directory, because the test was `is_file()` and the string was written
+from memory. `sources.py` had already been fixed for exactly this -
+`what = "is a directory, not a file" if path.is_dir() else "does not exist"` -
+and the fix did not travel to the two places that reused the pattern. The same
+review found `--source <a directory>` being dropped from the source map in
+silence, which produces the same wasted search two steps later: the claim
+reports `source-missing` for a file that is present. Seen 1.
