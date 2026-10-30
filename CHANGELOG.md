@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.13.0] — 2026-10-30
 ### Added
 
 - A pin that disagrees with `_version.py` now fails the suite.
@@ -41,7 +43,6 @@ tag and that file disagree.
   declared and not built. `tests/test_extras.py::test_every_run_only_dependency_is_used_by_a_command`
   now walks the `dev` extra and fails when a member is neither imported under
   `tests/`/`src/`/`tools/` nor named by a workflow.
-
 ## [0.12.0] — 2026-10-30
 ### Removed
 
@@ -583,7 +584,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/lyear12/citevouch/releases/tag/v0.13.0
 [0.12.0]: https://github.com/lyear12/citevouch/releases/tag/v0.12.0
 [0.11.0]: https://github.com/lyear12/citevouch/releases/tag/v0.11.0
 [0.10.3]: https://github.com/lyear12/citevouch/releases/tag/v0.10.3

@@ -82,7 +82,7 @@ that lives in a different paper, which is the failure the tool exists to catch. 
 尚未发布到 PyPI——发布工作流会在本仓库注册 trusted publisher 之后向 PyPI 发布，并如实报告结果。在那之前，从 GitHub 安装：
 
 ```bash
-pip install "git+https://github.com/lyear12/citevouch@v0.12.0"
+pip install "git+https://github.com/lyear12/citevouch@v0.13.0"
 # 或者，克隆之后本地安装：
 pip install .
 ```
@@ -180,7 +180,7 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 最短的接法是 action：它装上自己被钉住的那个 tag，然后跑闸门。
 
 ```yaml
-- uses: lyear12/citevouch@v0.12.0
+- uses: lyear12/citevouch@v0.13.0
   with:
     manuscript: manuscript.md
 ```
@@ -188,7 +188,7 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 它会写出 SARIF 文件，并把路径作为 `sarif` 输出交出来，所以再加一步就能传给 code scanning：
 
 ```yaml
-- uses: lyear12/citevouch@v0.12.0
+- uses: lyear12/citevouch@v0.13.0
   id: citevouch
   with:
     manuscript: manuscript.md
@@ -203,7 +203,7 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: pip install "git+https://github.com/lyear12/citevouch@v0.12.0"
+- run: pip install "git+https://github.com/lyear12/citevouch@v0.13.0"
 - run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
 ```
 
