@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.7.0] — 2026-10-30
 ### Added
 
 - `claim-uncheckable`. A claim block that cannot be looked up at all — no
@@ -60,7 +62,6 @@ tag and that file disagree.
   a field, the CJK titles and the `and others` tails that broke the first
   version. Synthetic fixtures prove a fix agrees with itself; this one is the
   input that disagreed.
-
 ## [0.6.1] — 2026-10-30
 ### Fixed
 
@@ -395,7 +396,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/lyear12/citevouch/releases/tag/v0.7.0
 [0.6.1]: https://github.com/lyear12/citevouch/releases/tag/v0.6.1
 [0.6.0]: https://github.com/lyear12/citevouch/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lyear12/citevouch/releases/tag/v0.5.0
