@@ -222,6 +222,24 @@ means a real sentence on the right page that you still have to read.
 To bind keys the bibliography already knows about, pass `--bib refs.bib`. A Zotero `file` field is
 used when the key is not in `sources.toml`, and the file prints the `[sources]` line to paste.
 
+### If your manuscript is LaTeX
+
+Pass the `.tex` file. It is converted before anything reads it, so the command is the same one:
+
+```bash
+citevouch draft paper.tex --bib refs.bib -o claims.md
+```
+
+`\citep{a, b}`, `\citet`, `\textcite` and the other citation commands become the same markers the
+Markdown path uses, `%` comments and `thebibliography` are dropped, and a section title becomes its
+own paragraph so it does not get glued onto the sentence below it. Notes that came from `[p.~3]`
+are dropped, because the page number always comes from the PDF, never from your source.
+
+This is a converter, not a TeX parser: a macro that generates text, an `\input`, or an environment
+whose body is not prose will be read as prose or skipped. That costs a weaker proposal, never a
+false pass — the quote in a `claim` block always comes from the PDF, so a mangled sentence cannot
+make a citation look verified. `scan` and `verify` never see LaTeX; only this command does.
+
 ### Three claim dialects
 
 Fenced blocks (above), HTML comments, and table rows. Pick whichever survives your editor.

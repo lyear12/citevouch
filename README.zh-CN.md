@@ -196,6 +196,22 @@ claim: |
 书目里已经知道对应文件的 key，传 `--bib refs.bib`。key 不在 `sources.toml` 里时，Zotero 的
 `file` 字段会被用上，并且文件里会把该粘进 `[sources]` 的那一行写出来。
 
+### 若你的稿件是 LaTeX
+
+直接传 `.tex` 文件。它会在被读之前先转换，所以命令还是同一条：
+
+```bash
+citevouch draft paper.tex --bib refs.bib -o claims.md
+```
+
+`\citep{a, b}`、`\citet`、`\textcite` 等引用命令会变成 Markdown 路径用的同一种标记，`%` 注释
+与 `thebibliography` 被丢弃，章节标题单独成段，免得和下面那句粘在一起。`[p.~3]` 这类页码注解
+也会被丢掉——页码永远来自 PDF，绝不来自你的源码。
+
+这是转换器，不是 TeX 解析器：会生成文本的宏、`\input`、以及正文并非散文的环境，要么被当散文
+读，要么被跳过。代价是提案可能更弱，绝不会是假通过——`claim` 块里的引文永远从 PDF 里读出来，
+所以一句被弄乱的稿子不可能让引用看起来已核实。`scan` 和 `verify` 从不看 LaTeX，只有这条命令看。
+
 ### 三种 claim 方言
 
 围栏块（上面那种）、HTML 注释、表格行。挑一种在你的编辑器里活得下来的：

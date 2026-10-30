@@ -52,6 +52,12 @@ quietly breaking the rule is not.
 A change is not done until all of these have been run and passed. Run them; do not assume.
 
 1. **A test that fails without the change.** Name it in the commit message.
+   For a change that *transforms* its input — a converter, a normalizer, a
+   rewriter — also do the reverse check: disable the step, watch the test go red,
+   put it back. A transformation usually has a fallback that finds the input
+   anyway, so an assertion about the input being *found* survives the step being
+   removed. Assert what only the step can produce, and assert the absence of what
+   the step removes.
 2. **The full suite**, not just the touched file, plus both halves of CI's lint job — `check`
    passes files that `format --check` rejects, and running one is not running the gate:
    ```bash

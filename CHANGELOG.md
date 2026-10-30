@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- LaTeX manuscripts. `draft` converts a `.tex` file before reading it, so
+  `citevouch draft paper.tex --bib refs.bib` works with no extra flag: `%`
+  comments and `thebibliography` are dropped, `\cite`/`\citep`/`\textcite` and
+  friends become the same `[@key]` markers the Markdown path uses, a section
+  title becomes its own paragraph so it cannot be glued onto the sentence
+  below it, and `[p.~3]` notes are dropped because the page always comes from
+  the PDF. It is a converter, not a TeX parser: macros that generate text,
+  `\input`, and environments whose body is not prose are read as prose or
+  skipped — which costs a weaker proposal, never a false pass, since the quote in
+  a claim block always comes from the source file.
 
 ## [0.14.0] — 2026-10-30
 ### Added

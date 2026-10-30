@@ -153,7 +153,7 @@ not what changed, but what proves the change works.
 
 ## P2 — the audience writes LaTeX
 
-- [ ] **No LaTeX input.**
+- [x] **No LaTeX input.**
   Linguists and NLP researchers draft in `.tex` / Overleaf, where `\cite{key}`
   already states the binding the tool wants.
   *Who is blocked*: essentially the entire target audience.
@@ -161,6 +161,18 @@ not what changed, but what proves the change works.
   comments, reads `\cite`/`\citep`/`\citet`, takes the enclosing sentence, and
   writes a sidecar `claims.md` that `scan`/`verify` accept unchanged. Synthetic
   fixtures only — this machine has no usable `.tex` corpus.
+  *Done*: `src/citevouch/latex.py` converts the document body into the same
+  plain text the Markdown path reads, and `draft` calls it when the manuscript
+  suffix is `.tex`/`.ltx`/`.latex` — no new flag, because a flag would let the two
+  paths disagree. Why it is right: the converter is a character walker, not a
+  pile of regexes — `\%` inside a comment is still a comment, a `\label{}` leaves
+  no hole where it stood, and `$\alpha = 0.5$` becomes `0.5` rather than
+  disappearing with the number in it. Why I believe it: 34 unit tests and 5
+  end-to-end ones, and the end-to-end test was first written *wrong* — turning
+  the conversion off left it green, because `draft` has its own raw `\cite`
+  fallback. It now asserts two claim blocks and the absence of
+  `\documentclass`/`~`/`\citep` in every statement, which does go red when the
+  conversion is disabled.
 
 ## P3 — nobody knows it exists
 

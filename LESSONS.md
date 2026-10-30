@@ -1147,3 +1147,30 @@ builds its environment with `_env(...)` or `dict(os.environ)`;
 `tests/test_child_env.py::test_the_detector_recognises_both_shapes` pins both
 shapes so a guard that matches nothing cannot look like a clean repository.
 Seen 2.
+
+## A check that stays green when you disable the feature is checking the wrong thing
+
+**Rule.** A test for a step that *transforms* its input — a converter, a
+normalizer, a rewriter — must assert something only that step can produce. Do
+the reverse check before believing the test: disable the step, watch it go red,
+put it back. A test that was never seen red is a test that was never seen doing
+anything.
+
+**Why.** The fallback makes the assertion true by a second route. `draft` grew a
+LaTeX reader, but `draft` already matched `\cite{key}` directly — it had to,
+or a stray citation in a Markdown file would be invisible. So "the citation is
+found" was true with the converter switched off, and so was "the proposal file
+has a claim block". Two versions of that test passed on a `if False:`. The
+converter's real job is not finding keys; it is removing the things that would
+otherwise land in the `claim:` line — `\documentclass`, `\section`, `~`,
+`\citep{...}` — so those absences, and the count of proposals, are what the
+test has to assert. `Seen` is not incremented for this one: it is the first time
+the defect is written down, and the reverse check is now part of the acceptance
+list rather than a habit of the author.
+
+**Evidence.** `tests/test_latex_end_to_end.py`, first two versions: with
+`if latex_module.looks_like_latex(manuscript):` replaced by `if False:`, both
+reported `5 passed`. The same file now fails on that substitution with
+`assert 'This is large for the task at hand.' in [...]`, where the statement had
+become `This is large for the task at hand~.` and the document preamble was
+sitting inside the `claim:` line. Seen 1.

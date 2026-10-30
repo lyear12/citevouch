@@ -27,6 +27,7 @@ from pathlib import Path
 from . import __version__
 from . import doctor as doctor_module
 from . import draft as draft_module
+from . import latex as latex_module
 from .bibtex import parse_bib
 from .errors import CitevouchError, UsageError
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
@@ -241,8 +242,11 @@ def cmd_draft(args: argparse.Namespace) -> int:
         )
         bib.update(parsed.entries)
 
+    text = manuscript.read_text(encoding="utf-8", errors="replace")
+    if latex_module.looks_like_latex(manuscript):
+        text = latex_module.to_text(text)
     result = draft_module.draft(
-        manuscript.read_text(encoding="utf-8", errors="replace"),
+        text,
         bib=bib,
         known=discover_sources(root, args.source),
         root=root,
