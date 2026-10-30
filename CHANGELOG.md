@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.18.4] — 2026-10-30
 ### Fixed
 
 - `citevouch report` printed `0 entrys`, and left a `|` inside a claim id or a
@@ -22,7 +23,6 @@ tag and that file disagree.
   it should print instead of appending an `s` to whatever noun it was given.
   `report` had no test before this, which is why two defects in eleven lines of
   formatting survived four releases.
-
 ## [0.18.3] — 2026-10-30
 ### Fixed
 
@@ -853,7 +853,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.3...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.4...HEAD
+[0.18.4]: https://github.com/lyear12/citevouch/releases/tag/v0.18.4
 [0.18.3]: https://github.com/lyear12/citevouch/releases/tag/v0.18.3
 [0.18.2]: https://github.com/lyear12/citevouch/releases/tag/v0.18.2
 [0.18.1]: https://github.com/lyear12/citevouch/releases/tag/v0.18.1
