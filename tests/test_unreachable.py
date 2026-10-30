@@ -159,13 +159,58 @@ class TestTheRecordedManuscriptThatIsNotAFile:
         assert "network path" in gone
 
 
-class TestTheScanSentenceAboutAManuscript:
-    """``scan`` judged with ``is_file()`` and explained with a flat sentence."""
+def _stat_raises_for(monkeypatch, name: str, exc: OSError) -> None:
+    """Make ``os.stat`` fail with ``exc`` for one path and behave elsewhere.
 
-    def test_an_unreachable_manuscript_is_not_called_missing(self, tmp_path: Path, capsys):
+    The platform decides what an unreachable path looks like - Windows raises
+    with ``winerror=53``, Linux has no such number - so a test that reaches a
+    real dead host only runs on one of the three operating systems this project
+    supports.  Supplying the error keeps the routing under test and the
+    platform out of it.
+    """
+    import os
+
+    import citevouch.errors as errors
+
+    real_stat = os.stat
+
+    def fake_stat(path, *args, **kwargs):
+        try:
+            text = os.fspath(path)
+        except TypeError:
+            text = None
+        if text == name:
+            raise exc
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(errors.os, "stat", fake_stat)
+
+
+class TestTheCommandLineSaysIt:
+    """The sentences are only worth writing if they reach the person running it."""
+
+    def test_an_unreachable_manuscript_is_not_called_missing(
+        self, tmp_path: Path, capsys, monkeypatch
+    ):
         from citevouch.cli import main
 
-        code = main(["scan", _UNREACHABLE_MANUSCRIPT, "--root", str(tmp_path)])
+        missing = str(tmp_path / "paper.md")
+        _stat_raises_for(monkeypatch, missing, _oserror(errno.ENOENT, 53))
+        code = main(["scan", missing, "--root", str(tmp_path)])
+        err = capsys.readouterr().err
+        assert code == 2
+        assert "cannot be reached" in err
+        assert "does not exist" not in err
+
+    def test_an_unreachable_bib_is_not_called_missing(
+        self, tmp_path: Path, capsys, monkeypatch
+    ):
+        from citevouch.cli import main
+
+        (tmp_path / "m.md").write_text("no claim blocks here" + chr(10), encoding="utf-8")
+        missing = str(tmp_path / "refs.bib")
+        _stat_raises_for(monkeypatch, missing, _oserror(errno.ENOENT, 53))
+        code = main(["draft", "m.md", "--root", str(tmp_path), "--bib", missing])
         err = capsys.readouterr().err
         assert code == 2
         assert "cannot be reached" in err
@@ -188,8 +233,3 @@ class TestTheScanSentenceAboutAManuscript:
         err = capsys.readouterr().err
         assert code == 2
         assert "is a directory, not a file" in err
-
-
-#: Kept separate from the bibliography constant so a reader can see which
-#: command each sentence came from.
-_UNREACHABLE_MANUSCRIPT = "//citevouch.invalid/never-mounted/paper.md"
