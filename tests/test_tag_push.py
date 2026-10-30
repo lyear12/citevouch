@@ -7,10 +7,19 @@ stranded and nothing in the log says so. That is what happened to v0.19.6:
 `! [remote rejected] v0.19.6 -> v0.19.6 (failed)`, no reason given, seconds
 after the branch push to the same remote succeeded.
 
-These tests run the step's shell body against a fake `git`, rather than
-asserting that certain strings appear in the YAML. A string assertion would
-stay green if the retry loop ran the wrong command, and it cannot tell whether
-the recovery text survives on the path that needs it.
+These tests run the step's shell body against a stub, rather than asserting
+that certain strings appear in the YAML. A string assertion would stay green if
+the retry loop ran the wrong command, and it cannot tell whether the recovery
+text survives on the path that needs it.
+
+The stub is a bash **function** named `git`, not a file on PATH. The first
+version of this file put an executable in a directory prepended to PATH, which
+works on the POSIX runners and silently did not on Windows: `chmod` there does
+not produce a file MSYS will execute, so the real `git` ran instead, in a
+temporary directory that is not a repository - `fatal: not a git repository`
+three times. Every assertion was about the right thing, which is the only
+reason it was noticed. A function shadows the PATH lookup on every platform and
+needs neither an exec bit nor a shebang.
 """
 
 from __future__ import annotations
@@ -25,6 +34,44 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 WORKFLOW = REPO / ".github" / "workflows" / "auto-release.yml"
+
+# The stub, and the two files it keeps state in. Relative names, because an
+# absolute Windows path reaching bash arrives with backslashes that MSYS does
+# not read as separators - the first version lost its counters that way.
+STUB = """
+sleep() {
+  # The pauses are real in CI; one minute per test is not.
+  :
+}
+
+git() {
+  case "$1" in
+    rev-parse)
+      return 1
+      ;;
+    tag)
+      echo "TAGGED $*" >> stub_log.txt
+      return 0
+      ;;
+    push)
+      n=$(cat stub_counter 2>/dev/null || echo 0)
+      n=$((n + 1))
+      echo "$n" > stub_counter
+      echo "PUSH $n $*" >> stub_log.txt
+      if [ "$n" -ge "$STUB_SUCCEEDS_ON" ]; then
+        return 0
+      fi
+      echo "! [remote rejected] $3 (failed)" >&2
+      return 1
+      ;;
+    ls-remote)
+      echo "LSREMOTE $*" >> stub_log.txt
+      return "$STUB_LSREMOTE"
+      ;;
+  esac
+  return 0
+}
+"""
 
 
 def _bash() -> str:
@@ -59,44 +106,10 @@ def _bash() -> str:
 
 def _tag_step() -> str:
     action = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    steps = action["jobs"]["decide"]["steps"]
-    for step in steps:
+    for step in action["jobs"]["decide"]["steps"]:
         if step.get("name") == "Tag it":
             return step["run"]
     raise AssertionError("no `Tag it` step in auto-release.yml")
-
-
-FAKE_GIT = """#!/bin/sh
-# A git that does only what the tag step asks of it, and can be told to fail.
-# The counters live in files so that each invocation of this script sees what
-# the previous one did - that is what makes the retry observable.
-case "$1" in
-  rev-parse)
-    # No tag exists yet.
-    exit 1
-    ;;
-  tag)
-    echo "TAGGED $*" >> "$STUB_LOG"
-    exit 0
-    ;;
-  push)
-    n=$(cat "$STUB_COUNTER" 2>/dev/null || echo 0)
-    n=$((n + 1))
-    echo "$n" > "$STUB_COUNTER"
-    echo "PUSH $n $*" >> "$STUB_LOG"
-    if [ "$n" -ge "$STUB_SUCCEEDS_ON" ]; then
-      exit 0
-    fi
-    echo "! [remote rejected] $4 (failed)" >&2
-    exit 1
-    ;;
-  ls-remote)
-    echo "LSREMOTE $*" >> "$STUB_LOG"
-    exit "$STUB_LSREMOTE"
-    ;;
-esac
-exit 0
-"""
 
 
 def _run_tag_step(
@@ -105,37 +118,53 @@ def _run_tag_step(
     succeeds_on: int,
     lsremote: int,
 ) -> tuple[int, str, str, list[str]]:
-    """Run the real shell body of `Tag it` with a stub git on PATH."""
+    """Run the real shell body of `Tag it` with the stub in scope."""
     script = tmp_path / "tag_step.sh"
-    script.write_text(_tag_step(), encoding="utf-8", newline="\n")
+    script.write_text(STUB + _tag_step(), encoding="utf-8", newline="\n")
 
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    stub = bin_dir / "git"
-    stub.write_text(FAKE_GIT, encoding="utf-8", newline="\n")
-    stub.chmod(0o755)
-
-    counter = tmp_path / "counter"
-    log = tmp_path / "log.txt"
     env = {
         **os.environ,
-        "PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
         "VERSION": "9.9.9",
         "STUB_SUCCEEDS_ON": str(succeeds_on),
         "STUB_LSREMOTE": str(lsremote),
-        "STUB_COUNTER": str(counter),
-        "STUB_LOG": str(log),
     }
+    # `-e` because that is what GitHub's `shell: bash` uses; a body that only
+    # works without it would pass here and fail there.
     done = subprocess.run(
-        [_bash(), str(script)],
+        [_bash(), "-e", script.name],
         capture_output=True,
         encoding="utf-8",
         errors="replace",
         env=env,
         cwd=tmp_path,
     )
-    lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+    log_file = tmp_path / "stub_log.txt"
+    lines = log_file.read_text(encoding="utf-8").splitlines() if log_file.exists() else []
     return done.returncode, done.stdout, done.stderr, lines
+
+
+class TestTheStubIsWhatRuns:
+    def test_a_function_shadows_the_real_command(self, tmp_path: Path) -> None:
+        """Without this the rest is a test of whatever `git` PATH happens to hold."""
+        script = tmp_path / "probe.sh"
+        script.write_text(
+            STUB + "type -t git\ngit push origin v0\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        done = subprocess.run(
+            [_bash(), "-e", script.name],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            env={**os.environ, "STUB_SUCCEEDS_ON": "1", "STUB_LSREMOTE": "0"},
+            cwd=tmp_path,
+        )
+        assert done.returncode == 0, done.stderr
+        assert done.stdout.splitlines()[0] == "function", (
+            f"git resolved to something other than the stub: {done.stdout!r}"
+        )
+        assert (tmp_path / "stub_log.txt").exists(), "the stub recorded nothing"
 
 
 class TestItRetriesBeforeGivingUp:
@@ -168,8 +197,8 @@ class TestAClaimedFailureIsCheckedAgainstTheRemote:
         self, tmp_path: Path
     ) -> None:
         """A push can be accepted and still report a failure to the client."""
-        code, out, _err, _log = _run_tag_step(tmp_path, succeeds_on=99, lsremote=0)
-        assert code == 0, "the remote had the tag, so the step had nothing left to do"
+        code, out, _err, log = _run_tag_step(tmp_path, succeeds_on=99, lsremote=0)
+        assert code == 0, f"the remote had the tag, so there was nothing left to do: {log}"
         assert "on the remote" in out
 
 
