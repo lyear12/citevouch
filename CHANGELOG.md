@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.18.9] — 2026-10-30
 ### Fixed
 
 - A manuscript, bibliography or ledger saved with a UTF-8 byte-order mark
@@ -27,7 +28,6 @@ tag and that file disagree.
   file from those tools, not a corrupt one.  All reads now go through
   `textnorm.read_text`, which drops the mark at the boundary; it
   carries no information the pipeline uses, so removing it is lossless.
-
 ## [0.18.8] — 2026-10-30
 ### Fixed
 
@@ -916,7 +916,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.8...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.9...HEAD
+[0.18.9]: https://github.com/lyear12/citevouch/releases/tag/v0.18.9
 [0.18.8]: https://github.com/lyear12/citevouch/releases/tag/v0.18.8
 [0.18.7]: https://github.com/lyear12/citevouch/releases/tag/v0.18.7
 [0.18.6]: https://github.com/lyear12/citevouch/releases/tag/v0.18.6
