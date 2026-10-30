@@ -61,11 +61,28 @@ def read_action() -> dict:
     return yaml.safe_load(ACTION.read_text(encoding="utf-8"))
 
 
-def run_step(tmp_path: Path, step_index: int, *, env_extra: dict[str, str]) -> dict:
+def step_named(name: str) -> dict:
+    """One composite step, found by name.
+
+    By name, not by index: a step inserted above the one a test meant would
+    otherwise move every test onto its neighbour and quietly compare the wrong
+    script. That is not hypothetical - adding `Set up Python` above the install
+    step does exactly that to the index-based version of this helper.
+    """
+    steps = read_action()["runs"]["steps"]
+    for step in steps:
+        if step.get("name") == name:
+            return step
+    names = [step.get("name") for step in steps]
+    raise AssertionError(f"no step named {name!r}; the steps are {names}")
+
+
+def run_step(tmp_path: Path, name: str, *, env_extra: dict[str, str]) -> dict:
     """Run one composite step's `run:` body with a stub citevouch on PATH."""
-    action = read_action()
-    step = action["runs"]["steps"][step_index]
-    script = tmp_path / f"step-{step_index}.sh"
+    step = step_named(name)
+    if "run" not in step:
+        raise AssertionError(f"step {name!r} has no shell body to run: {sorted(step)}")
+    script = tmp_path / f"step-{name.replace(' ', '-')}.sh"
     script.write_text(step["run"], encoding="utf-8", newline="\n")
 
     bin_dir = tmp_path / "bin"
@@ -178,7 +195,7 @@ class TestTheInstallStep:
     def test_it_pins_the_installed_ref_to_the_action_ref(self, tmp_path: Path):
         result = run_step(
             tmp_path,
-            0,
+            "Install citevouch",
             env_extra={"ACTION_REF": "v0.11.0", "ACTION_REPO": "lyear12/citevouch"},
         )
         assert result["returncode"] == 0, result["stderr"]
@@ -187,7 +204,9 @@ class TestTheInstallStep:
         assert "lyear12/citevouch" in installed, installed
 
     def test_it_falls_back_to_main_only_when_no_ref_is_given(self, tmp_path: Path):
-        result = run_step(tmp_path, 0, env_extra={"ACTION_REPO": "lyear12/citevouch"})
+        result = run_step(
+            tmp_path, "Install citevouch", env_extra={"ACTION_REPO": "lyear12/citevouch"}
+        )
         assert result["returncode"] == 0, result["stderr"]
         assert "main" in " ".join(result["python_args"])
 
@@ -196,7 +215,7 @@ class TestTheRunStep:
     def test_every_input_reaches_the_command_line(self, tmp_path: Path):
         result = run_step(
             tmp_path,
-            1,
+            "Run the check",
             env_extra={
                 "IN_MANUSCRIPT": "paper/main.md",
                 "IN_ROOT": "paper",
@@ -220,7 +239,7 @@ class TestTheRunStep:
     def test_a_path_with_a_space_survives(self, tmp_path: Path):
         result = run_step(
             tmp_path,
-            1,
+            "Run the check",
             env_extra={
                 "IN_MANUSCRIPT": "my paper/main draft.md",
                 "IN_ROOT": "my paper",
@@ -237,7 +256,7 @@ class TestTheRunStep:
     def test_a_verdict_is_passed_through_unchanged(self, tmp_path: Path, code: int):
         result = run_step(
             tmp_path,
-            1,
+            "Run the check",
             env_extra={
                 "IN_MANUSCRIPT": "manuscript.md",
                 "IN_ROOT": ".",
@@ -253,7 +272,7 @@ class TestTheRunStep:
     def test_a_usage_error_is_not_reported_as_a_green_run(self, tmp_path: Path):
         result = run_step(
             tmp_path,
-            1,
+            "Run the check",
             env_extra={
                 "IN_MANUSCRIPT": "manuscript.md",
                 "IN_ROOT": ".",
@@ -271,7 +290,7 @@ class TestTheRunStep:
     def test_sarif_is_written_and_announced(self, tmp_path: Path):
         result = run_step(
             tmp_path,
-            1,
+            "Run the check",
             env_extra={
                 "IN_MANUSCRIPT": "manuscript.md",
                 "IN_ROOT": ".",
@@ -308,9 +327,72 @@ class TestTheRepositoryWiring:
     def test_the_action_names_no_input_the_command_cannot_honour(self):
         action = read_action()
         declared = set(action["inputs"])
-        run_body = action["runs"]["steps"][1]["run"]
+        run_body = step_named("Run the check")["run"]
         forwarded = set(re.findall(r"IN_([A-Z_]+)", run_body))
         expected = {name.upper().replace("-", "_") for name in declared}
-        # `python-version` is consumed by the install step, not the run step.
+        # `python-version` selects the interpreter, so it is spent by the
+        # `Set up Python` step and must not reach the command line. That is a
+        # claim about wiring, so it is checked rather than asserted in a
+        # comment: the first version of this test simply discarded
+        # PYTHON_VERSION here, and the input was in fact inert everywhere -
+        # forwarded as an env var no shell body ever read.
         expected.discard("PYTHON_VERSION")
         assert forwarded == expected, f"declared but not forwarded: {expected - forwarded}"
+
+    def test_every_input_is_read_by_some_step(self):
+        # The defect this file exists to prevent, in its general form: an input
+        # that is declared, wired into an env block, and never read. It reads
+        # as a supported option and silently does nothing.
+        action = read_action()
+        steps = action["runs"]["steps"]
+        used = "\n".join(step.get("run", "") for step in steps)
+        used += "\n".join(
+            f"{key}={value}"
+            for step in steps
+            for key, value in (step.get("with") or {}).items()
+        )
+        used += "\n".join(
+            f"{key}={value}" for step in steps for key, value in (step.get("env") or {}).items()
+        )
+        for name in action["inputs"]:
+            assert f"inputs.{name}" in used, (
+                f"input {name!r} is declared but no step reads inputs.{name!r}; "
+                "a caller setting it would see no effect"
+            )
+
+    def test_the_python_version_input_chooses_the_interpreter(self):
+        # Not "the input is mentioned somewhere" - that passes on the old bug,
+        # where it was passed as an unused env var. It has to reach a
+        # setup-python step's `with:`, which is the only thing that can honour
+        # it.
+        setup = [
+            step
+            for step in read_action()["runs"]["steps"]
+            if str(step.get("uses", "")).startswith("actions/setup-python")
+        ]
+        assert setup, "no setup-python step, so `python-version` cannot do anything"
+        assert any(
+            (step.get("with") or {}).get("python-version") == "${{ inputs.python-version }}"
+            for step in setup
+        ), "the setup-python step does not read the python-version input"
+
+    def test_a_shell_step_is_never_handed_an_env_var_it_ignores(self):
+        # Environment blocks are cheap to paste and invisible when dead. Every
+        # `env:` key on a shell step must be read by that step's own body.
+        #
+        # The pattern allows a default (`${ACTION_REF:-main}`) and the bare
+        # `$KEY` form; requiring the exact `${KEY}` spelling would fail on a
+        # perfectly good read, and a guard whose idea of "used" is narrower
+        # than the shell's is a guard that reports false alarms until somebody
+        # deletes it.
+        for step in read_action()["runs"]["steps"]:
+            env = step.get("env") or {}
+            body = step.get("run") or ""
+            for key in env:
+                pattern = re.compile(
+                    r"\$\{" + re.escape(key) + r"[:}]|\$" + re.escape(key) + r"\b"
+                )
+                assert pattern.search(body), (
+                    f"step {step.get('name')!r} declares env {key} and never reads it; "
+                    f"its body is: {body[:200]!r}"
+                )

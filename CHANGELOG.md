@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- The `citevouch` GitHub action declared a `python-version` input, passed it to
+  the install step as `PYTHON_VERSION`, and never read it: a caller pinning
+  `python-version: "3.10"` ran on whatever interpreter the runner happened to
+  provide, with no warning. A `actions/setup-python` step now honours it, and
+  three tests make the class visible - every declared input must be read by a
+  step that can act on it, and every `env:` key on a shell step must appear in
+  that step's body. The test that was supposed to cover this had a comment
+  describing the wiring it never checked.
+
 ## [0.16.2] — 2026-10-30
 ### Fixed
 

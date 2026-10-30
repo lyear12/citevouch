@@ -42,6 +42,15 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Set up Python
+      # `python-version` is declared above, so it has to select the
+      # interpreter. It used to arrive at the install step as an environment
+      # variable that the step never read: the input was advertised, forwarded,
+      # and inert, which is worse than either - `with: python-version: "3.10"`
+      # looked honoured on a runner that was still 3.12.
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
     - name: Install citevouch
       # Installed from the ref this action is pinned to, so the check that runs
       # is the check the workflow asked for. The tag is the action's own ref
@@ -51,7 +60,6 @@ runs:
       env:
         ACTION_REF: ${{ github.action_ref }}
         ACTION_REPO: ${{ github.action_repository }}
-        PYTHON_VERSION: ${{ inputs.python-version }}
       run: |
         set -euo pipefail
         ref="${ACTION_REF:-main}"

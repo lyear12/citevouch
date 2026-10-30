@@ -1375,3 +1375,29 @@ review.
 `--no-isolation` build is inside each, and the caller asserts it checked two
 jobs. Removing `setuptools` from the install line turns it red with
 `lint: runs a --no-isolation build but never installs setuptools`. Seen 1.
+
+## An input nobody reads is worse than a missing input
+
+**Rule.** Every declared input has to be read by a step whose body can honour it.
+In a composite action that means the `${{ inputs.x }}` expression appears in a
+`with:` or `run:` that acts on it - not merely in an `env:` block. Then break the
+wiring and watch the guard go red, because "the input is mentioned somewhere" is
+the assertion that let this ship.
+
+**Why.** `action.yml` declared `python-version`, piped it into the install step's
+`environment`, and no shell line ever read it. A caller writing
+`with: python-version: "3.10"` got a 3.12 runner and no warning: the option was
+advertised, forwarded, and inert. The test that should have caught it had the
+comment "`python-version` is consumed by the install step, not the run step" and
+then discarded the name from the expected set - a sentence describing an
+implementation that did not exist, protecting the one input that was broken.
+
+**Evidence.** The fix adds a `uses: actions/setup-python@v5` step reading
+`${{ inputs.python-version }}`. Three guards now cover the class:
+`test_the_python_version_input_chooses_the_interpreter` (the expression must
+reach a setup-python step's `with:`), `test_every_input_is_read_by_some_step`
+(every declared input appears as `inputs.<name>` in some step's `with`/`env`/`run`),
+and `test_a_shell_step_is_never_handed_an_env_var_it_ignores` (every `env:` key is
+referenced in its own step's body, allowing `${KEY:-default}` and `$KEY`).
+Restoring the old `action.yml` turns the first and third red; the old test stayed
+green. Seen 1.
