@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from citevouch import doctor
-from citevouch.cli import main
+from citevouch.cli import build_parser, main
 
 
 @pytest.fixture()
@@ -55,6 +55,27 @@ class TestWhatItChecks:
         # passed the wrong path already knows the file was not found.
         assert "--root" in broken[0].fix
         assert "does not exist" in broken[0].detail
+
+    def test_the_fix_names_a_command_that_actually_runs(self, tmp_path: Path):
+        """A fix line is a command the reader will paste, so it has to parse.
+
+        The first version of this message said
+        `citevouch doctor paper/manuscript.md`, and `doctor` takes no positional
+        argument: pasting it produces `error: unrecognized arguments`.  Advice
+        that fails when followed is worse than silence, because the reader
+        concludes the tool is broken rather than the sentence.
+        """
+        reports = doctor.diagnose(root=tmp_path, manuscript="nope.md")
+        broken = doctor.problems(reports)
+        assert broken and broken[0].fix, "there is no fix line to check"
+        command = re.search(r"`(citevouch [^`]+)`", broken[0].fix)
+        assert command is not None, f"the fix names no command: {broken[0].fix!r}"
+        argv = command.group(1).split()[1:]
+        parsed = build_parser().parse_args(argv)
+        assert parsed.command == "doctor"
+        assert parsed.manuscript.endswith("paper/manuscript.md"), (
+            f"the documented command would not look where the fix says: {parsed.manuscript}"
+        )
 
     def test_a_project_without_a_manifest_is_still_fine(self, tmp_path: Path):
         (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")

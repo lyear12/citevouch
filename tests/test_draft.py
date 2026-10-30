@@ -297,3 +297,83 @@ def test_the_documented_first_run_is_the_one_the_code_has(name: str) -> None:
     root = Path(__file__).resolve().parent.parent
     text = (root / name).read_text(encoding="utf-8")
     assert "citevouch draft" in text, f"{name} does not mention the command that creates blocks"
+
+
+class TestTheThresholdsAreLoadBearing:
+    """Three constants decide what is proposed; none of them had a test.
+
+    Changing `MIN_MEDIUM_TERMS` to 1 or 10, or `MIN_SENTENCE` to anything, left
+    the whole suite green.  A threshold with no test is a threshold nobody has
+    measured: the same edit that lets a weak passage through reads exactly like
+    a refactor.  These tests pin the values *and* the sentences built out of
+    them, because a constant quoted in a message and a constant used by the code
+    are two different numbers the day one of them is edited.
+    """
+
+    def test_the_medium_threshold_is_three_shared_terms(self) -> None:
+        assert draft_module.MIN_MEDIUM_TERMS == 3, (
+            "the number is quoted in the skipped-reason text and in the "
+            "proposal reason; changing it here changes what the tool claims"
+        )
+
+    # A page that shares exactly two terms ("grammar", "network") with the
+    # two-term statement and exactly three with the three-term one, so the two
+    # tests differ only in the number under test.
+    PAGE = draft_module.sources.PageText(
+        1,
+        "The grammar network is one thing here among many other words that "
+        "make this look like a real sentence.",
+        "",
+    )
+
+    def test_a_two_term_overlap_is_not_enough(self) -> None:
+        statement = "a grammar network studied elsewhere"
+        shared = draft_module.terms_of(statement) & draft_module.terms_of(self.PAGE.text)
+        assert len(shared) == 2, (
+            f"the fixture must share exactly two terms, not {sorted(shared)}"
+        )
+        assert draft_module.propose_quote(statement, [self.PAGE]) is None, (
+            "a passage sharing fewer than MIN_MEDIUM_TERMS terms must not be proposed"
+        )
+
+    def test_three_terms_clear_the_threshold(self) -> None:
+        statement = "the grammar network among constructions"
+        shared = draft_module.terms_of(statement) & draft_module.terms_of(self.PAGE.text)
+        assert len(shared) == 3, (
+            f"the fixture must share exactly three terms, not {sorted(shared)}"
+        )
+        found = draft_module.propose_quote(statement, [self.PAGE])
+        assert found is not None, "three shared terms must clear a threshold of three"
+        assert found[2] == "medium"
+
+    def test_the_shortest_quotable_sentence_is_forty_characters(self) -> None:
+        """The boundary is pinned as a number, not as a reference to itself.
+
+        The first version of this test built its strings from
+        ``MIN_SENTENCE``, so changing the constant moved the test with it and
+        the suite stayed green: a test that reads the value it is meant to
+        guard is a mirror, not a guard.
+        """
+        assert draft_module.MIN_SENTENCE == 40, (
+            "39 characters is a fragment and 40 is a sentence; if this number "
+            "changes, the docstring and the README example have to change too"
+        )
+        assert not draft_module._is_passage("a" * 39)
+        assert draft_module._is_passage("a" * 40)
+
+    def test_the_skip_reason_is_built_from_the_constant(self) -> None:
+        """The message and the behaviour have to be the same number.
+
+        A reader who is told "(3 needed)" and gets nothing proposed has to be
+        able to trust the 3.  If the string is a literal, editing the constant
+        leaves a message that describes the old rule to the next person.
+        """
+        import inspect
+
+        source = inspect.getsource(draft_module)
+        assert "MIN_MEDIUM_TERMS} needed" in source, (
+            "the skip reason must interpolate the constant, not spell it out"
+        )
+        assert '"(3 needed)"' not in source and "'(3 needed)'" not in source, (
+            "a hardcoded 3 in the message will disagree with the threshold the day one changes"
+        )

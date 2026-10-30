@@ -174,7 +174,8 @@ def _project(root: Path, manuscript: str) -> list[Report]:
                 ok=False,
                 detail=f"{target} does not exist",
                 fix=(
-                    "Pass the path you meant, e.g. `citevouch doctor paper/manuscript.md`. "
+                    "Pass the path you meant, e.g. "
+                    "`citevouch doctor --manuscript paper/manuscript.md`. "
                     "`--root` is the project directory, not the manuscript."
                 ),
             )

@@ -510,8 +510,18 @@ def _block(proposal: Proposal) -> list[str]:
     return lines
 
 
-def render(result: Draft, manuscript_name: str = "manuscript.md") -> str:
-    """The proposals file, which is also an ordinary manuscript."""
+def render(
+    result: Draft, manuscript_name: str = "manuscript.md", converted: bool = False
+) -> str:
+    """The proposals file, which is also an ordinary manuscript.
+
+    ``converted`` says the text this ran on was produced by ``latex.to_text``,
+    which drops the preamble, the comments and every environment it does not
+    model.  The line numbers in the "Not proposed" block are counted against
+    that text, so on a ``.tex`` manuscript they point at the wrong line of the
+    file the author is holding.  Saying so costs one comment line; not saying so
+    sends the reader to look at a line that holds something else.
+    """
     proposed = len(result.proposals)
     high = sum(1 for proposal in result.proposals if proposal.confidence == "high")
     out: list[str] = [
@@ -523,8 +533,14 @@ def render(result: Draft, manuscript_name: str = "manuscript.md") -> str:
         "  `citevouch scan` on this file and read the medium entries before",
         "  copying any of them into the real manuscript.",
         "-->",
-        "",
     ]
+    if converted:
+        out.append(
+            "<!-- Line numbers below count the LaTeX-converted text, not "
+            f"{manuscript_name}: the preamble, comments and unmodelled "
+            "environments were dropped before this ran. -->"
+        )
+    out.append("")
     if result.needed_sources:
         out.extend(
             [

@@ -1445,3 +1445,44 @@ message about a file that was in the repository, telling the reader to run
 now makes the ledger absolute against the workspace. The test that would have
 caught it is not an argument assertion: it runs the real CLI over the documented
 layout. Seen 1.
+
+## A promise in the changelog is a promise the suite has to be able to break
+
+**Rule.** When the changelog states that a behaviour is guaranteed — "a ledger
+pointing at either page counts as verified", "numbers on either half count as
+present" — there must be a test that fails when that behaviour is removed. A
+sentence in a document is not a commitment; a test that goes red is.
+
+**Why.** The two are written at different times by different states of mind. The
+changelog entry is written when the feature works and the author is pleased; the
+test is written when the author is tired and the suite is green. The gap between
+them is exactly the size of the disagreement a later reader will hit, and it is
+invisible from both ends, because both look finished.
+
+**Evidence.** The cross-page change shipped with a changelog paragraph naming
+two halves — a ledger pointing at either page is not `quote-moved`, and a number
+carried by either half is not `number-absent-in-quote`. Neither half had a test.
+Reverting either rule left **518 tests green**. The second one is not a missing
+nicety: it reports a `high` finding, the same severity as a fabricated citation,
+about a number the author can read on the next page. A regression there would
+have shipped silently and the changelog would have said it could not happen.
+Seen 1.
+
+## Advice that fails when followed is worse than silence
+
+**Rule.** When a diagnostic prints a command for the reader to run, that command
+must parse and do what the sentence says it does. Test it by parsing the string
+out of the message and running it through the real argument parser, not by
+matching a substring.
+
+**Why.** The reader who pastes it and gets `error: unrecognized arguments` has
+no way to tell a typo in the advice from a broken tool, and the tool is the one
+asking to be trusted about citations. The cost of the check is four lines; the
+cost of getting it wrong is that every other message becomes suspect.
+
+**Evidence.** `citevouch doctor`'s "the manuscript is not there" fix said
+`citevouch doctor paper/manuscript.md`. The command has no positional argument —
+it takes `--manuscript` — so following the advice exits 2. `tests/test_doctor.py`
+now extracts the backticked command with `re.search(r"`(citevouch [^`]+)`", ...)`
+and calls `build_parser().parse_args(...)` on it, and asserts the parsed
+`manuscript` is the path the message promised. Seen 1.

@@ -243,7 +243,8 @@ def cmd_draft(args: argparse.Namespace) -> int:
         bib.update(parsed.entries)
 
     text = manuscript.read_text(encoding="utf-8", errors="replace")
-    if latex_module.looks_like_latex(manuscript):
+    converted = latex_module.looks_like_latex(manuscript)
+    if converted:
         text = latex_module.to_text(text)
     result = draft_module.draft(
         text,
@@ -251,7 +252,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         known=discover_sources(root, args.source),
         root=root,
     )
-    text = draft_module.render(result, manuscript.name)
+    text = draft_module.render(result, manuscript.name, converted=converted)
     _write_text_lf(output, text)
     if not args.quiet:
         _emit(f"citevouch: {draft_module.summarize(result)}\n", sys.stderr)

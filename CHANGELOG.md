@@ -11,6 +11,28 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- A quote that runs across a page break is verified from either of the two pages it touches, and
+  its numbers may sit on either half. Both behaviours were promised in the changelog and neither had
+  a test: reverting the page rule or the number rule left the whole suite green, and the number one
+  reports `number-absent-in-quote` - a `high` finding - about a digit the author can read on the
+  next page with their own eyes. `tests/test_cross_page.py` now has a
+  `TestTheVerifierAgreesWithTheMatcher` class that runs `scan` and `verify` over a real two-page
+  source.
+
+### Fixed
+
+- `citevouch doctor`'s "the manuscript is not there" message suggested
+  `citevouch doctor paper/manuscript.md`, but `doctor` takes no positional argument: pasting the
+  advice produces `error: unrecognized arguments`. It now names
+  `citevouch doctor --manuscript paper/manuscript.md`, and a test parses the command out of the fix
+  line and runs it through the real parser, so advice that cannot be followed fails the suite.
+- `citevouch draft` on a `.tex` manuscript wrote `<!-- line N -->` line numbers counted against the
+  LaTeX-converted text, which drops the preamble, the comments and every unmodelled environment.
+  The reader looking for line 1 of a file whose line 1 is `% a comment` is sent to the wrong place.
+  The proposals file now says which document the numbers count, and only for input that was
+  converted.
 
 ## [0.16.5] — 2026-10-30
 ### Fixed

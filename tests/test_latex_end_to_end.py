@@ -145,3 +145,54 @@ def test_a_markdown_manuscript_is_untouched_by_the_latex_path(project: Path) -> 
     done = _run(["draft", "paper.md", "-o", "md.md"], project)
     assert done.returncode == 0, done.stdout + done.stderr
     assert "```claim" in (project / "md.md").read_text(encoding="utf-8")
+
+
+class TestTheLineNumbersSayWhatTheyCount:
+    """A `.tex` manuscript is converted before `draft` sees it.
+
+    Every line number in the proposals file is therefore an index into a text
+    the author does not have open.  The first version wrote `<!-- line 1 -->`
+    for a sentence on line 8 of a file whose first five lines are comments,
+    which sends the reader to look at a comment and concludes the tool is
+    confused.  The fix is a comment saying which document the numbers count;
+    this test is what keeps that comment alive.
+    """
+
+    TEX_WITH_PREAMBLE = r"""% a comment
+% another comment
+% a third comment
+% a fourth comment
+\documentclass{article}
+\usepackage{graphicx}
+\begin{document}
+
+The combined corpus contains 154,391 utterances \citep{smith2026cxn} and
+nobody has a file for the other key \citep{absent2025}.
+
+\end{document}
+"""
+
+    def test_the_output_says_the_numbers_count_the_converted_text(self, tmp_path: Path):
+        (tmp_path / "paper.tex").write_text(self.TEX_WITH_PREAMBLE, encoding="utf-8")
+        proc = _run(
+            ["draft", "paper.tex", "-o", "claims.md", "--force"],
+            tmp_path,
+        )
+        assert proc.returncode == 0, proc.stderr
+        written = (tmp_path / "claims.md").read_text(encoding="utf-8")
+        assert "Not proposed:" in written, f"the fixture produced no skip to label:\n{written}"
+        assert "Line numbers below count the LaTeX-converted text" in written, (
+            "the file reports line numbers for a document the author cannot open"
+        )
+        assert "not paper.tex" in written
+
+    def test_a_markdown_manuscript_gets_no_such_note(self, tmp_path: Path):
+        (tmp_path / "paper.md").write_text(
+            "# t\n\nA sentence citing [@smith2026cxn] here.\n", encoding="utf-8"
+        )
+        proc = _run(["draft", "paper.md", "-o", "claims.md", "--force"], tmp_path)
+        assert proc.returncode == 0, proc.stderr
+        written = (tmp_path / "claims.md").read_text(encoding="utf-8")
+        assert "LaTeX-converted" not in written, (
+            "markdown is not converted, so the note would be a lie"
+        )
