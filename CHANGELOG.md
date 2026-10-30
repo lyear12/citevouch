@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- `citevouch draft`: turns an existing manuscript into reviewable claim
+  blocks. It finds every Pandoc (`[@key]`) and LaTeX (`\cite{key}`)
+  citation, takes the sentence around it as the claim, resolves the key to
+  a local file (manifest, the bibliography's `file` field, or a file named
+  after the key), and proposes a real passage from the most relevant page
+  with its page number, marked `<!-- confidence: high|medium -->`. It never
+  edits the manuscript, never proposes text it did not read, never invents
+  a citation, and always exits 0: whatever it could not do is written into
+  the file as a comment. Hand-writing the first hundred blocks was the
+  largest barrier between this tool and a real manuscript.
 
 ## [0.13.0] — 2026-10-30
 ### Added

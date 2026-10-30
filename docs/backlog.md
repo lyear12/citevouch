@@ -55,7 +55,7 @@ not what changed, but what proves the change works.
 
 ## P1 — nobody can start using it
 
-- [ ] **`citevouch draft` does not exist.**
+- [x] **`citevouch draft` does not exist.**
   A real manuscript needs 100+ hand-written `claim` blocks. Anyone who is not
   already obsessive quits at the second one.
   *Who is blocked*: every prospective user with an existing manuscript.
@@ -65,6 +65,17 @@ not what changed, but what proves the change works.
   bib key → locate the passage → emit `<!-- confidence: ... -->`), never edits
   the manuscript, always exits 0, and says "no local file" rather than guessing.
   Reverse check: each new test red before, green after.
+  *Done*: `draft` exists with `-o/--force/--bib/--source/--root`; it
+  resolves a key through the manifest, a bib `file` field (Zotero
+  `:path:mime` unwrapped) or a file named after the key, and records the
+  path relative to the root so the proposal is committable. Three things
+  were only found by running it on the real papers: quotes taken out of a
+  results table (`_is_passage`), words split by the column wrap
+  (`_reflow`), and a heading glued to the sentence below it because a
+  title has no full stop (paragraph-aware `_sentences_of`). Two citations
+  of the same paper also used to get the same quote twice, which reads as
+  a tool that never looked at the second one; the second is now a comment.
+  418 tests; `tests/test_draft.py` covers each of those.
 
 - [x] **`citevouch doctor` does not exist.**
   The first failure a new user hits is "it installed but found nothing", and

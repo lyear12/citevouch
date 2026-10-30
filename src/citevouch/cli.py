@@ -26,10 +26,13 @@ from pathlib import Path
 
 from . import __version__
 from . import doctor as doctor_module
+from . import draft as draft_module
+from .bibtex import parse_bib
 from .errors import CitevouchError, UsageError
-from .model import SEVERITIES, SUPPORTED_SCHEMA, Finding, Ledger
+from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
-from .scan import ScanOptions, scan
+from .scan import ScanOptions, _resolve, scan
+from .sources import discover_sources
 from .verify import VerifyResult, verify
 
 DEFAULT_LEDGER = "citevouch.lock.json"
@@ -207,6 +210,59 @@ def cmd_check(args: argparse.Namespace) -> int:
 def _count(count: int, noun: str) -> str:
     """Write "1 claim" or "5 claims"; the message is read by people."""
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def cmd_draft(args: argparse.Namespace) -> int:
+    """Propose claim blocks for a manuscript that has none.
+
+    This is the only command that writes a file the project did not already
+    have, so the rules are strict: the output path is named by the user, an
+    existing file is never overwritten, and the manuscript itself is opened
+    read-only.  Exit 0 always - a proposal is not a verdict, and a manuscript
+    with nothing to propose is a fact about the manuscript, not an error.
+    """
+    root = Path(args.root)
+    manuscript = _resolve(root, args.manuscript)
+    if not manuscript.is_file():
+        raise UsageError(f"manuscript {manuscript} does not exist")
+    output = Path(args.output)
+    if output.exists() and not args.force:
+        raise UsageError(
+            f"{output} already exists; pass --force to replace it, or choose another -o"
+        )
+
+    bib: dict[str, BibEntry] = {}
+    for raw in args.bib:
+        bib_path = _resolve(root, raw)
+        if not bib_path.is_file():
+            raise UsageError(f"bib file {bib_path} does not exist")
+        parsed = parse_bib(
+            bib_path.read_text(encoding="utf-8", errors="replace"), str(bib_path)
+        )
+        bib.update(parsed.entries)
+
+    result = draft_module.draft(
+        manuscript.read_text(encoding="utf-8", errors="replace"),
+        bib=bib,
+        known=discover_sources(root, args.source),
+        root=root,
+    )
+    text = draft_module.render(result, manuscript.name)
+    _write_text_lf(output, text)
+    if not args.quiet:
+        _emit(f"citevouch: {draft_module.summarize(result)}\n", sys.stderr)
+        if result.needed_sources:
+            _emit(
+                f"citevouch: {len(result.needed_sources)} key(s) need a line in "
+                "sources.toml before this file can be scanned\n",
+                sys.stderr,
+            )
+        _emit(
+            f"citevouch: wrote {output}; read it, then "
+            f"`citevouch check {output}` to see what it got wrong\n",
+            sys.stderr,
+        )
+    return 0
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -458,6 +514,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="output format",
     )
     p_doctor.set_defaults(func=cmd_doctor)
+
+    p_draft = sub.add_parser(
+        "draft",
+        help="propose claim blocks for a manuscript that cites things but proves nothing",
+    )
+    p_draft.add_argument("manuscript", help="the manuscript to read (never modified)")
+    p_draft.add_argument(
+        "-o",
+        "--output",
+        default="claims.md",
+        help="where to write the proposals (default: claims.md)",
+    )
+    p_draft.add_argument("--root", default=".", help="project root (default: .)")
+    p_draft.add_argument(
+        "--source",
+        action="append",
+        default=[],
+        help="extra source file (repeatable)",
+    )
+    p_draft.add_argument(
+        "--bib", action="append", default=[], help="bibliography file (repeatable)"
+    )
+    p_draft.add_argument(
+        "--force",
+        action="store_true",
+        help="replace the output file if it already exists",
+    )
+    p_draft.add_argument("--quiet", action="store_true", help="hide the summary")
+    p_draft.set_defaults(func=cmd_draft)
     return parser
 
 

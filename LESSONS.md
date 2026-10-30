@@ -1068,3 +1068,29 @@ walks the extra and refuses a member that nothing imports or invokes, and
 `::test_every_workflow_installs_the_dev_extra` refuses a workflow that installs
 the package without it. Both are red against the old install line. Seen 1.
 
+## A candidate list is only as good as the filter in front of it
+
+**Rule.** When a command proposes something for a person to read, the ranking is
+the easy half. The filter that decides what may be proposed at all is the part
+that decides whether the output is usable, and it has to be built from outputs
+of the real command on the real inputs, not from a description of it.
+
+**Why.** `draft` first ranked every sentence on every page of a real paper by
+shared terms, and the top results were a printed results table from page 13
+(`A Grammar Report ---- ... All cxns: 40,688 ... 225`) and a figure caption
+whose words were split across the column wrap. Both are text, both were
+"relevant", both would have been pasted into a manuscript as evidence. The
+ranking was not wrong: it did exactly what it was asked. The mistake was having
+no answer to "may this be quoted at all", and that question cannot be answered
+without looking at what a PDF page actually contains.
+
+**Evidence.** Running the first draft of the command on
+`demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf` produced the
+table and the caption. `_is_passage` (length window, digit density, letter
+ratio, label:value runs) and `_reflow` (rejoin words split by the column wrap)
+were written against that output, not against imagined bad input, and
+`tests/test_draft.py::TestWhatMayBeQuoted` pins each one. The third case came
+the same way: a section heading has no full stop, so splitting on punctuation
+glued a title, its `====` rule and the sentence below it into one string, and
+the filter then rejected the whole thing - `_sentences_of` now splits on
+paragraph breaks first. Seen 1.

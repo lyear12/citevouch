@@ -182,6 +182,46 @@ extractor exists, that the cache is writable, that the interpreter is new enough
 the project names are actually there. It exits `1` when something is broken, and it is the one
 place where `1` means "your machine", not "your manuscript".
 
+### Start from a manuscript, not from an empty file
+
+Writing the first twenty claim blocks by hand is where this tool loses people. `draft` reads your
+manuscript, finds every citation, and writes a proposal file next to it:
+
+```bash
+citevouch draft manuscript.md --root . -o claims.md
+```
+
+```text
+citevouch: 1 claim block(s) proposed (0 verbatim), 2 citation(s) left as comments
+```
+
+Each proposal is a real sentence from the most relevant page of the file that citation resolves to,
+with the page it came from, so `scan` and `verify` accept it immediately:
+
+```markdown
+<!-- confidence: medium - the best sentence on the most relevant page (4 shared terms); read it before trusting the claim -->
+```claim id=vaneecke2026cxn source=vaneecke2026cxn page=5
+quote: |
+  When more links are later added to the grammar network as more training examples are processed,
+  the same tell.01 construction can be reused in combination with other frame-evoking or argument
+  structure constructions to process utterances such as “Ah, why should you come out if you were
+  told not to?
+claim: |
+  Construction grammar treats a grammar as a network of constructions, and this network is learned
+  from data rather than written by hand.
+```
+```
+
+Three things it will not do, and says so in the file instead: it never edits your manuscript, never
+proposes a sentence it did not read from the page, and never invents a citation. Keys with no local
+file come back as comments explaining what to add; a citation whose best passage is already proposed
+for an earlier one comes back as a comment too, rather than the same quote twice. `high` confidence
+means your own sentence appears verbatim in the source — that case needs no judgement. `medium`
+means a real sentence on the right page that you still have to read.
+
+To bind keys the bibliography already knows about, pass `--bib refs.bib`. A Zotero `file` field is
+used when the key is not in `sources.toml`, and the file prints the `[sources]` line to paste.
+
 ### Three claim dialects
 
 Fenced blocks (above), HTML comments, and table rows. Pick whichever survives your editor.

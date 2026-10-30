@@ -158,6 +158,44 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 它查抽取器在不在、缓存能不能写、解释器够不够新、项目点名的文件到底在不在。有问题时它退 `1`，
 而这是全工具唯一一处 `1` 表示「你的机器有问题」而不是「你的稿子有问题」。
 
+### 从稿件开始，而不是从一个空文件开始
+
+手工写前二十条 claim 块，就是这个工具把人劝退的地方。`draft` 读你的稿件，找出每一处引用，
+在稿件旁边写一份提案文件：
+
+```bash
+citevouch draft manuscript.md --root . -o claims.md
+```
+
+```text
+citevouch: 1 claim block(s) proposed (0 verbatim), 2 citation(s) left as comments
+```
+
+每一条提案都是那条引用解析到的那份文件里、最相关的那一页上的一句真实原文，带上它的页码，
+所以 `scan` 和 `verify` 立刻就能收下它：
+
+```markdown
+<!-- confidence: medium - the best sentence on the most relevant page (4 shared terms); read it before trusting the claim -->
+```claim id=vaneecke2026cxn source=vaneecke2026cxn page=5
+quote: |
+  When more links are later added to the grammar network as more training examples are processed,
+  the same tell.01 construction can be reused in combination with other frame-evoking or argument
+  structure constructions to process utterances such as “Ah, why should you come out if you were
+  told not to?
+claim: |
+  Construction grammar treats a grammar as a network of constructions, and this network is learned
+  from data rather than written by hand.
+```
+```
+
+有三件事它不做，而且会写在文件里而不是偷偷做：不改你的稿件，不提出它没从那一页读到的句子，
+不发明引用。找不到本地文件的 key 会变成一行注释，说明该补什么；某条引用的最佳段落已经被前面
+一条引用用掉时，也是一行注释，而不是把同一段引文写两遍。`high` 置信度表示你自己那句话在原文里
+逐字存在——这种情况不需要判断；`medium` 表示右侧页面上的真实句子，但你仍然得读一遍。
+
+书目里已经知道对应文件的 key，传 `--bib refs.bib`。key 不在 `sources.toml` 里时，Zotero 的
+`file` 字段会被用上，并且文件里会把该粘进 `[sources]` 的那一行写出来。
+
 ### 三种 claim 方言
 
 围栏块（上面那种）、HTML 注释、表格行。挑一种在你的编辑器里活得下来的：
