@@ -1278,3 +1278,26 @@ which walks the repository for markdown that carries a pin and fails if
 `stray.md`, which turned it red). The tag `v0.16.1` was repaired by moving the
 release commit onto a tree whose pins already said 0.16.1 and force-updating the
 tag, because nothing had been published under it. Seen 1.
+
+## The archive claims to ship a suite, so it ships what the suite reads
+
+**Rule.** If `MANIFEST.in` grants `tests/`, it also grants every file those tests
+open - by rule, not by name. `graft tests` is a promise about inputs, not just
+about test files.
+
+**Why.** `citevouch-0.16.1.tar.gz` was published with `graft tests` and without
+`tools/`, `.pre-commit-hooks.yaml`, `action.yml`, `.github/`, `docs/img/` and
+`demo/papers/`. Unpacking the released archive and running its own suite gave
+**56 failures and 3 errors** - 27 after the first repair, 2 after the second.
+The demo was worst: without its papers `demo/manuscript.md` reports five
+`source-missing` findings, every claim red, for a reason that is about the
+archive rather than the manuscript. Nobody notices this from the repository,
+because the repository has every file. The release workflow smoked-tested the
+wheel and never looked at the tarball.
+
+**Evidence.** `tests/test_sdist_contents.py` walks the suite with `ast` -
+including paths built as `ROOT / "tools" / "x.py"`, which is how tests name most
+files and which a scan for slashes in string constants misses entirely (it found
+14 paths instead of 44). Verified by restoring the old `MANIFEST.in` and
+rebuilding: three tests go red. `test.yml`'s `sdist` job unpacks the published
+archive and requires exactly two skips. Seen 1.

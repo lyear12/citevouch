@@ -74,9 +74,30 @@ def _tracked(repo: Path) -> list[str]:
     return [line for line in out.split("\n") if line]
 
 
+def _is_checkout() -> bool:
+    """Whether this tree is a git checkout, which is what the script measures.
+
+    An unpacked sdist is a real copy of the source with no `.git`, and the
+    script answers it correctly: exit 2, "no tracked files to check; is this a
+    checkout?".  Two tests below assert a file count, which is not a meaningful
+    question in a tree that has no tracked files - so they skip there, and only
+    there.  Inside the repository they must still run: a skip on CI would turn
+    the guard into decoration.
+    """
+    inside = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return inside.returncode == 0 and inside.stdout.strip() == "true"
+
+
 def test_the_script_exists_and_is_tracked() -> None:
     """A script the checkout does not carry is a script CI cannot run."""
     assert SCRIPT.is_file()
+    if not _is_checkout():
+        pytest.skip("not a git checkout: nothing is tracked here to look for")
     out = subprocess.run(
         ["git", "ls-files", "--", "tools/format_check.sh"],
         cwd=ROOT,
@@ -88,6 +109,11 @@ def test_the_script_exists_and_is_tracked() -> None:
 
 def test_it_reports_the_number_of_tracked_files_ruff_accepts() -> None:
     result = _run(ROOT)
+    if not _is_checkout():
+        # The script is still worth running here: it must refuse, not claim zero.
+        assert result.returncode == 2
+        assert "no tracked files to check" in result.stderr
+        pytest.skip("not a git checkout: the count has no meaning without one")
     assert result.returncode == 0, result.stderr
     reported = _reported(result.stdout, result.stderr)
     assert reported, (result.stdout, result.stderr)

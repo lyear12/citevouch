@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The source archive now carries every file its own test suite reads. `MANIFEST.in`
+  said `graft tests` and shipped `tests/` without `tools/`, `.pre-commit-hooks.yaml`,
+  `action.yml`, `.github/`, `docs/img/`, or `demo/papers/`. Unpacking the published
+  `citevouch-0.16.1.tar.gz` and running `pytest` gave **56 failures and 3 errors**;
+  the demo alone reported five `source-missing` findings, which reads as a broken
+  tool rather than a partial archive. The demo now ships whole, papers included.
+  `tests/test_sdist_contents.py` reads the suite with `ast`, collects every path it
+  names, and fails if the archive is missing one - a rule, not a list of names, so
+  a new test that reads a new directory is covered by the same rule.
+- Two tests that count tracked files now skip themselves in a tree with no `.git`
+  and say why. The script they exercise already answered an unpacked archive
+  correctly (exit 2, "no tracked files to check; is this a checkout?"); the tests
+  were demanding a count that has no meaning there. `test.yml` gained an `sdist`
+  job that unpacks the archive, runs its suite, and requires the skip count to be
+  exactly the two that are designed to skip - a suite that goes quiet is the
+  failure mode a skip-count guard exists to catch.
 
 ## [0.16.1] — 2026-10-30
 ### Fixed

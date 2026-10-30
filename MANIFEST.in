@@ -5,13 +5,31 @@
 graft tests
 include LICENSE README.md README.zh-CN.md CHANGELOG.md LESSONS.md AGENTS.md
 recursive-include docs *.md
-recursive-include demo *.md *.toml *.lock.json
 
-# The demo PDFs are real papers included with their licences under
-# demo/papers/README.md. They stay out of the sdist because the demo is part of
-# the repository, not of the installed package, and 650 KB of PDF in a source
-# archive is weight a reader of the source does not need.
-prune demo/papers
+# The archive claims to ship a test suite, which is a promise about inputs, not
+# only about test files. Unpacking a released sdist and running its own tests
+# found 56 failures and 3 errors: `tools/` was missing (test_next_version,
+# test_check_repo_rules, test_figures read it), `.pre-commit-hooks.yaml` was
+# missing (test_precommit parses it), and the demo papers were pruned
+# (test_demo_fixture, test_cross_page_real read them). Each is a file this
+# project owns, so each belongs here.
+graft tools
+include .pre-commit-hooks.yaml
+include action.yml
+
+# The rest of what the suite reads. These are not decoration: test_action.py
+# parses action.yml, test_critic_round6/7 read the workflows, test_figures reads
+# the two PNGs and the sidecar. Shipping the tests without them means shipping
+# 27 failures to anyone who audits a release.
+graft .github
+recursive-include docs/img *.png *.txt *.md
+
+# The demo ships whole, papers included. Half a demo is worse than none: without
+# its papers `demo/manuscript.md` reports five `source-missing` findings, which
+# reads as a broken tool rather than a partial archive. The papers are real and
+# their licences are recorded in demo/papers/README.md. They add ~650 KB to an
+# archive that people download once to audit and build.
+recursive-include demo *.md *.toml *.lock.json *.pdf
 
 # Compiling the test suite leaves bytecode in the tree, and `graft tests` would
 # put interpreter- and version-specific .pyc files into the archive. They are

@@ -164,3 +164,46 @@ jobs:
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
           NO_PROXY: ""
+
+  sdist:
+    name: sdist (the archive as published, unpacked and tested)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]" build
+
+      # The release workflow smoke-tests the wheel and never looks at the
+      # sdist, so for a while the source archive shipped `graft tests` without
+      # the files those tests read. Unpacking a released 0.16.1 gave 56
+      # failures and 3 errors. Nobody notices that from the repository, because
+      # the repository has every file.
+      - name: build the archive and run its own suite
+        run: |
+          python -m build --sdist --no-isolation
+          mkdir -p /tmp/unpacked
+          tar xzf dist/*.tar.gz -C /tmp/unpacked
+          cd /tmp/unpacked/citevouch-*
+          PYTHONPATH=src python -m pytest
+
+      # Two tests count tracked files, which has no meaning outside a checkout,
+      # so they skip themselves there by design. A skip is also how a suite goes
+      # quiet, so count them and require the number that was designed for.
+      - name: only the two documented skips may be skipped
+        run: |
+          mkdir -p /tmp/unpacked2
+          tar xzf dist/*.tar.gz -C /tmp/unpacked2
+          cd /tmp/unpacked2/citevouch-*
+          PYTHONPATH=src python -m pytest -rs > /tmp/sdist.log 2>&1 || {
+            cat /tmp/sdist.log
+            echo "::error::the unpacked archive's suite failed; see above"
+            exit 1
+          }
+          skipped=$(grep -c "^SKIPPED" /tmp/sdist.log || true)
+          if [ "$skipped" != "2" ]; then
+            grep "^SKIPPED" /tmp/sdist.log || true
+            echo "::error::expected exactly 2 skips in an unpacked sdist, found $skipped"
+            exit 1
+          fi
