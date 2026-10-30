@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.14] — 2026-10-30
 ### Fixed
 
 - **`doctor` reports a machine problem under its own code, not a source
@@ -26,7 +28,6 @@ tag and that file disagree.
   commit corrects the docstring on `doctor.findings()`, which claimed to exist
   for `--format json` - that branch carries every check, passing or not, and
   never calls it.
-
 ## [0.19.13] — 2026-10-30
 ### Fixed
 
@@ -1209,7 +1210,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.13...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.14...HEAD
+[0.19.14]: https://github.com/lyear12/citevouch/releases/tag/v0.19.14
 [0.19.13]: https://github.com/lyear12/citevouch/releases/tag/v0.19.13
 [0.19.12]: https://github.com/lyear12/citevouch/releases/tag/v0.19.12
 [0.19.11]: https://github.com/lyear12/citevouch/releases/tag/v0.19.11
