@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.13] — 2026-10-30
 ### Fixed
 
 - **`draft` names the files it could not read, instead of reporting a clean
@@ -24,8 +25,6 @@ tag and that file disagree.
   that any citation in them is missing from the blocks below.
   The includes are still not followed: that is a design change, and it is
   not made here.
-
-
 ## [0.19.12] — 2026-10-30
 ### Fixed
 
@@ -1195,7 +1194,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.12...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.13...HEAD
+[0.19.13]: https://github.com/lyear12/citevouch/releases/tag/v0.19.13
 [0.19.12]: https://github.com/lyear12/citevouch/releases/tag/v0.19.12
 [0.19.11]: https://github.com/lyear12/citevouch/releases/tag/v0.19.11
 [0.19.10]: https://github.com/lyear12/citevouch/releases/tag/v0.19.10
