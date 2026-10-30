@@ -104,6 +104,21 @@ def test_entities_are_decoded_after_the_tags_are_gone():
     assert sources._strip_markup("<p>a&amp;b &lt;tag&gt; c</p>").strip() == "a&b <tag> c"
 
 
+def test_a_less_than_in_prose_is_not_a_tag():
+    """Every `<...>` used to be a tag, so "5 < 7 and 8 > 2" came back as "5 2".
+
+    A manuscript quoting that sentence against an html source then reported
+    `quote-missing` against a page that plainly contains it.  An operator in
+    prose is text; only a `<` that starts the way a tag starts begins one.
+    """
+    assert sources._strip_markup("5 < 7 and 8 > 2").strip() == "5 < 7 and 8 > 2"
+    assert (
+        sources._strip_markup("ratio 5 < 7 and <b>bold</b>").strip() == "ratio 5 < 7 and bold"
+    )
+    # `<!--` and `<!doctype>` are still tags: `!` is a name start.
+    assert sources._strip_markup("<!doctype html><p>x</p>").strip() == "x"
+
+
 def test_a_greater_than_inside_an_attribute_does_not_end_the_tag():
     """`>` is legal inside a quoted attribute value.  A `<[^>]+>` regex stops at
     the first one and leaves `b">` glued to the page text, so the sentence an

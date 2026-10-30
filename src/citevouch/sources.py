@@ -283,10 +283,14 @@ def extract_pages(
     return pages, None
 
 
-# A naive `<[^>]+>` stops at the first `>`, and `>` is legal inside a quoted
-# attribute value - `<a title="a > b">` would leave `b">` in the page text and
-# the sentence an author quoted would be searched for in the wrong string.
-_TAG = re.compile(r"<(?:[^<>\"']|\"[^\"]*\"|'[^']*')*?>")
+# Two things this has to get right.  `>` is legal inside a quoted attribute
+# value, so `<a title="a > b">` must not end at the first one - a naive
+# `<[^>]+>` left `b">` glued to the page text.  And a `<` in prose is not the
+# start of a tag: matching every `<...>` turned "5 < 7 and 8 > 2" into "5 2",
+# so a sentence an author quoted came back `quote-missing` against a page that
+# contains it.  A tag starts with a name character, `/`, `!` or `?`, and that is
+# the whole rule.
+_TAG = re.compile(r"<(?:[a-zA-Z/!?](?:[^<>\"']|\"[^\"]*\"|'[^']*')*?)>")
 
 
 def _strip_markup(text: str) -> str:

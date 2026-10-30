@@ -12,6 +12,14 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A `<` in prose is no longer treated as the start of a tag.
+  `_strip_markup` matched every `<...>`, so "5 < 7 and 8 > 2" came back as
+  "5 2" and a manuscript quoting that sentence against an html source reported
+  `quote-missing` on a page that contains it. A tag now has to start with a
+  name character, `/`, `!` or `?`.
+
 ## [0.10.1] — 2026-10-30
 ### Fixed
 
