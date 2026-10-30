@@ -74,7 +74,19 @@ def _safe_console() -> None:
 
 
 def _exit_code(findings: list[Finding], fail_on: str) -> int:
+    """0 when nothing reaches the threshold, 1 when something does.
+
+    ``quote-fuzzy`` is the one code that fails on its own regardless of
+    ``--fail-on``. AGENTS.md ground rule 2 says a fuzzy match "must never exit
+    0 on its own", and that sentence was true of the severity table and false
+    of the code: a quote that is only approximately present was a medium, so
+    ``--fail-on high`` (the default) returned success on a claim the tool had
+    just said it could not verify. A check whose whole purpose is "a human must
+    look at this" cannot report success while nobody has looked.
+    """
     threshold = RANK[fail_on]
+    if any(f.code == "quote-fuzzy" for f in findings):
+        return 1
     return 1 if any(RANK.get(f.severity, 0) >= threshold for f in findings) else 0
 
 
@@ -118,6 +130,14 @@ def _read_ledger(path: Path) -> Ledger:
             f"ledger {path} is schema {schema}, newer than this citevouch "
             f"(understands up to {SUPPORTED_SCHEMA}); upgrade citevouch to read it"
         )
+    if schema < 1:
+        # Schema numbers are 1-based. 0 or a negative means the field was
+        # written by something that is not this tool, and guessing which
+        # generation of neither is not a service to anyone.
+        raise UsageError(
+            f"ledger {path} has schema {schema}; schemas start at 1, so this file "
+            "was not written by citevouch - re-record it with `citevouch scan`"
+        )
     return Ledger.from_json(blob)
 
 
@@ -157,7 +177,16 @@ def cmd_check(args: argparse.Namespace) -> int:
         result = verify(ledger, options, check_manuscript_hash=False)
         # Scan findings come first: a claim that could not be bound to a source
         # explains why the verification below it says nothing about that claim.
-        result.findings = scan_findings + result.findings
+        # One finding per (code, claim) pair, because the same unreadable PDF is
+        # discovered by the scan pass and again by the verify pass, and a reader
+        # shown the identical line twice learns nothing and trusts the list less.
+        combined = scan_findings + result.findings
+        seen: set[tuple[str, str]] = set()
+        result.findings = [
+            f
+            for f in combined
+            if not ((f.code, f.claim_id) in seen or seen.add((f.code, f.claim_id)))
+        ]
     _emit(_render(result.findings, ledger, args, result))
     return _exit_code(result.findings, args.fail_on)
 
@@ -258,6 +287,13 @@ def _render(
     result: VerifyResult | None = None,
 ) -> str:
     fmt = args.format
+    if args.quiet:
+        # `--quiet` means "I only want the things that are wrong", and that
+        # sentence is format-independent. It used to be honoured by the text
+        # renderer alone, so `--quiet --format sarif` uploaded the info-level
+        # findings into code scanning and the flag did nothing where it was
+        # most likely to be used (a CI gate).
+        findings = [f for f in findings if f.severity not in ("info", "low")]
     if fmt == "json":
         return render_json(findings, ledger, result)
     if fmt == "sarif":

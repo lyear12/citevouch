@@ -85,20 +85,39 @@ def squash(text: str) -> str:
     return re.sub(r"\s+", "", fold(text))
 
 
+# Two number patterns, on purpose, and one test that pins their relation.
+#
+# REPORT_PATTERN is what a manuscript *asserts*: `numbers_in` and therefore
+# `Claim.numbers` and the ledger. A space is not a thousands separator there -
+# "2019 2020 2021" is three years, not the garbage tokens "2019 202",
+# "0 202", "1" that a space-tolerant scan produces. The ledger must never
+# record a number nobody wrote.
+#
+# MASK_PATTERN additionally accepts a space (and a non-breaking space) between
+# digit triples, and exists only to blank digits out when comparing words in
+# the numbers tier. Two documents agreeing except on digits must match even
+# when one wrote "1,000" and the other's PDF extraction shows "1 000"; there,
+# over-masking is harmless because the masked span is discarded either way.
+REPORT_PATTERN = re.compile(r"\d+(?:[,\u00a0]\d{3})*(?:\.\d+)?%?")
+MASK_PATTERN = re.compile(r"\d+(?:[, \u00a0]\d{3})*(?:\.\d+)?%?")
+
+
 def numbers_in(text: str) -> tuple[str, ...]:
     """Every number the text asserts, in order, as written.
 
-    Handles thousands separators, decimals, percent signs and ranges, so
-    "40,688", "48.4%" and "154,391" come back verbatim.  Year-like values are
-    kept: a manuscript that says 2019 and a source that says 2018 is exactly
-    the kind of drift this tool exists to catch.
+    Handles thousands separators, decimals and percent signs, so "40,688",
+    "48.4%" and "154,391" come back verbatim.  Year-like values are kept: a
+    manuscript that says 2019 and a source that says 2018 is exactly the kind
+    of drift this tool exists to catch.  A bare space is not a separator here -
+    see the REPORT/MASK split above.
     """
     if not text:
         return ()
-    pattern = re.compile(r"\d+(?:[,\u00a0]\d{3})*(?:\.\d+)?%?")
-    return tuple(m.group(0) for m in pattern.finditer(text))
+    return tuple(m.group(0) for m in REPORT_PATTERN.finditer(text))
 
 
 def canonical_number(token: str) -> str:
     """Strip separators and percent so 1,000 / 1000 / 1 000 compare equal."""
-    return token.replace(",", "").replace("\u00a0", "").replace("%", "").strip()
+    return (
+        token.replace(",", "").replace("\u00a0", "").replace("%", "").replace(" ", "").strip()
+    )

@@ -2,8 +2,8 @@
   "schema": 1,
   "manuscript": "demo/manuscript.md",
   "manuscript_sha256": "7538ba9bf125ee90d50f723bc2b07aa4e986e5d9975e155a1a57ef6eed56cd4a",
-  "generated_at": "2026-10-28T15:37:53+00:00",
-  "tool_version": "0.1.0",
+  "generated_at": "2026-10-30T05:09:36+00:00",
+  "tool_version": "0.4.1",
   "sources": {
     "vaneecke2026cxn": {
       "key": "vaneecke2026cxn",

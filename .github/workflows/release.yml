@@ -80,11 +80,14 @@ jobs:
             echo "tag_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Tag and pyproject must agree
+      - name: Tag and the declared version must agree
         run: |
-          declared=$(python -c "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          # The declaration is src/citevouch/_version.py; pyproject.toml reads it
+          # through [tool.setuptools.dynamic]. Check the source of truth, not a
+          # copy of it that could be stale.
+          declared=$(python -c "import sys;sys.path.insert(0,'src');from citevouch._version import __version__;print(__version__)")
           if [ "$declared" != "${{ steps.v.outputs.version }}" ]; then
-            echo "::error::releasing ${{ steps.v.outputs.version }} from $(git rev-parse --short HEAD) but pyproject.toml there says $declared"
+            echo "::error::releasing ${{ steps.v.outputs.version }} from $(git rev-parse --short HEAD) but src/citevouch/_version.py there says $declared"
             exit 1
           fi
 

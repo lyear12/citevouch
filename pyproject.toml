@@ -9,7 +9,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "citevouch"
-version = "0.4.1"
+# The version lives in src/citevouch/_version.py and nowhere else. Keeping it
+# here as a literal too meant two places to edit, and the one nobody remembered
+# - the package's own __version__ - drifted four releases behind, so
+# `citevouch --version`, the SARIF driver version and every ledger's
+# tool_version all claimed 0.1.0 while the wheel was 0.4.1. A version number
+# that is written down twice is a version number that is wrong once.
+dynamic = ["version"]
 description = "Bind every claim in a manuscript to the page of the local PDF that proves it, and fail CI when that evidence drifts."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -52,6 +58,9 @@ citevouch = "citevouch.cli:main"
 [tool.setuptools]
 package-dir = { "" = "src" }
 
+[tool.setuptools.dynamic]
+version = { attr = "citevouch._version.__version__" }
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -65,4 +74,15 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "RUF", "BLE"]
-ignore = ["E501"]
+ignore = [
+  "E501",
+  # RUF001/RUF002/RUF003 warn about "ambiguous" Unicode - a fullwidth colon,
+  # an en dash - because they look like a typo in a Latin document. In this
+  # project those characters are the input: the tool reads Chinese manuscripts
+  # where `：` and `。` are correct orthography, and the tests quote them on
+  # purpose. Silencing the rule here is the difference between "the linter
+  # understands the domain" and "the domain has to be spelled wrong to pass".
+  "RUF001",
+  "RUF002",
+  "RUF003",
+]

@@ -53,12 +53,17 @@ worst severity: high
 | `source-changed` | medium | PDF 与账本记录的那份字节不同 |
 | `source-missing` | high | 账本要的那份 PDF 找不到了 |
 | `source-unreadable` | high | PDF 在，但抽不出文本 |
-| `page-out-of-range` | high | 页码超出了文档总页数 |
+| `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
 | `bib-key-missing` | high | claim 引用的书目键不存在 |
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
 | `bib-duplicate-key` | high | 两个条目共用一个键 |
-| `bib-field-empty` | medium | 必填字段存在但为空 |
+| `bib-unparsed-entry` | high | 有条目定界符始终未闭合，它之后的条目全部读不到 |
+| `bib-entry-header-unparsed` | medium | 条目之间残留了读不到的文本，或 `@` 头不是可用条目 |
+| `bib-field-malformed` | medium | 某字段无法读取；该条目的其余字段仍会继续解析 |
+| `bib-field-duplicate` | medium | 同一条目里同一字段出现两次（字段名不分大小写）；保留首个值 |
+| `bib-macro-unknown` | medium | 字段引用了尚未定义的 `@string` 宏；宏名按字面保留 |
+| `bib-field-empty` | medium | 必填字段为空或缺失 |
 | `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块 |
 
 退出码就是 CI 契约：没有任何发现达到 `--fail-on`（默认 `high`）时返回 `0`，达到时返回 `1`，用法错误返回 `2`。CI 里不需要任何包装逻辑。

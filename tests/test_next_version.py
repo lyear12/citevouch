@@ -253,12 +253,8 @@ def test_this_repository_changelog_parses():
     bump, _sections = nv.classify(text)
     assert bump in {"none", "patch", "minor"}
 
-    declared = (repo / "pyproject.toml").read_text(encoding="utf-8")
-    import re
-
-    found = re.search(r'(?m)^version\s*=\s*"([^"]+)"', declared)
-    assert found, "pyproject.toml has no version"
-    assert nv._VERSION.match(found.group(1)), "the declared version is not MAJOR.MINOR.PATCH"
+    found = _declared_version(repo)
+    assert nv._VERSION.match(found), "the declared version is not MAJOR.MINOR.PATCH"
 
 
 # --------------------------------------------------------------------------
@@ -431,18 +427,30 @@ def test_apply_keeps_links_consistent_on_a_real_shaped_changelog(tmp_path):
     assert "example.invalid" not in links  # the stale block is gone, not amended
 
 
-def test_the_repository_changelog_and_pyproject_stay_consistent():
-    """A guard on the real files that cannot break when they change: pyproject's
-    version must name a release heading that exists in CHANGELOG.md, and the
-    link block must carry a link for it. True before and after every release,
-    because both halves move together by construction of `--apply`."""
-    repo = Path(__file__).resolve().parent.parent
-    import re
+def _declared_version(repo: Path) -> str:
+    """The version this checkout would build, read the way setuptools reads it.
 
-    declared = re.search(
-        r'(?m)^version = "([^"]+)"',
-        (repo / "pyproject.toml").read_text(encoding="utf-8"),
-    ).group(1)
+    Added when the declaration moved out of ``pyproject.toml``: a test that
+    greps a file for ``version = "..."`` stops testing anything the moment the
+    file stops having one, and these two tests read the real repository. They
+    now ask the package itself, which is the same attribute
+    ``[tool.setuptools.dynamic]`` names.
+    """
+    import sys
+
+    sys.path.insert(0, str(repo / "src"))
+    from citevouch._version import __version__
+
+    return __version__
+
+
+def test_the_repository_changelog_and_pyproject_stay_consistent():
+    """A guard on the real files that cannot break when they change: the
+    declared version must name a release heading that exists in CHANGELOG.md,
+    and the link block must carry a link for it. True before and after every
+    release, because both halves move together by construction of `--apply`."""
+    repo = Path(__file__).resolve().parent.parent
+    declared = _declared_version(repo)
     text = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
     assert f"## [{declared}]" in text, f"{declared} is declared but not in the changelog"
     assert f"[{declared}]: {nv.REPO_URL}/releases/tag/v{declared}" in text

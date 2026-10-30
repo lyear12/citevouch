@@ -30,14 +30,49 @@ CODES = {
     "bib-key-missing": "high",
     "bib-key-unused": "info",
     "bib-field-empty": "medium",
+    "bib-field-malformed": "medium",
+    "bib-field-duplicate": "medium",
     "bib-duplicate-key": "high",
     "bib-doi-mismatch": "medium",
+    "bib-macro-unknown": "medium",
+    "bib-entry-header-unparsed": "medium",
+    "bib-unparsed-entry": "high",
     "page-out-of-range": "high",
     "claim-without-evidence": "low",
     "ledger-stale": "high",
 }
 
 _SEVERITY_RANK = {name: i for i, name in enumerate(SEVERITIES)}
+
+
+def _as_page(value: Any) -> int | None:
+    """Coerce a ledger ``page`` value to an int page number, or None.
+
+    Hand-edited and half-written ledgers happen, and the one thing that must
+    not happen is a type error escaping as exit code 1 - 1 is reserved for
+    "findings reached the threshold" and a crash there is indistinguishable
+    from a verdict.  ``"3"`` is accepted (JSON has one number type and tooling
+    sometimes quotes it); a float is truncated; anything else becomes None,
+    which the callers treat as "no page hint" and then report against the
+    claim's own text instead of comparing incompatible types.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if text.lstrip("+-").isdigit():
+            return int(text)
+        try:  # "3.0" - a quoted float is still a page number
+            number = float(text)
+        except ValueError:
+            return None
+        return int(number) if number.is_integer() else None
+    return None
+
 
 # The ledger format this code writes and the highest format it can read.  One
 # number, owned here: a future version that changes the ledger shape raises
@@ -263,7 +298,7 @@ class Ledger:
                     text=str(raw.get("text", "")),
                     source=str(raw.get("source", "")),
                     quote=str(raw.get("quote", "")),
-                    page=raw.get("page"),
+                    page=_as_page(raw.get("page")),
                     path=str(raw.get("path", "")),
                     line=int(raw.get("line", 0) or 0),
                     marker=str(raw.get("marker", "")),

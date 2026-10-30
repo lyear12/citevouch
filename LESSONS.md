@@ -392,3 +392,96 @@ v0.3.0 - with regenerated links and re-pointed README pins - so the repository w
 test was the only thing broken. Now the test builds its own stale-block changelog in `tmp_path`, and
 the guard that does read the real files asserts only an invariant that survives every release:
 pyproject's version has a heading and a link. Seen 1.
+
+---
+
+## A rewrite of a fix is a second chance to make the original mistake
+
+**Rule.** When repairing a class of silent failure, write the "well-formed input
+stays silent" test first and run it on the finished code - the new silence is as
+dangerous as the old one, and rewrites are where it hides.
+
+**Why.** The critic round found that the `%`-comment rule (fixed once for braces,
+LESSONS "Fix the class, not the sample") had been re-broken in the very commit
+that fixed five sibling silences: the rewritten comment scanner applied the old
+`depth == 0` test inside entries too, so `note = "78.5% above CRF"` in a
+paren-delimited entry still cut the line. An agent mid-refactor carries the
+previous fix's assumptions forward without noticing they stopped applying.
+
+**Evidence.** `tests/test_critic_round1.py::test_paren_entry_percent_survives_and_next_entry_is_read`
+and `::test_wellformed_bibliography_stays_silent` failed on the first draft of
+the fix itself, before it was committed; both pass now, and the 39-entry real
+bibliography parses to 39 entries with zero findings. Seen 1.
+
+---
+
+## A comment describing an absent fallback is worse than no comment
+
+**Rule.** When you find a docstring promising a behaviour, check whether the code
+does it before you rely on the docstring - and when it does not, delete the
+promise rather than writing the feature to match it, unless a test already
+depends on it.
+
+**Why.** `discover_sources` had a docstring describing four resolution steps:
+`--source` paths, the manifest, "any file whose stem equals the key", then "the
+longest stem the key starts with". The body implemented two. The two missing
+steps were not a forgotten feature, they were a bad idea that had been written
+down as though it shipped: binding a claim to a PDF because the filenames share
+a prefix is the exact inference this tool refuses to make, because a wrong
+automatic binding produces a confident `quote-found` against the wrong paper and
+the author never learns the page number came from somewhere else. The comment
+was load-bearing in a second way too - a reader repairing the module would have
+"restored" the fallback, and the bug it introduced would have looked like a
+feature. Now the docstring says what is excluded and why, and `source-missing`
+names the near misses on disk so the fix is a paste without the tool deciding.
+
+**Evidence.** Found while writing the round-2 regression tests: four new tests
+failed with `source-missing` because they bound `source=src` and wrote
+`src.txt`, expecting the documented stem match. The code was right and the
+documentation was fiction; `load_manifest`'s docstring carried the same claim
+("falling back to filename-stem resolution is almost always right") and so did
+`_mini_toml`'s. All three now describe the behaviour that exists. Seen 1.
+
+---
+
+## A test that reads state it does not own races the repository
+
+**Rule.** A test may build a fixture and read it back; it may not read a live
+project file and assert what that file currently says.
+
+**Why.** The release-machinery test read the real `CHANGELOG.md` and asserted
+the next bump would be a patch. The file legitimately held an `Added` entry, so
+the assertion became false the moment the changelog described a feature, and all
+eight matrix cells went red for a change that was correct. The distinguishing
+feature of this failure is that it is not flaky: it is unconditional and
+delayed, which makes it read as a real regression to whoever sees it first. The
+replacement builds a changelog with the same shape in `tmp_path`, and a separate
+invariant test guards the real files with assertions that survive every release.
+
+**Evidence.** Run 40842840982, all eight cells red on
+`assert '## [0.2.3] — 2026-11-01' in ...` while the tool correctly printed
+`0.3.0`. Seen 1.
+
+---
+
+## The rule you write in the contract is not in force until something executes it
+
+**Rule.** When the project states a rule about its own code - in AGENTS.md, in a
+docstring, in a review checklist - either a test or a script enforces it, or it
+is a wish.
+
+**Why.** AGENTS.md rule 2 said a fuzzy match "must never exit 0 on its own". It
+was true of the severity table (`quote-fuzzy` is medium) and false of the
+programme, because the default `--fail-on` is `high`: the tool reported a claim
+it had just said it could not verify, and returned success. Separately, every
+rule in the repository's own contributor contract (the three evidence sections
+in a commit message; lessons seen three times must be promoted into the standards
+document) sat in prose with nothing reading it - the promotion debt had already
+accumulated when the script was finally written. A rule with no executor is a
+rule that holds only where someone remembered it.
+
+**Evidence.** `citevouch verify` on a fuzzy-matched claim exited 0 at the
+default threshold; the fix is a single early return in `_exit_code`, and the
+regression test is `tests/test_critic_round2.py::test_a_fuzzy_match_fails_even_at_fail_on_high`.
+`tools/check_repo_rules.py` (added in 0.3.0) found a real promotion debt on its
+first run. Seen 2.

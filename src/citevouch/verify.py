@@ -54,7 +54,46 @@ def verify(
     # The ledger is a claim about a specific text.  If the text changed, the
     # ledger is not wrong, it is stale — and saying so beats silently verifying
     # claims that no longer exist in the manuscript.
-    if check_manuscript_hash and manuscript_path.exists() and ledger.manuscript_sha256:
+    #
+    # A missing manuscript is the largest possible change to it, and it used to
+    # slip through this guard because the `exists()` half was an `and` rather
+    # than its own case: the PDFs all still matched, so `verify` returned a
+    # green "1 verified" about a document that was not there.  Deleting the
+    # thing under review must never be the way to make the check pass.
+    if check_manuscript_hash and ledger.manuscript_sha256:
+        if not manuscript_path.exists():
+            result.findings.append(
+                Finding(
+                    code="ledger-stale",
+                    message=(
+                        f"{manuscript_path.name} recorded by the ledger no longer exists; "
+                        "restore it, or point --root/--ledger at the project it belongs to"
+                    ),
+                    path=str(manuscript_path),
+                )
+            )
+            result.skipped = len(ledger.claims)
+            return result
+        # The ledger names the document it is about.  If the command-line
+        # manuscript is a different file, the hash comparison below is not a
+        # drift check at all - it is two unrelated files disagreeing, which
+        # would be reported as "your manuscript changed" and send the author
+        # looking for an edit that never happened.  Name the real problem.
+        recorded_name = Path(ledger.manuscript).name
+        if recorded_name and recorded_name != manuscript_path.name:
+            result.findings.append(
+                Finding(
+                    code="ledger-stale",
+                    message=(
+                        f"ledger describes {recorded_name}, but this check was asked about "
+                        f"{manuscript_path.name}; run `citevouch scan` for this document, or "
+                        "point --ledger at the right project"
+                    ),
+                    path=str(manuscript_path),
+                )
+            )
+            result.skipped = len(ledger.claims)
+            return result
         current = sha256_file(manuscript_path)
         if current != ledger.manuscript_sha256:
             result.findings.append(
@@ -72,6 +111,10 @@ def verify(
 
     known = discover_sources(root, options.sources)
     pages_cache: dict[str, tuple[list, str]] = {}
+    # Sources whose text could not be extracted.  Their claims are skipped
+    # rather than searched, because searching no pages can only produce a
+    # "quote not found" verdict about a PDF nobody managed to read.
+    broken_sources: set[str] = set()
     entry_keys = set(ledger.entries)
     used_entries: set[str] = set()
 
@@ -112,6 +155,7 @@ def verify(
             pages, problem = extract_pages(path, root, use_cache=options.use_cache)
             if problem is not None:
                 result.findings.append(problem)
+                broken_sources.add(path)
                 pages_cache[path] = (
                     [],
                     sha256_file(Path(path)) if Path(path).exists() else "",
@@ -119,6 +163,16 @@ def verify(
             else:
                 pages_cache[path] = (pages, sha256_file(Path(path)))
         pages, current_sha = pages_cache[path]
+
+        # A source that could not be read has no pages, and searching an empty
+        # page list can only say "not found" - a verdict about the author's
+        # quote that is really a verdict about the PDF.  Say the one true
+        # thing (already said above, as source-unreadable) and skip the claim;
+        # a false quote-missing here would point at the wrong problem for the
+        # rest of the project's life.
+        if not pages and path in broken_sources:
+            result.skipped += 1
+            continue
 
         recorded = ledger.sources.get(claim.source)
         if (

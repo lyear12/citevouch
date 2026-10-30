@@ -21,6 +21,7 @@ from .model import Finding, Ledger, SourceRef
 from .sources import (
     discover_sources,
     extract_pages,
+    near_misses,
     resolve_source,
     sha256_file,
 )
@@ -69,6 +70,26 @@ def _ledger_path(root: Path, path: str | Path) -> str:
     return relative.as_posix()
 
 
+def _missing_source_message(key: str, root: Path, claim_id: str) -> str:
+    """Say the key cannot be resolved, and name what was probably meant.
+
+    The candidates are printed, not used.  A tool that binds a claim to a PDF
+    on a filename hunch can produce a confident ``quote-found`` about the
+    wrong paper, and the author would never learn the page number it cited was
+    from something else.  Naming the near misses keeps the fix to one paste
+    while leaving the decision where it belongs.
+    """
+    base = (
+        f"claim {claim_id} names source={key!r} but no entry in sources.toml "
+        "and no --source path resolves it; add it to sources.toml"
+    )
+    candidates = near_misses(key, root)
+    if not candidates:
+        return base
+    listed = ", ".join(candidates)
+    return f"{base} (near misses on disk: {listed})"
+
+
 def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     """Build a ledger for ``options.manuscript``.
 
@@ -106,10 +127,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             findings.append(
                 Finding(
                     code="source-missing",
-                    message=(
-                        f"claim {claim.id} names source={claim.source!r} but no file "
-                        "matches it; add it to sources.toml or pass --source"
-                    ),
+                    message=_missing_source_message(claim.source, root, claim.id),
                     claim_id=claim.id,
                     path=claim.path,
                     line=claim.line,
@@ -144,14 +162,18 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             ledger.sources.setdefault(claim.source, filed)
 
         # A page hint that cannot exist in the file is a mistake worth catching
-        # at scan time, when the author still remembers what they meant.
-        if claim.page is not None and pages and claim.page > len(pages):
+        # at scan time, when the author still remembers what they meant.  The
+        # lower bound matters as much as the upper: a 0 or negative page is
+        # silently ignored by the matcher, which then reports a false
+        # `quote-moved` ("found on page 1, the ledger says 0") for a claim
+        # whose hint was simply not a page.
+        if claim.page is not None and pages and not 1 <= claim.page <= len(pages):
             findings.append(
                 Finding(
                     code="page-out-of-range",
                     message=(
                         f"claim {claim.id} points at page {claim.page} but "
-                        f"{Path(path).name} has only {len(pages)} pages"
+                        f"{Path(path).name} has pages 1-{len(pages)}"
                     ),
                     claim_id=claim.id,
                     path=claim.path,

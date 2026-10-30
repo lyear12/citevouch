@@ -53,12 +53,17 @@ rots:
 | `source-changed` | medium | the PDF is byte-different from the one the ledger recorded |
 | `source-missing` | high | the PDF the claim names cannot be found |
 | `source-unreadable` | high | the PDF exists but no text could be extracted |
-| `page-out-of-range` | high | the cited page is past the end of the document |
+| `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |
 | `ledger-stale` | high | the manuscript changed since the ledger was recorded |
 | `bib-key-missing` | high | the claim cites a bibliography key that is not there |
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
 | `bib-duplicate-key` | high | two entries share a key |
-| `bib-field-empty` | medium | a required field is present but empty |
+| `bib-unparsed-entry` | high | an entry never closes, so everything after it was not read |
+| `bib-entry-header-unparsed` | medium | text between entries, or an `@` header that is not a usable entry |
+| `bib-field-malformed` | medium | a field could not be read; later fields of the entry are still parsed |
+| `bib-field-duplicate` | medium | one field given twice in an entry (names are case-insensitive); first kept |
+| `bib-macro-unknown` | medium | a field uses a `@string` macro that is not defined yet |
+| `bib-field-empty` | medium | a required field is empty or missing |
 | `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block |
 
 Exit code is `0` when nothing reaches `--fail-on` (default `high`), `1` when something does, `2` for

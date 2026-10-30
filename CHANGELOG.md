@@ -6,10 +6,106 @@ All notable changes to this project are recorded here. The format follows
 
 Releases are cut automatically: when CI is green on `main`, `auto-release.yml` reads the
 `## [Unreleased]` section below, lets `tools/next_version.py` decide the number, writes it here and
-into `pyproject.toml`, commits, tags, and calls `release.yml`. An empty Unreleased section means no
-release. `release.yml` refuses to publish if the tag and `pyproject.toml` disagree.
+into `src/citevouch/_version.py` (the single place a version is written), commits, tags, and calls
+`release.yml`. An empty Unreleased section means no release. `release.yml` refuses to publish if the
+tag and that file disagree.
 
 ## [Unreleased]
+
+### Fixed
+
+- A quoted value in a brace-delimited entry can hold a literal `%`
+  (`title = "A study of 78% of cases"`). The brace scanner began comment
+  scanning inside quoted values, cut the line there, lost the entry's closing
+  brace and read the rest of the bibliography as garbage - one stray `%` made
+  every following entry vanish behind a single misleading `bib-unparsed-entry`.
+  Quote state is now decided by the same lexer that decides brace depth.
+- Chinese quotes are found. The word-boundary class was a hand-written
+  `[0-9A-Za-zª-￿]`, which calls every CJK character a word
+  character, so a quote could only end at a boundary if a space followed it -
+  and Chinese prose does not put spaces there. Every short Chinese quote became
+  a false `quote-missing` (high), which is the loudest possible way to be
+  wrong about an author's evidence. Boundaries now use `str.isalnum()`, the
+  squashed-tier length floor is script-aware (4 for CJK, 12 otherwise), and a
+  quote that itself begins or ends with punctuation is not required to have a
+  word boundary on that side.
+- `numbers_in("2019 2020 2021")` returned `('2019 202','0 202','1')`: the
+  pattern treated a bare space as a thousands separator, inventing numbers and
+  writing them into the ledger, where they were later compared against the
+  source. Only `,` and NBSP separate thousands now, and a test asserts that
+  every reported number survives masking.
+- Deleting the manuscript made `verify` pass. The hash guard was spelled
+  `exists() and ...`, so a missing file skipped the comparison and every
+  surviving PDF still matched: the command reported "verified" and exited 0
+  about a document that was not on disk. A missing manuscript is now
+  `ledger-stale` (high), as is a ledger recorded for a different document.
+- A hand-edited ledger crashes out of the exit-code contract: `page` was read
+  as whatever JSON held, so a quoted `"1"` reached a numeric comparison and the
+  `TypeError` escaped as an uncaught traceback - exit code 1, which in this
+  tool means "findings reached the threshold". Pages are coerced through one
+  function, and a ledger whose `schema` is below 1 is refused as not ours.
+- An unreadable source no longer manufactures `quote-missing`. A PDF nobody
+  could extract has no pages, and searching no pages can only answer "not
+  found" - a verdict about the file dressed as a verdict about the author, and
+  repeated once per pass. Unreadable sources report `source-unreadable` once,
+  their claims are skipped, and `check` no longer prints the same fact twice.
+- A fuzzy match now fails the run on its own. AGENTS.md has always said a
+  fuzzy match "must never exit 0 on its own"; `quote-fuzzy` is medium and the
+  default threshold is high, so it did. The rule was in the table and not in
+  the code.
+- `report` no longer re-iterates an already-consumed findings generator when
+  computing the worst severity, and `--quiet` now applies to JSON, SARIF and
+  Markdown output instead of only text.
+- `__version__` said `0.1.0` for four releases while the wheels were `0.4.1`:
+  `citevouch --version`, the SARIF driver version and every ledger's
+  `tool_version` were wrong, because the release tool rewrote `pyproject.toml`
+  and nothing rewrote the literal in `__init__.py`. The version now lives in
+  `src/citevouch/_version.py` and `pyproject.toml` reads it dynamically; a test
+  fails if a second copy appears anywhere in `src/`.
+
+### Changed
+
+- `source=` must resolve through `sources.toml` or `--source`; discovery no
+  longer claims a filename-similarity fallback it never had. Binding a claim to
+  a PDF because the names share a prefix is exactly the guessing this tool
+  exists to refuse, so instead of binding, the `source-missing` message lists
+  the near misses on disk for the author to pick from.
+
+- An entry whose delimiters never close (a `{` inside a `@comment`, an unclosed
+  quoted value) silently swallowed every entry after it and reported nothing.
+  `parse_bib` now emits `bib-unparsed-entry` (high) naming the line - the module
+  had always promised to report what it cannot parse; this was the one hole that
+  remained, and silence there means a false `bib-key-missing` downstream.
+- Text stranded between entries by an early-closing brace (a genuinely escaped
+  `\{` ends a value where depth says so) is reported as unread rather than
+  discarded along with the fields it held.
+- A malformed field no longer abandons the rest of its entry: the scanner
+  resumes at the next `name =` and reports what it skipped
+  (`bib-field-malformed`, medium).
+- Required fields that are *missing* (not just present-but-empty) are reported
+  by `field_findings`.
+- `%` at field-brace depth inside a paren-delimited entry
+  (`@article(a, note = "78.5% ...")`) is literal text, matching the rule braces
+  already followed; comment-ness is decided by depth *and* quote state now.
+- `@` headers that are not usable entries (`@in-book{...}`) are reported as
+  skipped instead of stepped over; `bib-macro-unknown` fires when a field uses
+  a `@string` no definition reaches; duplicate fields (case-insensitive) are
+  reported with the first value kept.
+- `matching`: the exact tier no longer matches across word boundaries ("in the
+  paper" inside "a bin the papers" is no longer a quote); the squashed tier
+  gained a minimum length; the numbers tier requires real words to survive
+  masking and scores similarity on the unmasked text, so a pure-number quote can
+  no longer "match" any page holding any number; `1 000` and `1,000` mask
+  alike; squashed/numbers contexts show the matched region, not the page head.
+- `number_spans` and `numbers_in` share one exported pattern
+  (`textnorm.NUMBER_PATTERN`); masking spans and asserted spans can no longer
+  drift apart.
+- A page hint of 0 or below is `page-out-of-range` like an over-long one: the
+  matcher ignores such hints, so the honest `quote-found` came out as a false
+  `quote-moved`.
+- The `_best_window` prefilter is bounded honestly: for needles longer than 10
+  tokens every window is scored, because the skip rule's similarity bound
+  (W-2)/W provably exceeds the threshold there.
 
 ## [0.4.1] — 2026-10-29
 ### Fixed

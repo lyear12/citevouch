@@ -32,8 +32,16 @@ SARIF_RULES = {
     "bib-key-missing": ("A cited key is absent from the bibliography.", "blocking"),
     "bib-key-unused": ("A bibliography entry is never cited.", "note"),
     "bib-field-empty": ("A required bibliography field is empty.", "warning"),
+    "bib-field-malformed": ("A bibliography field could not be read.", "warning"),
+    "bib-field-duplicate": ("A bibliography field is given twice.", "warning"),
     "bib-duplicate-key": ("A bibliography key appears twice.", "blocking"),
     "bib-doi-mismatch": ("A DOI disagrees with the recorded one.", "warning"),
+    "bib-macro-unknown": ("A @string macro used by a field is not defined.", "warning"),
+    "bib-entry-header-unparsed": ("An @ header is not a usable entry.", "warning"),
+    "bib-unparsed-entry": (
+        "An entry never closes, so the entries after it could not be read.",
+        "blocking",
+    ),
     "page-out-of-range": ("A page hint exceeds the source length.", "blocking"),
     "claim-without-evidence": ("A claim carries no verifiable evidence.", "warning"),
     "ledger-stale": ("The ledger predates the manuscript.", "blocking"),
@@ -47,6 +55,11 @@ def render_text(
     result: VerifyResult | None = None,
     show_info: bool = True,
 ) -> str:
+    # Materialise once.  The body both prints the findings and then asks for
+    # the worst severity among them; with a generator, the second pass would
+    # see an exhausted iterator and report the worst of nothing.  The bug was
+    # invisible because every caller happens to pass a list today.
+    findings = list(findings)
     lines: list[str] = []
     for finding in findings:
         if not show_info and finding.severity in ("info", "low"):

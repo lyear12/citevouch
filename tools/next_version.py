@@ -119,6 +119,23 @@ def apply(text: str, new_version: str, date: str) -> str:
 
 
 def set_pyproject_version(text: str, new_version: str) -> str:
+    """Set the version in whichever file this project declares it.
+
+    The declaration moved from a ``version = "..."`` literal in ``pyproject.toml``
+    to ``dynamic = ["version"]`` backed by ``src/citevouch/_version.py``. Both
+    shapes are accepted here so an old checkout and a new one both release
+    correctly - but exactly one of them has to match, because a script that
+    silently rewrites nothing is how the version drifted four releases behind
+    the tag in the first place.
+    """
+    replaced, count = re.subn(
+        r'(?m)^(?P<indent>\s*)__version__\s*=\s*"[^"]*"',
+        lambda m: f'{m.group("indent")}__version__ = "{new_version}"',
+        text,
+        count=1,
+    )
+    if count == 1:
+        return replaced
     replaced, count = re.subn(
         r'(?m)^(?P<indent>\s*)version\s*=\s*"[^"]*"',
         lambda m: f'{m.group("indent")}version = "{new_version}"',
@@ -126,7 +143,10 @@ def set_pyproject_version(text: str, new_version: str) -> str:
         count=1,
     )
     if count != 1:
-        raise ChangelogError("could not find a top-level version = in pyproject.toml")
+        raise ChangelogError(
+            "could not find a version declaration: expected `__version__ = ` in "
+            "src/citevouch/_version.py or a top-level `version = ` in pyproject.toml"
+        )
     return replaced
 
 
@@ -182,7 +202,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("changelog", type=Path)
     parser.add_argument("--current", required=True, help="current version, e.g. 0.1.0")
     parser.add_argument("--apply", action="store_true", help="rewrite the changelog in place")
-    parser.add_argument("--pyproject", type=Path, help="also set the version in this file")
+    parser.add_argument(
+        "--pyproject",
+        type=Path,
+        help=(
+            "file holding the version declaration: src/citevouch/_version.py "
+            "(current) or pyproject.toml (older checkouts)"
+        ),
+    )
     parser.add_argument(
         "--readme",
         type=Path,

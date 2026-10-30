@@ -62,7 +62,10 @@ jobs:
       - name: Read the version that is already declared
         id: current
         run: |
-          version=$(python -c "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          # Read the one place the version is written. setuptools reads the
+          # same attribute (`[tool.setuptools.dynamic] version = attr:`), so
+          # this job and the built wheel cannot disagree.
+          version=$(python -c "import sys;sys.path.insert(0,'src');from citevouch._version import __version__;print(__version__)")
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "declared version: $version"
 
@@ -72,7 +75,8 @@ jobs:
           set +e
           next=$(python tools/next_version.py CHANGELOG.md \
                    --current "${{ steps.current.outputs.version }}" \
-                   --apply --pyproject pyproject.toml --readme README.md --readme README.zh-CN.md \
+                   --apply --pyproject src/citevouch/_version.py \
+                   --readme README.md --readme README.zh-CN.md \
                    --date "$(date -u +%F)")
           status=$?
           set -e
@@ -95,11 +99,11 @@ jobs:
       - name: Refuse a release that changes no files
         if: steps.plan.outputs.released == 'true'
         run: |
-          # next_version.py rewrites CHANGELOG.md and pyproject.toml by
-          # construction, and README.md when it holds install pins. If nothing
-          # changed, something is wrong with the script rather than with the
-          # changelog, and committing nothing and pushing a tag would release
-          # old code under a new number.
+          # next_version.py rewrites CHANGELOG.md and src/citevouch/_version.py
+          # by construction, and both READMEs when they hold install pins. If
+          # nothing changed, something is wrong with the script rather than
+          # with the changelog, and committing nothing and pushing a tag would
+          # release old code under a new number.
           if git diff --quiet; then
             echo "::error::decided to release ${{ steps.plan.outputs.version }} but changed nothing"
             exit 1
@@ -113,13 +117,19 @@ jobs:
         run: |
           git config user.name "citevouch release"
           git config user.email "release@users.noreply.github.com"
-          git add CHANGELOG.md pyproject.toml README.md
+          # Every file the previous step can touch, listed. README.zh-CN.md was
+          # passed to next_version.py for four releases while this line named
+          # only README.md, so the Chinese install pin was rewritten in the
+          # runner's checkout and thrown away - the file committed here was the
+          # one from before the release. A step is not done until its output is
+          # in the commit.
+          git add CHANGELOG.md src/citevouch/_version.py README.md README.zh-CN.md
           git commit -m "Release $VERSION
 
           The Unreleased section of CHANGELOG.md was not empty, so this is the
           release it described: tools/next_version.py chose the number, moved
-          the entries under a dated heading, set pyproject.toml to match, and
-          re-pointed any citevouch@v install pin in README.md.
+          the entries under a dated heading, set src/citevouch/_version.py to
+          match, and re-pointed any citevouch@v install pin in both READMEs.
 
           Not tried: nothing to try by hand; the workflow that runs after this
           is the test of it.

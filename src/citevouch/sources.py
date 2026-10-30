@@ -215,8 +215,9 @@ def _mini_toml(text: str) -> dict:
     than dropping 3.10: ``[section]`` headers, ``key = "value"`` pairs, ``#``
     comments, and both string quoting styles.  A shape outside that subset
     raises :class:`ValueError`, which the caller treats exactly like a syntax
-    error from tomllib — the manifest is skipped and filename matching takes
-    over, because that fallback is almost always right.
+    error from tomllib — the manifest is skipped and every claim it was meant
+    to bind reports ``source-missing``, naming the file it could not read
+    rather than binding evidence the author never chose.
 
     This is not a TOML parser and must not grow into one.  If a manifest ever
     needs dates, arrays, or nested tables, the answer is to require 3.11, not to
@@ -300,9 +301,9 @@ def load_manifest(root: str | Path) -> dict[str, str]:
     * ``sources.toml`` — ``[sources]`` table, same mapping
 
     ``sources.toml`` works on 3.10 as well as 3.11+: see :func:`_mini_toml` for
-    why a subset is parsed there.  Unknown or malformed manifests yield an empty
-    mapping rather than an error, because falling back to filename-stem
-    resolution is almost always right.
+    why a subset is parsed there.  A malformed manifest yields an empty mapping
+    rather than an error — the project then reports ``source-missing`` per
+    claim, which names the problem instead of half-solving it.
     """
     root = Path(root)
     for name in MANIFEST_NAMES:
@@ -327,12 +328,23 @@ def load_manifest(root: str | Path) -> dict[str, str]:
 
 
 def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[str, str]:
-    """Map claim source keys to files.
+    """Map claim source keys to files, and only to files someone named.
 
-    Resolution order for a key ``k``: explicit ``extra`` paths, the manifest,
-    then any file under ``root`` whose stem equals ``k`` (case-insensitively),
-    then the longest stem that ``k`` starts with (so ``vaneecke2026sec3``
-    resolves to ``2026_VanEecke-Beuls_CoNLL2026`` if it is uniquely close).
+    Two sources, in this order: ``extra`` paths from ``--source``, then the
+    project's manifest.
+
+    Deliberately excluded: guessing. An earlier version of this docstring
+    promised a third step — "any file under ``root`` whose stem equals the
+    key, then the longest stem the key starts with" — and the code never had
+    it. That was a comment describing a wish, and the wish was a bad one.
+    Binding a claim to a PDF because the filenames share a prefix is the exact
+    inference this tool exists to refuse: a wrong automatic binding yields a
+    confident ``quote-found`` against the wrong paper, which is worse than
+    ``source-missing``, which at least says so. If a key should resolve, the
+    project says what it means in ``sources.toml``.
+
+    A missing key is still easy to fix: :func:`near_misses` supplies candidates
+    for the error message, so the author picks instead of the tool guessing.
     """
     root = Path(root)
     found: dict[str, str] = {}
@@ -351,6 +363,30 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
         if path.exists():
             found[key] = str(path)
     return found
+
+
+def near_misses(key: str, root: str | Path, limit: int = 3) -> list[str]:
+    """Files under ``root`` whose name resembles ``key``, for an error message.
+
+    Suggestions to read, never bindings to use. Printing candidates is what
+    lets discovery stay strict: the tool names what it saw, the author decides
+    what it means.
+    """
+    if not key:
+        return []
+    root = Path(root)
+    if not root.is_dir():
+        return []
+    needle = key.lower()
+    scored: list[tuple[int, str]] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in {".pdf", ".txt", ".md"}:
+            continue
+        stem = path.stem.lower()
+        if needle in stem or stem in needle:
+            scored.append((abs(len(stem) - len(needle)), path.relative_to(root).as_posix()))
+    scored.sort()
+    return [name for _distance, name in scored[:limit]]
 
 
 def resolve_source(key: str, known: dict[str, str]) -> str | None:
