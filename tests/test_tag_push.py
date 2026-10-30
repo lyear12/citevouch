@@ -139,7 +139,9 @@ def _run_tag_step(
 
 
 class TestItRetriesBeforeGivingUp:
-    def test_a_first_push_that_is_rejected_is_retried_and_succeeds(self, tmp_path: Path) -> None:
+    def test_a_first_push_that_is_rejected_is_retried_and_succeeds(
+        self, tmp_path: Path
+    ) -> None:
         code, out, err, log = _run_tag_step(tmp_path, succeeds_on=2, lsremote=0)
         assert code == 0, f"the step gave up after one rejection: {out}{err}"
         pushes = [line for line in log if line.startswith("PUSH")]
@@ -162,7 +164,9 @@ class TestItRetriesBeforeGivingUp:
 
 
 class TestAClaimedFailureIsCheckedAgainstTheRemote:
-    def test_a_tag_that_is_on_the_remote_ends_the_step_successfully(self, tmp_path: Path) -> None:
+    def test_a_tag_that_is_on_the_remote_ends_the_step_successfully(
+        self, tmp_path: Path
+    ) -> None:
         """A push can be accepted and still report a failure to the client."""
         code, out, _err, _log = _run_tag_step(tmp_path, succeeds_on=99, lsremote=0)
         assert code == 0, "the remote had the tag, so the step had nothing left to do"

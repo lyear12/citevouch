@@ -1903,3 +1903,32 @@ from a workstation, which is exactly what the new message now spells out.
 The guards in `tests/test_tag_push.py` run the step's shell body against a
 stub `git`: dropping the retry loop, dropping the `ls-remote` check, and
 deleting the explanation from the error each turn one of them red. Seen 1.
+
+## The gate that counts tracked files will pass before the file is tracked
+
+A newly written file is invisible to the measurement that governs it, and it
+is invisible exactly while the author is running the gate.
+
+**Rule.** When the number in a commit message comes from `git ls-files`, run
+the counting command after `git add`, not before. The check passing before a
+file is staged is not evidence about the commit; it is evidence about the
+tree that will not be committed. The same goes the other way: a file added
+after the gate ran has never been judged by it.
+
+**Why.** `tools/format_check.sh` measures the index because that is the only
+input every clone shares - but the index is also the one input that is still
+changing while a change is being written. So the guard is correct and the
+order of the two commands decides whether it saw the work. Nothing in the
+output says which files it skipped, because the whole point of measuring the
+index is to not see the rest.
+
+**Evidence.** `tests/test_tag_push.py` was written, the full suite was run
+(750 passed), `sh tools/format_check.sh` reported `79 files already
+formatted` - and the file was not among them, so the 80th was never
+formatted. The commit went out, and ten CI jobs failed on
+`test_it_reports_the_number_of_tracked_files_ruff_accepts` with the real
+count: `unformatted: File would be reformatted --> tests\test_tag_push.py`.
+Re-running `git add` first and then `python -m ruff format` gives 80, which
+is what CI agrees with. This is the second time this exact step has cost a
+round: the same thing happened to `tests/test_no_claims.py` in the release
+that introduced `no-claim-blocks`. Seen 2.
