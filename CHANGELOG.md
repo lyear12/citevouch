@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.11] — 2026-10-30
 ### Fixed
 
 - **`--format json` now describes the run, and says what `--quiet` left
@@ -32,7 +33,6 @@ tag and that file disagree.
   `--quiet`. This writer was not touched by that fix, because the fix went to
   the renderer that prints and nobody asked which other writers are handed the
   same shortened list.
-
 ## [0.19.10] — 2026-10-30
 ### Fixed
 
@@ -1165,7 +1165,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.10...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.11...HEAD
+[0.19.11]: https://github.com/lyear12/citevouch/releases/tag/v0.19.11
 [0.19.10]: https://github.com/lyear12/citevouch/releases/tag/v0.19.10
 [0.19.9]: https://github.com/lyear12/citevouch/releases/tag/v0.19.9
 [0.19.8]: https://github.com/lyear12/citevouch/releases/tag/v0.19.8
