@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.18.5] — 2026-10-30
 ### Fixed
 
 - The markdown report said `**1** claims` for a one-claim manuscript, and every
@@ -22,7 +23,6 @@ tag and that file disagree.
   truncated (`Truncated: 10 more under Blocking.`) instead of relying on the
   reader noticing.  The old truncation test used 250 findings, above every cap,
   and so never reached the band where the two caps disagreed.
-
 ## [0.18.4] — 2026-10-30
 ### Fixed
 
@@ -864,7 +864,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.4...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.5...HEAD
+[0.18.5]: https://github.com/lyear12/citevouch/releases/tag/v0.18.5
 [0.18.4]: https://github.com/lyear12/citevouch/releases/tag/v0.18.4
 [0.18.3]: https://github.com/lyear12/citevouch/releases/tag/v0.18.3
 [0.18.2]: https://github.com/lyear12/citevouch/releases/tag/v0.18.2
