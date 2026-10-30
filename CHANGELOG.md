@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.6] — 2026-10-30
 ### Fixed
 
 - A claim block that is missing its `id=` is no longer also described as a
@@ -30,7 +31,6 @@ tag and that file disagree.
   manuscript of a passage the PDF does contain.  Marks are only removed as a
   pair: a value that merely starts and ends with the same mark keeps them, so
   an over-eager fix cannot reintroduce the failure it removes.
-
 ## [0.19.5] — 2026-10-30
 ### Fixed
 
@@ -1079,7 +1079,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.5...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.6...HEAD
+[0.19.6]: https://github.com/lyear12/citevouch/releases/tag/v0.19.6
 [0.19.5]: https://github.com/lyear12/citevouch/releases/tag/v0.19.5
 [0.19.4]: https://github.com/lyear12/citevouch/releases/tag/v0.19.4
 [0.19.3]: https://github.com/lyear12/citevouch/releases/tag/v0.19.3
