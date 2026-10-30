@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.17.0] — 2026-10-30
 ### Added
 
 - A quote that runs across a page break is verified from either of the two pages it touches, and
@@ -33,7 +35,6 @@ tag and that file disagree.
   The reader looking for line 1 of a file whose line 1 is `% a comment` is sent to the wrong place.
   The proposals file now says which document the numbers count, and only for input that was
   converted.
-
 ## [0.16.5] — 2026-10-30
 ### Fixed
 
@@ -764,7 +765,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.5...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/lyear12/citevouch/releases/tag/v0.17.0
 [0.16.5]: https://github.com/lyear12/citevouch/releases/tag/v0.16.5
 [0.16.4]: https://github.com/lyear12/citevouch/releases/tag/v0.16.4
 [0.16.3]: https://github.com/lyear12/citevouch/releases/tag/v0.16.3
