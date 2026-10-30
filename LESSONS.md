@@ -1421,3 +1421,27 @@ after the same defect appeared twice in `tests/`, so it scanned `tests/`. Then
 did it again: the first version handed `env={"PYTHONPATH": ...}` to the demo, lost
 `PATH`, lost `pdftotext`, and drew a picture of a broken installation. The guard
 was green the entire time, because `tools/` was not on its list. Seen 1.
+
+## Two paths that are "relative to the root" have to name the same root
+
+**Rule.** When one tool takes a document path and a root path, and another layer
+of that tool documents both as "relative to the repository root", the two must
+resolve against the same directory. A layer that resolves one against the root
+and forwards the other unchanged is correct exactly when the root is the
+repository root, which is the one layout that never fails in testing.
+
+**Why.** The disagreement is invisible in the default case, so the authors of
+both layers test with the default and both see green. It surfaces only for the
+user who puts the manuscript in a subdirectory — the layout the option exists
+to serve.
+
+**Evidence.** `action.yml` documents `ledger` as "relative to the repository
+root"; `src/citevouch/cli.py:_ledger_path` reads it against `--root`. With
+`root: paper` and the ledger committed at the top of the repository, the action
+ran `check --root paper --ledger citevouch.lock.json`, the CLI looked in
+`paper/`, and the job failed with `no ledger at paper/citevouch.lock.json` — a
+message about a file that was in the repository, telling the reader to run
+`citevouch scan`, which would have written it to the wrong place too. The action
+now makes the ledger absolute against the workspace. The test that would have
+caught it is not an argument assertion: it runs the real CLI over the documented
+layout. Seen 1.

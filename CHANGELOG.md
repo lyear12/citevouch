@@ -11,6 +11,14 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The `citevouch` action documents `ledger` as "relative to the repository root" and passed the value
+  through unchanged, while the CLI resolves a relative `--ledger` against `--root`. The two agree
+  only when the project sits at the top of the repository: with `root: paper` the action looked for
+  `paper/citevouch.lock.json` and reported `no ledger at paper/citevouch.lock.json` about a file
+  sitting in the repository. The action now resolves the ledger against the workspace before calling
+  the CLI, and one test runs the real CLI over the documented layout to prove the two agree.
 
 ## [0.16.4] — 2026-10-30
 ### Fixed

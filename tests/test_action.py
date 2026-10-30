@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -77,8 +78,16 @@ def step_named(name: str) -> dict:
     raise AssertionError(f"no step named {name!r}; the steps are {names}")
 
 
-def run_step(tmp_path: Path, name: str, *, env_extra: dict[str, str]) -> dict:
-    """Run one composite step's `run:` body with a stub citevouch on PATH."""
+def run_step(
+    tmp_path: Path, name: str, *, env_extra: dict[str, str], real_cli: bool = False
+) -> dict:
+    """Run one composite step's `run:` body with a stub citevouch on PATH.
+
+    With ``real_cli`` the stub is replaced by a wrapper around this working
+    tree's own CLI. The argv recorder proves the wiring; the real CLI proves
+    the wiring produces a command the tool actually accepts, which is a
+    different claim and the one that catches a path convention mismatch.
+    """
     step = step_named(name)
     if "run" not in step:
         raise AssertionError(f"step {name!r} has no shell body to run: {sorted(step)}")
@@ -90,14 +99,26 @@ def run_step(tmp_path: Path, name: str, *, env_extra: dict[str, str]) -> dict:
     # A stub that records its arguments and returns a chosen code, so the test
     # can assert what the action forwarded rather than what the tool decided.
     stub = bin_dir / "citevouch"
-    stub.write_text(
-        "#!/usr/bin/env bash\n"
-        'printf "%s\\n" "$@" > "$CITEVOUCH_ARGS"\n'
-        'printf "%s" "${CITEVOUCH_STDOUT:-}"\n'
-        'exit "${CITEVOUCH_EXIT:-0}"\n',
-        encoding="utf-8",
-        newline="\n",
-    )
+    if real_cli:
+        # Same argv recording, then hand off to this checkout's CLI. The
+        # interpreter is spelled with forward slashes because the body runs
+        # under git bash on Windows, where a POSIX path is what works.
+        stub.write_text(
+            "#!/usr/bin/env bash\n"
+            'printf "%s\n" "$@" > "$CITEVOUCH_ARGS"\n'
+            f'exec "{Path(sys.executable).as_posix()}" -m citevouch "$@"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+    else:
+        stub.write_text(
+            "#!/usr/bin/env bash\n"
+            'printf "%s\n" "$@" > "$CITEVOUCH_ARGS"\n'
+            'printf "%s" "${CITEVOUCH_STDOUT:-}"\n'
+            'exit "${CITEVOUCH_EXIT:-0}"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
     stub.chmod(0o755)
     python_stub = bin_dir / "python"
     python_stub.write_text(
@@ -112,24 +133,31 @@ def run_step(tmp_path: Path, name: str, *, env_extra: dict[str, str]) -> dict:
     output_file = tmp_path / "gh-output.txt"
     output_file.write_text("", encoding="utf-8")
 
+    # Starting from the real environment, not from a literal: the body runs
+    # `python`, and on Windows an interpreter launched with a stripped
+    # environment dies in `_Py_HashRandomization_Init` because SYSTEMROOT is
+    # gone. That is the failure `tests/test_child_env.py` exists to catch, and
+    # it is not worth reintroducing here to keep a dict tidy.
     env = {
+        **os.environ,
         "PATH": f"{bin_dir}{os.pathsep}{_bin_dir_of(_bash())}{os.pathsep}{os.environ['PATH']}",
         "CITEVOUCH_ARGS": str(args_file),
         "CITEVOUCH_PYTHON_ARGS": str(python_args_file),
         "GITHUB_OUTPUT": str(output_file),
         "GITHUB_WORKSPACE": str(tmp_path),
         "RUNNER_TEMP": str(tmp_path / "temp"),
-        # The paths the action passes are relative to the workspace, and the
-        # script starts with `cd "${GITHUB_WORKSPACE}"`, so the ledger and the
-        # manuscript have to exist there for a real run. The stub does not look,
-        # but `--use-recorded` with a missing ledger is exactly the case the
-        # action has to refuse, so the fixtures are created anyway.
         "HOME": str(tmp_path),
+        **({"PYTHONPATH": str(ROOT / "src"), "PYTHONIOENCODING": "utf-8"} if real_cli else {}),
         **(env_extra or {}),
     }
     (tmp_path / "temp").mkdir(exist_ok=True)
-    (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
-    (tmp_path / "citevouch.lock.json").write_text("{}", encoding="utf-8")
+    # Placeholders only: a test that brings its own real ledger is testing
+    # the path resolution, and an unconditional `{}` here would quietly
+    # replace it with a file the CLI refuses.
+    if not (tmp_path / "manuscript.md").exists():
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+    if not (tmp_path / "citevouch.lock.json").exists():
+        (tmp_path / "citevouch.lock.json").write_text("{}", encoding="utf-8")
 
     completed = subprocess.run(
         [_bash(), str(script)],
@@ -229,7 +257,19 @@ class TestTheRunStep:
         assert args[0] == "check"
         assert "paper/main.md" in args
         assert "--root" in args and "paper" in args
-        assert "--ledger" in args and "locks/citevouch.lock.json" in args
+        # The ledger is the one input the action resolves before passing it on:
+        # the CLI reads a relative --ledger against --root, while the input is
+        # documented as repository-relative. Sending it through as typed looks
+        # right and finds the wrong file whenever root is not the repository
+        # root, so the action makes it absolute against the workspace first.
+        #
+        # Asserted by shape rather than by `Path.is_absolute`, because git bash
+        # reports the workspace as a POSIX path (`/tmp/...` or `/c/...`) and
+        # Windows' `Path.is_absolute` does not recognise those.
+        ledger = args[args.index("--ledger") + 1]
+        tail = "locks/citevouch.lock.json"
+        assert ledger.endswith(tail), ledger
+        assert ledger != tail, f"passed through as typed instead of resolved: {ledger}"
         assert "--fail-on" in args and "medium" in args
         assert "--format" in args and "markdown" in args
         # The recorded ledger is what a gate watches: a gate that re-derives
@@ -251,6 +291,103 @@ class TestTheRunStep:
         assert result["returncode"] == 0, result["stderr"]
         assert "my paper/main draft.md" in result["args"]
         assert "my paper" in result["args"]
+
+    def test_the_ledger_is_found_when_the_root_is_a_subdirectory(self, tmp_path: Path):
+        """The case the pass-through could not survive.
+
+        `root: paper` means the manuscript and its sources live in `paper/`,
+        while the ledger is documented as repository-relative and usually sits
+        at the top, because it is the one file a reviewer reads in the diff.
+        The CLI would look for `paper/citevouch.lock.json` and report
+        "no ledger at paper/citevouch.lock.json" about a file that is right
+        there in the repository.
+        """
+        result = run_step(
+            tmp_path,
+            "Run the check",
+            env_extra={
+                "IN_MANUSCRIPT": "manuscript.md",
+                "IN_ROOT": "paper",
+                "IN_LEDGER": "citevouch.lock.json",
+                "IN_FAIL_ON": "high",
+                "IN_FORMAT": "text",
+            },
+        )
+        assert result["returncode"] == 0, result["stderr"]
+        args = result["args"]
+        ledger = args[args.index("--ledger") + 1]
+        # Not `paper/citevouch.lock.json`, and not the bare name either.
+        assert ledger.endswith("/citevouch.lock.json"), ledger
+        assert not ledger.endswith("/paper/citevouch.lock.json"), ledger
+        assert ledger != "citevouch.lock.json", ledger
+
+    def test_a_real_run_finds_the_ledger_of_a_subdirectory_project(self, tmp_path: Path):
+        """The end-to-end case: the real CLI, the documented layout.
+
+        `root: paper` with `paper/manuscript.md`, `paper/sources.toml` and a
+        ledger at the top of the repository. The argv tests prove the
+        action forwards what it resolved; this one proves the CLI accepts
+        it, which is the claim that was wrong.
+        """
+        paper = tmp_path / "paper"
+        paper.mkdir()
+        (paper / "note.txt").write_text(
+            "The corpus contains 154,391 utterances.\n", encoding="utf-8"
+        )
+        (paper / "sources.toml").write_text('[sources]\np = "note.txt"\n', encoding="utf-8")
+        (paper / "manuscript.md").write_text(
+            "# Paper\n\n"
+            "```claim c1 source=p page=1\n"
+            ">> The corpus contains 154,391 utterances.\n"
+            "```\n",
+            encoding="utf-8",
+        )
+        env = {"PYTHONPATH": str(ROOT / "src"), "PYTHONIOENCODING": "utf-8"}
+        subprocess.run(
+            [sys.executable, "-m", "citevouch", "scan", "manuscript.md", "--root", "."],
+            cwd=str(paper),
+            check=True,
+            capture_output=True,
+            env={**os.environ, **env},
+        )
+        (paper / "citevouch.lock.json").replace(tmp_path / "citevouch.lock.json")
+
+        result = run_step(
+            tmp_path,
+            "Run the check",
+            env_extra={
+                # Both documented as repository-relative, which is the whole
+                # point: the manuscript names its own path, the ledger names
+                # its own path, and `root` is only where sources.toml lives.
+                "IN_MANUSCRIPT": "paper/manuscript.md",
+                "IN_ROOT": "paper",
+                "IN_LEDGER": "citevouch.lock.json",
+                "IN_FAIL_ON": "high",
+                "IN_FORMAT": "text",
+            },
+            real_cli=True,
+        )
+        assert result["returncode"] == 0, (
+            f"the documented layout failed: {result['stderr']}{result['stdout']}"
+        )
+        assert "1 verified" in result["stdout"], result["stdout"]
+
+    def test_an_absolute_ledger_is_left_alone(self, tmp_path: Path):
+        absolute = str(tmp_path / "elsewhere" / "kept.json")
+        result = run_step(
+            tmp_path,
+            "Run the check",
+            env_extra={
+                "IN_MANUSCRIPT": "manuscript.md",
+                "IN_ROOT": "paper",
+                "IN_LEDGER": absolute,
+                "IN_FAIL_ON": "high",
+                "IN_FORMAT": "text",
+            },
+        )
+        assert result["returncode"] == 0, result["stderr"]
+        args = result["args"]
+        assert args[args.index("--ledger") + 1] == absolute
 
     @pytest.mark.parametrize("code", [0, 1])
     def test_a_verdict_is_passed_through_unchanged(self, tmp_path: Path, code: int):

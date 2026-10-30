@@ -87,10 +87,30 @@ runs:
         # runnable by hand, where the counting matters and the temp dir does
         # not.
         out="${RUNNER_TEMP:-/tmp}/citevouch.sarif"
+
+        # `--ledger` is documented above as "relative to the repository root",
+        # and that is the directory the caller is standing in. The CLI resolves
+        # a relative --ledger against --root, which is the same place when a
+        # project keeps everything at the top of the repository and a different
+        # one when it does not: with `root: paper/` the action used to look for
+        # `paper/citevouch.lock.json` while the message said the repository
+        # root. Resolving it here is what makes the documentation true.
+        ledger="$IN_LEDGER"
+        case "$ledger" in
+          # Absolute means absolute on either kind of runner. The POSIX branch
+          # is the common one; the drive-letter branch matters because the ntfs
+          # path a Windows author copies out of Explorer arrives with
+          # backslashes, and joining that onto the workspace produces a path
+          # that contains the absolute path as a suffix.
+          /*) ;;
+          [A-Za-z]:*) ;;
+          *) ledger="$(pwd)/$ledger" ;;
+        esac
+
         args=(
           check "$IN_MANUSCRIPT"
           --root "$IN_ROOT"
-          --ledger "$IN_LEDGER"
+          --ledger "$ledger"
           --use-recorded
           --fail-on "$IN_FAIL_ON"
           --format "$IN_FORMAT"
