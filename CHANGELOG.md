@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.15.0] — 2026-10-30
 ### Added
 
 - LaTeX manuscripts. `draft` converts a `.tex` file before reading it, so
@@ -23,7 +25,6 @@ tag and that file disagree.
   `\input`, and environments whose body is not prose are read as prose or
   skipped — which costs a weaker proposal, never a false pass, since the quote in
   a claim block always comes from the source file.
-
 ## [0.14.0] — 2026-10-30
 ### Added
 
@@ -633,7 +634,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/lyear12/citevouch/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lyear12/citevouch/releases/tag/v0.14.0
 [0.13.0]: https://github.com/lyear12/citevouch/releases/tag/v0.13.0
 [0.12.0]: https://github.com/lyear12/citevouch/releases/tag/v0.12.0
