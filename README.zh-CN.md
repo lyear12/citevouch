@@ -72,6 +72,8 @@ that lives in a different paper, which is the failure the tool exists to catch. 
 | `bib-field-empty` | medium | 必填字段为空或缺失 |
 | `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块 |
 | `claim-block-unclosed` | high | 某个 `` ```claim `` 块始终没有闭合，它之后的每条 claim 都被读成了它的一部分 |
+| `claim-uncheckable` | high | 某条 claim 块根本无法核对——缺 `source=`、缺引文、缺 id，或 id 重复导致第二块被丢弃 |
+| `page-unreadable` | medium | `page=` 提示不是数字，会被忽略，引文改为按搜索定位 |
 
 退出码就是 CI 契约：没有任何发现达到 `--fail-on`（默认 `high`）时返回 `0`，达到时返回 `1`，用法错误返回 `2`。CI 里不需要任何包装逻辑。
 

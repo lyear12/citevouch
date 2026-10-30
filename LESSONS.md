@@ -612,3 +612,45 @@ still fails.
 **Evidence.** `grep -n "pyproject" .github/workflows/*.yml` after v0.6.0 showed
 two stale header comments that the guard had been passing over since v0.5.0.
 Seen 1.
+
+---
+
+## Silence is a verdict, and a verdict needs to say which claim it is about
+
+**Rule.** When the pipeline skips a claim, the reason is a finding at the
+severity that says whether the run may pass. A skip that produces no finding is
+a pass, and a pass about a claim that was never compared to anything is the
+exact failure this tool exists to prevent.
+
+**Why.** A claim block missing `source=`, or repeating an id, was reported as
+`claim-without-evidence` at `low`. The severity was chosen for the *other* user
+of that code — a bare `【原文】` marker in prose, where "you did not bind this"
+genuinely is advice and not an error. Reusing it for a malformed claim block
+made both quiet, and the default `--fail-on high` let a run go green while the
+claim's quote had never been looked up. The two cases need different codes
+because they need different fixes: bind a marker, repair a block.
+
+**Evidence.** `citevouch check` on a manuscript whose only claim has no
+`source=` returned `0 claims`, `worst severity: info`, exit 0 before this
+change. Seen 1.
+
+---
+
+## The unambiguous form of a question is worth designing for, not guessing at
+
+**Rule.** When two inputs are genuinely indistinguishable, report the one that
+loses data, and make the safe form structurally different rather than asking
+people to be careful.
+
+**Why.** `` ``` `` opened around a claim block and never closed produces the same
+text as a code sample that legitimately contains a `` ```claim `` line: in both,
+the swallow ends exactly at a line meant to end a claim. Guessing "sample" loses
+the file's claims silently; guessing "forgot the fence" reports a fence someone
+deliberately nested. The tie is broken toward the loss, and the escape hatch is
+a **four-backtick** outer fence, where CommonMark nesting is unambiguous and the
+closing run can only be the longer one. That is a rule a person can apply
+without knowing which interpretation the tool picked.
+
+**Evidence.** The fifth review found `` ```python `` left open swallowing a
+claim and exiting 0; the fourth fixed only the `` ```claim `` path and left this
+one. Seen 2.

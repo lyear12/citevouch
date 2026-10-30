@@ -197,6 +197,19 @@ def _today() -> str:
     return _dt.date.today().isoformat()
 
 
+def _write_lf(path: Path, text: str) -> None:
+    """Write ``text`` with newlines that are the ones the caller meant.
+
+    ``Path.write_text`` does not take a ``newline`` argument, so on Windows it
+    translates every ``\\n`` to ``\\r\\n``.  The files this script rewrites are
+    committed and read back by the release workflow, so a local ``--apply``
+    would otherwise leave the whole file different from the version control
+    copy for no reason other than the platform it ran on.
+    """
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("changelog", type=Path)
@@ -234,19 +247,20 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.apply:
-        args.changelog.write_text(
-            update_links(apply(text, new_version, args.date), new_version), encoding="utf-8"
+        _write_lf(
+            args.changelog,
+            update_links(apply(text, new_version, args.date), new_version),
         )
         if args.pyproject:
-            args.pyproject.write_text(
+            _write_lf(
+                args.pyproject,
                 set_pyproject_version(args.pyproject.read_text(encoding="utf-8"), new_version),
-                encoding="utf-8",
             )
         for doc in args.readme:
             current = doc.read_text(encoding="utf-8")
             rewritten, moved = set_doc_pins(current, new_version)
             if moved:
-                doc.write_text(rewritten, encoding="utf-8")
+                _write_lf(doc, rewritten)
             print(f"{doc}: {moved} install pin(s) moved to v{new_version}", file=sys.stderr)
 
     print(new_version)

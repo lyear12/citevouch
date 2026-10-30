@@ -59,14 +59,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install ruff
+      - run: python -m pip install -e . pytest ruff
       - name: ruff
         run: |
           ruff check .
           ruff format --check .
       - name: repository rules
         # The rules this project states about itself, checked rather than
-        # remembered: commit-message evidence sections and lesson promotions.
+        # remembered: commit-message evidence sections, lesson promotions, and
+        # whether the "N passed" a message claims is the number the suite
+        # actually reports. That last one is only checkable where the tests
+        # ran, which is why the count is measured here rather than assumed.
         # On a push, police exactly the commits the push carried; on anything
         # else (PR, dispatch) fall back to the last ten, which still catches
         # a nonconforming head commit.
@@ -79,7 +82,10 @@ jobs:
             range="$(git rev-parse HEAD~10 2>/dev/null || git rev-parse HEAD^)..HEAD"
           fi
           echo "policing commits in $range"
-          python tools/check_repo_rules.py --range "$range"
+          passed=$(python -m pytest -q 2>&1 | tee /tmp/suite.log | grep -oE '[0-9]+ passed' | tail -1 | cut -d' ' -f1)
+          tail -3 /tmp/suite.log
+          echo "the suite reports ${passed:-0} passing tests"
+          python tools/check_repo_rules.py --range "$range" --passed "${passed:-0}"
 
   acceptance:
     name: acceptance (the documented first run)

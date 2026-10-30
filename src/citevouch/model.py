@@ -43,6 +43,19 @@ CODES = {
     "bib-unparsed-entry": "high",
     "page-out-of-range": "high",
     "claim-block-unclosed": "high",
+    # A claim block that cannot be looked up at all: no source=, no quote, no
+    # id, or an id used twice so the second block is dropped.  It is high and
+    # not low because the quote in it was never compared to anything - the run
+    # reported a number of claims checked that does not include this one, and a
+    # green pipeline over an unchecked claim is the exact failure this tool
+    # exists to prevent.
+    "claim-uncheckable": "high",
+    # A page hint that is not a number.  The claim is still located by search,
+    # so this is a note about an instruction being ignored, not a rejection.
+    "page-unreadable": "medium",
+    # A prose marker with no claim block behind it.  Low: it is a reminder that
+    # something in the prose asserts a source it does not name, not a claim that
+    # was supposed to be checked and was not.
     "claim-without-evidence": "low",
     "ledger-stale": "high",
 }

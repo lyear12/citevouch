@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from citevouch.matching import MIN_FUZZY_TOKENS, PageText, excerpt, find_in_pages
+from citevouch.matching import (
+    MIN_FUZZY_TOKENS,
+    PageText,
+    _bounded_pages,
+    excerpt,
+    find_in_pages,
+)
 
 
 def _pages(*texts: str) -> list[PageText]:
@@ -116,3 +122,37 @@ def test_excerpt_truncates_and_marks_the_cut():
 
 def test_excerpt_keeps_short_text_untouched():
     assert excerpt("short quote", limit=30) == "short quote"
+
+
+class TestPunctuationEndsAreUnconstrained:
+    """A side that is already punctuation cannot be part of a longer word.
+
+    This is the one deliberate loosening in the exact tier.  It exists because
+    CJK prose does not put spaces after a full stop, so ``...很小。`` would
+    otherwise never satisfy "followed by a non-word character" and every quoted
+    Chinese sentence would drop to the squashed tier.  The tests below pin the
+    loosening in both directions: it must let a real sentence through, and it
+    must not turn "quote followed by more letters" into a match.
+    """
+
+    def test_a_quote_ending_in_a_full_stop_matches_before_letters(self):
+        page = PageText(1, "构式网络很小。后面还有别的", "构式网络很小。后面还有别的")
+        found = _bounded_pages(page, "构式网络很小。")
+        assert found, "a full stop must not need a space after it to bound the match"
+
+    def test_a_quote_ending_in_a_comma_matches_before_letters(self):
+        page = PageText(1, "see below, and then the rest", "see below, and then the rest")
+        assert _bounded_pages(page, "see below,")
+
+    def test_a_quote_starting_with_punctuation_needs_no_space_before(self):
+        page = PageText(1, "text(see below) more", "text(see below) more")
+        assert _bounded_pages(page, "(see below)")
+
+    def test_the_loosening_does_not_apply_to_a_word_ending(self):
+        # "in the paper" ends in a letter, so the old rule still holds.
+        page = PageText(1, "as seen in the papers today", "as seen in the papers today")
+        assert _bounded_pages(page, "in the paper") == []
+
+    def test_the_loosening_does_not_apply_to_a_word_start(self):
+        page = PageText(1, "a bin the paper today", "a bin the paper today")
+        assert _bounded_pages(page, "in the paper") == []

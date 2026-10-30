@@ -33,6 +33,7 @@ _RELEASE_SUBJECT = re.compile(r"^Release \d+\.\d+\.\d+$")
 
 _SEEN = re.compile(r"Seen (\d+)\.")
 _LESSON_HEADING = re.compile(r"^## (?P<title>.+?)\s*$", re.MULTILINE)
+_PASSED = re.compile(r"\b(\d+)\s+passed\b")
 
 
 def _run_git(*args: str, cwd: Path) -> str:
@@ -64,6 +65,28 @@ def commit_message_violations(repo: Path, rev_range: str) -> list[str]:
         missing = [section for section in REQUIRED_SECTIONS if section not in body]
         if missing:
             bad.append(f"{subject.strip()[:60]}: missing {', '.join(missing)}")
+    return bad
+
+
+def passed_count_mismatches(notes: str, actual: int) -> list[str]:
+    """Claims of ``N passed`` in ``notes`` that disagree with ``actual``.
+
+    AGENTS.md asks every commit to say what was run.  A number in that section
+    is a measurement, and a wrong measurement is the most expensive kind of
+    wrong sentence: the next agent reads "317 passed" as evidence the suite is
+    that much bigger than it is, and cannot tell a stale number from a lie
+    without running it.  Both rounds of review that caught this found the same
+    thing — the author believed the number.
+
+    Only ``<number> passed`` is read.  Other shapes (``-k "not network"``
+    filters, ``3.1s``) are left alone: a checker that guesses is a checker
+    people learn to route around.
+    """
+    bad: list[str] = []
+    for claim in _PASSED.finditer(notes):
+        claimed = int(claim.group(1))
+        if claimed != actual:
+            bad.append(f"says {claimed} passed, the suite reports {actual}")
     return bad
 
 
@@ -109,6 +132,15 @@ def main(argv: list[str] | None = None) -> int:
         default="HEAD~1..HEAD",
         help="commit range to police, e.g. the push event's before..after",
     )
+    parser.add_argument(
+        "--passed",
+        type=int,
+        default=None,
+        help=(
+            "how many tests the suite reported in this job; commit messages that "
+            "claim a different number are listed. Omit where the suite did not run."
+        ),
+    )
     args = parser.parse_args(argv)
 
     repo = args.repo.resolve()
@@ -130,6 +162,26 @@ def main(argv: list[str] | None = None) -> int:
             lessons.read_text(encoding="utf-8"), standards.read_text(encoding="utf-8")
         ):
             problems.append(f"lesson seen 3+ days but not in code-standards: {title}")
+
+    if args.passed is not None:
+        # Only the head commit.  The suite has just run in this job, so its
+        # size is a fact the message can be held against - but only for the
+        # message being written now.  A number in a commit that is already
+        # published cannot be corrected, so policing the whole range would
+        # make the gate permanently red for history nobody can retract, and a
+        # gate that can never be satisfied is a gate people delete.
+        try:
+            log = _run_git("log", "--no-merges", "-1", "--format=%x00%s%n%b", "HEAD", cwd=repo)
+        except subprocess.CalledProcessError:
+            log = ""
+        for record in log.split("\x00"):
+            if not record.strip("\n"):
+                continue
+            subject, _, body = record.strip("\n").partition("\n")
+            if _RELEASE_SUBJECT.match(subject.strip()):
+                continue
+            for mismatch in passed_count_mismatches(body, args.passed):
+                problems.append(f"{subject.strip()[:60]}: {mismatch}")
 
     for problem in problems:
         print(problem)

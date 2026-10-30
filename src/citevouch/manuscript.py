@@ -40,6 +40,7 @@ from .textnorm import numbers_in
 
 _FENCE_OPEN = re.compile(r"^```claim\b(?P<attrs>.*)$")
 _FENCE_CLOSE = re.compile(r"^```\s*$")
+_ANY_FENCE = re.compile(r"^(?P<ticks>`{3,})(?P<info>.*)$")
 _HTML_OPEN = re.compile(r"^<!--\s*claim\s*:?\s*(?P<attrs>.*)$")
 _HTML_CLOSE = re.compile(r"^\s*-->\s*$")
 _TABLE_CLAIM = re.compile(
@@ -96,7 +97,7 @@ def _claim_from(
     if not cid:
         findings.append(
             Finding(
-                code="claim-without-evidence",
+                code="claim-uncheckable",
                 message="claim block has no id= attribute; give it a stable id so the ledger can track it",
                 path=path,
                 line=line,
@@ -107,7 +108,7 @@ def _claim_from(
     if not source:
         findings.append(
             Finding(
-                code="claim-without-evidence",
+                code="claim-uncheckable",
                 message=f"claim {cid} names no source=; the quote cannot be looked up",
                 claim_id=cid,
                 path=path,
@@ -119,7 +120,7 @@ def _claim_from(
     if not quote:
         findings.append(
             Finding(
-                code="claim-without-evidence",
+                code="claim-uncheckable",
                 message=f"claim {cid} carries no verbatim quote; nothing can be verified",
                 claim_id=cid,
                 path=path,
@@ -138,10 +139,17 @@ def _claim_from(
         try:
             page = int(raw_page)
         except ValueError:
+            # Not claim-uncheckable: the quote is still located by search, so
+            # the claim is verified either way. It is reported because the hint
+            # the author wrote is being ignored, and silently ignoring an
+            # instruction someone typed is how they come to believe it worked.
             findings.append(
                 Finding(
-                    code="claim-without-evidence",
-                    message=f"claim {cid} has a non-numeric page={raw_page!r}; it will be located by search instead",
+                    code="page-unreadable",
+                    message=(
+                        f"claim {cid} has a non-numeric page={raw_page!r}; the hint is "
+                        "ignored and the quote will be located by search"
+                    ),
                     claim_id=cid,
                     path=path,
                     line=line,
@@ -161,6 +169,45 @@ def _claim_from(
         quote_fingerprint=fingerprint(quote),
     )
     return claim, findings
+
+
+def _closes(line: str, ticks: str) -> bool:
+    """True when ``line`` closes a fence opened with ``ticks`` backticks.
+
+    A fence closes only on a line holding at least as many backticks with
+    nothing after them - the CommonMark rule, and the reason four backticks can
+    wrap a sample that itself contains ``` lines.
+    """
+    m = _ANY_FENCE.match(line)
+    return bool(m) and len(m.group("ticks")) >= len(ticks) and not m.group("info").strip()
+
+
+def _unclosed_finding(
+    start_line: int,
+    opener: str,
+    consequence: str,
+    path: str,
+    claim_id: str = "",
+) -> Finding:
+    """One shape for "this block never ended", so all three dialects agree.
+
+    ``claim-block-unclosed`` used to be raised only for ```claim fences, which
+    made it the one unclosed case that was reported. A ```python block or an
+    HTML ``<!-- claim`` without its closer swallowed the rest of the file just
+    as quietly, and the run then printed "0 claims" and exited 0 - a green
+    verdict over a manuscript whose claim was never read.
+    """
+    who = f"claim {claim_id}: " if claim_id else ""
+    return Finding(
+        code="claim-block-unclosed",
+        message=(
+            f"{who}the {opener} fence opened on line {start_line} is never closed; "
+            f"{consequence}"
+        ),
+        claim_id=claim_id,
+        path=path,
+        line=start_line,
+    )
 
 
 def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
@@ -209,28 +256,68 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 # as `quote-missing`, sending the author to check a PDF instead of
                 # the fence. Say the true thing, at the line where it happened.
                 more.append(
-                    Finding(
-                        code="claim-block-unclosed",
-                        message=(
-                            f"claim {claim.id}: the ```claim fence opened on line "
-                            f"{start_line} is never closed; every claim after it was "
-                            "read as part of this block"
-                        ),
-                        claim_id=claim.id,
-                        path=path,
-                        line=start_line,
+                    _unclosed_finding(
+                        start_line,
+                        "```claim",
+                        "every claim after it was read as part of this block",
+                        path,
+                        claim.id,
                     )
                 )
             accept(claim, more, start_line, j + 1)
             i = j + 1
             continue
 
-        if line.startswith("```"):
+        opener = _ANY_FENCE.match(line)
+        if opener:
             # Some other fenced block: skip it wholesale so prose inside a code
             # sample is never mistaken for a claim.
+            #
+            # Skipping it silently is only correct when it really is a code
+            # sample. Two inputs look identical here and are not: a sample that
+            # contains a ```claim line on purpose (correct to ignore), and an
+            # author who forgot the closing fence, so their first claim opened
+            # inside the code block and the rest of the file was read as code
+            # (data loss, reported as "0 claims" and a green exit).
+            #
+            # The two are told apart by what comes after: a genuine sample
+            # closes and parsing resumes; a forgotten closer either never closes,
+            # or is closed by the claim's own closing fence, which is to say the
+            # swallow ends exactly at a line that was meant to end a claim.
+            ticks = opener.group("ticks")
             j = i + 1
-            while j < len(lines) and not _FENCE_CLOSE.match(lines[j]):
+            while j < len(lines) and not _closes(lines[j], ticks):
                 j += 1
+            swallowed = [
+                k + 1 for k in range(i + 1, min(j, len(lines))) if _FENCE_OPEN.match(lines[k])
+            ]
+            # Four or more backticks nest unambiguously: a ```claim inside is
+            # literal sample text, and the outer fence closes on the longer run
+            # only. The guess below is only needed for a plain ``` opener, where
+            # a nested sample and a forgotten closer really do look the same.
+            ambiguous = len(ticks) == 3
+            if j >= len(lines) and ambiguous:
+                findings.append(
+                    _unclosed_finding(
+                        start_line,
+                        "```",
+                        "every claim after it was read as part of the code sample",
+                        path,
+                    )
+                )
+            elif swallowed and ambiguous:
+                findings.append(
+                    _unclosed_finding(
+                        start_line,
+                        "```",
+                        "the claim block opened on line "
+                        f"{swallowed[0]} was read as part of the code sample, "
+                        "so it was never checked; the sample is probably missing "
+                        "its closing fence",
+                        path,
+                    )
+                )
+            spans.append((start_line, j + 1))
             i = j + 1
             continue
 
@@ -242,8 +329,19 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             while j < len(lines) and not _HTML_CLOSE.match(lines[j]):
                 body.append(lines[j])
                 j += 1
+            closed = j < len(lines)
             quote, claim_text = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line)
+            if not closed and claim is not None:
+                more.append(
+                    _unclosed_finding(
+                        start_line,
+                        "<!-- claim",
+                        "every claim after it was read as part of this block",
+                        path,
+                        claim.id,
+                    )
+                )
             accept(claim, more, start_line, j + 1)
             i = j + 1
             continue
@@ -325,7 +423,7 @@ def _dedent(lines: list[str]) -> str:
 
 def _duplicate_finding(claim: Claim, seen: dict[str, int], path: str) -> Finding:
     return Finding(
-        code="claim-without-evidence",
+        code="claim-uncheckable",
         message=(
             f"claim id {claim.id!r} is used twice (first at line {seen[claim.id]}); "
             "the ledger cannot track both, so the second is ignored"

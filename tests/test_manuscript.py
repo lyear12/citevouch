@@ -62,7 +62,7 @@ quote: |
 """
     result = parse_manuscript(text)
     assert result.claims == []
-    assert result.findings[0].code == "claim-without-evidence"
+    assert result.findings[0].code == "claim-uncheckable"
     assert "no id=" in result.findings[0].message
 
 
@@ -117,17 +117,54 @@ claim = "this should not be parsed"
     assert result.findings == []
 
 
-def test_claim_inside_a_non_claim_fence_is_ignored():
-    text = """
-```markdown
+def test_a_code_sample_wrapping_a_claim_with_four_backticks_stays_silent():
+    """The safe way to document the syntax: wrap it in four backticks.
+
+    A three-backtick sample around a ```claim line is *indistinguishable* from
+    an author who forgot the sample's closing fence - in both, the ```claim is
+    swallowed and ends at a line that was meant to end a claim. Since the two
+    cannot be told apart from the text, the run says so (see the two tests
+    below). Four backticks make the nesting explicit, and then there is nothing
+    to guess: the outer fence does not close on the inner one.
+    """
+    text = """````markdown
 ```claim id=c1 source=a
 quote: |
   nested
 ```
+````
+"""
+    result = parse_manuscript(text)
+    assert result.claims == []
+    assert result.findings == []
+
+
+def test_an_unclosed_code_fence_that_swallowed_a_claim_is_reported():
+    """The failure this guard exists for: a missing closer turns the author's
+    own claim into "code", and the run used to print 0 claims and exit 0."""
+    text = """```python
+code with no closing fence
+
+```claim id=c1 source=a
+quote: |
+  the corpus holds 154,391 sentences
 ```
 """
     result = parse_manuscript(text)
     assert result.claims == []
+    assert [f.code for f in result.findings] == ["claim-block-unclosed"]
+    assert "opened on line 4" in result.findings[0].message
+    assert result.findings[0].line == 1
+
+
+def test_an_unclosed_html_claim_is_reported():
+    text = """<!-- claim: c1 source=a
+quote: |
+  the corpus holds 154,391 sentences
+"""
+    result = parse_manuscript(text)
+    assert [f.code for f in result.findings] == ["claim-block-unclosed"]
+    assert result.findings[0].line == 1
 
 
 def test_line_numbers_point_at_the_opening_delimiter():
@@ -174,3 +211,62 @@ def test_empty_manuscript_yields_nothing():
     result = parse_manuscript("")
     assert result.claims == []
     assert result.findings == []
+
+
+def test_a_four_backtick_fence_may_contain_a_claim_line_silently():
+    """Four ticks nest unambiguously, so it is the documented safe form.
+
+    Three ticks are genuinely ambiguous — a forgotten closer and a deliberate
+    sample look the same — so the tool reports the loss. Four ticks are not:
+    the outer fence closes only on a run of four, which cannot be this claim's
+    own three. Guessing "forgot the fence" there would punish the one way to
+    quote a fence correctly.
+    """
+    text = """````markdown
+```claim id=c1 source=a
+quote: |
+  this is sample text, not a claim
+```
+````
+"""
+    result = parse_manuscript(text)
+    assert result.claims == []
+    assert result.findings == []
+
+
+def test_two_blocks_that_are_broken_for_different_reasons_both_say_so():
+    text = """
+```claim id=c1 source=a
+quote: |
+  quote one
+```
+```claim id=c1 source=a
+quote: |
+  quote two
+```
+```claim source=a
+quote: |
+  quote three
+```
+"""
+    result = parse_manuscript(text)
+    codes = [f.code for f in result.findings]
+    assert codes.count("claim-uncheckable") == 2
+    assert [c.id for c in result.claims] == ["c1"]
+
+
+def test_a_claim_that_cannot_be_checked_is_not_also_advice():
+    """`claim-without-evidence` means "bind this marker"; it is not a verdict.
+
+    The two used to share a code, so a malformed block and a stray marker in
+    prose were equally quiet, and `--fail-on high` let the malformed one pass.
+    """
+    text = """
+```claim id=c1 page=1
+quote: |
+  words
+```
+"""
+    result = parse_manuscript(text)
+    assert result.findings[0].code == "claim-uncheckable"
+    assert result.findings[0].severity == "high"

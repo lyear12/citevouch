@@ -315,7 +315,7 @@ def _render(
     if fmt == "json":
         return render_json(findings, ledger, result)
     if fmt == "sarif":
-        return render_sarif(findings, __version__)
+        return render_sarif(findings, __version__, args.root)
     if fmt == "markdown":
         return render_markdown(findings, result)
     return render_text(findings, result, show_info=not args.quiet)

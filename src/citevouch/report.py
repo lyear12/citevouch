@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from pathlib import Path
 
 from .model import Finding, Ledger, worst
 from .verify import VerifyResult
@@ -45,8 +46,16 @@ SARIF_RULES = {
     ),
     "page-out-of-range": ("A page hint exceeds the source length.", "blocking"),
     "claim-block-unclosed": (
-        "A ```claim block never closes, so later claims in the file were never read.",
+        "A block never closes, so later claims in the file were never read.",
         "blocking",
+    ),
+    "claim-uncheckable": (
+        "A claim block cannot be looked up at all, so its quote was never compared to anything.",
+        "blocking",
+    ),
+    "page-unreadable": (
+        "A page hint is not a number and is being ignored.",
+        "warning",
     ),
     "claim-without-evidence": ("A claim carries no verifiable evidence.", "warning"),
     "ledger-stale": ("The ledger predates the manuscript.", "blocking"),
@@ -120,13 +129,45 @@ def render_json(
     return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
 
-def render_sarif(findings: Iterable[Finding], tool_version: str = "") -> str:
+def _sarif_uri(raw: str, root: Path | None) -> str:
+    """Turn a finding path into a URI code scanning can attach to a file.
+
+    GitHub resolves ``artifactLocation.uri`` against the repository, so an
+    absolute local path (``C:/Users/.../m.md``) matches no artifact and the
+    annotation is silently lost — the run still uploads, which is what made
+    this hard to notice.  Paths are therefore re-rooted when they can be.
+
+    A path outside ``root`` stays absolute on purpose: inventing a relative
+    path for a file the checkout does not contain would move the annotation
+    onto some other file that happens to share the tail.
+    """
+    posix = raw.replace("\\", "/")
+    if root is None:
+        return posix
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        return posix
+    for base in (root, root.resolve()):
+        try:
+            return candidate.resolve().relative_to(base.resolve()).as_posix()
+        except (ValueError, OSError):
+            continue
+    return posix
+
+
+def render_sarif(
+    findings: Iterable[Finding],
+    tool_version: str = "",
+    root: str | Path | None = None,
+) -> str:
     """SARIF 2.1.0 with one rule per finding code.
 
-    The URIs are relative paths, which is what GitHub needs to attach an
-    annotation; a finding without a path becomes a run-level notification.
+    The URIs are relative to ``root`` when they can be, which is what GitHub
+    needs to attach an annotation; a finding without a path becomes a
+    run-level notification.
     """
     findings = list(findings)
+    root_path = None if root is None else Path(root)
     codes = sorted({f.code for f in findings})
     rules = []
     for code in codes:
@@ -152,7 +193,7 @@ def render_sarif(findings: Iterable[Finding], tool_version: str = "") -> str:
             result["locations"] = [
                 {
                     "physicalLocation": {
-                        "artifactLocation": {"uri": finding.path.replace("\\", "/")},
+                        "artifactLocation": {"uri": _sarif_uri(finding.path, root_path)},
                         "region": region,
                     }
                 }

@@ -11,6 +11,49 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- `claim-uncheckable`. A claim block that cannot be looked up at all — no
+  `source=`, no quote, no id, or an id used twice so the second block is
+  dropped — was reported as `claim-without-evidence`, which is `low`, which the
+  default `--fail-on high` lets through. The pipeline went green on a claim
+  whose quote had never been compared to anything. It is now `high` and it has
+  its own code, because "a bare marker in prose" and "a claim block that is
+  broken on its face" are two different problems with two different fixes, and
+  the README had been describing only the first.
+- `page-unreadable`. A `page=` hint that is not a number is reported as
+  `medium` instead of silently degrading the claim to `low`: the hint is
+  ignored and the quote is located by search, so the claim is still checked —
+  the author just needs to know their instruction did nothing.
+- SARIF paths are re-rooted against `--root` when they can be. GitHub resolves
+  `artifactLocation.uri` against the repository, so a finding carrying
+  `C:/Users/.../m.md` matched no artifact and its annotation was dropped
+  without an error.
+
+### Fixed
+
+- A non-claim fence that is never closed no longer swallows the rest of the
+  file in silence. ` ```python ` left open, and the first claim inside it
+  opened inside the code sample, after which every remaining claim was read as
+  sample text: `claims[]` came back as "0 claims" and the run exited 0. The
+  same hole existed in the HTML dialect (`<!-- claim:` with no `-->`), in both
+  directions. Both are now `claim-block-unclosed`, which names the line the
+  fence opened on. A sample wrapped in **four** backticks stays silent: that is
+  the one form where nesting is unambiguous, and guessing wrong there would
+  punish the correct way to quote a fence.
+- `tools/next_version.py --apply` writes LF on Windows. `Path.write_text` has
+  no `newline` argument, so a local `--apply` rewrote the whole file as CRLF
+  and every line showed as changed for no reason but the platform.
+- The repository-rules check now reads the `N passed` in the head commit's
+  message and compares it with the number the suite just reported. Two review
+  rounds caught the author quoting a test count that was not the suite's size;
+  a wrong measurement is the most expensive kind of wrong sentence, because
+  the next reader cannot tell it from a stale one.
+- The reader's real input is now a fixture. `tests/fixtures/real-39.bib` is
+  the 39-entry bibliography this tool was written against, with the `%` inside
+  a field, the CJK titles and the `and others` tails that broke the first
+  version. Synthetic fixtures prove a fix agrees with itself; this one is the
+  input that disagreed.
 
 ## [0.6.1] — 2026-10-30
 ### Fixed
@@ -24,6 +67,7 @@ tag and that file disagree.
   test now checks any line that mentions `pyproject.toml` for a statement of
   what it actually does, and it scans `.github/workflows/*.yml` too - the guard
   had been excluding the files it was never pointed at.
+
 ## [0.6.0] — 2026-10-30
 ### Fixed
 
