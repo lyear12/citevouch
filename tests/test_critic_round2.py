@@ -9,6 +9,8 @@ the implementation.
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
 import sys
 import textwrap
@@ -269,7 +271,14 @@ def test_a_zero_schema_ledger_is_refused(tmp_path: Path):
         ],
         capture_output=True,
         text=True,
-        env={"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")},
+        # `env=` replaces the whole environment, not just the named keys: on
+        # Windows that removes SYSTEMROOT and the interpreter dies before it
+        # reaches main(), with exit 1 and "failed to get random numbers".
+        env={
+            **os.environ,
+            "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+            "PYTHONIOENCODING": "utf-8",
+        },
     )
     assert proc.returncode == 2, proc.stdout + proc.stderr
     assert "schemas start at 1" in proc.stderr
@@ -367,12 +376,19 @@ def test_the_package_reports_the_declared_version():
     rewrote ``pyproject.toml``. For four releases ``citevouch --version``, the
     SARIF driver version and every ledger's ``tool_version`` said 0.1.0 while
     the wheel was something else."""
-    import tomllib
-
     repo = Path(__file__).resolve().parents[1]
-    project = tomllib.loads((repo / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert project["dynamic"] == ["version"], "the version should not be a second literal"
-    assert "version" not in project
+    project = (repo / "pyproject.toml").read_text(encoding="utf-8").split("[project]", 1)[1]
+    project = project.split("\n[", 1)[0]
+    # A TOML parser here would be a 3.11-only import in a test that has to run
+    # on 3.10, which is the same shape of mistake as the `tomllib` import in
+    # `sources.py` that this project already paid for once. The two facts under
+    # test are one line each; read the lines.
+    assert re.search(r"^dynamic\s*=\s*\[\s*\"version\"\s*\]", project, re.M), (
+        "the version should be declared dynamic, not written in a second place"
+    )
+    assert not re.search(r"^version\s*=", project, re.M), (
+        "pyproject.toml must not hold a version; it lives in src/citevouch/_version.py"
+    )
     assert (repo / "src" / "citevouch" / "_version.py").exists()
     assert __version__ == _read_version_module(repo)
 
