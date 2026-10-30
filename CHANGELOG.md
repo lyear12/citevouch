@@ -12,6 +12,22 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A manuscript, bibliography or ledger saved with a UTF-8 byte-order mark
+  was read as if it began with a character no one can type.  Every
+  reader in this tool treats the first line as syntax, so a BOM in
+  front of the first `claim` fence hid a block that was closed one
+  line below it and reported `claim-block-unclosed` plus
+  `no-claim-blocks`; a BOM in front of the first `@article{` reported
+  an unparsed header and then `bib-key-missing` (high) for a key
+  sitting in that file; a BOM on the ledger made `verify` exit 2 with
+  `Unexpected UTF-8 BOM`.  Windows Notepad, Excel and PowerShell's
+  `>` all write one by default, so this is the ordinary shape of a
+  file from those tools, not a corrupt one.  All reads now go through
+  `textnorm.read_text`, which drops the mark at the boundary; it
+  carries no information the pipeline uses, so removing it is lossless.
+
 ## [0.18.8] — 2026-10-30
 ### Fixed
 

@@ -1719,3 +1719,11 @@ emitted a six-separator row in a four-column table; a quote with the pipe at
 cell offset 78 emitted a cell ending in a bare backslash.  Three mutations
 are red: escaping only the pipe, escaping before cutting, and not cutting.
 Seen 1.
+
+## A mark you cannot see is still the first character
+
+**Rule.** Read outside text through one function that normalises the encoding boundary, and make that function the only thing that touches a file.  A byte-order mark is not whitespace and not metadata: after decoding it is a real character at offset 0, and any reader that treats its first line as syntax fails on it.
+
+**Why.** The failure never looks like an encoding problem.  Each reader reports the consequence in the language of its own domain — an unclosed fence, an unparsed header, a key that does not exist — and every one of those sentences sends the author to a place the problem is not.  A reader who is told their claim block never closes will check the block, find it closed, and conclude the tool is broken.
+
+**Evidence.** Windows Notepad, Excel's CSV export and PowerShell's `>` all write a UTF-8 BOM by default.  Four readers were affected: `scan` reported `claim-block-unclosed` and `no-claim-blocks` for a well-formed manuscript; `parse_bib` reported `bib-entry-header-unparsed` and then `bib-key-missing` (high) for a key that was in the file; `_read_ledger` refused the repository's own recorded evidence with `Unexpected UTF-8 BOM`; `_load_cache` treated a marked cache entry as a miss.  The fix is one function, `textnorm.read_text`, and four call sites routed through it.  Three mutations are red: not stripping the mark, and re-introducing a raw read at each of two call sites.  Seen 1.

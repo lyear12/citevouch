@@ -30,7 +30,7 @@ from .sources import (
     resolve_source,
     sha256_file,
 )
-from .textnorm import canonical_number
+from .textnorm import canonical_number, read_text
 
 
 @dataclass
@@ -123,7 +123,7 @@ def verify(
     # version of this tool, so the guard belongs here and not only in `scan`.
     if not ledger.claims:
         try:
-            text = manuscript_path.read_text(encoding="utf-8", errors="replace")
+            text = read_text(manuscript_path)
         except OSError:
             text = ""
         result.findings.append(_no_claim_blocks_finding(text, manuscript_path.name))

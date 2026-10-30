@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from pathlib import Path
 
 # Characters that different tools render differently but mean the same thing.
 _EQUIV = {
@@ -121,3 +122,33 @@ def canonical_number(token: str) -> str:
     return (
         token.replace(",", "").replace("\u00a0", "").replace("%", "").replace(" ", "").strip()
     )
+
+
+#: One UTF-8 byte-order mark, as it arrives after decoding.
+_BOM = "\ufeff"
+
+
+def read_text(path: Path | str) -> str:
+    """Read a text file for this tool, without its byte-order mark.
+
+    Notepad, Excel and PowerShell's ``>`` all write a UTF-8 BOM by default, and
+    a BOM is not whitespace: it is a real character at the start of the file.
+    Every reader that treats the first line as syntax then fails on a file the
+    author believes is fine, and reports it as something else:
+
+    * a manuscript beginning with ``\ufeff`` hid a well-formed claim block, so
+      the run reported ``claim-block-unclosed`` and ``no-claim-blocks`` for a
+      file whose block was closed on the line below it;
+    * a bibliography beginning with one reported an unparsed header at line 1
+      and then ``bib-key-missing`` for a key sitting in that file.
+
+    The BOM carries no information the rest of the pipeline uses - it only says
+    "this file is UTF-8" - so removing it at the boundary is lossless.  It is
+    removed here rather than at each call site because the call sites are the
+    four ways this bug came back.
+    """
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        raise
+    return text[1:] if text.startswith(_BOM) else text

@@ -28,6 +28,7 @@ from .sources import (
     resolve_source,
     sha256_file,
 )
+from .textnorm import read_text
 
 
 @dataclass
@@ -187,7 +188,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
         )
 
     findings: list[Finding] = []
-    text = manuscript_path.read_text(encoding="utf-8", errors="replace")
+    text = read_text(manuscript_path)
     parsed = parse_manuscript(text, path=manuscript_path.name)
     findings.extend(parsed.findings)
     # No claim blocks at all.  Every other finding describes a claim that was
@@ -299,9 +300,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
                 )
             )
             continue
-        result = parse_bib(
-            bib_path.read_text(encoding="utf-8", errors="replace"), str(bib_path)
-        )
+        result = parse_bib(read_text(bib_path), str(bib_path))
         findings.extend(result.findings)
         ledger.entries.update(result.entries)
 

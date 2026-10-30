@@ -34,6 +34,7 @@ from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, _why_not_a_file, scan
 from .sources import discover_sources
+from .textnorm import read_text
 from .verify import VerifyResult, verify
 
 DEFAULT_LEDGER = "citevouch.lock.json"
@@ -161,7 +162,7 @@ def _read_ledger(path: Path) -> Ledger:
     if not path.exists():
         raise UsageError(f"no ledger at {path}; run `citevouch scan` first")
     try:
-        blob = json.loads(path.read_text(encoding="utf-8"))
+        blob = json.loads(read_text(path))
     except (OSError, ValueError) as exc:
         raise UsageError(f"ledger {path} is not readable JSON: {exc}") from exc
     if not isinstance(blob, dict) or "claims" not in blob:
@@ -334,12 +335,10 @@ def cmd_draft(args: argparse.Namespace) -> int:
         if not bib_path.is_file():
             raise UsageError(f"bib file {bib_path} {_why_not_a_file(bib_path)}")
 
-        parsed = parse_bib(
-            bib_path.read_text(encoding="utf-8", errors="replace"), str(bib_path)
-        )
+        parsed = parse_bib(read_text(bib_path), str(bib_path))
         bib.update(parsed.entries)
 
-    text = manuscript.read_text(encoding="utf-8", errors="replace")
+    text = read_text(manuscript)
     converted = latex_module.looks_like_latex(manuscript)
     if converted:
         text = latex_module.to_text(text)

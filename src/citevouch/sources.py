@@ -23,7 +23,7 @@ from pathlib import Path
 from ._version import __version__
 from .errors import UsageError
 from .model import Finding, SourceRef
-from .textnorm import fold
+from .textnorm import fold, read_text
 
 CACHE_DIRNAME = ".citevouch"
 CACHE_SUBDIR = "cache"
@@ -122,7 +122,7 @@ def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[P
     if not path.exists():
         return None
     try:
-        blob = json.loads(path.read_text(encoding="utf-8"))
+        blob = json.loads(read_text(path))
     except (OSError, ValueError):
         return None
     if blob.get("schema") != 1:
@@ -209,7 +209,7 @@ def _pdftotext_pages(path: str | Path) -> tuple[list[str], str] | None:
 def _plain_text_pages(path: str | Path) -> list[str] | None:
     """Plain text, split on form feeds so a pdftotext dump keeps its pages."""
     try:
-        text = Path(path).read_text(encoding="utf-8", errors="replace")
+        text = read_text(path)
     except OSError:
         return None
     return text.split("\f")
@@ -218,7 +218,7 @@ def _plain_text_pages(path: str | Path) -> list[str] | None:
 def _markup_pages(path: str | Path) -> list[str] | None:
     """One page of tag-stripped text, or ``None`` when the file is unreadable."""
     try:
-        text = Path(path).read_text(encoding="utf-8", errors="replace")
+        text = read_text(path)
     except OSError:
         return None
     return [_strip_markup(text)]
@@ -464,7 +464,7 @@ def load_manifest(root: str | Path) -> dict[str, str]:
         if not path.exists():
             continue
         try:
-            text = path.read_text(encoding="utf-8")
+            text = read_text(path)
             if name.endswith(".json"):
                 blob = json.loads(text)
                 mapping = blob.get("sources", blob) if isinstance(blob, dict) else {}
