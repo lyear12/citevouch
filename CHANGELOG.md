@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.18.8] — 2026-10-30
 ### Fixed
 
 - `citevouch report` built a table with one column too many for any claim
@@ -22,7 +24,6 @@ tag and that file disagree.
   was escaped first and cut afterwards, so the cut could land between the
   backslash and the pipe it escaped, leaving a backslash that swallowed the
   ellipsis marking the cut.  The quote is now cut before it is escaped.
-
 ## [0.18.7] — 2026-10-30
 ### Fixed
 
@@ -899,7 +900,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.7...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.8...HEAD
+[0.18.8]: https://github.com/lyear12/citevouch/releases/tag/v0.18.8
 [0.18.7]: https://github.com/lyear12/citevouch/releases/tag/v0.18.7
 [0.18.6]: https://github.com/lyear12/citevouch/releases/tag/v0.18.6
 [0.18.5]: https://github.com/lyear12/citevouch/releases/tag/v0.18.5
