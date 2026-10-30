@@ -35,6 +35,16 @@ curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/citevouch/json
 | date | stars | forks | watchers | open issues | release downloads | PyPI | note |
 |---|---|---|---|---|---|---|---|
 | 2026-10-30 | 0 | 0 | 0 | 0 | 6 (across 16 releases) | 404 | first 16 releases shipped in ~2 days, all automated |
+| 2026-10-30 | 0 | 0 | 0 | 0 | 6 (across 18 releases) | 404 | README now opens with two generated figures; v0.16.0 |
+
+A note on the image check, because it is the kind of thing this file is for: the
+README's images were verified as *markup* (`gh api repos/lyear12/citevouch/readme
+-H "Accept: application/vnd.github.html+json"` returns both `<img>` tags with the
+right `src` and `alt`, and `repos/.../contents/docs/img` lists all four files at
+the referenced path), but not as *pixels* — this machine cannot reach
+`raw.githubusercontent.com`, so the browser reports `naturalWidth 0` for both.
+That is a fact about this machine, not about the page, and it stays unresolved
+until someone opens the repository from a network that can reach the CDN.
 
 Nothing above is growth. At this size the honest read is: **nobody has used it
 yet**, and the numbers that matter (issues, downloads) are the ones that will
