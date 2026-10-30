@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.16.1] — 2026-10-30
 ### Fixed
 
 - `scan` now records the manuscript path relative to `--root`, the way it has
@@ -19,7 +21,6 @@ tag and that file disagree.
   project, so a committed ledger could only be regenerated from one directory.
   `demo/citevouch.lock.json` is re-recorded; existing ledgers keep working,
   because `verify` only ever reads the file name out of that field.
-
 ## [0.16.0] — 2026-10-30
 ### Added
 
@@ -657,7 +658,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/lyear12/citevouch/releases/tag/v0.16.1
 [0.16.0]: https://github.com/lyear12/citevouch/releases/tag/v0.16.0
 [0.15.0]: https://github.com/lyear12/citevouch/releases/tag/v0.15.0
 [0.14.0]: https://github.com/lyear12/citevouch/releases/tag/v0.14.0
