@@ -11,6 +11,25 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A quote is no longer reported missing because the page carries a character
+  nobody can see.  Format characters (Unicode category `Cf`) have no glyph:
+  they tell the text engine how to lay a run out, and they sit in the string
+  while rendering as nothing.  `normalize` removed five of them by name
+  (ZWSP, ZWNJ, ZWJ, ZERO WIDTH NO-BREAK SPACE, SOFT HYPHEN) and left the other
+  165, so a source text holding an RLM, an ALM or an RLE/PDF pair inside the
+  quoted sentence differed from what the author typed by one invisible
+  character - and `quote-missing` at high severity accused the author of not
+  quoting a page they were looking at.  Right-to-left text is where this
+  arrives in bulk: every Word and InDesign export of Arabic or Hebrew marks
+  direction changes with those characters, and a PDF extraction that keeps
+  them drops one into the middle of a sentence.  `strip_format` now removes
+  the whole category, and `tests/test_invisible.py` verifies the compiled
+  class against `unicodedata.category` over all 1,114,112 code points in both
+  directions - every `Cf` removed, nothing outside it touched - so a Unicode
+  release that adds a format character fails there rather than passing as a
+  gap in a hand-typed list.
 
 ## [0.19.3] — 2026-10-30
 ### Fixed

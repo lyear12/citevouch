@@ -42,19 +42,78 @@ _EQUIV = {
     "\u202f": " ",
     "\u2009": " ",
     "\u200a": " ",
-    "\u200b": "",
-    "\u200c": "",
-    "\u200d": "",
-    "\ufeff": "",
-    "\u00ad": "",
 }
 
-# Hyphenation at a line break: "con-\n struction" -> "construction".  Only a
+# Hyphenation at a line break: "con-\n scruction" -> "construction".  Only a
 # lowercase-before/lowercase-after pair is joined, because "pre-\n1990" and
 # "Van Eecke-\nBeuls" must keep their hyphen.
 _HYPHEN_BREAK = re.compile(r"(?<=[a-z])-\s*\n\s*(?=[a-z])")
 
 _WS = re.compile(r"\s+")
+
+#: Every character of Unicode category Cf (format), as a compiled class.
+#:
+#: These characters have no visible form: they tell a renderer how to lay text
+#: out, and a reader cannot see that they are there.  That is exactly why the
+#: comparison has to remove them - a source text carrying one of them inside a
+#: quote differs from what the author typed by a character neither of them can
+#: see, the quote falls through every tier and is reported ``quote-missing`` at
+#: high severity.  A right-to-left page is the case that produces them in bulk:
+#: every Word and InDesign export of Arabic or Hebrew marks direction changes
+#: with RLM (U+200F), ALM (U+061C) or an RLE/PDF pair (U+202B/U+202C), and a
+#: PDF extraction that keeps them puts one in the middle of the sentence the
+#: author is quoting.
+#:
+#: The ranges are written out rather than computed so that importing this
+#: module costs nothing: testing all 1.1 million code points with
+#: ``unicodedata.category`` takes about 100 ms, and doing it on every import of
+#: a tool that runs in a pre-commit hook is a real cost for no benefit.  They
+#: were generated from the category and are verified against it in
+#: ``tests/test_invisible.py``, which walks the whole of Unicode in both
+#: directions - every Cf covered, nothing outside the category matched - so a
+#: future Unicode release that adds a format character fails there instead of
+#: silently missing it here.
+_FORMAT_RANGES = (
+    (0x00AD, 0x00AD),  # SOFT HYPHEN
+    (0x0600, 0x0605),  # ARABIC NUMBER SIGN ... ARABIC NUMBER MARK ABOVE
+    (0x061C, 0x061C),  # ARABIC LETTER MARK
+    (0x06DD, 0x06DD),  # ARABIC END OF AYAH
+    (0x070F, 0x070F),  # SYRIAC ABBREVIATION MARK
+    (0x0890, 0x0891),  # ARABIC POUND/PIASTRE MARK ABOVE
+    (0x08E2, 0x08E2),  # ARABIC DISPUTED END OF AYAH
+    (0x180E, 0x180E),  # MONGOLIAN VOWEL SEPARATOR
+    (0x200B, 0x200F),  # ZWSP, ZWNJ, ZWJ, LRM, RLM
+    (0x202A, 0x202E),  # LRE, RLE, PDF, LRO, RLO
+    (0x2060, 0x2064),  # WORD JOINER ... INVISIBLE PLUS
+    (0x2066, 0x206F),  # LRI, RLI, FSI, PDI ... NOMINAL DIGIT SHAPES
+    (0xFEFF, 0xFEFF),  # ZERO WIDTH NO-BREAK SPACE
+    (0xFFF9, 0xFFFB),  # INTERLINEAR ANNOTATION ANCHOR/SEPARATOR/TERMINATOR
+    (0x110BD, 0x110BD),  # KAITHI NUMBER SIGN
+    (0x110CD, 0x110CD),  # KAITHI NUMBER SIGN ABOVE
+    (0x13430, 0x1343F),  # EGYPTIAN HIEROGLYPH FORMAT CONTROLS
+    (0x1BCA0, 0x1BCA3),  # SHORTHAND FORMAT LETTER OVERLAP ...
+    (0x1D173, 0x1D17A),  # MUSICAL SYMBOL BEGIN/END controls
+    (0xE0001, 0xE0001),  # LANGUAGE TAG
+    (0xE0020, 0xE007F),  # TAG SPACE ... CANCEL TAG
+)
+
+_FORMAT = re.compile(
+    "["
+    + "".join(
+        re.escape(chr(lo)) if lo == hi else re.escape(chr(lo)) + "-" + re.escape(chr(hi))
+        for lo, hi in _FORMAT_RANGES
+    )
+    + "]+"
+)
+
+
+def strip_format(text: str) -> str:
+    """Remove every format character, which renders as nothing.
+
+    The ranges were verified against ``unicodedata.category`` for the whole of
+    Unicode; see ``_FORMAT_RANGES``.
+    """
+    return _FORMAT.sub("", text)
 
 
 def normalize(text: str) -> str:
@@ -73,10 +132,17 @@ def normalize(text: str) -> str:
     numbers differ" about a number that is printed on the page.  That reading
     of the two files is correct and the verdict is wrong, which is the worst
     combination this tool can produce.
+
+    Format characters (Unicode category Cf) are removed entirely.  They render
+    as nothing - they are instructions to the text engine - so a quote and the
+    page it came from can differ by a character nobody can see.  Word and
+    InDesign write them in bulk for right-to-left layouts, which is how a
+    correct quote of an Arabic page became ``quote-missing``.
     """
     if not text:
         return ""
     out = unicodedata.normalize("NFKC", text)
+    out = strip_format(out)
     out = "".join(_EQUIV.get(ch, ch) for ch in out)
     out = _ascii_digits(out)
     out = _HYPHEN_BREAK.sub("", out)

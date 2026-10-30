@@ -1782,3 +1782,30 @@ leaves less of either. Big-endian without a mark is still refused rather than gu
 character's bytes and you get another Han character, so for single-script prose the two readings are
 equally clean and a rule that picked one would be a coin flip; `test_big_endian_without_a_mark_is_admitted_not_guessed`
 pins that limit so an improvement to it has to change the docstring too. Both mutations are red. Seen 1.
+
+## A character you cannot see is still a character the comparison sees
+
+**Rule.** When two strings are compared after normalisation, remove every code point that renders as
+nothing, and define "renders as nothing" by Unicode category rather than by a list of the ones that
+have caused trouble so far. A format character is an instruction to the layout engine: it is in the
+string, it is invisible on the page, and a reader cannot tell it is there.
+
+**Why.** The failure looks exactly like the digit problem and is worse. It is not a crash and it is
+not a near miss; it is a *verdict*. The author quotes a sentence they can see, the PDF's extracted
+text carries the exporter's directional mark in the middle of it, the two strings differ by one
+character, the quote falls through the exact and squashed tiers, and the run reports `quote-missing`
+at high severity. Everyone who reads that report has been told something false about their own work,
+and nothing in it mentions directionality, so the only available next step is to doubt the tool.
+
+**Evidence.** `_EQUIV` removed five format characters by name — ZWSP, ZWNJ, ZWJ, ZERO WIDTH NO-BREAK
+SPACE, SOFT HYPHEN — and left the other 165. Inserting an RLM between two words of a source page made
+`find_in_pages` return `tier="none"`; so did ALM, WORD JOINER, all four isolates, LRE/RLE/PDF/LRO/RLO
+and the Mongolian vowel separator. All of them are in Word and InDesign exports of Arabic and Hebrew,
+and `تشير البيانات إلى أن البنية تشمل الجمل` against a page carrying `U+202B … U+202C` is a correct quote
+reported as missing. `strip_format` now removes category `Cf` wholesale; `tests/test_invisible.py`
+verifies the compiled class against `unicodedata.category` over all 1,114,112 code points in **both**
+directions, because a class that is too narrow misses characters and a class that is too wide silently
+changes what a quote says. The ranges are written out rather than computed per import — walking
+Unicode costs about 100 ms, which is real money in a pre-commit hook — and that trade is only safe
+because the test re-derives the category every run. Three mutations are red: drop the call from
+`normalize`, narrow the range to ZWSP alone, widen it into the general punctuation block. Seen 1.
