@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `draft` could write its proposals over the manuscript it was reading. `-o manuscript.md --force`
+  replaced the author's paper with the proposal file, and when nothing could be proposed that file
+  was nine lines of comment: the paper was destroyed and the command exited 0 saying it had written
+  the manuscript. The output path is now compared with the manuscript (through `Path.resolve`, so
+  `sub/../manuscript.md` and other spellings are caught too) and a collision is a usage error,
+  because `--force` cannot make destroying the input safe.
+- `draft -o` resolved against the process working directory while the manuscript, bibliography,
+  sources and ledger all resolved against `--root`, so the same command line wrote to different
+  files depending on where it was typed. It is now joined to the root unconditionally. Unconditionally
+  and not through the shared `_resolve` helper, because that helper prefers a relative path that
+  already exists - right for an input, where the file on disk is the authority, and wrong for an
+  output, where it let an unrelated `claims.md` sitting in the current directory capture the write
+  while `--root` got nothing.
+- The `draft` help called the manuscript "never modified" and both READMEs said the proposal file is
+  written "next to it". Neither was true of the code. The first is now "never written to" (also
+  true of `--output` colliding with it), and the READMEs say the file lands under `--root`.
 
 ## [0.18.0] — 2026-10-30
 ### Added

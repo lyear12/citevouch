@@ -194,7 +194,9 @@ place where `1` means "your machine", not "your manuscript".
 ### Start from a manuscript, not from an empty file
 
 Writing the first twenty claim blocks by hand is where this tool loses people. `draft` reads your
-manuscript, finds every citation, and writes a proposal file next to it:
+manuscript, finds every citation, and writes a proposal file under `--root` (`-o` is resolved
+against the root like every other path this tool takes, and it refuses to write over the
+manuscript it is reading):
 
 ```bash
 citevouch draft manuscript.md --root . -o claims.md

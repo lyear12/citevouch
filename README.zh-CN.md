@@ -167,7 +167,8 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 ### 从稿件开始，而不是从一个空文件开始
 
 手工写前二十条 claim 块，就是这个工具把人劝退的地方。`draft` 读你的稿件，找出每一处引用，
-在稿件旁边写一份提案文件：
+在 `--root` 下写一份提案文件（`-o` 和其它路径一样相对 root 解析，且它拒绝写到自己正在读的
+那份稿件上）：
 
 ```bash
 citevouch draft manuscript.md --root . -o claims.md

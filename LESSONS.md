@@ -1554,3 +1554,29 @@ a claim block. `tests/test_scan_verify.py` had the bug written down as an
 expectation (`assert findings == []` over a prose-only manuscript), which is how
 it survived review: a test that asserts the wrong behaviour is a lock, not a
 detector. Seen 1.
+
+## An absolute path in the tests hides which base the relative ones use
+
+**Rule.** When a command takes a path, test it with a relative path and from a
+directory that is not the project root. A test suite whose invocations are all
+absolute is a suite that has never asked the question "relative to what?".
+
+**Why.** An absolute path is the one spelling that makes the question
+unaskable. `draft` resolved `--output` against the process working directory
+while it resolved the manuscript, the bibliography, the sources and the ledger
+against `--root` - two path rules inside one command - and every test in
+`tests/test_draft.py` passed `-o str(root / "claims.md")`. The suite was
+thorough: it checked that the output is a manuscript the verifier accepts, that
+it is written with line feeds, that an existing output is not clobbered without
+`--force`, that the manuscript is never modified. All of those are true and all
+of them are true for absolute paths only. The same absolute-path habit also hid
+that `-o` could name the manuscript itself, which with `--force` destroyed it.
+
+**Evidence.** `draft paper.md --root proj -o claims.md` run from another
+directory wrote `claims.md` into that directory and nothing under `proj`; run
+with an unrelated `claims.md` already sitting there, it wrote into that file
+instead. Both exited 0. `draft manuscript.md --root . -o manuscript.md
+--force` replaced the paper with nine lines of comment and exited 0. The three
+guards and their four tests are in
+`tests/test_draft.py::TestTheOutputPathCannotCostYouThePaper`, and each of the
+three reverts was checked to turn a test red. Seen 1.

@@ -234,6 +234,88 @@ class TestTheProposalFile:
         assert main(["draft", str(root / "nope.md"), "--root", str(root)]) == 2
 
 
+class TestTheOutputPathCannotCostYouThePaper:
+    """The three ways ``-o`` used to write the wrong file.
+
+    Every test in ``TestTheProposalFile`` above passes an absolute output path,
+    which is exactly why none of them saw any of this: an absolute path hides
+    which base the relative ones are resolved against.  ``-o claims.md`` used
+    to mean up to three different files depending on the working directory, and
+    ``-o`` could be pointed straight back at the manuscript being read, which
+    with ``--force`` replaced the author's paper with nine lines of comment and
+    still exited 0 saying it had written the manuscript.
+    """
+
+    def _paper(self, root: Path) -> bytes:
+        return (root / "manuscript.md").read_bytes()
+
+    def test_writing_over_the_manuscript_is_refused_even_with_force(
+        self, tmp_path: Path
+    ) -> None:
+        root = _project(tmp_path)
+        before = self._paper(root)
+        code = main(
+            [
+                "draft",
+                str(root / "manuscript.md"),
+                "--root",
+                str(root),
+                "-o",
+                str(root / "manuscript.md"),
+                "--force",
+            ]
+        )
+        assert code == 2
+        assert self._paper(root) == before
+
+    def test_a_lexical_detour_to_the_manuscript_is_refused_too(self, tmp_path: Path) -> None:
+        root = _project(tmp_path)
+        before = self._paper(root)
+        detour = str(root / "papers" / ".." / "manuscript.md")
+        code = main(
+            ["draft", str(root / "manuscript.md"), "--root", str(root), "-o", detour, "--force"]
+        )
+        assert code == 2
+        assert self._paper(root) == before
+
+    def test_a_relative_output_lands_under_the_root_not_the_working_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        root = _project(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+        code = main(
+            ["draft", str(root / "manuscript.md"), "--root", str(root), "-o", "claims.md"]
+        )
+        assert code == 0
+        assert (root / "claims.md").is_file()
+        assert not (elsewhere / "claims.md").exists()
+
+    def test_a_bystander_file_in_the_working_directory_is_not_written_into(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``_resolve`` prefers a relative path that already exists - for inputs.
+
+        For an output that preference would make the destination depend on
+        whether some unrelated file of the same name happens to sit in the
+        directory the command was typed in.  Here one is, with contents that
+        are not ours; the proposals must land under ``--root`` and leave it be.
+        """
+        root = _project(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        bystander = elsewhere / "claims.md"
+        bystander.write_text("someone else's file\n", encoding="utf-8")
+        monkeypatch.chdir(elsewhere)
+        code = main(
+            ["draft", str(root / "manuscript.md"), "--root", str(root), "-o", "claims.md"]
+        )
+        assert code == 0
+        assert bystander.read_text(encoding="utf-8") == "someone else's file\n"
+        assert (root / "claims.md").is_file()
+
+
 class TestConfidence:
     def test_a_quoted_sentence_is_high_confidence(self) -> None:
         pages = [

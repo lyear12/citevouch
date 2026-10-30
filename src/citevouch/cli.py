@@ -221,12 +221,41 @@ def cmd_draft(args: argparse.Namespace) -> int:
     existing file is never overwritten, and the manuscript itself is opened
     read-only.  Exit 0 always - a proposal is not a verdict, and a manuscript
     with nothing to propose is a fact about the manuscript, not an error.
+
+    ``--output`` resolves the same way every other path in this tool does,
+    against ``--root``, and then it is checked against the manuscript.  Both
+    halves are load-bearing.  Resolving it against the process working
+    directory made ``-o claims.md`` mean a different file depending on where
+    the command was typed, while the manuscript, the bibliography, the sources
+    and the ledger were all read relative to the root - two path rules in one
+    command.  And without the comparison, ``-o manuscript.md --force`` replaced
+    the author's paper with a file of proposals: when nothing could be
+    proposed, the paper became nine lines of comment and the command still
+    exited 0 saying it had written the manuscript.
+
+    The output is joined to the root unconditionally, which is where it
+    departs from :func:`citevouch.scan._resolve`.  That helper prefers a
+    relative path that already exists, because for an input the file on disk
+    is the authority.  For an output the opposite is true: it would make the
+    destination depend on whether some unrelated file of the same name happens
+    to be sitting in the directory the command was typed in, so
+    ``draft paper.md --root proj -o claims.md`` would overwrite that bystander
+    and write nothing under ``proj``.
     """
     root = Path(args.root)
     manuscript = _resolve(root, args.manuscript)
     if not manuscript.is_file():
         raise UsageError(f"manuscript {manuscript} does not exist")
     output = Path(args.output)
+    if not output.is_absolute():
+        output = root / output
+    if output.resolve() == manuscript.resolve():
+        raise UsageError(
+            f"{output} is the manuscript this command is reading; "
+            "choose another -o (claims.md is the default). Writing proposals "
+            "over their source would destroy the paper they were read from, "
+            "which --force cannot make safe"
+        )
     if output.exists() and not args.force:
         raise UsageError(
             f"{output} already exists; pass --force to replace it, or choose another -o"
@@ -524,12 +553,12 @@ def build_parser() -> argparse.ArgumentParser:
         "draft",
         help="propose claim blocks for a manuscript that cites things but proves nothing",
     )
-    p_draft.add_argument("manuscript", help="the manuscript to read (never modified)")
+    p_draft.add_argument("manuscript", help="the manuscript to read (never written to)")
     p_draft.add_argument(
         "-o",
         "--output",
         default="claims.md",
-        help="where to write the proposals (default: claims.md)",
+        help="where to write the proposals, relative to --root (default: claims.md)",
     )
     p_draft.add_argument("--root", default=".", help="project root (default: .)")
     p_draft.add_argument(
