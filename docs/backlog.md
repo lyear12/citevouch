@@ -93,12 +93,17 @@ not what changed, but what proves the change works.
   *Done when*: one hook id runs `citevouch check` and its `files` pattern covers
   manuscripts.
 
-- [ ] **`pyproject.toml` declares an `xlsx` extra that no code uses.**
+- [x] **`pyproject.toml` declares an `xlsx` extra that no code uses.**
   `openpyxl` is offered as an optional dependency and nothing imports it. That
   is a promise to users and a false one.
   *Who is blocked*: anyone who installs the extra and finds it does nothing.
   *Done when*: the extra is gone, and `LESSONS.md` carries the lesson that an
   advertised capability is code, not configuration.
+  **Done — why it is now true:** the extra is removed and `tests/test_extras.py`
+  reads `[project.optional-dependencies]` with a small parser of its own (no
+  `tomllib`, which would have made the guard uncollectable on 3.10) and fails if
+  any extra names a module that nothing under `src/` imports. Putting the old
+  line back turns two tests red.
 
 - [ ] **PyPI has no `citevouch`.** `https://pypi.org/pypi/citevouch/json` → 404.
   *Who is blocked*: every stranger. `pip install citevouch` is the whole

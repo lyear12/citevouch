@@ -976,3 +976,24 @@ prints `FAILED` on a working install. `tests/test_doctor.py` (20 tests) pins a
 broken machine, a healthy one, and — because documentation rot is the same
 defect in a slower form — that the README's example contains every check the
 tool actually performs. Seen 1.
+
+## An advertised capability is code, not configuration
+
+**Rule.** If `pyproject.toml` (or a README, or a table) names a feature, some
+module has to implement it. When the two disagree, the metadata is wrong by
+default: a user reading it has no way to tell a plan from a product.
+
+**Why.** `xlsx = ["openpyxl>=3.1"]` sat in the extras table for several releases
+while nothing under `src/` imported openpyxl. `pip install "citevouch[xlsx]"`
+succeeded, changed nothing, and implied spreadsheet support in the same file that
+declares every dependency the tool actually has. Nobody reported it because the
+failure is invisible on both sides: the metadata looks populated and the install
+looks fine.
+
+**Evidence.** Found by reading `pyproject.toml` while writing the backlog, not by
+using the tool — which is the tell: a defect nobody hits is one nobody will ever
+report. `tests/test_extras.py` now parses the extras table and cross-checks each
+requirement against the imports under `src/`; putting the old line back turns two
+tests red. The parser deliberately does not use `tomllib`: it arrived in 3.11,
+this package supports 3.10, and a guard that cannot be collected on a supported
+interpreter is a guard with the same hole it was built to close. Seen 1.

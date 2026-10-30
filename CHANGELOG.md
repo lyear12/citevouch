@@ -11,6 +11,14 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Removed
+
+- The `xlsx` extra is gone. `pyproject.toml` declared `xlsx = ["openpyxl>=3.1"]`
+  and nothing under `src/` imported openpyxl, so installing the extra changed
+  nothing and the packaging metadata advertised a capability the tool does not
+  have. `tests/test_extras.py` reads the table and fails when any extra names a
+  module that no module under `src/` imports, so the next one cannot be declared
+  without being built.
 
 ## [0.11.0] — 2026-10-30
 ### Added

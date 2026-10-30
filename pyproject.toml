@@ -43,8 +43,13 @@ classifiers = [
 ]
 dependencies = ["pypdf>=4.0"]
 
+# One extra, and it is the one a contributor needs. An extra named after a
+# feature is a promise the code has to keep: `xlsx = ["openpyxl"]` sat here for
+# several releases while nothing in src/ imported openpyxl, so installing it
+# changed nothing and the packaging metadata documented a capability the tool
+# did not have. Reading a spreadsheet of references is a real feature and it can
+# be added as one; it cannot be added by declaring it.
 [project.optional-dependencies]
-xlsx = ["openpyxl>=3.1"]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
 [project.urls]
