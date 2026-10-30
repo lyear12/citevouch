@@ -44,12 +44,16 @@ _SEEN = re.compile(r"Seen (\d+)(?:\.|\s|$)")
 _SEEN_WORD = re.compile(r"\bSeen\b")
 _LESSON_HEADING = re.compile(r"^## (?P<title>.+?)\s*$", re.MULTILINE)
 _PASSED = re.compile(r"\b(\d+)\s+passed\b")
-# `ruff format --check` reports a file count, and a `Run:` line quotes it the
-# same way it quotes the test count.  The first such number this repository
-# wrote was wrong - 47 files when ruff printed 46 - in the very commit that
-# added the check for the previous wrong number.  A quantity nobody measures
-# is a quantity somebody guesses.
-_FORMATTED_LINE = re.compile(r"ruff format")
+# A format check reports a file count, and a `Run:` line quotes it the same way
+# it quotes the test count.  The first such number this repository wrote was
+# wrong - 47 files when ruff printed 46 - in the very commit that added the
+# check for the previous wrong number.  A quantity nobody measures is a
+# quantity somebody guesses.
+#
+# The command was `ruff format --check .` then and is `sh tools/format_check.sh`
+# now, so both are matched.  See `formatted_count_mismatches` for what happened
+# in between: the guard kept passing while reading nothing.
+_FORMATTED_LINE = re.compile(r"ruff format|format_check")
 _FORMATTED_COUNT = re.compile(r"\b(\d+)\s+files?\b")
 
 
@@ -134,11 +138,23 @@ def passed_count_mismatches(notes: str, actual: int, others: Sequence[int] = ())
 
 
 def formatted_count_mismatches(notes: str, actual: int) -> list[str]:
-    """Claims of ``N files`` on a ``ruff format`` line that disagree with ``actual``.
+    """Claims of ``N files`` on a format-check line that disagree with ``actual``.
 
-    Only lines that mention ``ruff format`` are read.  A bare ``N files`` could
-    be about anything, and this checker is not allowed to guess - the same rule
-    :func:`passed_count_mismatches` follows.
+    Only lines that name the command which produces the number are read: a bare
+    ``N files`` could be about anything, and this checker is not allowed to
+    guess - the same rule :func:`passed_count_mismatches` follows.
+
+    Both spellings of that command count.  The guard was written against
+    ``ruff format``, and then the project's own acceptance criteria moved to
+    ``sh tools/format_check.sh`` (which counts tracked files, so that an
+    untracked scratch file cannot change the answer).  From that commit on,
+    every ``Run:`` line in this repository quoted the count in the new spelling
+    and this function read none of them: it returned ``[]`` whether the number
+    was right, wrong, or absent.  A guard that stops matching the thing it
+    guards keeps reporting success, which is worse than having no guard at all,
+    because the green is read as evidence.  The same list therefore has to be
+    updated whenever the command changes - that is the cost of matching on a
+    command name rather than on the shape of the number.
     """
     bad: list[str] = []
     for line in notes.splitlines():

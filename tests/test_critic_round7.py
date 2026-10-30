@@ -134,6 +134,30 @@ def test_only_ruff_lines_are_read_for_a_file_count():
     assert rules.formatted_count_mismatches("Run: ruff check . (0 files)", 46) == []
 
 
+def test_a_wrong_count_is_caught_in_the_spelling_the_project_now_uses():
+    """The guard learned one command name and the project changed command.
+
+    `ruff format --check .` was replaced by `sh tools/format_check.sh`
+    because the first one counts the working tree.  Every `Run:` line
+    then quoted the new command, and this function read none of them:
+    it returned `[]` for a right number, a wrong number, and no number
+    at all.  A guard that stops matching its subject reports success
+    forever, and that green is read as evidence.
+    """
+    rules = _load_rules()
+    notes = "Run: sh tools/format_check.sh (73 files)."
+    assert rules.formatted_count_mismatches(notes, 74)
+    assert rules.formatted_count_mismatches(notes, 73) == []
+
+
+def test_both_spellings_of_the_format_check_are_read():
+    rules = _load_rules()
+    old = "Run: ruff format --check . (47 files)."
+    new = "Run: sh tools/format_check.sh (74 files)."
+    assert rules.formatted_count_mismatches(old, 46)
+    assert rules.formatted_count_mismatches(new, 73)
+
+
 def test_the_workflow_measures_the_file_count_it_holds_messages_to():
     """The count has to come from the set of files every clone has.
 

@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `tools/check_repo_rules.py` stopped reading the number it exists to
+  check.  `_FORMATTED_LINE` matched `ruff format`, and the project's
+  acceptance criteria had long since moved to `sh tools/format_check.sh`
+  (which counts tracked files, so an untracked scratch file cannot
+  change the answer).  From that commit on, every `Run:` line quoted
+  the count in the new spelling, and the checker returned an empty
+  list whether the number was right, wrong, or absent - so a commit in
+  this same session reported 73 formatted files where the real count
+  was 74, and passed.  Both spellings are now matched, and a test
+  fails if either stops being read.
+
 ## [0.18.9] — 2026-10-30
 ### Fixed
 
