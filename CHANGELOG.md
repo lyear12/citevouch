@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.10] — 2026-10-30
 ### Fixed
 
 - **A SARIF rule's level is now one the schema allows.** Fifteen of the
@@ -33,7 +34,6 @@ tag and that file disagree.
   Both defects survived sixteen releases because every existing test compared
   the *key sets* of `CODES` and `SARIF_RULES` and never their values — which is
   what a second table looks like when nobody diffs it.
-
 ## [0.19.9] — 2026-10-30
 ### Fixed
 
@@ -1144,7 +1144,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.9...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.10...HEAD
+[0.19.10]: https://github.com/lyear12/citevouch/releases/tag/v0.19.10
 [0.19.9]: https://github.com/lyear12/citevouch/releases/tag/v0.19.9
 [0.19.8]: https://github.com/lyear12/citevouch/releases/tag/v0.19.8
 [0.19.7]: https://github.com/lyear12/citevouch/releases/tag/v0.19.7
