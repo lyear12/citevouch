@@ -143,7 +143,12 @@ def verify(
                 recorded = Path(requested.path)
                 if not recorded.is_absolute():
                     recorded = root / recorded
-                path = str(recorded) if recorded.exists() else None
+                # `is_file`, not `exists`: a directory satisfies exists() and
+                # then dies inside sha256_file as PermissionError, which leaves
+                # the process at exit 1 - the code that means "findings", not
+                # "crash". A directory recorded as a source is a project
+                # mistake; it should read as source-missing.
+                path = str(recorded) if recorded.is_file() else None
         if path is None:
             result.missing += 1
             result.findings.append(
@@ -170,16 +175,11 @@ def verify(
                 pages_cache[path] = (pages, sha256_file(Path(path)))
         pages, current_sha = pages_cache[path]
 
-        # A source that could not be read has no pages, and searching an empty
-        # page list can only say "not found" - a verdict about the author's
-        # quote that is really a verdict about the PDF.  Say the one true
-        # thing (already said above, as source-unreadable) and skip the claim;
-        # a false quote-missing here would point at the wrong problem for the
-        # rest of the project's life.
-        if not pages and path in broken_sources:
-            result.skipped += 1
-            continue
-
+        # Compare the hash before the unreadable-source skip below.  The skip
+        # says "I cannot search this file and will not pretend otherwise"; it
+        # must not also suppress "and it is not the file you recorded".  A
+        # corrupt replacement is the most common shape of that swap, so the
+        # ordering decided whether the user ever heard about it.
         recorded = ledger.sources.get(claim.source)
         if (
             recorded is not None
@@ -199,6 +199,16 @@ def verify(
                     line=claim.line,
                 )
             )
+
+        # A source that could not be read has no pages, and searching an empty
+        # page list can only say "not found" - a verdict about the author's
+        # quote that is really a verdict about the PDF.  Say the one true
+        # thing (already said above, as source-unreadable) and skip the claim;
+        # a false quote-missing here would point at the wrong problem for the
+        # rest of the project's life.
+        if not pages and path in broken_sources:
+            result.skipped += 1
+            continue
 
         # The hint is judged by the same rule scan uses. A ledger edited by
         # hand, or written by an older build, can reach here with a page the

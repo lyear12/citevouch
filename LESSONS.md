@@ -496,7 +496,94 @@ accumulated when the script was finally written. A rule with no executor is a
 rule that holds only where someone remembered it.
 
 **Evidence.** `citevouch verify` on a fuzzy-matched claim exited 0 at the
-default threshold; the fix is a single early return in `_exit_code`, and the
-regression test is `tests/test_critic_round2.py::test_a_fuzzy_match_fails_even_at_fail_on_high`.
+default threshold. The first fix was a single early return in `_exit_code`, and
+that was the second version of the same mistake: it made the rule true by
+special-casing one code in the exit path, so `--fail-on` still did not mean what
+three documents said it meant. The fix that holds is the boring one - make
+`quote-fuzzy` a `high` finding and let the threshold do its job. The regression
+test is `tests/test_critic_round2.py::test_a_fuzzy_match_fails_even_at_fail_on_high`.
 `tools/check_repo_rules.py` (added in 0.3.0) found a real promotion debt on its
 first run. Seen 2.
+
+---
+
+## A severity table is a contract with the exit code, so nothing may bypass it
+
+**Rule.** The exit code is computed from severities and the `--fail-on`
+threshold. If a finding needs to fail a run, its severity goes up. There is no
+third place to decide.
+
+**Why.** `quote-fuzzy` was `medium` *and* had an unconditional `return 1` in
+`_exit_code`. Both halves were defensible alone and incoherent together: the
+table said the finding was a warning, the programme treated it as a failure, the
+README told users `--fail-on` was the only knob, and a user who lowered the
+threshold to `info` got a failure from a code the documentation called medium.
+Two places to decide one thing is a bug report you have not filed yet.
+
+**Evidence.** `citevouch check --fail-on high` on a fuzzy-matched claim failed,
+while an unrelated `medium` finding in the same run did not; the README promised
+`--fail-on` alone decides. The special case is gone and the severity is `high`,
+so the documented rule and the executed rule are the same sentence. Seen 1.
+
+---
+
+## A silently dropped element is worse than a reported one
+
+**Rule.** When a reader cannot consume something, it says so. Never `continue`
+past a structure that changes what the rest of the file means.
+
+**Why.** Two separate defects had the same shape. An unclosed ```claim fence
+made the parser read every following claim as part of that block, so a
+manuscript lost claims silently and the survivor failed as `quote-missing` -
+pointing at the PDF when the typo was three backticks. And `load_manifest`
+walked a list of manifest names with `else: continue`, so `sources.yaml` was
+advertised in the tuple and ignored by the loop: a project could ship a manifest
+the tool never opened. In both cases the tool knew enough to say the true thing
+and chose silence.
+
+**Evidence.** `parse_manuscript` on a file with a missing closing fence returned
+one claim and zero findings; `sources.py` listed four manifest names and handled
+two. Both are now reported (`claim-block-unclosed`, and the list only names the
+formats that work). Seen 1.
+
+---
+
+## 0 is falsy, and a page number is allowed to be 0
+
+**Rule.** Test `is None`, never truthiness, for any value a user typed and that
+has a real zero.
+
+**Why.** `report` rendered the page cell as `claim.page or '—'`. A ledger
+carrying `page: 0` - a mistake, but a *recorded* one - displayed as an em dash,
+which reads as "no page recorded". The author checking what the ledger says got
+a different answer from the one that was there. This is cheap to fix and
+expensive to notice: nothing crashes, and the wrong answer looks like a design.
+
+**Evidence.** A hand-edited ledger with `page: 0` printed `| c1 | p | — |`
+before the fix and `| c1 | p | 0 |` after. Seen 1.
+
+---
+
+## A file the tool both writes and reads is written the way it is committed
+
+**Rule.** Use `newline="
+"` (or `os.linesep`-free bytes) for anything this
+project produces and then reads back. Never let the platform pick.
+
+**Why.** `_write_ledger` used `Path.write_text`, which opens in text mode with
+universal newlines. On Windows that turned every `
+` into `
+`, so the
+lockfile landed on disk in one encoding and in the repository in another, git
+printed "CRLF will be replaced by LF" after every scan, and a colleague cloning
+on Linux and running `verify` saw a byte-different file from the one the author
+recorded. The lockfile exists to be read in a diff. A writer that only agrees
+with the committer by accident is a writer that will disagree on the day it
+matters.
+
+**Evidence.** `git diff demo/citevouch.lock.json` after a plain
+`citevouch scan` on Windows showed 11 changed lines that were not changed;
+`tests/test_critic_round4.py::test_the_ledger_is_written_with_lf_endings_on_every_platform`
+fails if `
+` appears in a freshly written ledger. Seen 1.
+

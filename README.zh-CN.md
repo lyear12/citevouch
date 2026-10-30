@@ -11,15 +11,21 @@
 你在每一句想要被核对的话旁边写一个 claim 块。块里写清楚：本地 PDF、页码、逐字原文。`citevouch scan` 把这些证据记录进一个可以提交的账本（lockfile）；`citevouch verify` 重新打开 PDF，告诉你哪些证据依然成立、哪些挪了位置、哪些已经消失。
 
 ```text
-$ citevouch verify manuscript.md
-[info]   quote-found at manuscript.md:9  (cxn-total): quote found on page 6
-[info]   quote-found at manuscript.md:18 (corpus-size): quote found on page 6
-[medium] quote-moved at manuscript.md:34 (avg-degree): quote is on page 14, the ledger says 13
-[high]   quote-missing at manuscript.md:43 (fcg-editor): no passage in the source is close to this quote
+$ cd demo && citevouch verify manuscript.md
+[info] quote-found at manuscript.md:9 (cxn-total): quote found on page 6
+[info] quote-found at manuscript.md:18 (corpus-size): quote found on page 6
+[info] quote-found at manuscript.md:26 (hapax-share): quote found on page 7
+[info] quote-found at manuscript.md:34 (avg-degree): quote found on page 14
+[high] quote-missing at manuscript.md:43 (fcg-editor): The FCG Editor is an innovative environment for
+  engineering computational construction gr… — no passage in the source is close to this quote in
+  2020_TayyarMadabushi-etal_CxGBERT.pdf
 
 citevouch: 5 claims — 4 verified, 0 moved, 1 missing
 worst severity: high
 ```
+
+That is this repository's own `demo/`, run as-is — not a mock-up. The fifth claim cites a sentence
+that lives in a different paper, which is the failure the tool exists to catch. 这不是示意图——上面就是本仓库 `demo/` 跑出来的真实输出：第五条断言引的那句话出自另一篇论文，而这正是这个工具存在的理由。
 
 ## 这是给你的吗？
 
@@ -47,7 +53,7 @@ worst severity: high
 |---|---|---|
 | `quote-found` | info | 引文还在所记页面上 |
 | `quote-moved` | medium | 引文在文档里，但换了页（排版变了） |
-| `quote-fuzzy` | medium | 只有近似匹配——**绝不算通过** |
+| `quote-fuzzy` | high | 只有近似匹配——**绝不算通过** |
 | `quote-missing` | high | 全文找不到与引文接近的段落 |
 | `number-absent-in-quote` | high | 引文里的数字不在所引页面上 |
 | `source-changed` | medium | PDF 与账本记录的那份字节不同 |
@@ -65,6 +71,7 @@ worst severity: high
 | `bib-macro-unknown` | medium | 字段引用了尚未定义的 `@string` 宏；宏名按字面保留 |
 | `bib-field-empty` | medium | 必填字段为空或缺失 |
 | `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块 |
+| `claim-block-unclosed` | high | 某个 `` ```claim `` 块始终没有闭合，它之后的每条 claim 都被读成了它的一部分 |
 
 退出码就是 CI 契约：没有任何发现达到 `--fail-on`（默认 `high`）时返回 `0`，达到时返回 `1`，用法错误返回 `2`。CI 里不需要任何包装逻辑。
 
@@ -123,7 +130,7 @@ citevouch check  manuscript.md --root . --format markdown # 直接贴进 PR 的�
 
 把 `citevouch.lock.json` 提交进仓库。它是让「漂移」可被检出的记忆：没有它，`verify` 只能说「找到了」，永远说不出「挪了位置」。
 
-仓库里的 [demo/](demo/) 是一个完整的真实项目：5 条断言取自两篇真实论文（含故意配错论文的一条，工具必须对它说不，见 [demo/manuscript.md](demo/manuscript.md)），账本、页码、SHA-256 全对得上。
+仓库里的 [demo/](demo/) 是一个完整的真实项目：5 条断言取自两篇真实论文，两篇都被真正引用（含一条故意引用了一篇**根本没有那句话**的论文，工具必须对它说不，见 [demo/manuscript.md](demo/manuscript.md)），账本、页码、两份 PDF 的 SHA-256 全对得上——换掉任意一份，`verify` 都会报 `source-changed`。
 
 ### 三种 claim 方言
 
@@ -152,7 +159,7 @@ citevouch check  manuscript.md --root . --format markdown # 直接贴进 PR 的�
 ## 设计取舍
 
 - **引文是锚点，页码只是提示。** PDF 会被不同工具重排，文本还在、页码全变。按文本匹配能活过重排，按页码匹配不能。
-- **近似匹配永远不算通过。** 转述不是引文。fuzzy 存在的意义是「那儿有一段像的，人去看一眼」，所以它被报成 `quote-fuzzy`（medium），永远不可能被误当成一次通过。
+- **近似匹配永远不算通过。** 转述不是引文。fuzzy 存在的意义是「那儿有一段像的，人去看一眼」，所以它被报成 `quote-fuzzy`（high）——和「引文根本不在」同一个严重度，同一个卡点，永远不可能被误当成一次通过。
 - **稿件哈希最先检查。** 稿件只要动过，所有 claim 一律 `skipped`，只出一条 `ledger-stale`——一条诚实的失败好过三十条迷惑的。
 - **常见类别只报一行。** 37 条未被引用的书目是一行摘要，一条消失的引文独占一行。会被划过去的发现等于没有发现。
 - **没有网络。** 一切发生在本机文件之间。断网机房里的运行和 CI 里的运行行为完全一致。

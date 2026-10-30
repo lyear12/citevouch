@@ -21,8 +21,13 @@ CODES = {
     "quote-found": "info",
     "quote-moved": "medium",
     "quote-missing": "high",
-    "quote-fuzzy": "medium",
-    "number-absent": "high",
+    # High, not medium. `quote-fuzzy` means "there is text like this nearby and
+    # I refused to call it a match" - the reader still has no evidence, so it is
+    # not a warning about a claim that holds, it is a claim that does not hold.
+    # It also used to be medium plus a hard-coded exit 1 in the CLI, which made
+    # `--fail-on` a lie for exactly this one code. Severity is the right place
+    # for the rule; a special case in the exit path is not.
+    "quote-fuzzy": "high",
     "number-absent-in-quote": "high",
     "source-missing": "high",
     "source-changed": "medium",
@@ -33,11 +38,11 @@ CODES = {
     "bib-field-malformed": "medium",
     "bib-field-duplicate": "medium",
     "bib-duplicate-key": "high",
-    "bib-doi-mismatch": "medium",
     "bib-macro-unknown": "medium",
     "bib-entry-header-unparsed": "medium",
     "bib-unparsed-entry": "high",
     "page-out-of-range": "high",
+    "claim-block-unclosed": "high",
     "claim-without-evidence": "low",
     "ledger-stale": "high",
 }
@@ -141,15 +146,31 @@ class Finding:
             head = f"{head} at {where}"
         if self.claim_id:
             head = f"{head} ({self.claim_id})"
-        return f"{head}: {self.message}"
+        return f"{head}: {self._message_without_claim_prefix()}"
+
+    def _message_without_claim_prefix(self) -> str:
+        """The message, minus a leading ``claim <id>: `` that repeats the head.
+
+        Every finding `verify` produces opens its message with `claim c1: ` so
+        that JSON, SARIF and Markdown — which print `message` alone — say which
+        claim they are about.  The terminal already prints the id in
+        parentheses, so keeping both produced `(c1): claim c1: ...`, which is
+        what the README example showed and the tool could not reproduce.
+        """
+        prefix = f"claim {self.claim_id}: " if self.claim_id else ""
+        if prefix and self.message.startswith(prefix):
+            return self.message[len(prefix) :]
+        return self.message
 
 
 @dataclass
 class SourceRef:
     """One local document that a claim draws on.
 
-    ``key`` is what the manuscript writes in ``source=``; it resolves via the
-    sources manifest (``sources.toml``/``sources.json``) or by filename stem.
+    ``key`` is what the manuscript writes in ``source=``; it resolves through
+    the sources manifest (``sources.toml`` or ``sources.json``), exactly, with
+    a case-insensitive retry. There is no filename-stem fallback: a key that
+    does not name a manifest entry is a key the project has not bound.
     """
 
     key: str

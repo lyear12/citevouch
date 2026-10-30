@@ -76,17 +76,13 @@ def _safe_console() -> None:
 def _exit_code(findings: list[Finding], fail_on: str) -> int:
     """0 when nothing reaches the threshold, 1 when something does.
 
-    ``quote-fuzzy`` is the one code that fails on its own regardless of
-    ``--fail-on``. AGENTS.md ground rule 2 says a fuzzy match "must never exit
-    0 on its own", and that sentence was true of the severity table and false
-    of the code: a quote that is only approximately present was a medium, so
-    ``--fail-on high`` (the default) returned success on a claim the tool had
-    just said it could not verify. A check whose whole purpose is "a human must
-    look at this" cannot report success while nobody has looked.
+    Nothing is special-cased here. ``quote-fuzzy`` used to force exit 1 no
+    matter what ``--fail-on`` said, which made the documented contract ("1 when
+    something reaches the threshold") false for that one code. The rule moved
+    to where the rule belongs: a fuzzy match is a ``high`` severity finding, so
+    the threshold decides like it does for everything else. One rule, one place.
     """
     threshold = RANK[fail_on]
-    if any(f.code == "quote-fuzzy" for f in findings):
-        return 1
     return 1 if any(RANK.get(f.severity, 0) >= threshold for f in findings) else 0
 
 
@@ -95,13 +91,25 @@ def _ledger_path(args: argparse.Namespace) -> Path:
     return path if path.is_absolute() else Path(args.root) / path
 
 
-def _write_ledger(ledger: Ledger, path: Path) -> None:
+def _write_text_lf(path: Path, text: str) -> None:
+    """Write UTF-8 with LF endings on every platform.
+
+    ``Path.write_text`` opens in text mode with universal newlines, so on
+    Windows every ``\n`` came out as ``\r\n``. For a lockfile that is committed
+    and reviewed in diffs that is a real defect rather than a nuisance: a clean
+    checkout on Linux and a scan on Windows disagree about every byte, git
+    prints "CRLF will be replaced by LF" after each run, and the file the tool
+    reads back is not the file it wrote. The repository promises LF
+    (``.gitattributes``), so the writer promises it too.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
+def _write_ledger(ledger: Ledger, path: Path) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(ledger.to_json(), indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    _write_text_lf(tmp, json.dumps(ledger.to_json(), indent=2, ensure_ascii=False) + "\n")
     tmp.replace(path)
 
 
@@ -213,7 +221,12 @@ def cmd_report(args: argparse.Namespace) -> int:
         quote = claim.quote.replace("|", "\\|").replace("\n", " ")
         if len(quote) > 80:
             quote = quote[:79] + "…"
-        lines.append(f"| `{claim.id}` | {claim.source} | {claim.page or '—'} | {quote} |")
+        # `claim.page or '—'` rendered page 0 as an em dash: the author asked
+        # what the ledger says and got a dash meaning "nothing". Only None is
+        # "no page"; a 0 is a number the reader is entitled to see, and one
+        # worth seeing.
+        page_cell = "—" if claim.page is None else claim.page
+        lines.append(f"| `{claim.id}` | {claim.source} | {page_cell} | {quote} |")
     _emit("\n".join(lines) + "\n")
     return 0
 
@@ -267,11 +280,9 @@ def cmd_init_demo(args: argparse.Namespace) -> int:
         return 2
     target.mkdir(parents=True, exist_ok=True)
     manuscript = target / "manuscript.md"
-    manuscript.write_text(DEMO_MANUSCRIPT, encoding="utf-8")
-    (target / "sources.toml").write_text(
-        '[sources]\ndemo_source = "demo_source.txt"\n', encoding="utf-8"
-    )
-    (target / "demo_source.txt").write_text(DEMO_SOURCE, encoding="utf-8")
+    _write_text_lf(manuscript, DEMO_MANUSCRIPT)
+    _write_text_lf(target / "sources.toml", '[sources]\ndemo_source = "demo_source.txt"\n')
+    _write_text_lf(target / "demo_source.txt", DEMO_SOURCE)
     _emit(
         f"citevouch: wrote {manuscript}, sources.toml, demo_source.txt\n",
     )

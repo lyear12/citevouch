@@ -16,15 +16,21 @@ and the verbatim passage. `citevouch scan` records that evidence into a commit-a
 which is gone.
 
 ```text
-$ citevouch verify manuscript.md
-[info]   quote-found at manuscript.md:9  (cxn-total): quote found on page 6
-[info]   quote-found at manuscript.md:18 (corpus-size): quote found on page 6
-[medium] quote-moved at manuscript.md:34 (avg-degree): quote is on page 14, the ledger says 13
-[high]   quote-missing at manuscript.md:43 (fcg-editor): no passage in the source is close to this quote
+$ cd demo && citevouch verify manuscript.md
+[info] quote-found at manuscript.md:9 (cxn-total): quote found on page 6
+[info] quote-found at manuscript.md:18 (corpus-size): quote found on page 6
+[info] quote-found at manuscript.md:26 (hapax-share): quote found on page 7
+[info] quote-found at manuscript.md:34 (avg-degree): quote found on page 14
+[high] quote-missing at manuscript.md:43 (fcg-editor): The FCG Editor is an innovative environment for
+  engineering computational construction gr… — no passage in the source is close to this quote in
+  2020_TayyarMadabushi-etal_CxGBERT.pdf
 
 citevouch: 5 claims — 4 verified, 0 moved, 1 missing
 worst severity: high
 ```
+
+That is this repository's own `demo/`, run as-is — not a mock-up. The fifth claim cites a sentence
+that lives in a different paper, which is the failure the tool exists to catch.
 
 ## Why this is different
 
@@ -47,7 +53,7 @@ rots:
 |---|---|---|
 | `quote-found` | info | the passage is on the cited page |
 | `quote-moved` | medium | the passage is in the document, on a different page (layout change) |
-| `quote-fuzzy` | medium | only an approximate match exists — never counted as verified |
+| `quote-fuzzy` | high | only an approximate match exists — never counted as verified |
 | `quote-missing` | high | no passage close to this quote anywhere in the source |
 | `number-absent-in-quote` | high | a number inside the quote is not on that page |
 | `source-changed` | medium | the PDF is byte-different from the one the ledger recorded |
@@ -65,6 +71,7 @@ rots:
 | `bib-macro-unknown` | medium | a field uses a `@string` macro that is not defined yet |
 | `bib-field-empty` | medium | a required field is empty or missing |
 | `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block |
+| `claim-block-unclosed` | high | a `` ```claim `` block never closes, so every claim after it was read as part of it |
 
 Exit code is `0` when nothing reaches `--fail-on` (default `high`), `1` when something does, `2` for
 usage errors. That means a CI job needs no wrapper logic.
@@ -182,8 +189,9 @@ watch. Upload the SARIF to code scanning and findings appear inline on the PR.
   different tool keeps its text and loses its pagination; matching on text survives that, matching on
   page numbers does not.
 - **Fuzzy matches never count as verified.** A paraphrase is not a quote. Fuzzy matching exists to
-  say "something is there, look at it", and it is reported as `quote-fuzzy` (medium) precisely so it
-  cannot be mistaken for a pass.
+  say "something is there, look at it", and it is reported as `quote-fuzzy` (high) precisely so it
+  cannot be mistaken for a pass: the threshold that fails the run is the same one that fails a
+  quote that is not there at all.
 - **The manuscript hash is checked before anything else.** If the manuscript changed at all, every
   claim is `skipped` and one `ledger-stale` finding is emitted — better one honest failure than
   thirty confusing ones.

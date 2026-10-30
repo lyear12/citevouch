@@ -329,9 +329,12 @@ def test_the_same_finding_is_not_listed_twice(tmp_path: Path):
 
 def test_a_fuzzy_match_fails_even_at_fail_on_high(tmp_path: Path):
     """AGENTS.md rule 2 says a fuzzy match "must never exit 0 on its own".
-    That was true of the severity table and false of the code: quote-fuzzy is
-    medium, the default threshold is high, so the run reported success about a
-    claim the tool had just said it could not verify."""
+
+    The first fix was a hard-coded `return 1` for this code in the exit path,
+    which made the documented contract ("1 when something reaches the
+    threshold") false for exactly one code. The rule now lives in the severity
+    table: `quote-fuzzy` is `high`, so `--fail-on high` catches it the same way
+    it catches a missing quote, and nothing is special-cased."""
     from citevouch.cli import main
 
     (tmp_path / "src.txt").write_text(

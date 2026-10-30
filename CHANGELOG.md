@@ -12,6 +12,64 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A source recorded as a directory is reported, not fatal. `verify` read a
+  ledger path back with `exists()`, which is true for a directory, and the next
+  line tried to hash it: `PermissionError: [Errno 13]`, traceback, and a
+  process that exited 1 - the code that means "there are findings", so a CI job
+  could not tell a crash from a verdict. It now reads `source-missing`, which
+  is what a directory is. `extract_pages` makes the same two mistakes two
+  different sentences: a directory is not the same problem as a file that is
+  gone, and saying "does not exist" about something the user can see sends them
+  looking in the wrong place.
+- An unclosed ```claim fence no longer eats the rest of the file in silence.
+  Every claim after the missing fence was read as part of the block above it,
+  so `claims[]` came back shorter than the manuscript and the one claim that
+  did survive failed as `quote-missing` - a diagnosis that sends the author to
+  check a PDF when the real typo is three backticks. The parser now reports
+  `claim-block-unclosed` at the line where the fence opened.
+- `-` in the table dialect's page column means "no page hint" and is no longer
+  reported as a non-numeric page the author typed.
+- `report` prints page 0 instead of an em dash. The cell used
+  `claim.page or '—'`, and `0` is falsy: the one number the reader was asking
+  about was the one the report replaced with a symbol meaning "nothing".
+- `quote-fuzzy` is a `high` severity finding, and the exit path no longer has a
+  special case for it. The code was `medium` with a hardcoded `return 1` in
+  `_exit_code`, which made the three sentences that describe `--fail-on` false
+  for one code only. Severity decides; `--fail-on` decides; nothing else does.
+- `source-changed` is reported before the unreadable-source skip. Replacing a
+  source file with something that cannot be parsed used to report only
+  `source-unreadable`, so the reader went looking for a download problem when
+  the file had simply been swapped.
+- `number-absent` and `bib-doi-mismatch` are gone from `CODES` and from
+  `SARIF_RULES`. Neither was ever produced by any code path. A finding code is
+  a promise that the tool can report it; two codes that cannot occur teach the
+  reader to trust a vocabulary that is partly fictional.
+- `sources.yaml` and `sources.yml` are no longer listed as manifest names.
+  `load_manifest` skipped both with a bare `continue`, so the name advertised a
+  format the code ignored.
+- `SourceRef`'s docstring no longer describes a filename-stem fallback that was
+  removed a round earlier.
+
+### Changed
+
+- Every file `citevouch` writes is written with LF endings explicitly. On
+  Windows `Path.write_text` turned each `
+` into `
+`, so the committed
+  lockfile and the one on disk differed by every byte, git warned on each run,
+  and a scan on one platform and a clone on another could not agree. The
+  repository already promised LF in `.gitattributes`; the writer now does too.
+
+### Added
+
+- `SOURCE_SUFFIXES` in `sources.py`, and the near-miss suggestion list uses it.
+  `.md` was in the set, so a key that could not be resolved could be told the
+  answer was `README.md` - a file that could never hold the quote. A
+  suggestion pointing at the wrong kind of file is worse than no suggestion.
+
+
 ## [0.5.0] — 2026-10-30
 ### Fixed
 

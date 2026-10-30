@@ -129,6 +129,11 @@ def _claim_from(
         return None, findings
     page = None
     raw_page = attrs.get("page", "")
+    # `-` is the table dialect's spelling of "no page hint"; list it here so it
+    # never reaches the int() below and comes back as a mistake the author did
+    # not make.
+    if raw_page.strip() == "-":
+        raw_page = ""
     if raw_page:
         try:
             page = int(raw_page)
@@ -194,8 +199,28 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             while j < len(lines) and not _FENCE_CLOSE.match(lines[j]):
                 body.append(lines[j])
                 j += 1
+            closed = j < len(lines)
             quote, claim_text = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line)
+            if not closed and claim is not None:
+                # Everything after this point was read as part of this block, so
+                # every later claim in the file is invisible. That is data loss,
+                # and it used to be silent: the one claim we did read then failed
+                # as `quote-missing`, sending the author to check a PDF instead of
+                # the fence. Say the true thing, at the line where it happened.
+                more.append(
+                    Finding(
+                        code="claim-block-unclosed",
+                        message=(
+                            f"claim {claim.id}: the ```claim fence opened on line "
+                            f"{start_line} is never closed; every claim after it was "
+                            "read as part of this block"
+                        ),
+                        claim_id=claim.id,
+                        path=path,
+                        line=start_line,
+                    )
+                )
             accept(claim, more, start_line, j + 1)
             i = j + 1
             continue

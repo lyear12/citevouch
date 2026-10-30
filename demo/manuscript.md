@@ -40,7 +40,7 @@ claim: |
 
 ## 7.5 一个引用
 
-```claim id=fcg-editor source=vantrijp2022fcgeditor ref=vantrijp2022fcgeditor
+```claim id=fcg-editor source=cxgbert2020 ref=cxgbert2020
 quote: |
   The FCG Editor is an innovative environment for engineering computational construction grammars.
 claim: |

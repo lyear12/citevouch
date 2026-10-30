@@ -1,8 +1,10 @@
 # Demo sources
 
-Two published papers, included unmodified as the test fixture for `demo/`. They are here so
-that the example can be re-run byte-for-byte: `demo/citevouch.lock.json` pins their SHA-256, and
-`verify` reports `source-changed` if either file is ever replaced.
+Two published papers, included unmodified as the test fixture for `demo/`. Both are cited:
+`vaneecke2026cxn` is the CoNLL paper, `cxgbert2020` is the CxGBERT paper — which is what
+makes the deliberately-wrong claim wrong, because the FCG Editor sentence is in neither. The example
+can be re-run byte-for-byte: `demo/citevouch.lock.json` pins the SHA-256 of both files, and
+`verify` reports `source-changed` if either one is replaced.
 
 | file | paper | licence |
 | --- | --- | --- |

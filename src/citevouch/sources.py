@@ -24,7 +24,11 @@ from .textnorm import fold
 
 CACHE_DIRNAME = ".citevouch"
 CACHE_SUBDIR = "cache"
-MANIFEST_NAMES = ("sources.toml", "sources.json", "sources.yaml", "sources.yml")
+# Only the two formats that cost nothing to support. YAML used to be listed here
+# and skipped in the loop below, which is the worst of both: the name says
+# "supported" and the code says nothing at all. A manifest we cannot read is a
+# manifest we should not advertise.
+MANIFEST_NAMES = ("sources.toml", "sources.json")
 
 
 @dataclass
@@ -97,7 +101,8 @@ def _store_cache(root: str | Path, sha: str, pages: list[PageText]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"schema": 1, "sha256": sha, "pages": [p.to_json() for p in pages]}
         tmp = path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False))
         os.replace(tmp, path)
     except OSError:
         # A read-only checkout must still work; the cache is an optimisation.
@@ -156,10 +161,15 @@ def extract_pages(
 ) -> tuple[list[PageText], Finding | None]:
     """Extract one source into pages, with a content-hash cache in between."""
     path = Path(path)
-    if not path.exists():
+    if not path.is_file():
+        # Two different mistakes, two different sentences. A directory is
+        # present and is not a source; saying "does not exist" about something
+        # the author can see in their file manager sends them looking for the
+        # wrong problem.
+        what = "is a directory, not a file" if path.is_dir() else "does not exist"
         return [], Finding(
             code="source-missing",
-            message=f"source file {path} does not exist",
+            message=f"source file {path} {what}",
             path=str(path),
         )
     sha = sha256_file(path)
@@ -386,6 +396,13 @@ def page_hint_is_valid(page: int | None, page_count: int) -> bool:
     return 1 <= page <= page_count
 
 
+# The extensions a suggestion may point at. A manuscript is a markdown file
+# too, so `.md` used to be in this set and `near_misses("readme", ...)` offered
+# `README.md`: the one line of the error message a user acts on, pointing at a
+# file that could never hold the quote.
+SOURCE_SUFFIXES = frozenset({".pdf", ".txt"})
+
+
 def candidate_files(root: str | Path) -> list[str]:
     """Paths (relative, POSIX) of files that could plausibly be a source.
 
@@ -393,6 +410,11 @@ def candidate_files(root: str | Path) -> list[str]:
     unbound keys would otherwise re-read the whole project ten times, and the
     project is the user's real working directory, which may hold a corpus.
     Skips hidden directories and the tool's own cache.
+
+    Only the extensions this tool can actually read are collected. Asking for a
+    key and being offered `README.md` is worse than being offered nothing: the
+    suggestion is the one piece of the error message a user acts on, and it has
+    to be plausible to be useful.
     """
     root = Path(root)
     if not root.is_dir():
@@ -400,7 +422,7 @@ def candidate_files(root: str | Path) -> list[str]:
     found: list[str] = []
     skip_dirs = {".git", ".citevouch", "__pycache__", ".venv", "venv", "node_modules"}
     for path in root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in {".pdf", ".txt", ".md"}:
+        if not path.is_file() or path.suffix.lower() not in SOURCE_SUFFIXES:
             continue
         relative = path.relative_to(root)
         if any(part in skip_dirs for part in relative.parts[:-1]):

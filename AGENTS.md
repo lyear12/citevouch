@@ -17,7 +17,9 @@ easier to record but easier to fake, it is the wrong change.
    PDFs re-flow, scans shift by one page, and a checker that trusts the page number reports drift
    that is not there and misses drift that is.
 2. **Fuzzy is never verified.** `quote-fuzzy` exists so a human looks. It must never set
-   `result.verified`, never be reported as `quote-found`, and never exit 0 on its own.
+   `result.verified` and never be reported as `quote-found`. It is a `high` severity finding, so
+   the `--fail-on` threshold (and nothing else) decides the exit code like it does for every other
+   code — do not add a special case in the exit path for this or any other code.
 3. **No network.** Every code path in `src/citevouch` runs offline against local files. A check
    that needs Crossref belongs in a separate optional command, never in `scan`/`verify`/`check`.
 4. **Exit codes are the contract.** 0 clean, 1 findings at or above `--fail-on`, 2 usage error.
@@ -88,10 +90,12 @@ and, for anything touching matching, extraction, or normalization:
 PYTHONPATH=src python -m citevouch verify demo/manuscript.md --root demo
 ```
 
-`demo/manuscript.md` is a real project built from a real PDF pair. Four of its five claims must
-verify and the fifth (`fcg-editor`) must fail with `quote-missing` — it is deliberately backed by
-the wrong paper, and it is the regression test that the tool can still say no. If that claim ever
-starts passing, matching has become too permissive.
+`demo/manuscript.md` is a real project built from two real PDFs, both of which are cited. Four of
+its five claims must verify and the fifth (`fcg-editor`) must fail with `quote-missing` — it quotes a
+sentence that is in neither paper, and it is the regression test that the tool can still say no. If
+that claim ever starts passing, matching has become too permissive. Replacing either PDF must produce
+`source-changed`, which is the other regression test: the ledger has to be bound to the files it
+read, or "verified" only means "verified against whatever is sitting there now".
 
 For any new finding code:
 

@@ -15,7 +15,10 @@ from .verify import VerifyResult
 
 SARIF_RULES = {
     "quote-missing": ("A quoted passage is not in the source.", "blocking"),
-    "quote-fuzzy": ("A quoted passage is only approximately in the source.", "warning"),
+    "quote-fuzzy": (
+        "A quoted passage is only approximately in the source; nothing proves it.",
+        "blocking",
+    ),
     "quote-moved": (
         "A quoted passage is on a different page than recorded.",
         "warning",
@@ -25,7 +28,6 @@ SARIF_RULES = {
         "A number in a quote is not on the cited page.",
         "blocking",
     ),
-    "number-absent": ("A number in a quote is not in the source.", "blocking"),
     "source-missing": ("A source file is missing.", "blocking"),
     "source-changed": ("A source file differs from the recorded copy.", "warning"),
     "source-unreadable": ("A source file could not be read.", "blocking"),
@@ -35,7 +37,6 @@ SARIF_RULES = {
     "bib-field-malformed": ("A bibliography field could not be read.", "warning"),
     "bib-field-duplicate": ("A bibliography field is given twice.", "warning"),
     "bib-duplicate-key": ("A bibliography key appears twice.", "blocking"),
-    "bib-doi-mismatch": ("A DOI disagrees with the recorded one.", "warning"),
     "bib-macro-unknown": ("A @string macro used by a field is not defined.", "warning"),
     "bib-entry-header-unparsed": ("An @ header is not a usable entry.", "warning"),
     "bib-unparsed-entry": (
@@ -43,6 +44,10 @@ SARIF_RULES = {
         "blocking",
     ),
     "page-out-of-range": ("A page hint exceeds the source length.", "blocking"),
+    "claim-block-unclosed": (
+        "A ```claim block never closes, so later claims in the file were never read.",
+        "blocking",
+    ),
     "claim-without-evidence": ("A claim carries no verifiable evidence.", "warning"),
     "ledger-stale": ("The ledger predates the manuscript.", "blocking"),
 }
