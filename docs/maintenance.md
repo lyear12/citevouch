@@ -91,7 +91,7 @@ A release is a tag, and since the auto-release workflow exists, usually nobody t
 workflow still accepts a hand-pushed tag and a `workflow_dispatch` with an explicit version, because
 the machine that decides versions can be wrong and the fix for a wrong version is a person pushing
 the right one. It attaches the sdist and wheel, publishes to PyPI when a trusted publisher is
-configured, and copies the release notes from the commit range. If the tag and
+configured, and copies the release notes from the range between the previous tag and this one. If the tag and
 `src/citevouch/_version.py` disagree, the release fails before publishing, not after.
 
 ## Reporting a problem

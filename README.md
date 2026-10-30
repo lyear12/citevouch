@@ -169,6 +169,12 @@ Fenced blocks (above), HTML comments, and table rows. Pick whichever survives yo
 | c3 | smith2026cxn | 7 | almost half (48.4%) occur only once | 48.4% 是 hapax |
 ```
 
+If you keep a sample of the syntax inside your manuscript — a tutorial chapter, a README of your
+own — fence it with **four** backticks (`` ```` ``), not three. A three-backtick sample that contains
+a ```claim line is indistinguishable from a claim block that forgot its closing fence, and the tool
+reports it rather than guessing (`claim-block-unclosed`, high). Four backticks say "this is a
+sample" unambiguously.
+
 ### CI
 
 ```yaml

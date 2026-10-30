@@ -673,3 +673,99 @@ CI run: `pyproject.toml` already sets `addopts = "-q"`, so the step's
 `pytest -q` was really `-qq`, which drops the summary line. Run 41015105068's
 lint job printed `the suite reports 0 passing tests` next to
 `Answer the fifth review ... says 288 passed, the suite reports 0`. Seen 1.
+
+## A documented form that parses to nothing is a false negative with a spec
+
+**Rule.** Every input shape you show a user must be covered by a test that reads
+that shape from the document. Example code in a README is the least-tested and
+most-copied code in the project; if it is wrong, the users who read carefully
+are the users who get the wrong answer.
+
+**Why.** `<!-- claim: c2 source=x page=4 -->` on one line was the literal
+example in both READMEs. The parser's HTML branch was guarded by
+`and "-->" not in line`, so a single-line comment was skipped by the *same
+condition* that existed to detect a multi-line one — an author who copied the
+example got `0 claims`, `worst severity: info`, and exit 0 from a check that
+never looked at their quote. Documentation that disagrees with the code is a bug
+in both; which one is wrong is decided by which one the user trusted.
+
+**Evidence.** Sixth review, major-1. The fix moved the branch to `if m:` and
+split on `-->` first. Seen 1.
+
+## A fence is defined by its own character, not by the length of the run
+
+**Rule.** A `~~~` block is closed by tildes, a backtick block by backticks, and
+the count only has to be at least the opener's. Treating the two characters as
+interchangeable silently converts "sample" into "claim".
+
+**Why.** `~~~` is the CommonMark fence authors reach for *because* a sample
+contains backticks. Not recognising it was worse than not recognising a pad: a
+`claim` written inside a tilde-fenced sample was read as a real claim, verified
+against a source, and reported `quote-found` — a positive verdict on a specimen
+that was never meant to be checked. A false negative costs a re-read; a false
+positive in the "found it" direction costs the tool's premise.
+
+**Evidence.** Sixth review, major-2: `_ANY_FENCE` matched backticks only, and
+`tests/test_critic_round5.py::test_a_claim_inside_a_tilde_fenced_sample_is_not_a_claim`
+fails without `~{3,}` in the pattern. Seen 1.
+
+## Tolerance for a value is not tolerance for a file
+
+**Rule.** A parser that only supports a subset must distinguish "this file is
+structurally broken" from "this file contains something I do not represent".
+Broken files fail whole; unrepresentable values drop themselves.
+
+**Why.** `_mini_toml` raised on `enabled = true`, and its only caller treats a
+raise as "unreadable manifest" — so on Python 3.10 one boolean unbound every key
+in `sources.toml`, while 3.11+ handed the same file to `tomllib` and bound them
+all. The bug was invisible on the development interpreter by construction: the
+fallback only runs where the real parser is absent. A support floor is not a
+claim about `pyproject.toml`; it is a claim about every path that runs there.
+
+**Evidence.** Sixth review, major-3. Seen 1.
+
+## A cache keyed by the input forgets that the reader changed
+
+**Rule.** If a cached value depends on who produced it, the producer's identity
+belongs in the key. Content-hash keys cover "the input changed"; they say
+nothing about "the code that read the input changed".
+
+**Why.** The extraction cache stored pages under the source's SHA-256 alone.
+Upgrading `pypdf` changes what a page yields — that is what upgrading a PDF
+extractor is — and the ledger would go on reporting `quote-found` from text the
+current reader would never produce. It is the same failure the tool exists to
+find, one level down: a claim that is still "verified" because nobody re-checked
+what "verified" was against.
+
+**Evidence.** Sixth review, minor-1. `tests/test_critic_round5.py::test_a_cache_written_by_another_reader_is_not_trusted`
+rewrites the cached `extractor` and asserts a re-extraction. Seen 1.
+
+## The notes for a release are the commits since the last one
+
+**Rule.** Anything that summarises "what changed in this release" must be
+computed over a range with a known start. `git log -n N` is not a range; it is
+however much history happens to fit in a constant.
+
+**Why.** The release notes were `git log --pretty=format:'- %s' -n 40 HEAD`, so
+each release described the previous releases' work plus a dozen `Release x.y.z`
+subjects of its own — and `docs/maintenance.md` claimed the notes came "from the
+commit range", which made the document the only false thing in the file. A
+release note that lists everything is a release note that tells you nothing
+about the release.
+
+**Evidence.** Sixth review, minor-2; `test_the_release_notes_come_from_the_range_since_the_previous_tag`
+asserts `git describe --tags` and the absence of `-n 40`. Seen 1.
+
+## An acceptance list that names one platform's path is an acceptance list for one platform
+
+**Rule.** When a document gives a command that differs by platform, write every
+variant out. A path a reader has to translate is a step a reader skips.
+
+**Why.** `AGENTS.md` said `.venv/bin/pip install -e .` while
+`docs/code-standards.md` said `.venv/Scripts/pip install -e .` — two documents,
+one of which is wrong on every Windows checkout, and the one that is wrong is
+the one agents read first. The cost is not the failed command; it is that a
+reader learns the acceptance list is approximate.
+
+**Evidence.** Sixth review, minor-3. Both documents now carry both spellings.
+Seen 1.

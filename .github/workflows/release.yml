@@ -139,7 +139,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.v.outputs.tag }}"
-          notes=$(git log --pretty=format:'- %s' -n 40 "HEAD" -- . | head -60)
+          # The notes describe *this* release, so they are the commits since
+          # the previous tag - not "the last forty commits", which is what this
+          # said first and what made v0.2.0's notes list 0.1.0's work plus a
+          # dozen "Release x.y.z" subjects of its own. A first release has no
+          # previous tag; then there is nothing to compare against and the
+          # whole history is the honest answer.
+          previous=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
+          if [ -n "$previous" ]; then
+            range="$previous..$tag"
+          else
+            range="$tag"
+          fi
+          notes=$(git log --pretty=format:'- %s' "$range" -- . | grep -v '^- Release ' | head -60)
+          if [ -z "$notes" ]; then
+            notes="No commits between $range (the tag itself carries the change)."
+          fi
           # target_commitish is a branch name or a commit SHA, never a tag name,
           # and it is unused when the tag already exists. Passing the tag was
           # what failed the first automatic release (0.2.1): the API answered

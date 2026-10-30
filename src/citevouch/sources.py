@@ -19,6 +19,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ._version import __version__
 from .model import Finding, SourceRef
 from .textnorm import fold
 
@@ -78,7 +79,34 @@ def _cache_file(root: str | Path, sha: str) -> Path:
     return cache_root(root) / f"{sha}.json"
 
 
-def _load_cache(root: str | Path, sha: str) -> list[PageText] | None:
+def extractor_name(suffix: str) -> str | None:
+    """Which extractor would run for ``suffix``, named so a cache can check it.
+
+    A cache keyed only by the source's own hash is a cache that never notices
+    the *reader* changing. Upgrading pypdf, or replacing pdftotext, can change
+    the text a page yields - and a ledger verified against the old text would
+    go on saying ``quote-found`` about a page that no longer contains the
+    quote. The name is part of the cache key for exactly that reason.
+
+    The pypdf name carries its version because that is the library whose
+    extraction we are trusting; "pdftotext" does not, because asking its
+    version would mean spawning a process on every run, and the binary is
+    rarely upgraded in place.
+    """
+    suffix = suffix.lower()
+    if suffix == ".txt" or suffix == ".md":
+        return "plain"
+    if suffix == ".pdf":
+        try:
+            import pypdf
+
+            return f"pypdf-{getattr(pypdf, '__version__', 'unknown')}"
+        except ImportError:
+            return "pdftotext"
+    return None
+
+
+def _load_cache(root: str | Path, sha: str, extractor: str) -> list[PageText] | None:
     path = _cache_file(root, sha)
     if not path.exists():
         return None
@@ -88,6 +116,12 @@ def _load_cache(root: str | Path, sha: str) -> list[PageText] | None:
         return None
     if blob.get("schema") != 1:
         return None
+    if blob.get("tool") != __version__ or blob.get("extractor") != extractor:
+        # Written by another build, or by a reader that is not the one about to
+        # run. Re-extracting costs a second; trusting stale text costs a
+        # verdict, and a wrong verdict is the only failure this tool cannot
+        # apologise for.
+        return None
     pages = [
         PageText(number=int(p.get("number", i + 1)), text=str(p.get("text", "")))
         for i, p in enumerate(blob.get("pages") or [])
@@ -95,12 +129,20 @@ def _load_cache(root: str | Path, sha: str) -> list[PageText] | None:
     return pages or None
 
 
-def _store_cache(root: str | Path, sha: str, pages: list[PageText]) -> None:
+def _store_cache(root: str | Path, sha: str, pages: list[PageText], extractor: str) -> None:
     path = _cache_file(root, sha)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"schema": 1, "sha256": sha, "pages": [p.to_json() for p in pages]}
-        tmp = path.with_suffix(".json.tmp")
+        payload = {
+            "schema": 1,
+            "sha256": sha,
+            "tool": __version__,
+            "extractor": extractor,
+            "pages": [p.to_json() for p in pages],
+        }
+        # The pid keeps two scans running side by side from writing over each
+        # other's half-finished temp file.
+        tmp = path.with_suffix(f".json.{os.getpid()}.tmp")
         with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False))
         os.replace(tmp, path)
@@ -173,8 +215,9 @@ def extract_pages(
             path=str(path),
         )
     sha = sha256_file(path)
+    extractor = extractor_name(path.suffix) or "unknown"
     if use_cache:
-        cached = _load_cache(root, sha)
+        cached = _load_cache(root, sha, extractor)
         if cached is not None:
             return cached, None
 
@@ -198,7 +241,7 @@ def extract_pages(
             path=str(path),
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
-    _store_cache(root, sha, pages)
+    _store_cache(root, sha, pages, extractor)
     return pages, None
 
 
@@ -223,11 +266,20 @@ def _mini_toml(text: str) -> dict:
     README tells people to write.  A support floor that only holds if the user
     writes JSON is not a support floor, so the small subset is read here rather
     than dropping 3.10: ``[section]`` headers, ``key = "value"`` pairs, ``#``
-    comments, and both string quoting styles.  A shape outside that subset
-    raises :class:`ValueError`, which the caller treats exactly like a syntax
-    error from tomllib — the manifest is skipped and every claim it was meant
-    to bind reports ``source-missing``, naming the file it could not read
-    rather than binding evidence the author never chose.
+    comments, and both string quoting styles.
+
+    Structural errors - a broken table header, a line that is not ``key =
+    value`` - raise :class:`ValueError`, which the caller treats exactly like a
+    syntax error from tomllib: the manifest is skipped and every claim it was
+    meant to bind reports ``source-missing`` naming the file rather than
+    binding evidence the author never chose.
+
+    A *value* that is not a string is a different thing. tomllib accepts
+    ``enabled = true`` on 3.11+ and hands back a bool, so refusing the whole
+    manifest over it would be a 3.10-only failure - and a total one, since
+    every other key binds nothing once the manifest is gone. An unrepresentable
+    value therefore drops that one key. Nothing downstream can consume a
+    non-string anyway: a path is a path.
 
     This is not a TOML parser and must not grow into one.  If a manifest ever
     needs dates, arrays, or nested tables, the answer is to require 3.11, not to
@@ -252,7 +304,14 @@ def _mini_toml(text: str) -> dict:
         key = key.strip()
         if not key or key[0] in "\"'":
             raise ValueError(f"unsupported key {key!r}")
-        parsed.setdefault(section, {})[key] = _toml_string(value.strip())
+        text_value = _toml_string_or_none(value.strip())
+        if text_value is None:
+            # A non-string value (true, 3.5, [a, b], {..}) is not a path, so
+            # it is dropped rather than allowed to take the whole manifest
+            # with it. tomllib accepts these files on 3.11+, so raising here
+            # would be a 3.10-only refusal of a manifest 3.11 binds fine.
+            continue
+        parsed.setdefault(section, {})[key] = text_value
     return parsed
 
 
@@ -268,6 +327,13 @@ def _strip_toml_comment(line: str) -> str:
         elif char == "#":
             return line[:index]
     return line
+
+
+def _toml_string_or_none(value: str) -> str | None:
+    """Read a quoted TOML string, or ``None`` when the value is not one."""
+    if len(value) < 2 or value[0] not in "\"'" or value[-1] != value[0]:
+        return None
+    return _toml_string(value)
 
 
 def _toml_string(value: str) -> str:

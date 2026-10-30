@@ -147,6 +147,10 @@ citevouch check  manuscript.md --root . --format markdown # 直接贴进 PR 的�
 | c3 | smith2026cxn | 7 | almost half (48.4%) occur only once | 48.4% 是 hapax |
 ```
 
+如果你的稿件里要保留一段语法示例（教程章、自己的 README），请用**四个**反引号（`` ```` ``）围起来，
+不要用三个。三反引号里出现一行 ```claim，和「一个 claim 块忘了收尾」在文本上无法区分，工具不会去猜，
+它会报 `claim-block-unclosed`（high）。四个反引号能明确表示「这是示例」。
+
 ### 挂进 CI
 
 ```yaml

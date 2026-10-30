@@ -59,8 +59,12 @@ A change is not done until all of these have been run and passed. Run them; do n
    ```
 3. **The package still installs and the entry point resolves:**
    ```bash
-   python -m venv .venv && .venv/Scripts/pip install -e . && .venv/Scripts/citevouch --version
+   python -m venv .venv
+   .venv/bin/pip install -e . && .venv/bin/citevouch --version   # POSIX
+   .venv/Scripts/pip install -e . && .venv/Scripts/citevouch --version   # Windows
    ```
+   Both spellings are written out because the directory name is not the same on the two
+   platforms, and an acceptance list a reader has to translate is an acceptance list they skip.
 4. **The documented first run works from a clean directory**, including the command the README
    shows next:
    ```bash

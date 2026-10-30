@@ -40,7 +40,7 @@ from .textnorm import numbers_in
 
 _FENCE_OPEN = re.compile(r"^```claim\b(?P<attrs>.*)$")
 _FENCE_CLOSE = re.compile(r"^```\s*$")
-_ANY_FENCE = re.compile(r"^(?P<ticks>`{3,})(?P<info>.*)$")
+_ANY_FENCE = re.compile(r"^(?P<ticks>`{3,}|~{3,})(?P<info>.*)$")
 _HTML_OPEN = re.compile(r"^<!--\s*claim\s*:?\s*(?P<attrs>.*)$")
 _HTML_CLOSE = re.compile(r"^\s*-->\s*$")
 _TABLE_CLAIM = re.compile(
@@ -172,14 +172,25 @@ def _claim_from(
 
 
 def _closes(line: str, ticks: str) -> bool:
-    """True when ``line`` closes a fence opened with ``ticks`` backticks.
+    """True when ``line`` closes a fence opened with the run in ``ticks``.
 
-    A fence closes only on a line holding at least as many backticks with
-    nothing after them - the CommonMark rule, and the reason four backticks can
-    wrap a sample that itself contains ``` lines.
+    A fence closes only on a line holding at least as many fence characters
+    with nothing after them - the CommonMark rule, and the reason four
+    backticks can wrap a sample that itself contains ``` lines. A tilde fence
+    is closed by tildes only: the two characters are not interchangeable, and
+    treating them as such would let a ``~~~`` block open and a ``` block close.
+
+    ``~~~`` matters because it is the other CommonMark fence and authors use it
+    precisely when a sample contains backticks. Ignoring it meant a claim
+    written inside a tilde-fenced sample was read as a real claim and reported
+    ``quote-found`` - a verified verdict on a specimen that was never meant to
+    be checked.
     """
     m = _ANY_FENCE.match(line)
-    return bool(m) and len(m.group("ticks")) >= len(ticks) and not m.group("info").strip()
+    if not m:
+        return False
+    run = m.group("ticks")
+    return run[0] == ticks[0] and len(run) >= len(ticks) and not m.group("info").strip()
 
 
 def _unclosed_finding(
@@ -208,6 +219,22 @@ def _unclosed_finding(
         path=path,
         line=start_line,
     )
+
+
+def _continues_one_line_html(line: str) -> bool:
+    """True while ``line`` still belongs to an already-closed ``<!-- claim``.
+
+    The one-line dialect has no terminator of its own, so the block ends the
+    way a Markdown paragraph does: at a blank line, or where the next construct
+    starts. Erring short here would silently drop the quote; erring long would
+    swallow a following claim, so every opener counts as a boundary.
+    """
+    if not line.strip():
+        return False
+    if _ANY_FENCE.match(line) or _HTML_OPEN.match(line) or _TABLE_CLAIM.match(line):
+        return False
+    stripped = line.strip()
+    return not stripped.startswith("<!--") and not _HTML_CLOSE.match(line)
 
 
 def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
@@ -259,7 +286,8 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     _unclosed_finding(
                         start_line,
                         "```claim",
-                        "every claim after it was read as part of this block",
+                        "every claim after it was read as part of this block; add the closing "
+                        "fence, or fence the sample with four backticks",
                         path,
                         claim.id,
                     )
@@ -291,17 +319,26 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             swallowed = [
                 k + 1 for k in range(i + 1, min(j, len(lines))) if _FENCE_OPEN.match(lines[k])
             ]
-            # Four or more backticks nest unambiguously: a ```claim inside is
-            # literal sample text, and the outer fence closes on the longer run
-            # only. The guess below is only needed for a plain ``` opener, where
-            # a nested sample and a forgotten closer really do look the same.
-            ambiguous = len(ticks) == 3
-            if j >= len(lines) and ambiguous:
+            # Two questions, and they have different answers.
+            #
+            # "Did this fence ever close?" A fence that does not close ate the
+            # rest of the file, and that is data loss whatever the fence was
+            # made of - so an unclosed run is always reported.
+            #
+            # "Was the ```claim inside it literal sample text?" A three-backtick
+            # or three-tilde sample can be closed by the claim's own closing
+            # fence, which makes "sample" and "forgotten closer" really look the
+            # same. A longer run (~4+), or a tilde fence wrapping backticks,
+            # closes on its own terminator only, so the nesting is unambiguous
+            # and the run stays silent.
+            ambiguous = len(ticks) == 3 and ticks[0] == "`"
+            if j >= len(lines):
                 findings.append(
                     _unclosed_finding(
                         start_line,
-                        "```",
-                        "every claim after it was read as part of the code sample",
+                        ticks,
+                        "every claim after it was read as part of the code sample; "
+                        "if this was meant to be a sample, fence it with four backticks",
                         path,
                     )
                 )
@@ -309,11 +346,12 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 findings.append(
                     _unclosed_finding(
                         start_line,
-                        "```",
+                        ticks,
                         "the claim block opened on line "
                         f"{swallowed[0]} was read as part of the code sample, "
                         "so it was never checked; the sample is probably missing "
-                        "its closing fence",
+                        "its closing fence (a sample meant to show ```claim needs "
+                        "four backticks, not three)",
                         path,
                     )
                 )
@@ -322,14 +360,36 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             continue
 
         m = _HTML_OPEN.match(line)
-        if m and "-->" not in line:
-            attrs = _attrs(m.group("attrs"))
-            body = []
-            j = i + 1
-            while j < len(lines) and not _HTML_CLOSE.match(lines[j]):
-                body.append(lines[j])
-                j += 1
-            closed = j < len(lines)
+        if m:
+            attrs_text = m.group("attrs")
+            inline_close = "-->" in attrs_text
+            if inline_close:
+                # The one-line form, which is the shape both READMEs show:
+                #
+                #     <!-- claim: c2 source=x page=4 -->
+                #     >> The quote this backs.
+                #
+                # It used to be skipped outright - the branch required that the
+                # line carry no `-->` - so an author who copied the documented
+                # example got zero claims, "worst severity: info" and exit 0.
+                # A documented form that parses to nothing is a false negative
+                # over the exact sentence the author asked to be checked.
+                head, _, tail = attrs_text.partition("-->")
+                attrs = _attrs(head)
+                body = [tail.strip()] if tail.strip() else []
+                j = i + 1
+                while j < len(lines) and _continues_one_line_html(lines[j]):
+                    body.append(lines[j])
+                    j += 1
+                closed = True
+            else:
+                attrs = _attrs(attrs_text)
+                body = []
+                j = i + 1
+                while j < len(lines) and not _HTML_CLOSE.match(lines[j]):
+                    body.append(lines[j])
+                    j += 1
+                closed = j < len(lines)
             quote, claim_text = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line)
             if not closed and claim is not None:
@@ -337,13 +397,14 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     _unclosed_finding(
                         start_line,
                         "<!-- claim",
-                        "every claim after it was read as part of this block",
+                        "every claim after it was read as part of this block; add the closing "
+                        "fence, or fence the sample with four backticks",
                         path,
                         claim.id,
                     )
                 )
-            accept(claim, more, start_line, j + 1)
-            i = j + 1
+            accept(claim, more, start_line, j + 1 if not inline_close else j)
+            i = j if inline_close else j + 1
             continue
 
         m = _TABLE_CLAIM.match(line)

@@ -82,16 +82,35 @@ jobs:
           TAG: ${{ steps.rel.outputs.tag }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title="nightly dogfood failed for $TAG"
-          body="The scheduled run that installs the latest release wheel and replays the README's first commands failed on $(date -u +%F).
-          
-          Run log: $RUN
+          # The label has to exist before it can be applied: `gh issue create
+          # --label` fails outright on an unknown label, so the first real
+          # dogfood failure - the one moment this feedback loop exists for -
+          # would have reported nothing at all. Creating it is idempotent.
+          gh label create nightly-dogfood --description "the nightly run of the published artefact failed" --color "B60205" 2>/dev/null || true
 
-          What this means: people installing \`$TAG\` today may be getting something that does not do what the documentation shows. The run log above has the exact step and its output. This issue was filed by the night itself, not by a person who noticed."
-          existing=$(gh issue list --label "nightly-dogfood" --state open --json title --jq ".[] | select(.title==\"$title\") | .title" | head -1)
+          title="nightly dogfood failed for $TAG"
+          # The title is compared in python rather than interpolated into a
+          # jq program: `gh --jq` takes no extra arguments, so there is no safe
+          # way to pass a string into the filter, and this is an error path -
+          # the worst place to carry a query that only sometimes parses.
+          export TITLE="$title"
+          existing=$(gh issue list --label nightly-dogfood --state open --json number,title | python -c '
+          import json, os, sys
+          want = os.environ["TITLE"]
+          for item in json.load(sys.stdin):
+              if item["title"] == want:
+                  print(item["number"])
+                  break
+          ')
           if [ -n "$existing" ]; then
             echo "an open dogfood issue for $TAG already exists; refreshing comment"
-            gh issue comment "$(gh issue list --label nightly-dogfood --state open --json number,title --jq ".[] | select(.title==\"$title\") | .number" | head -1)" --body "still failing as of $(date -u +%FT%TZ) — $RUN"
-          else
-            gh issue create --title "$title" --body "$body" --label "nightly-dogfood"
+            gh issue comment "$existing" --body "still failing as of $(date -u +%FT%TZ) - $RUN"
+            exit 0
           fi
+
+          body="The scheduled run that installs the latest release wheel and replays the README's first commands failed on $(date -u +%F).
+
+          Run log: $RUN
+
+          What this means: people installing $TAG today may be getting something that does not do what the documentation shows. The run log above has the exact step and its output. This issue was filed by the night itself, not by a person who noticed."
+          gh issue create --title "$title" --body "$body" --label "nightly-dogfood"

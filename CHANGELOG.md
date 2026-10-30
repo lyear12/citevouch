@@ -11,6 +11,47 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- `sources.toml` on Python 3.10 tolerates a non-string value. A manifest holding
+  `enabled = true` used to raise in the fallback reader, and the caller treats a
+  raise as "unreadable manifest", so one boolean unbound **every** key in the
+  file — while 3.11+ handed the same file to `tomllib` and bound them all. An
+  unrepresentable value now drops that one key: nothing downstream can consume a
+  non-string anyway.
+- The extraction cache records the tool version and the extractor that produced
+  it. It was keyed by the source's content hash alone, so upgrading `pypdf` — or
+  any change in what a page yields — reused text written by a reader that no
+  longer exists, and a ledger could keep saying `quote-found` about a page that
+  no longer contained the quote. The temp file also carries the pid now, so two
+  scans running side by side cannot overwrite each other's half-written cache.
+- `~~~` is recognised as a fence. It is the other CommonMark fence, and authors
+  reach for it exactly when a sample contains backticks; ignoring it meant a
+  claim written inside a tilde-fenced sample was read as a real claim and
+  reported `quote-found` — a verified verdict on a specimen nobody meant to
+  check. A tilde fence is closed by tildes only.
+- The one-line HTML claim form works. `<!-- claim: c2 source=x page=4 -->` on one
+  line, followed by `>> quote`, is the shape both READMEs show; the parser
+  required that the line carry **no** `-->`, so an author who copied the
+  documented example got zero claims, "worst severity: info" and exit 0.
+
+### Fixed
+
+- Release notes describe the release. They were `git log -n 40`, so every release
+  listed the previous releases' work and a dozen `Release x.y.z` subjects of its
+  own; they are now the range between the previous tag and this one.
+- An unclosed fence is reported whatever it is made of. `~~~` and long backtick
+  runs were exempted along with the three-backtick sample case, but "this fence
+  never closed and ate the rest of the file" is data loss regardless of the
+  fence's spelling. Only the question "was the `claim` inside it literal sample
+  text?" is genuinely ambiguous, and only for a three-character opener of the
+  same kind.
+- Every `claim-block-unclosed` message now says how to fix it, and both READMEs
+  tell authors to fence a syntax sample with four backticks instead of three.
+  The rule was enforced and documented nowhere a manuscript author would look.
+- `AGENTS.md` and `docs/code-standards.md` name the venv path each platform
+  actually has. `.venv/bin/pip` does not exist on Windows, and a list a reader
+  has to translate is a list they skip.
 
 ## [0.7.0] — 2026-10-30
 ### Added
