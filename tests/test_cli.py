@@ -12,6 +12,11 @@ import pytest
 
 from citevouch.cli import main
 
+#: A path on a share that is not mounted here.  It has to look like a network
+#: path to whichever platform is running the suite, because the point of the
+#: test is the sentence the platform's error produces.
+_UNREACHABLE = "//citevouch.invalid/never-mounted/refs.bib"
+
 
 def _project(tmp_path: Path) -> Path:
     (tmp_path / "papers").mkdir()
@@ -448,6 +453,23 @@ class TestAMessageAboutAPathIsTrueAboutThatPath:
         assert main(["check", "m.md", "--root", str(root), "--source", "adir"]) == 2
         err = capsys.readouterr().err
         assert "is a directory, not a file" in err
+        assert "Traceback" not in err
+
+    def test_a_share_that_is_not_mounted_is_not_called_missing(self, tmp_path: Path, capsys):
+        """The fourth answer, and the one a false sentence costs the most.
+
+        ``os.stat`` on an unreachable UNC share raises ``OSError`` with
+        ``winerror=53`` while a genuinely absent path raises ``winerror=3``,
+        and Python maps both to ``ENOENT`` - so ``Path.exists()`` cannot tell
+        them apart and the sentence used to be "does not exist" for both.  A
+        share that is not mounted is not a file that was deleted; sending the
+        author to look for a manuscript they never lost is the wrong errand.
+        """
+        root = _project(tmp_path)
+        assert main(["draft", "m.md", "--root", str(root), "--bib", _UNREACHABLE]) == 2
+        err = capsys.readouterr().err
+        assert "cannot be reached" in err
+        assert "does not exist" not in err
         assert "Traceback" not in err
 
 

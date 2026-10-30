@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .bibtex import doi_of, field_findings
+from .errors import why_not_a_file
 from .manuscript import parse_manuscript
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
@@ -48,6 +49,24 @@ class VerifyResult:
         return not any(f.severity == "high" for f in self.findings)
 
 
+def _gone_sentence(path: Path) -> str:
+    """Say why the recorded manuscript cannot be opened.
+
+    ``why_not_a_file`` answers a different question - what is wrong with a path
+    that should have been a file - and its answers are predicates ("is a
+    directory, not a file").  Here the sentence needs a verb, because the
+    ledger sentence reads "m.md recorded by the ledger <answer>": the plain
+    "does not exist" fits, the "cannot be reached" answer does not, and a
+    directory needs "is a directory where a file was recorded".  Rewriting the
+    sentence rather than splicing a fragment keeps both call sites readable.
+    """
+    if path.is_dir():
+        return "is now a directory"
+    if why_not_a_file(path).startswith("cannot be reached"):
+        return "cannot be opened: the network path is not available from here"
+    return "no longer exists"
+
+
 def verify(
     ledger: Ledger,
     options: ScanOptions,
@@ -68,12 +87,18 @@ def verify(
     # green "1 verified" about a document that was not there.  Deleting the
     # thing under review must never be the way to make the check pass.
     if check_manuscript_hash and ledger.manuscript_sha256:
-        if not manuscript_path.exists():
+        # `is_file`, not `exists`: a directory named `m.md` passes `exists()`
+        # and then `sha256_file` raises PermissionError, which leaves `main`
+        # as a traceback with exit 1 - and 1 is this tool's word for "the
+        # manuscript has findings".  A path that is not a readable file is not
+        # a manuscript, whichever way it fails to be one.
+        if not manuscript_path.is_file():
             result.findings.append(
                 Finding(
                     code="ledger-stale",
                     message=(
-                        f"{manuscript_path.name} recorded by the ledger no longer exists; "
+                        f"{manuscript_path.name} recorded by the ledger "
+                        f"{_gone_sentence(manuscript_path)}; "
                         "restore it, or point --root/--ledger at the project it belongs to"
                     ),
                     path=str(manuscript_path),

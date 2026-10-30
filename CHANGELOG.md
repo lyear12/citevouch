@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A path on a share that is not mounted is no longer called missing.  Windows
+  reports an unreachable network path as `ERROR_BAD_NETPATH` (53) and an absent
+  file as `ERROR_FILE_NOT_FOUND` (3), and Python maps **both** to `errno.ENOENT`,
+  so `Path.exists()` answers "no" to two different questions.  Every sentence
+  about a path that was not a file said "does not exist", which sent the author
+  looking for a manuscript they never lost and a PDF that was still on the
+  share.  `citevouch.errors.why_not_a_file` now reads the raw error and says
+  which of the three mistakes happened - a directory, a missing path, or a
+  location this machine cannot reach - and `scan`, `verify`, `check`, `report`,
+  `draft` and `discover_sources` all route through it.
+- `verify` no longer crashes when the recorded manuscript path has become a
+  directory.  `exists()` was true for a directory named `m.md`, so `sha256_file`
+  raised `PermissionError` and the traceback left `main` with exit 1 - which is
+  this tool's word for "the manuscript has findings", so the author read a crash
+  as a verdict about their citations.  It is judged with `is_file()` now and
+  reported as `ledger-stale`, and the sentence says "is now a directory".
 
 ## [0.19.4] — 2026-10-30
 ### Fixed

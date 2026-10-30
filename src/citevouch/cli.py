@@ -29,10 +29,10 @@ from . import doctor as doctor_module
 from . import draft as draft_module
 from . import latex as latex_module
 from .bibtex import parse_bib
-from .errors import CitevouchError, UsageError
+from .errors import CitevouchError, UsageError, why_not_a_file
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
-from .scan import ScanOptions, _resolve, _why_not_a_file, scan
+from .scan import ScanOptions, _resolve, scan
 from .sources import discover_sources
 from .textnorm import read_text
 from .verify import VerifyResult, verify
@@ -320,7 +320,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
     root = Path(args.root)
     manuscript = _resolve(root, args.manuscript)
     if not manuscript.is_file():
-        raise UsageError(f"manuscript {manuscript} does not exist")
+        raise UsageError(f"manuscript {manuscript} {why_not_a_file(manuscript)}")
     output = Path(args.output)
     if not output.is_absolute():
         output = root / output
@@ -340,7 +340,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
     for raw in args.bib:
         bib_path = _resolve(root, raw)
         if not bib_path.is_file():
-            raise UsageError(f"bib file {bib_path} {_why_not_a_file(bib_path)}")
+            raise UsageError(f"bib file {bib_path} {why_not_a_file(bib_path)}")
 
         parsed = parse_bib(read_text(bib_path), str(bib_path))
         bib.update(parsed.entries)

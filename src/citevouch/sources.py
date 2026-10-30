@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ._version import __version__
-from .errors import UsageError
+from .errors import UsageError, why_not_a_file
 from .model import Finding, SourceRef
 from .textnorm import fold, read_text
 
@@ -258,7 +258,7 @@ def extract_pages(
         # present and is not a source; saying "does not exist" about something
         # the author can see in their file manager sends them looking for the
         # wrong problem.
-        what = "is a directory, not a file" if path.is_dir() else "does not exist"
+        what = why_not_a_file(path)
         return [], Finding(
             code="source-missing",
             message=f"source file {path} {what}",
@@ -540,7 +540,7 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
             # caller wants bound to a key; dropping it silently means the
             # claim it was meant for reports ``source-missing``, and the
             # author goes looking for a missing PDF that is not missing.
-            what = "is a directory, not a file" if path.is_dir() else "does not exist"
+            what = why_not_a_file(path)
             raise UsageError(f"source {path} {what}")
         found[path.stem] = str(path)
 

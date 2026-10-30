@@ -262,8 +262,18 @@ would a person actually have on disk", not by reading the code.
   if it does not, this line is deleted rather than left to imply a defect that
   does not exist. Who is blocked: unknown until measured.
 
-- [ ] **A manuscript over a network path.** `\\server\share\paper.md` on
-  Windows, or a file that disappears mid-run. *Done when* the run either works
-  or names the path it could not reach, rather than reporting it as a missing
-  claim block.
-
+- [x] **A manuscript over a network path.** `\\server\share\paper.md` on
+  Windows, or a file that disappears mid-run.  *Done 2026-10-31.* Windows reports an
+  unreachable share as `ERROR_BAD_NETPATH` (53) and an absent file as
+  `ERROR_FILE_NOT_FOUND` (3), and Python maps **both** to `errno.ENOENT` - so
+  `Path.exists()` answers "no" to two different questions and every sentence about
+  such a path said "does not exist".  `citevouch.errors.why_not_a_file` now reads
+  the raw error and names the actual mistake (a directory, a missing path, a
+  location this machine cannot reach); `scan`, `verify`, `check`, `report`, `draft`
+  and `discover_sources` all route through it.  The same pass found a crash: a
+  directory named `m.md` satisfied `exists()`, so `sha256_file` raised
+  `PermissionError` and the traceback left `main` with exit 1 - the code that means
+  "the manuscript has findings".  *Not covered:* a file that disappears **between**
+  the extraction and the hash comparison, which no test can schedule; the sentence
+  in that window is whatever the failing call reports, which is now the three-way
+  one rather than "does not exist".

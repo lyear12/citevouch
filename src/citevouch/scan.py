@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import __version__
 from .bibtex import parse_bib
-from .errors import UsageError
+from .errors import UsageError, why_not_a_file
 from .latex import looks_like_latex
 from .manuscript import _CLAIMISH, parse_manuscript, scan_unbound_markers
 from .model import Finding, Ledger, SourceRef
@@ -44,12 +44,14 @@ class ScanOptions:
 def _why_not_a_file(path: Path) -> str:
     """Say what is wrong with a path that was expected to be a file.
 
-    "does not exist" about a directory is a false sentence, and a false
-    sentence sends the reader to look for the wrong problem. `sources.py`
-    already words this distinction for source files; these were the two
-    places that judged with `is_file()` and explained with `exists()`.
+    Kept as a module-level name because two call sites import it, but the
+    wording lives in :func:`citevouch.errors.why_not_a_file`, which knows the
+    difference between a directory, a missing file and a share that is not
+    reachable.  It moved there when the third case arrived: this one used to
+    answer "does not exist" about a network path that was simply not mounted,
+    which is a false sentence about a file the author never lost.
     """
-    return "is a directory, not a file" if path.is_dir() else "does not exist"
+    return why_not_a_file(path)
 
 
 def _resolve(root: Path, raw: str) -> Path:
@@ -171,7 +173,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     root = Path(options.root)
     manuscript_path = _resolve(root, options.manuscript)
     if not manuscript_path.is_file():
-        raise UsageError(f"manuscript {manuscript_path} does not exist")
+        raise UsageError(f"manuscript {manuscript_path} {_why_not_a_file(manuscript_path)}")
     if looks_like_latex(manuscript_path):
         # A .tex file has no claim blocks, so scanning one reads zero claims and
         # reports a clean run - a green light for a manuscript nothing looked at.

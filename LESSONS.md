@@ -1809,3 +1809,34 @@ changes what a quote says. The ranges are written out rather than computed per i
 Unicode costs about 100 ms, which is real money in a pre-commit hook — and that trade is only safe
 because the test re-derives the category every run. Three mutations are red: drop the call from
 `normalize`, narrow the range to ZWSP alone, widen it into the general punctuation block. Seen 1.
+
+## Two different absences arrive as the same errno
+
+**Rule.** When a path is not a file, say *which* way it is not one — a directory, a missing path, or
+a location this machine cannot reach — and get the third answer from the raw error rather than from
+`Path.exists()`. `exists()` collapses every `OSError` into a boolean, so the two questions "does the
+author still have this file?" and "can I see the share it lives on?" come back as the same `False`
+and the sentence that follows is a guess dressed as a fact.
+
+**Why.** The sentence is what the author acts on. "Does not exist" about an unreachable share sends
+them looking for a manuscript they never lost; the errand is impossible to complete, and the only
+conclusion available at the end of it is that the tool is broken. A wrong sentence is worse than a
+vague one because it is followed. This is the same failure as the directory sentence and the same
+failure as the bibliography that parsed to zero entries: the operation succeeded, produced the
+degenerate value, and the words attributed that value to the wrong subject.
+
+**Evidence.** `os.stat` on `\\server\share\paper.md` with the share down raises `OSError` with
+`winerror=53` (`ERROR_BAD_NETPATH`) while an absent path raises `winerror=3`
+(`ERROR_FILE_NOT_FOUND`); Python maps both to `errno.ENOENT`, so `Path.exists()` cannot tell them
+apart. Six call sites wrote "does not exist" — `scan.py` for the manuscript and for the bibliography,
+`cli.py` for the same two, `sources.py` twice, and `verify.py`'s `ledger-stale` — and each was
+faithfully reporting the only thing the boolean could tell it. `why_not_a_file` now reads
+`winerror`/`errno` and answers with one of three sentences, and every site routes through it. The
+first version of the `ledger-stale` rewrite spliced the predicate into a sentence that already had a
+verb and produced `cannot be opened (cannot be reached (the network path is not available from
+here))`; a rewritten `_gone_sentence` keeps one set of brackets, and a test asserts
+`gone.count("(") == 0` so the nesting cannot come back. A second crash was hiding behind the first:
+a directory named `m.md` satisfies `exists()`, so `sha256_file` raised `PermissionError` and the
+traceback left `main` with exit 1 — the exit code that means "the manuscript has findings". Four
+mutations are red: empty the `winerror` table, empty the `errno` table, put `verify` back on
+`exists()`, and splice the fragment back in. Seen 1.
