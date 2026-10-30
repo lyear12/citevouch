@@ -11,6 +11,19 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A quote that runs across a page break is no longer reported as missing.
+  Every page used to be searched on its own, so a sentence that starts at the
+  bottom of page 6 and ends at the top of page 7 matched nothing and came back
+  as `quote-missing` — `high`, the same severity as a fabricated citation. That
+  is the worst thing this tool can do: not lack a feature, but tell an author
+  their evidence is gone when it is on the next page. Adjacent pages are now
+  also searched stitched together, the reported page is the one the quote
+  starts on, and the finding says which page it runs onto. A ledger pointing at
+  either of the two pages is counted as verified rather than `quote-moved`, and
+  the number check reads both pages so a statistic carried in the second half
+  is not reported absent.
 
 ## [0.10.2] — 2026-10-30
 ### Fixed

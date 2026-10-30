@@ -93,6 +93,7 @@ class Match:
     similarity: float = 0.0
     context: str = ""
     reason: str = ""
+    spans_to: int | None = None
 
     @property
     def found(self) -> bool:
@@ -161,6 +162,38 @@ def _context(page_text: str, needle_index: int, needle_len: int, width: int = 12
     return snippet
 
 
+def _page_pairs(
+    pages: list[PageText], page_hint: int | None = None
+) -> list[tuple[PageText, int]]:
+    """Every adjacent pair of pages, stitched into one readable page.
+
+    The stitched page keeps the *earlier* page's number, because a reader who
+    wants to look at the quote starts reading where the quote starts, and a
+    finding that pointed at the later page would send them to text that has the
+    end of the sentence and none of the beginning.  The second element is the
+    number of the page the stitched text runs onto.
+
+    Whitespace is inserted rather than glued: extractors wrap pages at
+    different points, some end a page mid-word with no hyphen at all, and a
+    quote reassembled from two halves must match the way it reads on paper, not
+    the way two extractor buffers happen to abut.
+
+    The hinted page is put first so a manuscript that already points at the
+    right page is answered by the first pair tried.
+    """
+    order: list[int] = []
+    if page_hint is not None and 1 <= page_hint <= len(pages) - 1:
+        order.append(page_hint - 1)
+    order.extend(i for i in range(len(pages) - 1) if i not in order)
+
+    stitched: list[tuple[PageText, int]] = []
+    for index in order:
+        first, second = pages[index], pages[index + 1]
+        text = first.text.rstrip() + " " + second.text.lstrip()
+        stitched.append((PageText(number=first.number, text=text), second.number))
+    return stitched
+
+
 def find_in_pages(
     quote: str,
     pages: list[PageText],
@@ -194,6 +227,23 @@ def find_in_pages(
                 page=page.number,
                 similarity=1.0,
                 context=_context(page.folded, hits[0], len(quote_norm)),
+            )
+
+    # A sentence that runs off the bottom of one page and onto the top of the
+    # next is not a quote that is missing - it is a quote this tool could not
+    # see, because until now it only ever read one page at a time.  Tried only
+    # after every single page has missed, so a quote that fits on a page is
+    # always reported against that page first.
+    for joined, end_number in _page_pairs(pages, page_hint):
+        hits = _bounded_pages(joined, quote_norm)
+        if hits:
+            return Match(
+                tier="exact",
+                page=joined.number,
+                similarity=1.0,
+                context=_context(joined.folded, hits[0], len(quote_norm)),
+                reason="the quote crosses a page break",
+                spans_to=end_number,
             )
 
     for index in order:

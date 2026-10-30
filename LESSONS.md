@@ -924,3 +924,29 @@ reader learns the acceptance list is approximate.
 
 **Evidence.** Sixth review, minor-3. Both documents now carry both spellings.
 Seen 1.
+
+## A quote is not missing until you have looked everywhere a reader would look
+
+**Rule.** Before reporting evidence as absent, check that the search covered the
+shapes an author would call "on the page": text that runs over a fold, a form
+feed, a column break. An absence is a claim about the world; make sure the world
+you searched is the one they live in.
+
+**Why.** `find_in_pages` searched one page at a time. A sentence that starts at
+the bottom of page 6 and ends at the top of page 7 exists in the PDF, exists on
+paper, and matched nothing — so the tool reported `quote-missing`, which is
+`high`, which is the same severity as a citation that was invented. The failure
+was not that a feature was absent; it was that the tool said something false
+about the user's work, in the direction that costs them the most: it told them
+their evidence had vanished. Worse, it was silent about why — the message said
+"no passage in the source is close to this quote", which is technically true of
+each page considered alone and completely misleading about the document.
+
+**Evidence.** Found while building the backlog for the continuous-improvement
+loop, before any user reported it. First probe was wrong: it passed a `PageText`
+whose `folded` field was already falsy, so `__post_init__` never re-folded, and
+half the "short quotes never match" conclusion it produced was an artefact of
+that mistake — which is why the second probe compares a split sentence against
+the same sentence whole. `tests/test_cross_page.py` (10 tests) pins the
+mechanism, `tests/test_cross_page_real.py` (3 tests) pins the premise on a real
+paper, and disabling the stitching turns five of them red. Seen 1.

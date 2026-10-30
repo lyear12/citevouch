@@ -232,7 +232,14 @@ def verify(
 
         match = find_in_pages(claim.quote, pages, usable_page)
         if match.found:
-            if usable_page is not None and match.page != usable_page:
+            # A quote that runs across a break is on both pages it touches, so
+            # a ledger pointing at either one is not a move.  Calling it one
+            # would teach the author to edit a number that was already right.
+            on_the_recorded_page = usable_page is None or usable_page in (
+                match.page,
+                match.spans_to,
+            )
+            if not on_the_recorded_page:
                 result.moved += 1
                 result.findings.append(
                     Finding(
@@ -248,16 +255,24 @@ def verify(
                 )
             else:
                 result.verified += 1
+                where = f"page {match.page}"
+                if match.spans_to is not None:
+                    # Say the quote runs onto the next page.  The author is
+                    # about to look it up, and a reader told only "page 6"
+                    # who finds the sentence ending there and continuing on
+                    # page 7 has been told a half-truth by a tool whose whole
+                    # promise is that its sentences are true.
+                    where += f" (running onto page {match.spans_to})"
                 result.findings.append(
                     Finding(
                         code="quote-found",
-                        message=f"claim {claim.id}: quote found on page {match.page}",
+                        message=f"claim {claim.id}: quote found on {where}",
                         claim_id=claim.id,
                         path=claim.path,
                         line=claim.line,
                     )
                 )
-            result.findings.extend(_number_checks(claim, pages, match.page))
+            result.findings.extend(_number_checks(claim, pages, match.page, match.spans_to))
         elif match.tier == "fuzzy":
             result.missing += 1
             result.findings.append(
@@ -343,32 +358,41 @@ def verify(
     return result
 
 
-def _number_checks(claim, pages, page_number: int | None) -> list[Finding]:
+def _number_checks(
+    claim, pages, page_number: int | None, spans_to: int | None = None
+) -> list[Finding]:
     """Every number quoted by the manuscript must still be on the cited page.
 
     The check is deliberately narrow: it only sees numbers that appear *inside*
     the quote, so a manuscript may discuss a number without quoting it.  It
     exists to catch a re-typed statistic, which is the failure mode that reads
     as correct for months.
+
+    A quote that runs onto the next page can carry its numbers on either half,
+    so both pages are read.  Checking only the first half would report a number
+    absent that the author can see with their own eyes on page 7.
     """
     out: list[Finding] = []
     if not claim.numbers:
         return out
-    page = None
+    numbers_pages = [page_number] if spans_to is None else [page_number, spans_to]
+    wanted = [n for n in numbers_pages if n is not None]
+    present: set[str] = set()
     for candidate in pages:
-        if candidate.number == page_number:
-            page = candidate
-            break
-    if page is None:
+        if candidate.number in wanted:
+            present.update(canonical_number(t) for t in _numbers(candidate.text))
+    if not present:
         return out
-    present = {canonical_number(t) for t in _numbers(page.text)}
     for raw in claim.numbers:
         if canonical_number(raw) not in present:
+            where = "page " + str(page_number)
+            if spans_to is not None:
+                where += f" or {spans_to}"
             out.append(
                 Finding(
                     code="number-absent-in-quote",
                     message=(
-                        f"claim {claim.id}: the quote says {raw} but page {page_number} "
+                        f"claim {claim.id}: the quote says {raw} but {where} "
                         "of the source does not contain that number"
                     ),
                     claim_id=claim.id,
