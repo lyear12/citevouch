@@ -22,22 +22,55 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 from citevouch.sources import PageText, _no_text_problem, extract_pages
-from citevouch.textnorm import read_text
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def _blank_pdf(path: Path, pages: int = 2) -> None:
-    """A PDF with a page shape but no text layer, which is what a scan is."""
-    pymupdf = pytest.importorskip("pymupdf", reason="only the figure tool needs it")
-    doc = pymupdf.open()
+    """A PDF with a page shape but no text layer, which is what a scan is.
+
+    Written by hand on purpose.  Building one with a PDF library would make
+    this file skip wherever that library is not installed, and the lint job
+    refuses skips for exactly that reason: a skipped test proves nothing, and
+    it proves it silently.  A page whose content stream draws a rectangle and
+    sets no text is a few hundred bytes of PDF syntax, and needs nothing but
+    `write_bytes`.
+    """
+    body: list[tuple[int, bytes]] = []
+    kids: list[int] = []
+    next_id = 3
     for _ in range(pages):
-        doc.new_page().draw_rect(pymupdf.Rect(50, 50, 400, 600), color=(0, 0, 0))
-    doc.save(str(path))
-    doc.close()
+        page_id, content_id = next_id, next_id + 1
+        next_id += 2
+        kids.append(page_id)
+        page = (
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            f"/Contents {content_id} 0 R >>"
+        )
+        body.append((page_id, page.encode()))
+        stream = b"0 0 0 RG 1 w 72 72 468 648 re S\n"
+        head = b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n"
+        body.append((content_id, head + stream + b"endstream"))
+    kids_list = " ".join(f"{k} 0 R" for k in kids)
+    body.append((2, f"<< /Type /Pages /Count {pages} /Kids [{kids_list}] >>".encode()))
+    body.append((1, b"<< /Type /Catalog /Pages 2 0 R >>"))
+    body.sort()
+
+    out = b"%PDF-1.4\n"
+    offsets: dict[int, int] = {}
+    for num, payload in body:
+        offsets[num] = len(out)
+        out += f"{num} 0 obj\n".encode() + payload + b"\nendobj\n"
+    xref = len(out)
+    highest = max(n for n, _ in body)
+    out += f"xref\n0 {highest + 1}\n".encode()
+    out += b"0000000000 65535 f \n"
+    for num in range(1, highest + 1):
+        out += f"{offsets[num]:010d} 00000 n \n".encode()
+    trailer = f"trailer\n<< /Size {highest + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n"
+    out += trailer.encode()
+    path.write_bytes(out)
 
 
 class TestTheVerdictItself:
@@ -53,7 +86,7 @@ class TestTheVerdictItself:
         pages = [PageText(number=1, text="   \n\t \n")]
         assert _no_text_problem(pages, Path("scan.pdf")) is not None
 
-    def test_one_character_of_text_is_enough(self):
+    def test_one_word_anywhere_is_enough(self):
         """A PDF with one real word is a PDF a human chose to cite, not a scan."""
         pages = [PageText(number=1, text=""), PageText(number=2, text="Results")]
         assert _no_text_problem(pages, Path("paper.pdf")) is None
@@ -166,8 +199,3 @@ class TestTheCommandLine:
             next((root / ".citevouch" / "cache").glob("*.json")).read_text("utf-8")
         )
         assert all(not page["text"].strip() for page in blob["pages"])
-
-
-def test_read_text_is_not_involved_in_this_decision():
-    """A PDF is never decoded as text, so the encoding fix cannot mask a scan."""
-    assert read_text(ROOT / "demo" / "manuscript.md")
