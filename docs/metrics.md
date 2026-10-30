@@ -36,6 +36,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/citevouch/json
 |---|---|---|---|---|---|---|---|
 | 2026-10-30 | 0 | 0 | 0 | 0 | 6 (across 16 releases) | 404 | first 16 releases shipped in ~2 days, all automated |
 | 2026-10-30 | 0 | 0 | 0 | 0 | 6 (across 18 releases) | 404 | README now opens with two generated figures; v0.16.0 |
+| 2026-10-30 | 0 | 0 | 0 | 0 | 57 (across 26 releases) | 404 | v0.16.3; the count rose 9x in 90 minutes, which is not 9x the users |
 
 A note on the image check, because it is the kind of thing this file is for: the
 README's images were verified as *markup* (`gh api repos/lyear12/citevouch/readme
@@ -45,6 +46,16 @@ the referenced path), but not as *pixels* — this machine cannot reach
 `raw.githubusercontent.com`, so the browser reports `naturalWidth 0` for both.
 That is a fact about this machine, not about the page, and it stays unresolved
 until someone opens the repository from a network that can reach the CDN.
+
+The download count is worth reading carefully, because it looks like the one
+number that moved. It went from 6 to 57 between two measurements 90 minutes
+apart, across 26 releases - about 2.2 downloads per release, spread evenly over
+every artifact. That is the shape of automated fetching, not of people: this
+session downloaded wheels and sdists by hand to check a clean install, to run
+the archive's own suite, and to test the nightly job. A real user arrives at one
+release, not at all of them. Until the counts cluster on one or two versions
+instead of dusting every one, they measure my own verification, and this file
+should say so rather than quote the bigger number.
 
 Nothing above is growth. At this size the honest read is: **nobody has used it
 yet**, and the numbers that matter (issues, downloads) are the ones that will
