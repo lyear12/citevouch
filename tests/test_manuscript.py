@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from citevouch.manuscript import parse_manuscript, scan_unbound_markers
 
 
@@ -270,3 +272,57 @@ quote: |
     result = parse_manuscript(text)
     assert result.findings[0].code == "claim-uncheckable"
     assert result.findings[0].severity == "high"
+
+
+class TestAnInlineQuoteIsTheValueAndNotTheMarks:
+    """`quote: "the passage"` and `quote: the passage` are the same quote.
+
+    Claims carry `key="value"` attributes, and the attribute reader has stripped
+    those marks from the start.  The body reader never did.  So a writer who
+    quoted the passage in the only place a YAML reader would quote it - the
+    inline scalar - sent the two marks into the search as content, matched
+    nothing, and got a `quote-missing` (high) verdict that accused their
+    manuscript of a passage the PDF does contain.
+
+    The same failure as a byte-order mark, an invisible directional mark, and a
+    full-width digit: an encoding detail of the file read as a fact about the
+    paper.  This one lived in the reader nobody had pointed at.
+    """
+
+    def _quote_of(self, body: str) -> str:
+        nl = chr(10)
+        text = "```claim id=c1 source=s" + nl + body + nl + "```" + nl
+        result = parse_manuscript(text)
+        assert result.claims, [f.code for f in result.findings]
+        return result.claims[0].quote
+
+    def test_a_double_quoted_value_loses_its_marks(self):
+        assert self._quote_of('quote: "We train on two corpora."') == "We train on two corpora."
+
+    def test_a_single_quoted_value_loses_its_marks(self):
+        assert self._quote_of("quote: 'We train on two corpora.'") == "We train on two corpora."
+
+    def test_a_bare_value_is_untouched(self):
+        assert self._quote_of("quote: We train on two corpora.") == "We train on two corpora."
+
+    def test_a_block_value_is_untouched(self):
+        nl = chr(10)
+        assert (
+            self._quote_of("quote: |" + nl + "  We train on two corpora.")
+            == "We train on two corpora."
+        )
+
+    @pytest.mark.parametrize("body", ['quote: "yes" or "no"', "quote: it's a test"])
+    def test_marks_inside_the_value_are_content(self, body: str):
+        """A value that only *starts* and ends with a mark is not a quoted scalar.
+
+        `"yes" or "no"` begins and ends with a double quote.  A rule that only
+        compared the two ends would eat one mark off each end and search for a
+        passage nobody wrote - which is the failure this fix exists to prevent,
+        reintroduced by a fix that was too eager.
+        """
+        expected = body.split("quote: ", 1)[1]
+        assert self._quote_of(body) == expected
+
+    def test_a_lone_mark_is_left_alone(self):
+        assert self._quote_of('quote: "') == '"'

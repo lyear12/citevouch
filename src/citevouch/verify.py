@@ -173,8 +173,17 @@ def verify(
                     path=str(manuscript_path),
                 )
             )
-        else:
+        elif not any(f.code.startswith("claim-") for f in parsed.findings):
             result.findings.append(_no_claim_blocks_finding(text, manuscript_path.name))
+        else:
+            # A block the parser found and refused is not the same thing as a
+            # file with no blocks, and `scan` has said so since the emptiness
+            # guard was written.  This branch asked the parser only whether it
+            # produced claims, so a block missing its `id=` produced zero claims
+            # and was then described as "no claim blocks", which is false: the
+            # parser's own finding, one screen up, names the block.  Report the
+            # reasons the parser gave rather than a summary of the outcome.
+            result.findings.extend(parsed.findings)
         return result
 
     known = discover_sources(root, options.sources)

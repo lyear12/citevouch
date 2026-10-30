@@ -1840,3 +1840,36 @@ a directory named `m.md` satisfies `exists()`, so `sha256_file` raised `Permissi
 traceback left `main` with exit 1 — the exit code that means "the manuscript has findings". Four
 mutations are red: empty the `winerror` table, empty the `errno` table, put `verify` back on
 `exists()`, and splice the fragment back in. Seen 1.
+
+## Two readers of the same format disagreed, and only one of them was tested
+
+**Rule.** When one file format has two readers - attributes here, a block body
+there - give them one function for shared syntax and test the value each one
+produces, not just the fact that it produced something. A syntax detail that one
+reader honours and the other ignores is invisible in a passing test suite,
+because every test writes the form the honoured reader expects.
+
+**Why.** Two failures in this repository share this shape, and both were found in
+the same probe after eleven rounds of review. `_attrs` stripped the YAML quote
+marks off `key="value"` from the first commit; `_split_body` never stripped them
+off an inline `quote: "..."`. A writer who quoted the passage got `quote-missing`
+at high severity - an accusation that their PDF does not contain a sentence it
+contains - for a file that was correct in every way a reader could see.
+`scan` decided a file was empty by checking `parsed.findings`; `verify` decided
+it by checking `parsed.claims`, so a block missing its `id=` was reported twice:
+the parser's true sentence and the emptiness guard's false one. A reader who
+believes the second edits a block that needed no edit.
+
+**Evidence.** `parse_manuscript` on `quote: "We train on two corpora."` returned
+`'"We train on two corpora."'` - marks included - while the same text as an
+attribute returned the value alone. Five shapes were measured before the fix
+(plain, double, single, `|` block, `>` folded): two of the five carried the
+marks into the search. A ` ```claim source=p ` block produced
+`claim-uncheckable` from the library and `claim-uncheckable` plus
+`no-claim-blocks` from the command line, because `check` runs `scan` then
+`verify` and each pass has its own emptiness branch. The quote fix is deliberately
+conservative: marks are stripped only when the mark does not appear inside the
+value, so `"yes" or "no"` is content and keeps both marks, while a lone `"` is
+left alone. Three mutations are red - put `verify` back on `parsed.claims`,
+stop calling `_unquote`, and drop the inside-check that makes `_unquote`
+conservative. Seen 1.

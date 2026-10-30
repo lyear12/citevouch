@@ -70,6 +70,25 @@ class ParseResult:
     spans: list[tuple[int, int]] = field(default_factory=list)
 
 
+def _unquote(value: str) -> str:
+    """Drop one pair of YAML quote marks, but only when they really are a pair.
+
+    A writer who puts the passage in quotes - ``quote: "the sentence"`` - means
+    the same value as the bare form, and the marks must not travel into the
+    search.  They also must not be removed when they are *content*:
+    ``"yes" or "no"`` begins and ends with the same character and is not a
+    quoted scalar, so a rule that only compared the ends would silently eat one
+    quote mark off each end and search for a quote nobody wrote.  Requiring the
+    mark to be absent from the inside keeps this from being wrong; it can only
+    fail to strip, and the full value is still searchable as written.
+    """
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        inner = value[1:-1]
+        if value[0] not in inner:
+            return inner
+    return value
+
+
 def _attrs(blob: str) -> dict[str, str]:
     """Parse ``key=value`` attributes; a leading bare token becomes ``id``.
 
@@ -454,7 +473,16 @@ def _split_body(body: list[str]) -> tuple[str, str]:
                 fields.setdefault(current, [])
                 rest = m.group("rest").strip()
                 if rest not in ("|", ">", ""):
-                    fields[current].append(rest)
+                    # The inline form takes a YAML quoted scalar, and a reader
+                    # who writes `quote: "the passage"` has written the same
+                    # value as `quote: the passage`.  `_attrs` above has
+                    # stripped those marks from `key="value"` since claims had
+                    # attributes; this path never did, so the two quote marks
+                    # travelled into the search as content, matched nothing,
+                    # and produced a `quote-missing` (high) accuse - the same
+                    # failure as a byte-order mark or an invisible directional
+                    # mark, in the one place nobody had looked.
+                    fields[current].append(_unquote(rest))
                 continue
             if current:
                 fields.setdefault(current, []).append(raw)

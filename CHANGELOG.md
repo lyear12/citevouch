@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A claim block that is missing its `id=` is no longer also described as a
+  manuscript with no claim blocks.  `verify` asked the parser only whether it
+  produced *claims*, so a block the parser found and refused produced none and
+  the file was then called empty - while the parser's own finding, one screen
+  up, named the block.  `scan` has checked `parsed.findings` before deciding a
+  file is empty since that guard was written; `verify` now does the same, and a
+  test runs both passes over one manuscript and compares their codes, because
+  `check` runs them in sequence and could never have shown the divergence.
+- `quote: "the passage"` is now the same quote as `quote: the passage`.  Claim
+  *attributes* have had their YAML quote marks stripped since claims had
+  attributes; the claim *body* reader never did.  So a writer who quoted the
+  passage in the inline scalar sent the two marks into the search as content,
+  matched nothing, and got a `quote-missing` (high) verdict accusing their
+  manuscript of a passage the PDF does contain.  Marks are only removed as a
+  pair: a value that merely starts and ends with the same mark keeps them, so
+  an over-eager fix cannot reintroduce the failure it removes.
+
 ## [0.19.5] — 2026-10-30
 ### Fixed
 

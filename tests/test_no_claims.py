@@ -222,6 +222,74 @@ class TestTheRecordedLedger:
         assert "the ledger recorded none" in report
         assert "citevouch scan" in report
 
+    def test_a_ledger_that_recorded_none_does_not_call_a_real_block_imaginary(
+        self, tmp_path: Path, capsys
+    ):
+        """A block the parser found and refused is not a file with no blocks.
+
+        The branch above asked the parser only whether it produced *claims*, so
+        a block missing its `id=` produced none and was then described as "no
+        claim blocks" - while the parser's own finding, one line up, named the
+        block.  Two statements about one file, and the second one false.
+
+        `scan` has never had this bug: it checks `parsed.findings` before
+        deciding the file is empty.  The asymmetry is the whole point of the
+        test - the verdict has to be the same whichever command produced the
+        ledger.
+        """
+        root = _project(tmp_path, PROSE)
+        nl = chr(10)
+        (root / "m.md").write_text(
+            "```claim source=s" + nl + ">> one two three" + nl + "```" + nl,
+            encoding="utf-8",
+            newline=nl,
+        )
+        (root / "citevouch.lock.json").write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "tool_version": "0.19.5",
+                    "generated_at": "2026-10-31T00:00:00+00:00",
+                    "manuscript": "m.md",
+                    "manuscript_sha256": "",
+                    "claims": [],
+                    "sources": {},
+                    "entries": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+        assert main(["verify", "m.md", "--root", str(root), "--allow-stale"]) == 1
+        report = capsys.readouterr().out
+        assert "claim-uncheckable" in report
+        assert "no id=" in report
+        # The false half: this file has a block, so it does not have none.
+        assert "no-claim-blocks" not in report
+
+    def test_scan_and_verify_agree_about_the_same_manuscript(self, tmp_path: Path):
+        """The two commands share one verdict, measured rather than assumed.
+
+        `check` runs `scan` and then `verify` over the result, so a divergence
+        between the two guards is invisible there: whichever finding survives
+        looks like the intended one.  Run each pass over the same file and
+        compare the codes.
+        """
+        root = _project(tmp_path, PROSE)
+        nl = chr(10)
+        (root / "m.md").write_text(
+            "```claim source=s" + nl + ">> one two three" + nl + "```" + nl,
+            encoding="utf-8",
+            newline=nl,
+        )
+        ledger, scan_findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
+        from citevouch.verify import verify as _verify
+
+        verify_result = _verify(ledger, ScanOptions(manuscript="m.md", root=str(root)))
+        from_scan = {f.code for f in scan_findings}
+        from_verify = {f.code for f in verify_result.findings}
+        assert from_scan == {"claim-uncheckable"}
+        assert from_verify == from_scan
+
 
 class TestTheLatexRefusalStillStands:
     def test_a_tex_file_is_refused_rather_than_read_as_empty(self, tmp_path: Path):
