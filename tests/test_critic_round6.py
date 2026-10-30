@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -47,7 +48,13 @@ def _bash() -> str:
             continue
         if probe.returncode == 0 and probe.stdout.strip() == "ok":
             return candidate
-    pytest.skip("no working bash on this machine: the release scripts cannot be run here")
+    detail = ", ".join(str(c) for c in candidates if c)
+    if os.name != "nt":
+        # bash is present on every Linux and macOS machine. Not finding one is a
+        # broken environment, and skipping would turn that into a green run -
+        # the gate would open itself exactly where it cannot be watched.
+        pytest.fail(f"no working bash found ({detail}): these tests cannot be skipped here")
+    pytest.skip(f"no working bash on this Windows machine ({detail})")
 
 
 def _sh_path(path: Path) -> str:
@@ -145,9 +152,23 @@ def no_tomllib(monkeypatch):
     monkeypatch.delitem(__import__("sys").modules, "tomllib", raising=False)
 
 
-def test_a_quoted_key_does_not_take_the_manifest_with_it(no_tomllib):
-    text = '[sources]\n"quoted" = "papers/x.pdf"\nother = "papers/y.pdf"\n'
-    assert sources._mini_toml(text) == {"sources": {"other": "papers/y.pdf"}}
+def test_a_quoted_key_binds_instead_of_vanishing(no_tomllib):
+    """`"knuth:2019"` is how a BibTeX-style key with a colon must be written in
+    TOML. Dropping it made one manifest bind on 3.11 and report source-missing
+    on 3.10 - the same project judged by which interpreter happens to be
+    installed. The quotes are syntax, so the name is kept."""
+    text = '[sources]\n"knuth:2019" = "papers/x.pdf"\nother = "papers/y.pdf"\n'
+    assert sources._mini_toml(text) == {
+        "sources": {"knuth:2019": "papers/x.pdf", "other": "papers/y.pdf"}
+    }
+
+
+def test_a_key_this_reader_cannot_spell_is_dropped_and_the_rest_survives(no_tomllib):
+    """A key carrying `=`, `#`, brackets or its own quotes cannot be read here
+    without guessing. Guessing would bind a key to a file the author did not
+    name, so the one line goes and the manifest still binds the rest."""
+    text = '[sources]\na[b] = "papers/x.pdf"\n"c[d]" = "papers/y.pdf"\nok = "papers/z.pdf"\n'
+    assert sources._mini_toml(text) == {"sources": {"ok": "papers/z.pdf"}}
 
 
 def test_a_multiline_value_does_not_return_a_path_wearing_its_quotes():
@@ -165,7 +186,11 @@ def test_the_two_parsers_agree_on_the_manifest_shape(tmp_path: Path):
     except ImportError:
         pytest.skip("no tomllib on this interpreter to compare against")
 
-    text = '[sources]\none = "papers/1.txt"\ntwo = "papers/2.txt"\n# a comment\n'
+    text = (
+        '[sources]\none = "papers/1.txt"\ntwo = "papers/2.txt"\n# a comment\n'
+        '"knuth:2019" = "papers/3.txt"\n'
+        "'single' = \"papers/4.txt\"\n"
+    )
     assert sources._mini_toml(text) == tomllib.loads(text)
 
 
@@ -210,6 +235,58 @@ def test_a_cache_entry_naming_an_impossible_reader_is_a_miss(tmp_path: Path):
     assert again is not None
     rewritten = json.loads(cached[0].read_text(encoding="utf-8"))
     assert rewritten["extractor"] == "plain", "a stale reader name must re-extract"
+
+
+def test_a_pdf_entry_signed_by_pdftotext_is_reused_while_pypdf_is_installed(
+    tmp_path: Path, monkeypatch
+):
+    """The acceptance rule is "the entry names a reader this run could have
+    used", not "the entry names the reader this run would pick first". A PDF
+    pypdf cannot read is read by pdftotext, and the next run - same file, same
+    pypdf version - must reuse that text rather than re-extracting it because
+    pypdf happens to be installed. Without this test the next reader of the
+    code will tighten the check back to an equality and the poppler churn this
+    was fixed for comes back silently."""
+    pdf = tmp_path / "p.pdf"
+    pdf.write_bytes(b"%PDF-1.4 placeholder")
+    monkeypatch.setattr(sources, "_pypdf_pages", lambda _path: None)
+    monkeypatch.setattr(
+        sources, "_pdftotext_pages", lambda _path: (["from poppler"], "pdftotext")
+    )
+    sources.extract_pages(pdf, tmp_path, use_cache=True)
+    cached = list((tmp_path / ".citevouch" / "cache").glob("*.json"))
+    assert cached and json.loads(cached[0].read_text(encoding="utf-8"))["extractor"] == (
+        "pdftotext"
+    )
+
+    monkeypatch.setattr(
+        sources, "_pypdf_pages", lambda _path: (_ for _ in ()).throw(AssertionError("re-read"))
+    )
+    pages, problem = sources.extract_pages(pdf, tmp_path, use_cache=True)
+    assert problem is None
+    assert [page.text for page in pages] == ["from poppler"], (
+        "the pdftotext entry must be reused; re-reading proves it was thrown away"
+    )
+
+
+def test_a_markup_entry_is_never_accepted_for_a_pdf(tmp_path: Path):
+    """The one relaxation in the cache lets pypdf and pdftotext stand in for
+    each other. It must not let a format that reads a different way in."""
+    pdf = tmp_path / "p.pdf"
+    pdf.write_bytes(b"%PDF-1.4 placeholder")
+    monkeypatch_pypdf = lambda _path: (["text"], "pypdf-0.0.test")  # noqa: E731
+    _original = sources._pypdf_pages
+    sources._pypdf_pages = monkeypatch_pypdf
+    try:
+        sources.extract_pages(pdf, tmp_path, use_cache=True)
+    finally:
+        sources._pypdf_pages = _original
+    cached = list((tmp_path / ".citevouch" / "cache").glob("*.json"))
+    blob = json.loads(cached[0].read_text(encoding="utf-8"))
+    blob["extractor"] = "markup"
+    cached[0].write_text(json.dumps(blob), encoding="utf-8")
+
+    assert "markup" not in sources.extractor_candidates(".pdf")
 
 
 # --- NEW-4: the changelog's own tail ----------------------------------------

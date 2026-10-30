@@ -12,6 +12,7 @@ disposable: deleting it costs time, never correctness.
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import os
 import re
@@ -286,8 +287,16 @@ _TAG = re.compile(r"<[^>]+>")
 
 
 def _strip_markup(text: str) -> str:
+    """Reduce a markup document to the text a reader would actually see.
+
+    Entities are decoded *after* the tags are removed, not before: decoding
+    first would turn ``&lt;tag&gt;`` into something the tag regex can eat, and
+    the quote an author wrote would vanish from the page it is verified
+    against.
+    """
     text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", text)
     text = _TAG.sub(" ", text)
+    text = html.unescape(text)
     text = re.sub(r"&nbsp;?", " ", text)
     return re.sub(r"[ \t]+", " ", text)
 
@@ -311,14 +320,20 @@ def _mini_toml(text: str) -> dict:
     meant to bind reports ``source-missing`` naming the file rather than
     binding evidence the author never chose.
 
-    A *key* or a *value* outside that subset is a different thing. tomllib
-    accepts ``enabled = true`` and ``"quoted" = "x"`` on 3.11+, so refusing the
-    whole manifest over either would be a 3.10-only failure - and a total one,
-    since every other key binds nothing once the manifest is gone. Both
-    therefore drop the one line: the rest of the manifest still binds. Nothing
-    downstream can consume a non-string anyway: a path is a path, and a key
-    this subset cannot spell is a key it cannot promise to bind identically on
-    every interpreter.
+    A *value* outside that subset - ``enabled = true``, ``[1, 2]`` - is not a
+    path, so it is dropped and the rest of the manifest still binds. Raising
+    there would be a 3.10-only refusal of a file 3.11 accepts, and a total one:
+    every other key binds nothing once the manifest is gone.
+
+    A *quoted key* is a third case, and dropping it was the bug. It is not
+    unrepresentable: it is representable once the quotes come off. A BibTeX
+    style key holding a colon has to be quoted in TOML, and dropping such a key
+    made one project bind on 3.11 and report ``source-missing`` on 3.10 - the
+    same manifest judged by which interpreter happened to be installed. The
+    quotes are syntax, so the name is kept. Only a key that cannot be spelled
+    here at all - one carrying ``=``, ``#``, brackets, or its own quotes - is
+    dropped, because binding a key differently than tomllib would is worse than
+    not binding it.
 
     This is not a TOML parser and must not grow into one.  If a manifest ever
     needs dates, arrays, or nested tables, the answer is to require 3.11, not to
@@ -341,13 +356,17 @@ def _mini_toml(text: str) -> dict:
         if not sep:
             raise ValueError(f"expected key = value, got {line!r}")
         key = key.strip()
-        if not key or key[0] in "\"'":
-            # A quoted key means the same thing as a bare one, but this subset
-            # does not carry the distinction, and raising here would take the
-            # whole manifest down with it - the exact failure this function's
-            # docstring describes. Dropping the key is the same treatment a
-            # value outside the subset already gets: tomllib binds it on 3.11+,
-            # so a 3.10-only refusal of a file 3.11 accepts is the bug.
+        if len(key) >= 2 and key[0] in "\"'" and key[-1] == key[0]:
+            # "knuth:2019" is how a BibTeX-style key with a colon has to be
+            # written in TOML. The quotes are syntax, not part of the name.
+            # Dropping the whole key here used to make one manifest bind on
+            # 3.11 and report source-missing on 3.10.
+            key = key[1:-1]
+        if not key or any(char in key for char in "=#[]\"'"):
+            # Unrepresentable in this subset: a key that still carries quotes,
+            # or one of the characters this line-based reader splits on.
+            # Binding it differently than tomllib would is worse than dropping
+            # it, so this is the only case that drops.
             continue
         text_value = _toml_string_or_none(value.strip())
         if text_value is None:

@@ -34,6 +34,13 @@ _RELEASE_SUBJECT = re.compile(r"^Release \d+\.\d+\.\d+$")
 _SEEN = re.compile(r"Seen (\d+)\.")
 _LESSON_HEADING = re.compile(r"^## (?P<title>.+?)\s*$", re.MULTILINE)
 _PASSED = re.compile(r"\b(\d+)\s+passed\b")
+# `ruff format --check` reports a file count, and a `Run:` line quotes it the
+# same way it quotes the test count.  The first such number this repository
+# wrote was wrong - 47 files when ruff printed 46 - in the very commit that
+# added the check for the previous wrong number.  A quantity nobody measures
+# is a quantity somebody guesses.
+_FORMATTED_LINE = re.compile(r"ruff format")
+_FORMATTED_COUNT = re.compile(r"\b(\d+)\s+files?\b")
 
 
 def _run_git(*args: str, cwd: Path) -> str:
@@ -90,6 +97,24 @@ def passed_count_mismatches(notes: str, actual: int) -> list[str]:
     return bad
 
 
+def formatted_count_mismatches(notes: str, actual: int) -> list[str]:
+    """Claims of ``N files`` on a ``ruff format`` line that disagree with ``actual``.
+
+    Only lines that mention ``ruff format`` are read.  A bare ``N files`` could
+    be about anything, and this checker is not allowed to guess - the same rule
+    :func:`passed_count_mismatches` follows.
+    """
+    bad: list[str] = []
+    for line in notes.splitlines():
+        if not _FORMATTED_LINE.search(line):
+            continue
+        for count in _FORMATTED_COUNT.finditer(line):
+            claimed = int(count.group(1))
+            if claimed != actual:
+                bad.append(f"says {claimed} formatted files, ruff reports {actual}")
+    return bad
+
+
 def lesson_promotions_due(lessons_text: str, standards_text: str) -> list[str]:
     """Lesson titles seen on >= 3 days that code-standards.md does not carry yet.
 
@@ -133,6 +158,16 @@ def main(argv: list[str] | None = None) -> int:
         help="commit range to police, e.g. the push event's before..after",
     )
     parser.add_argument(
+        "--formatted",
+        type=int,
+        default=None,
+        help=(
+            "how many files `ruff format --check .` reported in this job; a "
+            "`Run:` line claiming a different number is listed. Omit where ruff "
+            "did not run."
+        ),
+    )
+    parser.add_argument(
         "--passed",
         type=int,
         default=None,
@@ -163,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
         ):
             problems.append(f"lesson seen 3+ days but not in code-standards: {title}")
 
-    if args.passed is not None:
+    if args.passed is not None or args.formatted is not None:
         # Only the head commit.  The suite has just run in this job, so its
         # size is a fact the message can be held against - but only for the
         # message being written now.  A number in a commit that is already
@@ -180,7 +215,12 @@ def main(argv: list[str] | None = None) -> int:
             subject, _, body = record.strip("\n").partition("\n")
             if _RELEASE_SUBJECT.match(subject.strip()):
                 continue
-            for mismatch in passed_count_mismatches(body, args.passed):
+            mismatches: list[str] = []
+            if args.passed is not None:
+                mismatches += passed_count_mismatches(body, args.passed)
+            if args.formatted is not None:
+                mismatches += formatted_count_mismatches(body, args.formatted)
+            for mismatch in mismatches:
                 problems.append(f"{subject.strip()[:60]}: {mismatch}")
 
     for problem in problems:

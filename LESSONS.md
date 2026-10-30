@@ -854,6 +854,63 @@ were invisible from the machine that wrote them.
 asserts the workflow says `bash tools/release_notes.sh` and not the bare path.
 Seen 1.
 
+## A subset parser must bind what the real one binds, or say it cannot
+
+**Rule.** When a fallback reader exists so that an old interpreter keeps working,
+the test of that reader is not "it does not crash". It is "the same input binds
+the same way". Any input the fallback silently skips is a project judged by
+which interpreter happens to be installed.
+
+**Why.** `_mini_toml` dropped quoted keys, and a quoted key is the only way to
+write a BibTeX-style key with a colon in TOML - `"knuth:2019" = "papers/k.pdf"`.
+`tomllib` binds it on 3.11+. So one manifest verified on 3.11 and reported
+`source-missing` on 3.10, and 3.10 is in the CI matrix, so it would have arrived
+as one red cell that reads like a platform flake. The previous review had fixed
+exactly this for values and the fix was written against the reported input
+rather than against the distinction, which is why the key branch beside it
+survived.
+
+**Evidence.** Eighth review, major-1: `tomllib.loads` binds the key, the
+fallback returned `{}`, and the two disagreed on `check`. The distinguishing
+case is now in `tests/test_critic_round6.py::test_a_quoted_key_binds_instead_of_vanishing`
+and in the parser-agreement test's fixture. Seen 2.
+
+## A gate that can be satisfied by doing nothing will be
+
+**Rule.** If a test can pass by not running, something has to notice that it did
+not run. `pytest.skip` on a machine where the prerequisite is guaranteed is not
+portability; it is a green light for a suite that shrank.
+
+**Why.** The shell tests skip when no bash answers a probe, which is a real
+situation on a Windows runner and an impossible one on Linux or macOS. A skip
+reports as a passing suite, so the tests could vanish on the runner and nothing
+would say so - the only thing that would have caught it was the `N passed`
+comparison, a side effect of a check written for a different reason. Portability
+is the probe; the gate is what happens when the probe fails.
+
+**Evidence.** Eighth review, minor-1; the lint job now fails on
+`[0-9]+ skipped`, and `_bash()` calls `pytest.fail` off Windows
+(`tests/test_critic_round7.py::test_no_non_windows_machine_may_skip_the_shell_tests`).
+Seen 1.
+
+## A number nobody measures is a number somebody guesses
+
+**Rule.** Every quantity quoted in a commit message must be produced by a command
+that ran, and if the message is checked mechanically for one number it will be
+checked for the others. Writing down a number you did not just read is how a
+message becomes fiction that is impossible to distinguish from staleness.
+
+**Why.** The commit that added `--passed` - a check for a wrong test count -
+claimed "47 files" for `ruff format --check`, which printed 46, twice in a row,
+in the same paragraph that argued for measuring things. The wrongness is not the
+point; the point is that the argument was made and then skipped for the number
+one line over.
+
+**Evidence.** Eighth review, minor-3. `tools/check_repo_rules.py` now compares
+`N files` on a `ruff format` line, and
+`tests/test_critic_round7.py::test_a_wrong_file_count_in_a_real_commit_fails_the_gate`
+runs `main` end to end rather than asserting the flag exists. Seen 1.
+
 ## An acceptance list that names one platform's path is an acceptance list for one platform
 
 **Rule.** When a document gives a command that differs by platform, write every

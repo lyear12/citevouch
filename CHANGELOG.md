@@ -12,6 +12,34 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A quoted key in `sources.toml` binds on Python 3.10 instead of being dropped.
+  `"knuth:2019" = "papers/k.pdf"` is valid TOML - it is the only way a
+  BibTeX-style key with a colon can be written - and `tomllib` binds it on
+  3.11+. The fallback reader dropped the line, so one project verified on 3.11
+  and reported `source-missing` on 3.10. The quotes are syntax, so the name is
+  now kept; only a key this line-based reader genuinely cannot spell (`=`, `#`,
+  brackets, its own quotes) is still dropped.
+- Markup documents are reduced to the text a reader would see. `_strip_markup`
+  removed tags but left entities in place, so a page containing `A&amp;B` was
+  searched for `A&amp;B` and a manuscript quoting `A&B` reported
+  `quote-missing`. Entities are decoded after the tags are gone, not before:
+  decoding first would let `&lt;tag&gt;` be eaten by the tag regex.
+
+### Changed
+
+- The lint job refuses a suite that skipped. The shell tests can only skip on a
+  Windows machine with no bash, but a skip is a test that did not run, and a
+  suite that shrinks silently is a gate that opens itself. Skips now fail the
+  job with the skipped tests named, and on Linux and macOS a missing bash is a
+  failure rather than a skip.
+- `tools/check_repo_rules.py` also compares the formatted-file count a `Run:`
+  line claims against what `ruff format --check` actually printed. The first
+  such number this repository wrote was wrong, in the same commit that added the
+  check for the previous wrong number: a quantity nobody measures is a quantity
+  somebody guesses.
+
 ## [0.9.0] — 2026-10-30
 ### Fixed
 

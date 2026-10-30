@@ -99,7 +99,17 @@ jobs:
             exit 1
           fi
           echo "the suite reports $passed passing tests"
-          python tools/check_repo_rules.py --range "$range" --passed "$passed"
+          # A skip is a test that did not run. The shell tests skip only on a
+          # Windows machine with no bash; left unreported, that is a suite that
+          # shrank without anyone saying so - a gate that opens itself.
+          if grep -qE '[0-9]+ skipped' /tmp/suite.log; then
+            grep -E 'skipped|SKIPPED' /tmp/suite.log | tail -20
+            echo "::error::the suite skipped tests; a skipped test proves nothing"
+            exit 1
+          fi
+          formatted=$(python -m ruff format --check . 2>&1 | grep -oE '[0-9]+ files' | tail -1 | cut -d' ' -f1)
+          python tools/check_repo_rules.py --range "$range" --passed "$passed" \
+            --formatted "${formatted:-0}"
 
   acceptance:
     name: acceptance (the documented first run)
