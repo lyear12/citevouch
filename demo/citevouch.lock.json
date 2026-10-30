@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "manuscript": "demo/manuscript.md",
+  "manuscript": "manuscript.md",
   "manuscript_sha256": "2cdecb8344a89cbca374e936e31505f5fe26d812f700f2b0599e04d9319f6bec",
-  "generated_at": "2026-10-30T05:59:55+00:00",
-  "tool_version": "0.5.0",
+  "generated_at": "2026-10-30T12:44:12+00:00",
+  "tool_version": "0.16.0",
   "sources": {
     "cxgbert2020": {
       "key": "cxgbert2020",

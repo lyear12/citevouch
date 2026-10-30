@@ -119,3 +119,43 @@ def test_the_wrong_file_kind_is_named_before_it_is_skipped(tmp_path: Path) -> No
     assert "source-unreadable" in codes
     missing = {f["claim_id"] for f in findings if f["code"] == "quote-missing"}
     assert missing == {"fcg-editor"}, f"a broken file became evidence: {missing}"
+
+
+def test_the_committed_ledger_is_one_this_version_would_write(tmp_path: Path) -> None:
+    """A stale ledger means the fixture is rehearsing a program that is gone.
+
+    `demo/citevouch.lock.json` sat at tool_version 0.5.0 through eleven releases.
+    Nothing failed, because nothing compared the committed file to what `scan`
+    writes today - so the demo was one schema change away from being a fixture
+    that cannot be regenerated. The version is not pinned here: pinning it would
+    break every release, since the auto-release bump cannot reach inside `demo/`.
+    What is checked is that re-recording the demo's own manuscript reproduces the
+    committed file except for the two fields that record *when* and *by what*.
+    """
+    import json
+
+    from citevouch.cli import main
+
+    demo = _demo_copy(tmp_path)
+    committed = json.loads((demo / "citevouch.lock.json").read_text(encoding="utf-8"))
+
+    import contextlib
+    import io
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        main(["scan", "manuscript.md", "--root", str(demo), "--no-cache"])
+
+    fresh = json.loads((demo / "citevouch.lock.json").read_text(encoding="utf-8"))
+
+    volatile = {"generated_at", "tool_version"}
+    for key in committed:
+        if key in volatile:
+            continue
+        assert fresh.get(key) == committed[key], (
+            f"{key} differs between the committed ledger and a fresh scan of the "
+            f"same manuscript, so the demo records evidence this version would "
+            f"not write. Re-record it with `citevouch scan demo/manuscript.md "
+            f"--root demo`."
+        )
+    assert committed["tool_version"], "the committed ledger records no tool_version"
+    assert fresh["tool_version"] == __import__("citevouch").__version__

@@ -60,6 +60,23 @@ def test_the_ledger_records_a_portable_path(project: Path, manuscript: Path):
     assert result.ok
 
 
+def test_the_ledger_names_the_manuscript_the_same_way_from_any_directory(
+    project: Path, manuscript: Path
+):
+    """The manuscript is stored relative to root, for the same reason sources are.
+
+    It used to store the string the user typed. `scan demo/manuscript.md --root
+    demo` and `cd demo && scan manuscript.md` describe one project, but wrote two
+    different ledgers, so `demo/citevouch.lock.json` was only regenerable from one
+    working directory - and the fixture could not be compared against a fresh scan.
+    """
+    from_above = scan(ScanOptions(manuscript=str(manuscript), root=str(project)))
+    assert from_above[0].manuscript == "manuscript.md"
+
+    absolute = scan(ScanOptions(manuscript=str(manuscript.resolve()), root=str(project)))
+    assert absolute[0].manuscript == "manuscript.md"
+
+
 def test_two_keys_for_one_file_are_filed_under_their_own_keys(project: Path, manuscript: Path):
     """The key inside a ledger entry must match the key the entry is filed under."""
     source = project / "papers" / "2026_smith_networks.txt"

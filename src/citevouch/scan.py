@@ -115,7 +115,12 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
 
     known = discover_sources(root, options.sources)
     ledger = Ledger(
-        manuscript=str(options.manuscript),
+        # Stored relative to ``root``, like the source paths below, so that
+        # `scan demo/manuscript.md --root demo` and `cd demo && scan
+        # manuscript.md` write the same ledger.  Recording the string the user
+        # typed made the file depend on where they stood, which turned a
+        # regenerable fixture into one that only matched one directory.
+        manuscript=_ledger_path(root, manuscript_path),
         manuscript_sha256=sha256_file(manuscript_path),
         generated_at=options.now
         or _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
