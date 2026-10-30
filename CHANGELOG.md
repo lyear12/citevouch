@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.8] — 2026-10-30
 ### Fixed
 
 - A SARIF path is now percent-encoded, so an annotation reaches the file the
@@ -23,7 +25,6 @@ tag and that file disagree.
   out, by another input. Encoding happens after re-rooting, because
   `relative_to` produces the relative path and encoding first would leave it
   unescaped.
-
 ## [0.19.7] — 2026-10-30
 ### Fixed
 
@@ -1106,7 +1107,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.7...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.8...HEAD
+[0.19.8]: https://github.com/lyear12/citevouch/releases/tag/v0.19.8
 [0.19.7]: https://github.com/lyear12/citevouch/releases/tag/v0.19.7
 [0.19.6]: https://github.com/lyear12/citevouch/releases/tag/v0.19.6
 [0.19.5]: https://github.com/lyear12/citevouch/releases/tag/v0.19.5
