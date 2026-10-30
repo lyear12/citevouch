@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-30
 ### Fixed
 
 - A claim whose source key is a prefix, or a superset, of a real key no longer
@@ -146,7 +147,6 @@ tag and that file disagree.
 - The `_best_window` prefilter is bounded honestly: for needles longer than 10
   tokens every window is scored, because the skip rule's similarity bound
   (W-2)/W provably exceeds the threshold there.
-
 ## [0.4.1] — 2026-10-29
 ### Fixed
 
@@ -276,7 +276,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/lyear12/citevouch/releases/tag/v0.5.0
 [0.4.1]: https://github.com/lyear12/citevouch/releases/tag/v0.4.1
 [0.4.0]: https://github.com/lyear12/citevouch/releases/tag/v0.4.0
 [0.3.0]: https://github.com/lyear12/citevouch/releases/tag/v0.3.0

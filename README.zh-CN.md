@@ -73,7 +73,7 @@ worst severity: high
 尚未发布到 PyPI——发布工作流会在本仓库注册 trusted publisher 之后向 PyPI 发布，并如实报告结果。在那之前，从 GitHub 安装：
 
 ```bash
-pip install "git+https://github.com/lyear12/citevouch@v0.4.1"
+pip install "git+https://github.com/lyear12/citevouch@v0.5.0"
 # 或者，克隆之后本地安装：
 pip install .
 ```
@@ -143,7 +143,7 @@ citevouch check  manuscript.md --root . --format markdown # 直接贴进 PR 的�
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: pip install "git+https://github.com/lyear12/citevouch@v0.4.1"
+- run: pip install "git+https://github.com/lyear12/citevouch@v0.5.0"
 - run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
 ```
 
