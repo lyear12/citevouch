@@ -39,6 +39,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/citevouch/json
 | 2026-10-30 | 0 | 0 | 0 | 0 | 57 (across 26 releases) | 404 | v0.16.3; the count rose 9x in 90 minutes, which is not 9x the users |
 | 2026-10-30 | 0 | 0 | 0 | 0 | 68 (across 30 releases) | 404 | v0.17.1; 11 downloads in 30 releases is still the automated-checkup shape, not a user |
 | 2026-10-31 | 0 | 0 | 0 | 0 | 90 (across 40 releases) | 404 | v0.18.9; 22 downloads over 10 releases in four hours, all of them mine |
+| 2026-10-31 | 0 | 0 | 0 | 0 | 99 (across 45 releases) | 404 | v0.19.3; five releases in the five hours since, still ~2 per release |
 
 A note on the image check, because it is the kind of thing this file is for: the
 README's images were verified as *markup* (`gh api repos/lyear12/citevouch/readme
