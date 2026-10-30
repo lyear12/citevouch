@@ -10,6 +10,8 @@ different question. It answers the question you actually face the night before a
 > This paragraph says 154,391 sentences. Is that number on page 6 of the PDF it cites, or did I
 > copy it from an earlier draft of the paper — or from a different paper entirely?
 
+![verify output](docs/img/verify.png)
+
 You write a claim block next to each sentence you want checked. The block names a local PDF, a page,
 and the verbatim passage. `citevouch scan` records that evidence into a commit-able lockfile;
 `citevouch verify` re-reads the PDFs and tells you which evidence still holds, which moved, and
@@ -30,7 +32,13 @@ worst severity: high
 ```
 
 That is this repository's own `demo/`, run as-is — not a mock-up. The fifth claim cites a sentence
-that lives in a different paper, which is the failure the tool exists to catch.
+that lives in a different paper, which is the failure the tool exists to catch. And here is the page
+it is talking about — the highlighted sentence is what `quote-found on page 6` means:
+
+![the page the quote is on](docs/img/page.png)
+
+The images are generated from the demo by `tools/make_figures.py`, and `tests/test_figures.py`
+fails if the text in the first one stops matching what the demo prints.
 
 ## Why this is different
 

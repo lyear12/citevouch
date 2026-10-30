@@ -8,6 +8,8 @@
 
 > 这一段写着 154,391 句。这个数字真的在它引用的那篇论文第 6 页上吗？还是我从论文的旧草稿里抄的——甚至从另一篇论文里抄的？
 
+![verify 输出](docs/img/verify.png)
+
 你在每一句想要被核对的话旁边写一个 claim 块。块里写清楚：本地 PDF、页码、逐字原文。`citevouch scan` 把这些证据记录进一个可以提交的账本（lockfile）；`citevouch verify` 重新打开 PDF，告诉你哪些证据依然成立、哪些挪了位置、哪些已经消失。
 
 ```text
@@ -24,8 +26,11 @@ citevouch: 5 claims — 4 verified, 0 moved, 1 missing
 worst severity: high
 ```
 
-That is this repository's own `demo/`, run as-is — not a mock-up. The fifth claim cites a sentence
-that lives in a different paper, which is the failure the tool exists to catch. 这不是示意图——上面就是本仓库 `demo/` 跑出来的真实输出：第五条断言引的那句话出自另一篇论文，而这正是这个工具存在的理由。
+这不是示意图——上面就是本仓库 `demo/` 跑出来的真实输出：第五条断言引的那句话出自另一篇论文，而这正是这个工具存在的理由。下面是被引的那一页，黄色高亮的那句就是 `quote-found on page 6` 说的东西：
+
+![引文所在的那一页](docs/img/page.png)
+
+两张图都由 `tools/make_figures.py` 从 demo 生成；如果图里烧进去的文字和 demo 现在的输出对不上，`tests/test_figures.py` 会失败。
 
 ## 这是给你的吗？
 

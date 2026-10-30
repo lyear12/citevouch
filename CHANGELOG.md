@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- Two figures at the top of both READMEs, generated from the demo by
+  `tools/make_figures.py`: the terminal output of a real `verify` run, and
+  the page that run is talking about with the quoted sentence highlighted.
+  `docs/img/verify.txt` holds the same lines and `tests/test_figures.py`
+  compares them against a fresh run, so a picture of software that no longer
+  exists fails the suite instead of shipping.
+
+### Fixed
+
+- The Chinese README kept an untranslated English paragraph in the middle of its
+  opening section. Rewriting that paragraph is how the second figure got in;
+  the figure is not why it was wrong.
 
 ## [0.15.0] — 2026-10-30
 ### Added

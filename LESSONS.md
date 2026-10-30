@@ -1174,3 +1174,47 @@ reported `5 passed`. The same file now fails on that substitution with
 `assert 'This is large for the task at hand.' in [...]`, where the statement had
 become `This is large for the task at hand~.` and the document preamble was
 sitting inside the `claim:` line. Seen 1.
+
+## A figure of your own output is a claim, and claims get stale
+
+**Rule.** An image in a README that shows program output is a statement about
+the program, so something has to compare it. Generate the figure from a real run
+and write the same text beside it as a plain file; a test reruns the program and
+compares. A hand-made mock-up is not allowed to sit where a screenshot should be,
+and a screenshot with no comparison is a mock-up that was true once.
+
+**Why.** A PNG cannot be diffed, so nothing in a normal test suite notices when
+it stops being accurate. The failure is worse than a missing figure: a reader
+trusts a picture more than prose, runs the command, gets different output, and
+concludes the tool is broken rather than the picture is old. The second half of
+the rule is the sidecar - the picture and the text have to come from the same
+run, or someone will edit whichever is convenient and the other one will keep
+lying.
+
+**Evidence.** `docs/img/verify.png` is rendered from `citevouch verify
+manuscript.md` inside `demo/`; `docs/img/verify.txt` holds the identical lines;
+`tests/test_figures.py` runs the demo again and asserts they match. The first
+version of `tools/make_figures.py` passed `env={"PYTHONPATH": ...}`, which wiped
+`PATH`, lost `pdftotext`, and drew a picture of a broken install - caught only
+because the picture was read before it was committed. Seen 1.
+
+## The edge of a picture is where you stop checking
+
+**Rule.** Crop a figure to something with a defensible boundary - whole text
+lines, not whole pixels, and not "the block that contains the thing I want" -
+and assert the boundary held. A fixed pixel height, or a bbox that looked right
+once, will slice a line in half and nobody will notice, because the middle of an
+image is what you look at.
+
+**Why.** Three crops of the same page were wrong in three different ways before
+one was right: a fixed height cut the sentence in half; a two-column page's first
+matching block left the right-hand column's paragraph chopped mid-word; snapping
+to overlapping bboxes pulled in a line whose box was tall for its own reasons (a
+footnote superscript) and sliced it at the top edge. Each looked plausible at a
+glance. The fix was to stop guessing geometry and snap to the page's own line
+boxes, then assert the resulting height is small enough to be an excerpt - which
+is the property the figure needs, not the number that happened to come out.
+
+**Evidence.** `tools/make_figures.py::page_excerpt`, and
+`tests/test_figures.py::test_the_page_figure_is_an_excerpt_not_a_whole_page`,
+which fails if the crop grows back into a whole-page screenshot. Seen 1.

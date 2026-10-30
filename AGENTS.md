@@ -49,6 +49,7 @@ easier to record but easier to fake, it is the wrong change.
 | `src/citevouch/draft.py` | proposed claim blocks from an existing manuscript |
 | `src/citevouch/latex.py` | `.tex` → the plain text the rest of the tool reads |
 | `src/citevouch/cli.py` | argument parsing, exit codes, `init-demo`, `doctor`, `draft` |
+| `tools/make_figures.py` | renders the README figures from `demo/`; needs `pymupdf` + `Pillow`, which `src/` never imports |
 | `tools/next_version.py` | reads `## [Unreleased]`, decides the next version, rewrites the changelog |
 | `.github/workflows/test.yml` | the gate: 8 matrix cells, lint, acceptance, offline |
 | `.github/workflows/auto-release.yml` | green main → decides a version → commits, tags, calls release |

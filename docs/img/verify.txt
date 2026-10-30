@@ -1,0 +1,9 @@
+$ citevouch verify manuscript.md
+[info] quote-found at manuscript.md:9 (cxn-total): quote found on page 6
+[info] quote-found at manuscript.md:18 (corpus-size): quote found on page 6
+[info] quote-found at manuscript.md:26 (hapax-share): quote found on page 7
+[info] quote-found at manuscript.md:34 (avg-degree): quote found on page 14
+[high] quote-missing at manuscript.md:43 (fcg-editor): The FCG Editor is an innovative environment for engineering computational construction gr… — no passage in the source is close to this quote in 2020_TayyarMadabushi-etal_CxGBERT.pdf
+
+citevouch: 5 claims — 4 verified, 0 moved, 1 missing
+worst severity: high
