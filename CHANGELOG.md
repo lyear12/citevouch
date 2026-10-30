@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.18.3] — 2026-10-30
 ### Fixed
 
 - A message about a path is now true about that path. `--bib <a directory>` reported
@@ -21,7 +23,6 @@ tag and that file disagree.
 - `--source <a path that is not a file>` is a usage error (exit 2) instead of being dropped from the
   source map in silence. Silence read as "no key needed this", so the claim the caller meant to bind
   reported `source-missing` and the author went looking for a PDF that was on disk the whole time.
-
 ## [0.18.2] — 2026-10-30
 ### Fixed
 
@@ -841,7 +842,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.3...HEAD
+[0.18.3]: https://github.com/lyear12/citevouch/releases/tag/v0.18.3
 [0.18.2]: https://github.com/lyear12/citevouch/releases/tag/v0.18.2
 [0.18.1]: https://github.com/lyear12/citevouch/releases/tag/v0.18.1
 [0.18.0]: https://github.com/lyear12/citevouch/releases/tag/v0.18.0
