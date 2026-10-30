@@ -365,8 +365,31 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
     return found
 
 
-def near_misses(key: str, root: str | Path, limit: int = 3) -> list[str]:
-    """Files under ``root`` whose name resembles ``key``, for an error message.
+def candidate_files(root: str | Path) -> list[str]:
+    """Paths (relative, POSIX) of files that could plausibly be a source.
+
+    One walk per run, not one per unresolved claim: a manuscript with ten
+    unbound keys would otherwise re-read the whole project ten times, and the
+    project is the user's real working directory, which may hold a corpus.
+    Skips hidden directories and the tool's own cache.
+    """
+    root = Path(root)
+    if not root.is_dir():
+        return []
+    found: list[str] = []
+    skip_dirs = {".git", ".citevouch", "__pycache__", ".venv", "venv", "node_modules"}
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in {".pdf", ".txt", ".md"}:
+            continue
+        relative = path.relative_to(root)
+        if any(part in skip_dirs for part in relative.parts[:-1]):
+            continue
+        found.append(relative.as_posix())
+    return sorted(found)
+
+
+def near_misses(key: str, candidates: list[str], limit: int = 3) -> list[str]:
+    """Names from ``candidates`` that resemble ``key``, for an error message.
 
     Suggestions to read, never bindings to use. Printing candidates is what
     lets discovery stay strict: the tool names what it saw, the author decides
@@ -374,17 +397,12 @@ def near_misses(key: str, root: str | Path, limit: int = 3) -> list[str]:
     """
     if not key:
         return []
-    root = Path(root)
-    if not root.is_dir():
-        return []
     needle = key.lower()
     scored: list[tuple[int, str]] = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in {".pdf", ".txt", ".md"}:
-            continue
-        stem = path.stem.lower()
+    for name in candidates:
+        stem = Path(name).stem.lower()
         if needle in stem or stem in needle:
-            scored.append((abs(len(stem) - len(needle)), path.relative_to(root).as_posix()))
+            scored.append((abs(len(stem) - len(needle)), name))
     scored.sort()
     return [name for _distance, name in scored[:limit]]
 

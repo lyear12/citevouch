@@ -69,7 +69,9 @@ tag and that file disagree.
   longer claims a filename-similarity fallback it never had. Binding a claim to
   a PDF because the names share a prefix is exactly the guessing this tool
   exists to refuse, so instead of binding, the `source-missing` message lists
-  the near misses on disk for the author to pick from.
+  the near misses on disk for the author to pick from. The candidate list is
+  built by one directory walk per run and only when a key fails to resolve -
+  ten unbound claims in a project holding a corpus should not mean ten walks.
 
 - An entry whose delimiters never close (a `{` inside a `@comment`, an unclosed
   quoted value) silently swallowed every entry after it and reported nothing.

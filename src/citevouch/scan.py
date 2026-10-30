@@ -19,6 +19,7 @@ from .errors import UsageError
 from .manuscript import parse_manuscript, scan_unbound_markers
 from .model import Finding, Ledger, SourceRef
 from .sources import (
+    candidate_files,
     discover_sources,
     extract_pages,
     near_misses,
@@ -70,7 +71,7 @@ def _ledger_path(root: Path, path: str | Path) -> str:
     return relative.as_posix()
 
 
-def _missing_source_message(key: str, root: Path, claim_id: str) -> str:
+def _missing_source_message(key: str, candidates: list[str], claim_id: str) -> str:
     """Say the key cannot be resolved, and name what was probably meant.
 
     The candidates are printed, not used.  A tool that binds a claim to a PDF
@@ -83,10 +84,10 @@ def _missing_source_message(key: str, root: Path, claim_id: str) -> str:
         f"claim {claim_id} names source={key!r} but no entry in sources.toml "
         "and no --source path resolves it; add it to sources.toml"
     )
-    candidates = near_misses(key, root)
-    if not candidates:
+    close = near_misses(key, candidates)
+    if not close:
         return base
-    listed = ", ".join(candidates)
+    listed = ", ".join(close)
     return f"{base} (near misses on disk: {listed})"
 
 
@@ -121,13 +122,18 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     )
 
     page_cache: dict[str, tuple[list, SourceRef | None]] = {}
+    # Built once, and only if some claim actually fails to resolve: the walk is
+    # over the user's project directory, which may be large.
+    candidates: list[str] = []
     for claim in parsed.claims:
         path = resolve_source(claim.source, known)
         if path is None:
+            if not candidates:
+                candidates = candidate_files(root)
             findings.append(
                 Finding(
                     code="source-missing",
-                    message=_missing_source_message(claim.source, root, claim.id),
+                    message=_missing_source_message(claim.source, candidates, claim.id),
                     claim_id=claim.id,
                     path=claim.path,
                     line=claim.line,
