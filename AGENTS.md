@@ -88,6 +88,15 @@ python -m venv .venv && .venv/Scripts/pip install -e .  # Windows; POSIX uses .v
 python -m citevouch init-demo /tmp/x && cd /tmp/x && python -m citevouch verify manuscript.md  # the documented first run works
 ```
 
+and, for anything that changes what `MANIFEST.in` ships or what the tests read from the tree, the
+outside view — an archive that passes its suite only inside the repository has not been tested:
+
+```bash
+python -m build --sdist --no-isolation
+mkdir -p /tmp/unpacked && tar xzf dist/*.tar.gz -C /tmp/unpacked
+cd /tmp/unpacked/citevouch-* && PYTHONPATH=src python -m pytest   # every skip says "not a git checkout"
+```
+
 and, for anything touching matching, extraction, or normalization:
 
 ```bash

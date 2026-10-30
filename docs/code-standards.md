@@ -86,13 +86,29 @@ A change is not done until all of these have been run and passed. Run them; do n
    ```
    Expected: 5 claims, 4 verified, 0 moved, 1 missing (`fcg-editor`), worst severity `high`, exit 1.
    A run that is greener than this means matching got more permissive — treat it as a failure.
-6. **Offline.** If the machine has no network, everything above still passes. Verify this by
+6. **The source archive carries its own suite.** `MANIFEST.in` said `graft tests` and shipped
+   `tests/` without `tools/`, `action.yml`, `.github/`, `docs/img/`, or `demo/papers/`, so
+   unpacking the published `0.16.1` archive and running `pytest` gave 56 failures and 3 errors.
+   The repository looks fine, because the repository has every file. Run the outside view:
+   ```bash
+   python -m build --sdist --no-isolation
+   mkdir -p /tmp/unpacked && tar xzf dist/*.tar.gz -C /tmp/unpacked
+   cd /tmp/unpacked/citevouch-* && PYTHONPATH=src python -m pytest
+   ```
+   Every skip it reports must be about being unpacked (`not a git checkout`, `no sdist in dist/`).
+   A skip with any other reason is a test going quiet.
+7. **Offline.** If the machine has no network, everything above still passes. Verify this by
    reading the diff for `urllib`, `requests`, `http`, `socket`.
-7. **A matrix cell that cannot run is not a passing cell.** Every OS and version pair in the
+8. **A matrix cell that cannot run is not a passing cell.** Every OS and version pair in the
    build matrix must be one a runner can actually satisfy: a cell whose interpreter does not exist
    for the image (arm64 macOS has no CPython 3.10) does not test anything, it queues until the run
    dies, and the badge goes on claiming coverage it never measured. Remove the cell and write its
    reason at the exclusion.
+9. **An install proves a package can be fetched, not that it can be imported.** A job that runs
+   `python -m build --no-isolation` must name its build backend in its own install step: `pip
+   install -e .` builds inside an isolated environment and throws it away, so the very next step
+   failed with `Cannot import 'setuptools.build_meta'`. A green install above an empty environment
+   reads like a green light.
 
 ## Policing these rules
 

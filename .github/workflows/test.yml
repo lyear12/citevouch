@@ -132,8 +132,32 @@ jobs:
             exit 1
           fi
           formatted=$(sh tools/format_check.sh 2>&1 | grep -oE '[0-9]+ files' | tail -1 | cut -d' ' -f1)
+          # The archive's own suite is a second measurement a commit may cite,
+          # and a number this job cannot measure is a number the gate must
+          # either reject or wave through. Rejecting teaches the next agent to
+          # write less evidence; waving through is what this gate exists to
+          # prevent. So measure it here too: the archive is already built two
+          # steps up, and one more run of a suite is cheaper than a rule nobody
+          # can satisfy honestly.
+          mkdir -p /tmp/archive-suite
+          tar xzf dist/*.tar.gz -C /tmp/archive-suite
+          (
+            cd /tmp/archive-suite/citevouch-*
+            PYTHONPATH=src python -m pytest > /tmp/archive.log 2>&1 || {
+              tail -40 /tmp/archive.log
+              echo "::error::the archive's own suite failed; see the sdist job"
+              exit 1
+            }
+          )
+          archive=$(grep -oE '[0-9]+ passed' /tmp/archive.log | tail -1 | cut -d' ' -f1)
+          if [ -z "$archive" ]; then
+            tail -40 /tmp/archive.log
+            echo "::error::the archive's suite ran but its summary line was not found"
+            exit 1
+          fi
+          echo "the archive's suite reports $archive passing tests"
           python tools/check_repo_rules.py --range "$range" --passed "$passed" \
-            --formatted "${formatted:-0}"
+            --passed "$archive" --formatted "${formatted:-0}"
 
   acceptance:
     name: acceptance (the documented first run)

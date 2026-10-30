@@ -56,6 +56,13 @@ tag and that file disagree.
   where `git ls-files` answers 128. Comparing the manifest against an index
   that does not exist is not a manifest failure, so it says so and the sdist
   job counts it.
+- This workflow's lint job measures the archive's suite as well as the
+  repository's, because a commit that builds an archive can honestly cite both
+  numbers and a gate that cannot measure one of them must either reject the
+  honest message or wave it through. Rejecting teaches the next agent to write
+  less evidence; waving through is what the gate exists to prevent. It caught
+  this very commit: `says 508 passed, the suites measured 515` on run
+  41065479029.
 
 ## [0.16.1] — 2026-10-30
 ### Fixed
