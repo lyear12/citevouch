@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -559,3 +560,70 @@ class TestQuietNeverHidesTheReasonForFailing:
         assert code == 0
         assert "worst severity: low" in out
         assert "hidden by --quiet" not in out
+
+
+class TestABackslashSurvivesTheCell:
+    """Escaping the pipe alone is not escaping the cell.
+
+    `_cell` replaced `|` with `\\|` and stopped.  A quote that already held an
+    escaped pipe therefore became an escaped backslash followed by a live
+    column break, which adds a column to that row — and to every row after it,
+    because a table's shape is read from its first row.  The same habit bit
+    the other way at the truncation edge: cutting the *escaped* text could
+    leave a lone backslash at the end of the cell, where it swallowed the
+    ellipsis that marked the cut.
+    """
+
+    BS = chr(92)
+
+    def _row(self, tmp_path: Path, raw: str) -> str:
+        root = tmp_path / "p"
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "p.txt").write_text("x " + raw + chr(10), encoding="utf-8", newline=chr(10))
+        (root / "sources.toml").write_text(
+            "[sources]" + chr(10) + 'p = "p.txt"' + chr(10), encoding="utf-8", newline=chr(10)
+        )
+        (root / "m.md").write_text(
+            "```claim id=c1 source=p" + chr(10) + ">> " + raw + chr(10) + "```" + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+        assert main(["scan", "m.md", "--root", str(root)]) == 0
+        captured = io.StringIO()
+        with redirect_stdout(captured):
+            assert main(["report", "--root", str(root)]) == 0
+        for line in captured.getvalue().splitlines():
+            if line.startswith("| `c1`"):
+                return line
+        raise AssertionError("no row for the claim")
+
+    def _cells(self, row: str) -> int:
+        """Count real column separators, ignoring escaped ones."""
+        return row.replace(self.BS + self.BS, "").replace(self.BS + "|", "").count("|")
+
+    def test_a_quote_holding_a_backslash_pipe_keeps_the_table_shape(self, tmp_path: Path):
+        row = self._row(tmp_path, "alpha beta " + self.BS + "| gamma delta")
+        assert self._cells(row) == 5
+
+    def test_a_quote_holding_two_backslashes_keeps_the_table_shape(self, tmp_path: Path):
+        row = self._row(tmp_path, "alpha beta " + self.BS + self.BS + "| gamma delta")
+        assert self._cells(row) == 5
+
+    def test_a_plain_quote_still_has_five_separators(self, tmp_path: Path):
+        row = self._row(tmp_path, "alpha beta gamma")
+        assert self._cells(row) == 5
+
+    def test_the_cut_never_leaves_a_backslash_that_eats_the_ellipsis(self, tmp_path: Path):
+        # Put the escaped pipe exactly where the cut lands.
+        row = self._row(tmp_path, "a" * 78 + "|" + "b" * 40)
+        assert self.BS + "…" not in row
+        assert "…" in row
+
+    def test_the_cut_still_happens(self, tmp_path: Path):
+        row = self._row(tmp_path, "a" * 200)
+        # The row ends with a bare separator, so split on the inner ones and
+        # strip it; splitting on " | " alone silently keeps it in the cell.
+        cells = row.removesuffix("|").split(" | ")
+        quote_cell = cells[3].rstrip()
+        assert len(quote_cell) <= 80
+        assert quote_cell.endswith("…")

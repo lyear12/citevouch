@@ -251,8 +251,20 @@ def _cell(text: str) -> str:
     shape for every row after it.  The quote was escaped from the start,
     which is what made this look finished: whoever wrote it knew about the
     pipe and stopped at one cell.
+
+    The backslash has to be escaped before the pipe.  Escaping only the pipe
+    turns a quote that already holds an escaped pipe into an escaped backslash
+    followed by a real column break: the table then has one more column than
+    its header says, and every row after it is read against the wrong shape.
     """
-    return text.replace("|", "\\|").replace("\n", " ")
+    return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _clip(text: str, limit: int) -> str:
+    """Shorten to at most `limit` characters, marking the cut with an ellipsis."""
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "…"
 
 
 def _count(count: int, noun: str, plural: str = "") -> str:
@@ -401,9 +413,11 @@ def cmd_report(args: argparse.Namespace) -> int:
         "|---|---|---|---|",
     ]
     for claim in ledger.claims:
-        quote = _cell(claim.quote)
-        if len(quote) > 80:
-            quote = quote[:79] + "…"
+        # Cut the quote before escaping it.  Escaping first and cutting
+        # afterwards can land the cut between the backslash and the pipe it
+        # escapes, leaving a backslash at the end of the cell that escapes the
+        # ellipsis instead of the pipe.
+        quote = _cell(_clip(claim.quote, 80))
         # `claim.page or '—'` rendered page 0 as an em dash: the author asked
         # what the ledger says and got a dash meaning "nothing". Only None is
         # "no page"; a 0 is a number the reader is entitled to see, and one

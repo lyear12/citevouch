@@ -1698,3 +1698,24 @@ explains them was computed over the wrong list.
 of the renderer could not catch this because the filter lived in the caller;
 the end-to-end test added with this fix is the one that fails when the filter
 moves back.  Seen 1.
+
+## Escaping one character is not escaping the string
+
+**Rule.** When text is made safe for a markup context, every character the
+markup treats specially has to be handled in one pass, and any length limit
+has to be applied before escaping, not after.
+
+**Why.** `_cell` escaped the pipe and stopped, so a quote that already held a
+backslash before a pipe turned into an escaped backslash followed by a live
+column break — a table one column wider than its header, which silently
+misaligns every row after it.  Then the same cell was escaped first and
+truncated second, so the cut could fall between the backslash and the pipe,
+leaving a lone backslash at the end of the cell where it escaped the
+ellipsis instead of the pipe.  Both are the same mistake: treating the
+escape as a substitution instead of as a transformation of the whole string.
+
+**Evidence.** `citevouch report` on a ledger whose quote held an escaped pipe
+emitted a six-separator row in a four-column table; a quote with the pipe at
+cell offset 78 emitted a cell ending in a bare backslash.  Three mutations
+are red: escaping only the pipe, escaping before cutting, and not cutting.
+Seen 1.

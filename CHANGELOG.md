@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `citevouch report` built a table with one column too many for any claim
+  whose quote already held an escaped pipe.  `_cell` escaped `|` and not the
+  backslash in front of it, so a quote holding an escaped pipe ended up with two
+  backslashes followed by a live column break.  A table's shape is read from its
+  first row, which is why one such claim silently reshaped every row after it.
+- The same table could end a truncated cell with a lone backslash.  The quote
+  was escaped first and cut afterwards, so the cut could land between the
+  backslash and the pipe it escaped, leaving a backslash that swallowed the
+  ellipsis marking the cut.  The quote is now cut before it is escaped.
 
 ## [0.18.7] — 2026-10-30
 ### Fixed
