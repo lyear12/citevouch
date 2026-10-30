@@ -2059,3 +2059,35 @@ turns `tests/test_report.py::TestTheSarifLevelIsALevel` red, and so does making
 the result level stop matching the rule level.
 
 Seen 1.
+
+## Fixing a bug in one writer does not fix the bug
+
+**Rule.** When a bug is in a value that several writers receive, grep for every
+caller before the fix is called done. A fix is not a fix until you know which
+other readers are handed the same argument.
+
+**Why.** The renderer you were reading when the bug was reported is the one you
+fix. The other writers take the same list and are usually written months apart,
+so nothing reminds you they exist. They do not even look wrong: each one is
+internally consistent with itself, and only disagrees with the exit code.
+
+**Evidence.** `--quiet` used to filter the findings in the text renderer alone,
+so `--quiet --format sarif` uploaded info-level findings to code scanning. That
+was found and fixed by moving the filter up into `_render`, where every format
+sees it - but the fix stopped there, because the visible symptom was text.
+Months later the same filter turned out to break `--format json` differently:
+the payload's four claim counts describe the run, `summary.findings` counted the
+filtered list, and `worst` was computed over the filtered list too. So
+`--quiet` produced `verified: 1, missing: 1` beside `findings: 1` and a
+`worst: info` on a run that exited 1. Nothing was ever wrong with any single
+line; the file was wrong as a whole, which no line-level test can see.
+
+The probe that found it did not test the filter. It ran one input through each
+`--format` and compared the parts of the object to each other - do the claim
+counts add up to `checked`, does the listed length plus anything-hidden equal
+the run, does `worst` agree with the exit code. Restoring any of the old
+behaviours - `findings: len(findings)`, `worst` over the short list, dropping
+the `hidden` field, or the CLI not passing `everything=` - turns
+`tests/test_report.py::TestTheJsonDescribesTheRunAndSaysWhatItLeftOut` red.
+
+Seen 2.

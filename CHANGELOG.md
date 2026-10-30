@@ -12,6 +12,27 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`--format json` now describes the run, and says what `--quiet` left
+  out.** Every count in one payload has to be about the same thing. The four
+  claim counts came from the verifier and described the run; `summary.findings`
+  counted the filtered list; so `--quiet` produced a payload saying
+  `verified: 1, missing: 1` next to `findings: 1` with nothing anywhere
+  explaining the gap. A consumer adding up the claim counts got two, a consumer
+  counting the list got one, and neither was wrong about the same thing. The
+  payload now carries `hidden` (top level and under `summary`) whenever
+  `--quiet` removed anything, and `summary.findings` counts the run.
+- **`worst` is the worst of the run, not of the screen.** It was computed over
+  the shortened list, so a run whose only finding was a `low` against
+  `--fail-on low` exited 1 while the JSON said `worst: info` - a payload that
+  contradicts the exit code it came with.
+
+  The text report had both bugs and was fixed in the release that fixed
+  `--quiet`. This writer was not touched by that fix, because the fix went to
+  the renderer that prints and nobody asked which other writers are handed the
+  same shortened list.
+
 ## [0.19.10] — 2026-10-30
 ### Fixed
 

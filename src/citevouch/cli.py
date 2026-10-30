@@ -502,6 +502,7 @@ def _render(
     result: VerifyResult | None = None,
 ) -> str:
     fmt = args.format
+    run = findings
     if args.quiet and fmt != "text":
         # `--quiet` means "I only want the things that are wrong", and that
         # sentence is format-independent. It used to be honoured by the text
@@ -510,7 +511,9 @@ def _render(
         # most likely to be used (a CI gate).
         findings = [f for f in findings if f.severity not in ("info", "low")]
     if fmt == "json":
-        return render_json(findings, ledger, result)
+        # `run` is every finding; the JSON writer needs it to describe the run
+        # rather than the shortened list, and to say how many it left out.
+        return render_json(findings, ledger, result, everything=run)
     if fmt == "sarif":
         return render_sarif(findings, __version__, args.root)
     if fmt == "markdown":

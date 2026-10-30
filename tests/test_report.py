@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import ClassVar
 from urllib.parse import unquote
@@ -141,6 +142,112 @@ def test_text_rendering_hides_info_when_asked():
     out = render_text(_findings(), show_info=False)
     assert "quote-found" not in out
     assert "quote-missing" in out
+
+
+class TestTheJsonDescribesTheRunAndSaysWhatItLeftOut:
+    """`--quiet` shortened the list and the payload did not mention it.
+
+    Every count in one object has to be about the same thing.  The four claim
+    counts came from the verifier and described the run; ``findings`` counted
+    the list; so ``--quiet`` produced ``verified: 1, missing: 1`` beside
+    ``findings: 1`` with nothing explaining the gap.  ``worst`` was computed
+    over the shortened list too, so a run that failed on a hidden ``low``
+    reported ``worst: info`` - the same defect the text report was fixed for,
+    in the writer the fix never reached.
+    """
+
+    RUN: ClassVar[list[Finding]] = [
+        Finding(code="quote-missing", message="gone", severity="high"),
+        Finding(code="quote-found", message="found", severity="info"),
+    ]
+
+    def test_the_counts_add_up_to_the_claims_that_were_checked(self):
+        result = VerifyResult(checked=2, verified=1, missing=1)
+        payload = json.loads(render_json(self.RUN, None, result, everything=self.RUN))
+        summary = payload["summary"]
+        total = summary["verified"] + summary["moved"] + summary["missing"] + summary["skipped"]
+        assert total == summary["checked"]
+        assert summary["findings"] == summary["checked"]
+        assert len(payload["findings"]) == len(self.RUN)
+        assert "hidden" not in payload
+
+    def test_a_hidden_finding_is_named_not_merely_absent(self):
+        result = VerifyResult(checked=2, verified=1, missing=1)
+        payload = json.loads(render_json(self.RUN[:1], None, result, everything=self.RUN))
+        assert payload["hidden"] == 1
+        assert payload["summary"]["hidden"] == 1
+        # The run's numbers, not the list's.
+        assert payload["summary"]["findings"] == 2
+        assert payload["summary"]["verified"] == 1
+        assert len(payload["findings"]) == 1
+
+    def test_worst_is_the_worst_of_the_run_not_of_the_screen(self):
+        result = VerifyResult(checked=2, verified=1, missing=1)
+        payload = json.loads(render_json(self.RUN[:1], None, result, everything=self.RUN))
+        assert payload["worst"] == "high"
+
+    def test_a_run_that_only_produced_a_hidden_low_still_says_low(self):
+        # `--fail-on low` fails this run; the payload used to say `info`,
+        # because the only finding had been filtered out before `worst` ran.
+        low = [Finding(code="claim-without-evidence", message="no evidence", severity="low")]
+        payload = json.loads(render_json([], None, VerifyResult(checked=1), everything=low))
+        assert payload["worst"] == "low"
+        assert payload["hidden"] == 1
+        assert payload["summary"]["findings"] == 1
+
+    def test_without_a_run_the_two_lists_are_the_same_list(self):
+        # The argument is optional so that every existing caller keeps working.
+        payload = json.loads(render_json(self.RUN))
+        assert payload["summary"]["findings"] == len(self.RUN)
+        assert "hidden" not in payload
+        assert payload["worst"] == "high"
+
+    def test_the_command_line_names_the_shortening(self):
+        import subprocess
+        import sys
+
+        root = Path(__file__).resolve().parent.parent
+        for flags in ([], ["--quiet"]):
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "citevouch",
+                    "check",
+                    str(root / "demo" / "manuscript.md"),
+                    "--root",
+                    str(root / "demo"),
+                    "--no-cache",
+                    "--format",
+                    "json",
+                    *flags,
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={
+                    **os.environ,
+                    "PYTHONPATH": str(root / "src"),
+                    "PYTHONIOENCODING": "utf-8",
+                },
+            )
+            payload = json.loads(proc.stdout)
+            summary = payload["summary"]
+            # The invariant is that the object accounts for every finding the
+            # run produced.  It is not ``checked``: a claim can produce more
+            # than one finding, and some findings (an unused bibliography
+            # entry) belong to no claim at all, so the demo's five claims
+            # produce six findings.
+            assert summary["findings"] == len(payload["findings"]) + payload.get("hidden", 0), (
+                flags,
+                summary,
+            )
+            if flags:
+                assert payload["hidden"] > 0, (flags, payload)
+            else:
+                assert "hidden" not in payload, (flags, payload)
 
 
 def test_json_rendering_carries_the_ledger_summary():

@@ -129,9 +129,38 @@ def render_json(
     findings: Iterable[Finding],
     ledger: Ledger | None = None,
     result: VerifyResult | None = None,
+    everything: Iterable[Finding] | None = None,
 ) -> str:
+    """JSON for another program, so every number has to mean one thing.
+
+    ``findings`` is the list being written; ``everything`` is every finding the
+    run produced, when ``--quiet`` has already removed some of them.  Omit
+    ``everything`` and the two are the same list, which is the usual case.
+
+    Without it this object contradicts itself.  The four claim counts come from
+    the verifier and describe the *run*; ``findings`` described the *list*; so
+    ``--quiet`` produced a payload saying ``verified: 1, missing: 1`` next to
+    ``findings: 1``, with nothing anywhere explaining the gap.  A consumer
+    adding up the claim counts got two, a consumer counting the list got one,
+    and neither was wrong about the same thing - the worst possible pair of
+    answers for a format that exists to be parsed.
+
+    ``worst`` had the same shape of bug: it was computed over the list that
+    survived ``--quiet``, so a run whose only finding was a ``low`` against
+    ``--fail-on low`` exited 1 while the payload said ``worst: info``.  Both
+    now describe the run, and ``hidden`` is named rather than folded in.
+
+    The text report had this exact bug and was fixed in the release that fixed
+    ``--quiet``.  The JSON writer was not touched by that fix, because the fix
+    went to the renderer that prints and nobody asked which other writers are
+    handed the same shortened list.
+    """
     findings = list(findings)
+    run = findings if everything is None else list(everything)
+    hidden = len(run) - len(findings)
     payload: dict = {"findings": [f.to_json() for f in findings]}
+    if hidden:
+        payload["hidden"] = hidden
     if ledger is not None:
         payload["ledger"] = {
             "manuscript": ledger.manuscript,
@@ -152,12 +181,14 @@ def render_json(
             "moved": result.moved,
             "missing": result.missing,
             "skipped": result.skipped,
-            "findings": len(findings),
+            "findings": len(run),
         }
     else:
-        payload["summary"] = {"findings": len(findings)}
-    payload["worst"] = worst(f.severity for f in findings)
-    return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+        payload["summary"] = {"findings": len(run)}
+    if hidden:
+        payload["summary"]["hidden"] = hidden
+    payload["worst"] = worst(f.severity for f in run)
+    return json.dumps(payload, indent=2, ensure_ascii=False) + chr(10)
 
 
 def _sarif_uri(raw: str, root: Path | None) -> str:
