@@ -94,6 +94,44 @@ the right one. It attaches the sdist and wheel, publishes to PyPI when a trusted
 configured, and copies the release notes from the range between the previous tag and this one. If the tag and
 `src/citevouch/_version.py` disagree, the release fails before publishing, not after.
 
+### The one thing a workflow cannot do for itself
+
+`pip install citevouch` does not work yet, and no commit can change that. Publishing needs a
+*trusted publisher* registered on PyPI against this repository, which is an account action. The
+release workflow is already written for it and will start publishing on the next tag once the entry
+exists — `release.yml` prints `PyPI: published.` or `PyPI: **not published** (the trusted publisher
+is not registered for this repository yet)` into the run summary so the state is never guessed at.
+
+The click-path (about a minute, done once):
+
+1. Sign in at <https://pypi.org/manage/account/publishing/>.
+2. **Add a new pending publisher** with exactly these values:
+
+   | field | value |
+   |---|---|
+   | PyPI Project Name | `citevouch` |
+   | Owner | `lyear12` |
+   | Repository name | `citevouch` |
+   | Workflow name | `release.yml` |
+   | Environment name | *(leave empty)* |
+
+3. Save. Nothing else: `release.yml` already declares `permissions: id-token: write`, and the
+   publish step pins no `environment:`, so an environment name here would make the OIDC subject
+   disagree and the publish would fail rather than silently skip.
+
+To check whether it worked without cutting a release:
+
+```console
+$ curl -s -o /dev/null -w '%{http_code}
+' https://pypi.org/pypi/citevouch/json
+404        # before the first publish (expected today)
+200        # after the next tag has published
+$ pip download --no-deps citevouch -d /tmp/x && ls /tmp/x
+```
+
+`404` here is not a failure of the project; it is the absence of a distribution, which is what a
+pending publisher is for.
+
 ## Reporting a problem
 
 Open an issue with:

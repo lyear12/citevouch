@@ -108,10 +108,20 @@ not what changed, but what proves the change works.
   `citevouch` on PATH and reads back the argument vector, so the file is tested
   as behaviour rather than as YAML text.
 
-- [ ] **No `.pre-commit-hooks.yaml`.**
+- [x] **No `.pre-commit-hooks.yaml`.**
   *Who is blocked*: anyone who gates their repo before pushing rather than in CI.
   *Done when*: one hook id runs `citevouch check` and its `files` pattern covers
   manuscripts.
+  **Done — why it is now true:** `.pre-commit-hooks.yaml` carries two ids,
+  `citevouch` (runs `check`, writes nothing) and `citevouch-record` (runs
+  `scan`, writes the ledger), because one hook cannot both gate and re-record
+  without turning "the PDF changed under me" into "the ledger now agrees" —
+  which is the single failure this tool exists to catch. `files` is
+  `\.(md|markdown|tex)$`, `pass_filenames: false` because the command reads the
+  manuscript named in the config rather than the list pre-commit hands it.
+  Proved by `tests/test_precommit.py` (13), which resolves each `entry` through
+  a stub console script on PATH and asserts a clean project exits 0 and a
+  drifted source exits 1 — the file is tested as behaviour, not as YAML.
 
 - [x] **`pyproject.toml` declares an `xlsx` extra that no code uses.**
   `openpyxl` is offered as an optional dependency and nothing imports it. That
@@ -131,6 +141,15 @@ not what changed, but what proves the change works.
   *Done when*: either the trusted publisher is registered (needs the owner's
   PyPI account — a human step, not a code step) or `docs/maintenance.md`
   carries the exact click-path so the human step takes one minute.
+  **Half done — the click-path is written, the account action is not.**
+  `docs/maintenance.md` now carries the five fields to enter
+  (project `citevouch`, owner `lyear12`, repo `citevouch`, workflow
+  `release.yml`, environment **empty**), why the environment must stay empty
+  (`release.yml` pins no `environment:`, so naming one makes the OIDC subject
+  disagree and the publish fails instead of skipping), and the two commands that
+  prove it worked. What is left is a sign-in I cannot perform. The workflow
+  already reports which of the two outcomes happened, so the state is visible in
+  every release run rather than inferred from a 404.
 
 ## P2 — the audience writes LaTeX
 
