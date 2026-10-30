@@ -269,24 +269,38 @@ def test_a_pdf_entry_signed_by_pdftotext_is_reused_while_pypdf_is_installed(
     )
 
 
-def test_a_markup_entry_is_never_accepted_for_a_pdf(tmp_path: Path):
-    """The one relaxation in the cache lets pypdf and pdftotext stand in for
-    each other. It must not let a format that reads a different way in."""
+def test_a_markup_entry_is_never_reused_for_a_pdf(tmp_path: Path, monkeypatch):
+    """The one relaxation in the cache lets pypdf and pdftotext stand in for each
+    other, because both read the same bytes the same way.  A format that reads
+    them differently must not be let in by the same door: markup text stripped
+    from an HTML page is not what a PDF reader would have produced, so an entry
+    signed `markup` under a PDF's hash has to be a miss."""
     pdf = tmp_path / "p.pdf"
     pdf.write_bytes(b"%PDF-1.4 placeholder")
-    monkeypatch_pypdf = lambda _path: (["text"], "pypdf-0.0.test")  # noqa: E731
-    _original = sources._pypdf_pages
-    sources._pypdf_pages = monkeypatch_pypdf
-    try:
-        sources.extract_pages(pdf, tmp_path, use_cache=True)
-    finally:
-        sources._pypdf_pages = _original
+    monkeypatch.setattr(
+        sources, "_pypdf_pages", lambda _path: (["from pypdf"], "pypdf-0.0.test")
+    )
+    sources.extract_pages(pdf, tmp_path, use_cache=True)
     cached = list((tmp_path / ".citevouch" / "cache").glob("*.json"))
+    assert cached
     blob = json.loads(cached[0].read_text(encoding="utf-8"))
     blob["extractor"] = "markup"
     cached[0].write_text(json.dumps(blob), encoding="utf-8")
 
-    assert "markup" not in sources.extractor_candidates(".pdf")
+    # pypdf is allowed to run here - a miss is exactly what should happen - but
+    # it must fail so the extraction comes from pdftotext and the rewritten
+    # signature is distinguishable from the one that was there before.
+    monkeypatch.setattr(sources, "_pypdf_pages", lambda _path: None)
+    monkeypatch.setattr(
+        sources, "_pdftotext_pages", lambda _path: (["from poppler"], "pdftotext")
+    )
+    pages, problem = sources.extract_pages(pdf, tmp_path, use_cache=True)
+    assert problem is None, problem
+    assert [page.text for page in pages] == ["from poppler"], (
+        "a markup-signed entry must be a miss for a PDF, not a hit"
+    )
+    rewritten = json.loads(cached[0].read_text(encoding="utf-8"))
+    assert rewritten["extractor"] == "pdftotext"
 
 
 # --- NEW-4: the changelog's own tail ----------------------------------------
