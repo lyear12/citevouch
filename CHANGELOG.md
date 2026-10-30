@@ -12,10 +12,10 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.16.4] — 2026-10-30
 ### Fixed
 
 - `tests/test_child_env.py` walked `tests/` only, so it could not see `tools/make_figures.py` doing the very thing it exists to prevent: the figure generator's first version replaced the environment, lost `PATH`, and drew a picture of a broken installation. The scan now covers `tools/` as well.
-
 ## [0.16.3] — 2026-10-30
 ### Fixed
 
@@ -733,7 +733,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.3...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.16.4...HEAD
+[0.16.4]: https://github.com/lyear12/citevouch/releases/tag/v0.16.4
 [0.16.3]: https://github.com/lyear12/citevouch/releases/tag/v0.16.3
 [0.16.2]: https://github.com/lyear12/citevouch/releases/tag/v0.16.2
 [0.16.1]: https://github.com/lyear12/citevouch/releases/tag/v0.16.1
