@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-10-30
 ### Fixed
 
 - A `>` inside a quoted attribute value no longer ends a tag early.
@@ -19,7 +20,6 @@ tag and that file disagree.
   in the page text and a manuscript quoting that sentence reported
   `quote-missing` against a page that contains it. The pattern now skips over
   quoted attribute values.
-
 ## [0.10.0] — 2026-10-30
 ### Fixed
 
@@ -511,7 +511,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/lyear12/citevouch/releases/tag/v0.10.1
 [0.10.0]: https://github.com/lyear12/citevouch/releases/tag/v0.10.0
 [0.9.0]: https://github.com/lyear12/citevouch/releases/tag/v0.9.0
 [0.8.0]: https://github.com/lyear12/citevouch/releases/tag/v0.8.0
