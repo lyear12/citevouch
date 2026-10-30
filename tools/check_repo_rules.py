@@ -23,6 +23,7 @@ import argparse
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 REQUIRED_SECTIONS = ("Run:", "Not tried:", "Broken by hand:")
@@ -75,7 +76,7 @@ def commit_message_violations(repo: Path, rev_range: str) -> list[str]:
     return bad
 
 
-def passed_count_mismatches(notes: str, actual: int) -> list[str]:
+def passed_count_mismatches(notes: str, actual: int, others: Sequence[int] = ()) -> list[str]:
     """Claims of ``N passed`` in ``notes`` that disagree with ``actual``.
 
     AGENTS.md asks every commit to say what was run.  A number in that section
@@ -88,12 +89,20 @@ def passed_count_mismatches(notes: str, actual: int) -> list[str]:
     Only ``<number> passed`` is read.  Other shapes (``-k "not network"``
     filters, ``3.1s``) are left alone: a checker that guesses is a checker
     people learn to route around.
+
+    A commit may measure more than one suite - the repository's, and the one
+    inside the source archive it just built - so the rule is not "every count
+    equals this one".  It is "every count is one of the numbers this run
+    measured".  A commit that quotes only the right number passes; one that
+    quotes a number nobody measured fails, which is the thing worth catching.
     """
+    allowed = {actual, *others}
     bad: list[str] = []
     for claim in _PASSED.finditer(notes):
         claimed = int(claim.group(1))
-        if claimed != actual:
-            bad.append(f"says {claimed} passed, the suite reports {actual}")
+        if claimed not in allowed:
+            measured = ", ".join(str(number) for number in sorted(allowed))
+            bad.append(f"says {claimed} passed, the suites measured {measured}")
     return bad
 
 
@@ -170,10 +179,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--passed",
         type=int,
+        action="append",
         default=None,
         help=(
-            "how many tests the suite reported in this job; commit messages that "
-            "claim a different number are listed. Omit where the suite did not run."
+            "how many tests a suite reported in this job; repeatable, because a "
+            "commit may measure more than one. A `Run:` line claiming a number "
+            "nobody measured is listed. Omit where no suite ran."
         ),
     )
     args = parser.parse_args(argv)
@@ -217,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             mismatches: list[str] = []
             if args.passed is not None:
-                mismatches += passed_count_mismatches(body, args.passed)
+                mismatches += passed_count_mismatches(body, args.passed[0], args.passed[1:])
             if args.formatted is not None:
                 mismatches += formatted_count_mismatches(body, args.formatted)
             for mismatch in mismatches:

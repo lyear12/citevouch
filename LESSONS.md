@@ -1301,3 +1301,25 @@ files and which a scan for slashes in string constants misses entirely (it found
 14 paths instead of 44). Verified by restoring the old `MANIFEST.in` and
 rebuilding: three tests go red. `test.yml`'s `sdist` job unpacks the published
 archive and requires exactly two skips. Seen 1.
+
+## A check that can only be satisfied by writing less is a check that costs you evidence
+
+**Rule.** When a gate compares a message against a measurement, the message
+may contain more than one measurement. Accept any number this run measured;
+reject any number it did not.
+
+**Why.** The commit that shipped the sdist fix measured two suites - the
+repository's (508 passed) and the one inside the archive it had just built
+(501 passed, 2 skipped) - because both numbers were the point. The gate read
+every `<n> passed` and required all of them to equal the first argument, so the
+second number was reported as a lie. The honest fixes were to delete a
+measurement or to weaken the gate. Both are worse than teaching the gate that a
+commit can measure twice: a message with fewer numbers is a message with less
+evidence, and the whole reason `Run:` exists is that the next agent cannot run
+the old tree.
+
+**Evidence.** `tools/check_repo_rules.py`'s `--passed` is now `action="append"`,
+and `passed_count_mismatches(notes, actual, others=())` accepts any member of
+`{actual, *others}`. `tests/test_check_repo_rules.py` has three cases: two true
+numbers pass, one unmeasured number fails, one number still has to be right.
+Seen 1.

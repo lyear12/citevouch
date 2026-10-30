@@ -165,3 +165,31 @@ def test_main_reports_violations_on_stdout(tmp_path: Path, capsys):
     code = cr.main(["--repo", str(repo), "--range", "HEAD~1..HEAD"])
     assert code == 1
     assert "second:" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------
+# One commit, more than one suite
+
+
+def test_a_message_may_measure_more_than_one_suite():
+    """A commit that builds an archive measures two: this tree's suite and the
+    archive's own. Both numbers are true, and a checker that accepts only one
+    of them turns an honest message into a failing one - so the agent either
+    deletes a measurement or learns to write fewer of them, and the second is
+    worse than the first."""
+    notes = (
+        "Run: PYTHONPATH=src python -m pytest (508 passed); "
+        "unpacked the archive and ran its suite (501 passed, 2 skipped)"
+    )
+    assert cr.passed_count_mismatches(notes, 508, (501,)) == []
+
+
+def test_a_number_nobody_measured_is_still_caught():
+    notes = "Run: PYTHONPATH=src python -m pytest (508 passed); (317 passed)"
+    problems = cr.passed_count_mismatches(notes, 508, (501,))
+    assert problems == ["says 317 passed, the suites measured 501, 508"]
+
+
+def test_one_number_still_has_to_be_the_right_one():
+    assert cr.passed_count_mismatches("Run: pytest (508 passed)", 508) == []
+    assert cr.passed_count_mismatches("Run: pytest (317 passed)", 508)

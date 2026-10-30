@@ -13,6 +13,12 @@ tag and that file disagree.
 ## [Unreleased]
 ### Fixed
 
+- `tools/check_repo_rules.py` no longer assumes one suite per commit. A commit
+  that builds a source archive measures two: the repository's suite and the
+  archive's own, and both numbers are true. `--passed` is now repeatable and the
+  rule is "every `N passed` was measured in this run" rather than "every
+  `N passed` equals the first one" - the first rule caught an honest message,
+  which teaches the next agent to write fewer measurements.
 - The source archive now carries every file its own test suite reads. `MANIFEST.in`
   said `graft tests` and shipped `tests/` without `tools/`, `.pre-commit-hooks.yaml`,
   `action.yml`, `.github/`, `docs/img/`, or `demo/papers/`. Unpacking the published
