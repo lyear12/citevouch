@@ -88,7 +88,7 @@ worst severity: high
 尚未发布到 PyPI——发布工作流会在本仓库注册 trusted publisher 之后向 PyPI 发布，并如实报告结果。在那之前，从 GitHub 安装：
 
 ```bash
-pip install "git+https://github.com/lyear12/citevouch@v0.18.1"
+pip install "git+https://github.com/lyear12/citevouch@v0.18.2"
 # 或者，克隆之后本地安装：
 pip install .
 ```
@@ -241,7 +241,7 @@ citevouch draft paper.tex --bib refs.bib -o claims.md
 最短的接法是 action：它装上自己被钉住的那个 tag，然后跑闸门。
 
 ```yaml
-- uses: lyear12/citevouch@v0.18.1
+- uses: lyear12/citevouch@v0.18.2
   with:
     manuscript: manuscript.md
 ```
@@ -254,7 +254,7 @@ citevouch draft paper.tex --bib refs.bib -o claims.md
 它会写出 SARIF 文件，并把路径作为 `sarif` 输出交出来，所以再加一步就能传给 code scanning：
 
 ```yaml
-- uses: lyear12/citevouch@v0.18.1
+- uses: lyear12/citevouch@v0.18.2
   id: citevouch
   with:
     manuscript: manuscript.md
@@ -269,7 +269,7 @@ citevouch draft paper.tex --bib refs.bib -o claims.md
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: pip install "git+https://github.com/lyear12/citevouch@v0.18.1"
+- run: pip install "git+https://github.com/lyear12/citevouch@v0.18.2"
 - run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
 ```
 

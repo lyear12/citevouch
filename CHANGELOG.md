@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.18.2] — 2026-10-30
 ### Fixed
 
 - A path this tool cannot write to is now a usage error (exit 2) instead of a traceback that exits 1.
@@ -22,7 +24,6 @@ tag and that file disagree.
   through one `_writable_target` guard on every write path, plus an `OSError` barrier so a full disk
   or a locked file reads as a refused write rather than a crash. The guard also runs on the final
   ledger name before the `<name>.tmp` staging file is created, so a refusal leaves nothing behind.
-
 ## [0.18.1] — 2026-10-30
 ### Fixed
 
@@ -830,7 +831,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/lyear12/citevouch/releases/tag/v0.18.2
 [0.18.1]: https://github.com/lyear12/citevouch/releases/tag/v0.18.1
 [0.18.0]: https://github.com/lyear12/citevouch/releases/tag/v0.18.0
 [0.17.1]: https://github.com/lyear12/citevouch/releases/tag/v0.17.1
