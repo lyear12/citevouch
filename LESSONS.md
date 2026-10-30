@@ -950,3 +950,29 @@ that mistake — which is why the second probe compares a split sentence against
 the same sentence whole. `tests/test_cross_page.py` (10 tests) pins the
 mechanism, `tests/test_cross_page_real.py` (3 tests) pins the premise on a real
 paper, and disabling the stitching turns five of them red. Seen 1.
+
+## A diagnostic is the only place a tool is allowed to be reassuring
+
+**Rule.** When a tool's ordinary output is a list of the user's supposed
+mistakes, give them one command whose job is to say "the machine is fine, and
+here is what I checked". Put a fix on every failed line, and do not cry wolf:
+a check that fails on a healthy install is worse than no check at all, because
+it teaches the user that the diagnostic is noise too.
+
+**Why.** `citevouch`'s failure mode is not an error message. It is a clean run
+that says every quote is missing because no PDF extractor is installed — and
+nothing in that output distinguishes "your citations are wrong" from "I cannot
+read PDFs". The honest response to six failures on a paper you know is correct
+is to uninstall, and the tool gave no reason not to. `doctor` exists to be the
+opposite of that output: it checks the six things that silently remove the
+ability to see anything, prints one line per check, and attaches the command
+that fixes each failure.
+
+**Evidence.** Two things had to be built into the design rather than added
+later: a read-only cache is reported as *not a failure* (correctness does not
+depend on it, only speed), and a `pdftotext` that is absent while `pypdf` is
+present is reported as *not needed*. Both are cases where the naive version
+prints `FAILED` on a working install. `tests/test_doctor.py` (20 tests) pins a
+broken machine, a healthy one, and — because documentation rot is the same
+defect in a slower form — that the README's example contains every check the
+tool actually performs. Seen 1.

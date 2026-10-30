@@ -156,6 +156,32 @@ published papers, one of them deliberately backed by the wrong paper so the tool
 that refusal is the repository's standing regression test, not a defect. Point CI at it and see
 what a red evidence gate looks like.
 
+### When it says every quote is missing
+
+Run `citevouch doctor` before you believe it.
+
+```text
+$ citevouch doctor --root demo
+[ok  ] python      3.12
+[ok  ] pypdf       6.16.1 (reads PDFs in-process)
+[ok  ] pdftotext   not on PATH (not needed; pypdf is installed)
+[ok  ] cache       demo/.citevouch/cache is writable
+[ok  ] manuscript  demo/manuscript.md (2154 bytes)
+[ok  ] manifest    demo/sources.toml (148 bytes)
+
+Everything this tool needs is on this machine. If quotes are still reported missing, the source files are the place to look.
+```
+
+(That is a machine with `pypdf` from pip and no poppler; with `pdftotext` installed the third line
+prints its path instead, shortened in the middle. Windows prints backslashes.)
+
+The failure that sends people away from this tool is not an error message. It is a run that
+finishes and reports every quote missing, because the PDF could not be read at all — and nothing in
+that output says so. `doctor` is the command that is allowed to be reassuring: it checks that an
+extractor exists, that the cache is writable, that the interpreter is new enough, and that the files
+the project names are actually there. It exits `1` when something is broken, and it is the one
+place where `1` means "your machine", not "your manuscript".
+
 ### Three claim dialects
 
 Fenced blocks (above), HTML comments, and table rows. Pick whichever survives your editor.

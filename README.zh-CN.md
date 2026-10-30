@@ -134,6 +134,30 @@ citevouch check  manuscript.md --root . --format markdown # 直接贴进 PR 的�
 
 仓库里的 [demo/](demo/) 是一个完整的真实项目：5 条断言取自两篇真实论文，两篇都被真正引用（含一条故意引用了一篇**根本没有那句话**的论文，工具必须对它说不，见 [demo/manuscript.md](demo/manuscript.md)），账本、页码、两份 PDF 的 SHA-256 全对得上——换掉任意一份，`verify` 都会报 `source-changed`。
 
+### 当它说「每条引文都找不到」
+
+先跑 `citevouch doctor`，再决定要不要相信它。
+
+```text
+$ citevouch doctor --root demo
+[ok  ] python      3.12
+[ok  ] pypdf       6.16.1 (reads PDFs in-process)
+[ok  ] pdftotext   not on PATH (not needed; pypdf is installed)
+[ok  ] cache       demo/.citevouch/cache is writable
+[ok  ] manuscript  demo/manuscript.md (2154 bytes)
+[ok  ] manifest    demo/sources.toml (148 bytes)
+
+Everything this tool needs is on this machine. If quotes are still reported missing, the source files are the place to look.
+```
+
+（这是在「用 pip 装了 `pypdf`、没装 poppler」的机器上跑的；装了 `pdftotext` 时第三行会打印它的路径，
+中间做省略。Windows 打印的是反斜杠。）
+
+真正把人赶走这个工具的，不是报错。是一次跑完、每条引文都报「找不到」，因为 PDF 根本没被读出来，
+而那段输出里没有一个字说明这一点——于是合理的反应是卸载。`doctor` 是唯一允许让人安心的命令：
+它查抽取器在不在、缓存能不能写、解释器够不够新、项目点名的文件到底在不在。有问题时它退 `1`，
+而这是全工具唯一一处 `1` 表示「你的机器有问题」而不是「你的稿子有问题」。
+
 ### 三种 claim 方言
 
 围栏块（上面那种）、HTML 注释、表格行。挑一种在你的编辑器里活得下来的：

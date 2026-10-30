@@ -11,7 +11,16 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
 
+- `citevouch doctor` reports whether this machine can read a PDF at all, and
+  which check failed in the way that produced the symptom. The failure that
+  sends people away from this tool is not an error message: a run finishes and
+  says every quote is missing because no extractor is installed, and nothing in
+  that output says so. `doctor` checks the interpreter, `pypdf`, `pdftotext`,
+  cache writability, the manuscript and the manifest, prints one line per check
+  with a `fix:` line under every failure, and exits `1` for a broken machine --
+  the one place where `1` means "your machine", not "your manuscript".
 ## [0.10.3] — 2026-10-30
 ### Fixed
 

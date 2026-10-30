@@ -40,13 +40,18 @@ not what changed, but what proves the change works.
   `tests/test_readme_example.py` needed no change because no demo quote crosses
   a page break.
 
-- [ ] **`docs/metrics.md` does not exist.**
+- [x] **`docs/metrics.md` does not exist.**
   Nobody can tell whether any of this works.
   *Who is blocked*: the maintainer, i.e. me — without a written record every
   claim about progress is a memory.
   *Done when*: the file exists with star/fork/watcher/issue counts, publish
   download counts, and one dated row per heartbeat that actually changed
   something.
+  **Done — why it is now true:** `docs/metrics.md` carries the three `gh api`
+  invocations that produce every number in it, the first dated row (0 stars,
+  0 forks, 0 issues, 6 downloads across 16 releases, PyPI 404), and the three
+  pre-committed readings of a month with no movement, each with a different
+  next step so the decision is not made by whoever is most tired that day.
 
 ## P1 — nobody can start using it
 
@@ -61,13 +66,20 @@ not what changed, but what proves the change works.
   the manuscript, always exits 0, and says "no local file" rather than guessing.
   Reverse check: each new test red before, green after.
 
-- [ ] **`citevouch doctor` does not exist.**
+- [x] **`citevouch doctor` does not exist.**
   The first failure a new user hits is "it installed but found nothing", and
   there is no way to ask why.
   *Who is blocked*: anyone whose first run produces `quote-missing`.
   *Done when*: it reports pypdf presence/version, whether `pdftotext` is on
   PATH, whether the cache directory is writable, and the Python version, each
   with a plain "what this means" line, exit 0.
+  **Done — why it is now true:** `src/citevouch/doctor.py` runs six checks
+  (interpreter, pypdf, `pdftotext`, cache writability, manuscript, manifest) and
+  prints a `fix:` line under every failure that names the command which would
+  resolve it; `--format json|sarif` carry the same facts. `tests/test_doctor.py`
+  (20 tests) covers a broken machine, a healthy one, and the README example, so
+  the documented output cannot describe a smaller tool than the shipped one.
+  Exit is 1 for a broken machine and 0 otherwise.
 
 - [ ] **No `action.yml`.**
   The Marketplace is the only place people look for "a check I can add to CI".

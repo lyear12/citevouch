@@ -1,11 +1,15 @@
 """Command line interface.
 
-Four verbs, one job each:
+Five verbs, one job each:
 
 ``scan``    record the evidence a manuscript points at
 ``verify``  re-check a recorded ledger against the files on disk
 ``check``   scan and verify in one pass (what CI runs)
 ``report``  re-render an existing ledger as a table
+``doctor``  say whether this machine can see anything at all
+
+``init-demo`` is a sixth, and it is the only one that writes a project rather
+than reading one; it exists so the first run is not a wall of errors.
 
 Exit codes are the whole CI contract: 0 clean, 1 findings at or above the
 threshold, 2 usage error.  Nothing else may be returned — a CI job cannot
@@ -21,6 +25,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from . import doctor as doctor_module
 from .errors import CitevouchError, UsageError
 from .model import SEVERITIES, SUPPORTED_SCHEMA, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
@@ -202,6 +207,38 @@ def cmd_check(args: argparse.Namespace) -> int:
 def _count(count: int, noun: str) -> str:
     """Write "1 claim" or "5 claims"; the message is read by people."""
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Report whether this machine and this project can be checked at all.
+
+    The exit code is 1 for a broken machine and 0 for a working one, and that
+    is the only place in the tool where 1 does not mean "findings". A user with
+    a broken install needs a failing exit code for the same reason CI does: a
+    command that always returns 0 cannot be put in a script, and this is the
+    command a support thread will ask them to paste.
+    """
+    reports = doctor_module.diagnose(root=args.root, manuscript=args.manuscript)
+    broken = doctor_module.problems(reports)
+    if args.format == "json":
+        payload = json.dumps(
+            {
+                "tool_version": __version__,
+                "root": args.root,
+                "checks": [
+                    {"name": r.name, "ok": r.ok, "detail": r.detail, "fix": r.fix}
+                    for r in reports
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        _emit(payload + "\n")
+    elif args.format == "sarif":
+        _emit(render_sarif(doctor_module.findings(reports), __version__, args.root))
+    else:
+        doctor_module.render(reports)
+    return 1 if broken else 0
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -399,6 +436,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_demo.add_argument("directory", help="directory to create (must be empty or absent)")
     p_demo.set_defaults(func=cmd_init_demo)
+
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="check that this machine can read PDFs at all (run it when nothing is found)",
+    )
+    # Deliberately not `common()`: doctor takes no ledger, no bibliography and
+    # no --fail-on, because it is the command you run when the project is
+    # suspect. Offering flags it cannot honour would suggest it reads the
+    # project more deeply than it does.
+    p_doctor.add_argument("--root", default=".", help="project directory (default: .)")
+    p_doctor.add_argument(
+        "--manuscript",
+        default="manuscript.md",
+        help="manuscript path relative to --root (default: manuscript.md)",
+    )
+    p_doctor.add_argument(
+        "--format",
+        choices=("text", "json", "sarif"),
+        default="text",
+        help="output format",
+    )
+    p_doctor.set_defaults(func=cmd_doctor)
     return parser
 
 

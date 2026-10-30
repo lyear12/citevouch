@@ -32,11 +32,24 @@ def read_blocks(name: str) -> list[str]:
     return re.findall(r"```text\n(.*?)```", text, re.DOTALL)
 
 
+def example_block(name: str) -> str:
+    """The block that shows a `verify` run, found by content, not by position.
+
+    It used to be `read_blocks(name)[0]`, which quietly meant "whichever text
+    block happens to come first". Adding a second example above it - the
+    `doctor` output - would have pointed every arithmetic assertion at a block
+    that has no summary line, and the failure would have read like a broken
+    example rather than a broken test.
+    """
+    for block in read_blocks(name):
+        if SUMMARY.search(block):
+            return block
+    raise AssertionError(f"{name}: no ```text block shows a summary line")
+
+
 @pytest.mark.parametrize("name", ["README.md", "README.zh-CN.md"])
 def test_the_example_counts_add_up(name: str) -> None:
-    blocks = read_blocks(name)
-    assert blocks, f"{name} has no ```text example at all"
-    block = blocks[0]
+    block = example_block(name)
 
     summary = SUMMARY.search(block)
     assert summary is not None, f"{name}: the example has no summary line"
@@ -77,7 +90,7 @@ def test_the_example_never_shows_the_claim_id_twice(name: str) -> None:
     that also happened to be wrong about it. One rule now: the terminal names
     the claim once, in parentheses.
     """
-    block = read_blocks(name)[0]
+    block = example_block(name)
     doubled = [line for line in block.splitlines() if re.search(PREFIX, line)]
     assert not doubled, f"{name}: the claim id is printed twice on these lines: {doubled}"
 
@@ -95,7 +108,7 @@ def test_the_example_is_what_the_demo_actually_prints() -> None:
     code = main(["verify", "manuscript.md", "--root", str(demo), "--format", "json"])
     assert code == 1  # the deliberate wrong-paper claim
 
-    block = read_blocks("README.md")[0]
+    block = example_block("README.md")
     shown = {(claim, code_name) for _sev, code_name, _p, _l, claim in LINE.findall(block)}
     expected = {
         ("cxn-total", "quote-found"),

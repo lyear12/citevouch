@@ -45,7 +45,8 @@ easier to record but easier to fake, it is the wrong change.
 | `src/citevouch/scan.py` | manuscript → ledger |
 | `src/citevouch/verify.py` | ledger + files on disk → findings |
 | `src/citevouch/report.py` | text, JSON, SARIF, Markdown renderers |
-| `src/citevouch/cli.py` | argument parsing, exit codes, `init-demo` |
+| `src/citevouch/doctor.py` | machine and project checks: extractors, cache, interpreter |
+| `src/citevouch/cli.py` | argument parsing, exit codes, `init-demo`, `doctor` |
 | `tools/next_version.py` | reads `## [Unreleased]`, decides the next version, rewrites the changelog |
 | `.github/workflows/test.yml` | the gate: 8 matrix cells, lint, acceptance, offline |
 | `.github/workflows/auto-release.yml` | green main → decides a version → commits, tags, calls release |
