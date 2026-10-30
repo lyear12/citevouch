@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.18.0] — 2026-10-30
 ### Added
 
 - `no-claim-blocks` (high): a run that read a manuscript holding no claim blocks now says so instead
@@ -30,7 +32,6 @@ tag and that file disagree.
 - `verify` returned exit 0 over a committed ledger whose `claims` list was empty, printing the same
   `0 claims` / `worst severity: info` summary. Reading the recording back does not make that verdict
   true; it only means the false green was written before it was read.
-
 ## [0.17.1] — 2026-10-30
 ### Fixed
 
@@ -799,7 +800,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.17.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/lyear12/citevouch/releases/tag/v0.18.0
 [0.17.1]: https://github.com/lyear12/citevouch/releases/tag/v0.17.1
 [0.17.0]: https://github.com/lyear12/citevouch/releases/tag/v0.17.0
 [0.16.5]: https://github.com/lyear12/citevouch/releases/tag/v0.16.5
