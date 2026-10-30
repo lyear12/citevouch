@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from pathlib import Path
+from urllib.parse import quote
 
 from .model import SEVERITIES, Finding, Ledger, worst
 from .verify import VerifyResult
@@ -176,19 +177,27 @@ def _sarif_uri(raw: str, root: Path | None) -> str:
     A path outside ``root`` stays absolute on purpose: inventing a relative
     path for a file the checkout does not contain would move the annotation
     onto some other file that happens to share the tail.
+
+    The result is percent-encoded, because this field is a URI and a file name
+    is not one. ``draft#2.md`` is the shortest way to see the difference: as a
+    URI it names the artifact ``draft`` with the fragment ``2.md``, so the
+    annotation lands nowhere; ``draft%20.md`` decodes to ``draft .md``, a
+    different file; ``my paper.md`` and ``论文.md`` are not URIs at all. Same
+    silent-loss failure the paragraphs above are about, reached by another
+    input, so it gets the same one-line treatment.
     """
     posix = raw.replace("\\", "/")
-    if root is None:
-        return posix
-    candidate = Path(raw)
-    if not candidate.is_absolute():
-        return posix
-    for base in (root, root.resolve()):
-        try:
-            return candidate.resolve().relative_to(base.resolve()).as_posix()
-        except (ValueError, OSError):
-            continue
-    return posix
+    if root is not None:
+        candidate = Path(raw)
+        if candidate.is_absolute():
+            for base in (root, root.resolve()):
+                try:
+                    posix = candidate.resolve().relative_to(base.resolve()).as_posix()
+                except (ValueError, OSError):
+                    continue
+                else:
+                    break
+    return quote(posix, safe="/")
 
 
 def render_sarif(

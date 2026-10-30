@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from urllib.parse import unquote
 
 from citevouch.model import SEVERITIES, Finding
 from citevouch.report import (
@@ -95,6 +97,67 @@ def test_sarif_without_a_path_has_no_locations():
     findings = [Finding(code="bib-key-unused", message="x")]
     doc = json.loads(render_sarif(findings))
     assert "locations" not in doc["runs"][0]["results"][0]
+
+
+def _sarif_uri_of(path: str) -> str:
+    doc = json.loads(render_sarif([Finding(code="quote-missing", message="x", path=path)]))
+    return doc["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"][
+        "uri"
+    ]
+
+
+class TestTheSarifUriIsAUri:
+    """`artifactLocation.uri` is a URI, and a file name is not one.
+
+    Every case here is a way the annotation stops pointing at the file the
+    finding is about, without the upload failing: the run stays green and the
+    comment is on the wrong line of the wrong file, or on nothing.
+    """
+
+    def test_a_space_is_encoded(self) -> None:
+        assert _sarif_uri_of("my paper.md") == "my%20paper.md"
+
+    def test_a_hash_does_not_become_a_fragment(self) -> None:
+        # `draft#2.md` as a URI is the artifact `draft` plus the fragment
+        # `2.md`: everything after the hash is never part of the path.
+        assert _sarif_uri_of("draft#2.md") == "draft%232.md"
+
+    def test_a_literal_percent_is_escaped_once(self) -> None:
+        # A file really named `draft%20.md` must not be sent as the URI for
+        # `draft .md`, and it must not be encoded twice either.
+        assert _sarif_uri_of("draft%20.md") == "draft%2520.md"
+
+    def test_a_name_that_is_not_ascii_survives(self) -> None:
+        uri = _sarif_uri_of("\u8bba\u6587.md")
+        assert uri == "%E8%AE%BA%E6%96%87.md"
+        assert uri.isascii(), "a URI with raw non-ASCII bytes is not a URI"
+
+    def test_every_one_of_them_parses_back_to_the_original_name(self) -> None:
+        # The whole point: encoding is only right if it round-trips.
+
+        for name in ("m.md", "my paper.md", "draft#2.md", "draft%20.md", "论文.md"):
+            assert unquote(_sarif_uri_of(name)) == name, name
+
+    def test_the_slash_is_left_alone(self) -> None:
+        # Separators are part of the URI's structure; encoding them would turn
+        # one path into one file name and break every nested finding.
+        assert _sarif_uri_of("papers/a b.md") == "papers/a%20b.md"
+
+    def test_a_rerooted_absolute_path_is_encoded_too(self, tmp_path: Path) -> None:
+        # The relative path comes from `relative_to`, not from the raw string,
+        # so it is the branch that a naive fix leaves unencoded.
+        target = tmp_path / "my paper.md"
+        target.write_text("x", encoding="utf-8")
+        doc = json.loads(
+            render_sarif(
+                [Finding(code="quote-missing", message="x", path=str(target))],
+                root=tmp_path,
+            )
+        )
+        uri = doc["runs"][0]["results"][0]["locations"][0]["physicalLocation"][
+            "artifactLocation"
+        ]["uri"]
+        assert uri == "my%20paper.md"
 
 
 def test_markdown_splits_blocking_from_other():

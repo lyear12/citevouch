@@ -1932,3 +1932,38 @@ Re-running `git add` first and then `python -m ruff format` gives 80, which
 is what CI agrees with. This is the second time this exact step has cost a
 round: the same thing happened to `tests/test_no_claims.py` in the release
 that introduced `no-claim-blocks`. Seen 2.
+
+## A path and a URI are two different strings wearing the same characters
+
+`artifactLocation.uri` is a URI. Every other path this tool handles is a file
+name. They disagree on exactly the characters that appear in real paper
+directories: `#` starts a fragment, `%` starts a percent-escape, a space is not
+allowed, and anything above U+007F is not a URI at all.
+
+The function that builds it was written to fix a *different* silent loss: an
+absolute local path matched no repository artifact, so GitHub dropped the
+annotation and the run stayed green. It re-rooted the path and stopped there,
+and the encoding half was never written - so `draft#2.md` became the artifact
+`draft` plus the fragment `2.md`, `draft%20.md` became `draft .md`, and
+`论文.md` was not a URI. Same failure, same invisibility: nothing errored, the
+upload succeeded, the annotation was just somewhere else or nowhere.
+
+Two lessons, because both halves cost something to see:
+
+1. **A fix aimed at one way of losing data does not cover the others.** The
+   docstring described the failure mode precisely and still missed it, because
+   it reasoned "absolute paths are wrong, relative paths are right" and never
+   asked what a *path* is not allowed to contain. When a field has a
+   specified format, the question is not "does my value look like the values I
+   have seen" but "is my value valid in this format at all".
+2. **Encode last.** The natural fix - encode the string at the top - leaves
+   the branch that returns `relative_to(...).as_posix()` unencoded, because
+   that path is computed later. The reverse-verification for "encode before
+   re-rooting" is what proves the order matters; without it the fix looks
+   correct and one branch is still broken.
+
+Evidence: `_probe_uri.py` over six file names (`m.md`, `my paper.md`, `论文.md`,
+`draft#2.md`, `draft%20.md`, `odd"name.md`) printed the URI for each before and
+after; `tests/test_report.py::TestTheSarifUriIsAUri` asserts the round trip
+(`unquote(uri) == name`) rather than a literal, so the encoding cannot drift
+from what a reader would decode. Seen 1.

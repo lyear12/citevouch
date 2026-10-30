@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A SARIF path is now percent-encoded, so an annotation reaches the file the
+  finding is about. `artifactLocation.uri` is a URI, and a file name is not
+  one: `draft#2.md` was sent verbatim, which a SARIF reader sees as the
+  artifact `draft` plus the fragment `2.md`; `draft%20.md` decoded to
+  `draft .md`; `my paper.md` and `论文.md` were not URIs at all. The upload
+  stayed green in every case, which is the same silent-loss failure the
+  re-rooting in this function was written to prevent - reached, as it turned
+  out, by another input. Encoding happens after re-rooting, because
+  `relative_to` produces the relative path and encoding first would leave it
+  unescaped.
 
 ## [0.19.7] — 2026-10-30
 ### Fixed
