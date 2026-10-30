@@ -339,7 +339,12 @@ def cmd_draft(args: argparse.Namespace) -> int:
 
     text = read_text(manuscript)
     converted = latex_module.looks_like_latex(manuscript)
+    included: list[str] = []
     if converted:
+        # A paper split across files keeps its citations in the parts, and
+        # `to_text` reads one file.  Reporting the names it could not follow
+        # turns a silent zero into a question the author can answer.
+        included = latex_module.included_files(text)
         text = latex_module.to_text(text)
     result = draft_module.draft(
         text,
@@ -347,7 +352,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         known=discover_sources(root, args.source),
         root=root,
     )
-    text = draft_module.render(result, manuscript.name, converted=converted)
+    text = draft_module.render(result, manuscript.name, converted=converted, included=included)
     _write_text_lf(output, text)
     if not args.quiet:
         _emit(f"citevouch: {draft_module.summarize(result)}\n", sys.stderr)

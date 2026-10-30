@@ -76,6 +76,12 @@ _HEADING = frozenset(
     {"part", "chapter", "section", "subsection", "subsubsection", "paragraph", "subparagraph"}
 )
 
+#: Commands whose argument names another file this module does not read.
+#: They are dropped from the output (they are not prose); the names are also
+#: reported, because a paper split across files keeps its citations in the
+#: parts, and a silent zero is the failure this tool exists to prevent.
+_INCLUDE = re.compile(r"\\in(?:put|clude|cludeonly)\s*\{([^}]*)\}")
+
 # Commands whose argument is not prose.
 _DROP_ARGUMENT = frozenset(
     {
@@ -407,6 +413,16 @@ def _plain_math(inner: str) -> str:
     without_commands = re.sub(r"\\[A-Za-z]+", "", inner)
     without_commands = without_commands.replace("{", "").replace("}", "")
     return without_commands.strip()
+
+
+def included_files(tex: str) -> list[str]:
+    """Name the files this document pulls in, in the order it pulls them."""
+    seen: list[str] = []
+    for match in _INCLUDE.finditer(strip_comments(tex)):
+        name = match.group(1).strip()
+        if name and name not in seen:
+            seen.append(name)
+    return seen
 
 
 def to_text(tex: str) -> str:

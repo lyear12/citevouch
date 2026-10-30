@@ -235,3 +235,62 @@ class TestALatexManuscriptIsRefusedNotQuietlyPassed:
         "The corpus contains 154,391 utterances \\citep{smith2026cxn}.\n"
         "\\end{document}\n"
     )
+
+
+class TestASplitPaperIsNotASilentZero:
+    r"""A paper that keeps its text in \input files is the normal shape.
+
+    This command reads one file.  Following the includes is a design change
+    nobody has asked for; saying which files it did not read is not, and it is
+    the difference between `0 claim block(s) proposed` and `0 claim block(s)
+    proposed, and here is the half of the paper I never opened`.
+    """
+
+    def _draft(self, project: Path, name: str, source: str) -> str:
+        (project / name).write_text(source, encoding="utf-8", newline="\n")
+        finished = _run(["draft", name, "--root", ".", "-o", "out.md", "--force"], project)
+        assert finished.returncode == 0, finished.stderr
+        return (project / "out.md").read_text(encoding="utf-8")
+
+    def test_the_files_it_could_not_read_are_named(self, project: Path) -> None:
+        text = self._draft(
+            project,
+            "split.tex",
+            r"""\documentclass{article}
+
+\begin{document}
+\input{sec/intro}
+\include{sec/body}
+\end{document}
+""",
+        )
+        assert "pulls text in from" in text
+        assert "sec/intro" in text
+        assert "sec/body" in text
+
+    def test_a_document_that_holds_its_own_text_gets_no_such_note(self, project: Path) -> None:
+        text = self._draft(
+            project,
+            "whole.tex",
+            r"""\documentclass{article}
+
+\begin{document}
+The combined corpus contains 154,391 utterances \citep{smith2026cxn}.
+\end{document}
+""",
+        )
+        assert "pulls text in from" not in text
+
+    def test_a_commented_out_input_is_not_a_file_it_failed_to_read(self, project: Path) -> None:
+        text = self._draft(
+            project,
+            "commented.tex",
+            r"""\documentclass{article}
+
+% \input{sec/never}
+\begin{document}
+Text.
+\end{document}
+""",
+        )
+        assert "sec/never" not in text

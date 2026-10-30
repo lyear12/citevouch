@@ -29,6 +29,7 @@ the same verifier the author will use.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -511,7 +512,10 @@ def _block(proposal: Proposal) -> list[str]:
 
 
 def render(
-    result: Draft, manuscript_name: str = "manuscript.md", converted: bool = False
+    result: Draft,
+    manuscript_name: str = "manuscript.md",
+    converted: bool = False,
+    included: Sequence[str] = (),
 ) -> str:
     """The proposals file, which is also an ordinary manuscript.
 
@@ -521,6 +525,11 @@ def render(
     that text, so on a ``.tex`` manuscript they point at the wrong line of the
     file the author is holding.  Saying so costs one comment line; not saying so
     sends the reader to look at a line that holds something else.
+
+    ``included`` names the files an ``\\input`` or ``\\include`` pulls in, which this
+    command does not read.  A paper split across files keeps its citations in
+    the parts, so without this line the output is a clean zero that says
+    nothing about the half of the paper it never opened.
     """
     proposed = len(result.proposals)
     high = sum(1 for proposal in result.proposals if proposal.confidence == "high")
@@ -534,6 +543,13 @@ def render(
         "  copying any of them into the real manuscript.",
         "-->",
     ]
+    if included:
+        out.append(
+            "<!-- This document pulls text in from "
+            + ", ".join(included)
+            + ", which `citevouch draft` does not read: any"
+            + " citation in those files is missing from the blocks below. -->"
+        )
     if converted:
         out.append(
             "<!-- Line numbers below count the LaTeX-converted text, not "

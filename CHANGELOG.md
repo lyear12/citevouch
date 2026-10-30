@@ -12,6 +12,20 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`draft` names the files it could not read, instead of reporting a clean
+  zero.** A paper that keeps its chapters in `\input{sec/intro}` files
+  - which is the shape of every Overleaf project and most real papers -
+  holds its citations in the parts, and `draft` reads one file. Run on such a
+  paper it proposed `0 claim block(s)` and exited 0, which reads as "this
+  manuscript has no citations" rather than "I never opened the half that
+  does". The proposals file now says which files the document pulls in and
+  that any citation in them is missing from the blocks below.
+  The includes are still not followed: that is a design change, and it is
+  not made here.
+
+
 ## [0.19.12] — 2026-10-30
 ### Fixed
 

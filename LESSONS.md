@@ -2102,3 +2102,32 @@ all. Upstream was the tempting place to fix this, and it was the wrong place
 twice running.
 
 Seen 3. Promoted to `docs/code-standards.md`.
+
+## A file format with includes has a second half you did not read
+
+**Rule.** If a reader claims to understand a format that can point at other
+files, it has to say which files it did not follow. Not following them is a
+scope decision and is fine; returning a clean zero either way is not.
+
+**Why.** `citevouch draft paper.tex` reads one file. A LaTeX paper that keeps
+its chapters in `\input{sec/intro}` - the shape of every Overleaf project
+and most submissions - keeps its citations in the parts. On such a paper the
+command proposed `0 claim block(s)` and exited 0. The output was correct about
+the one file it opened and wrong about the paper: it reads as "this manuscript
+has no citations", which is a verdict, when the truth is "I never opened the
+half that does", which is a scope note. This project has now met this shape
+five times - a `.tex` read as markdown, a manuscript with no claim blocks, a
+bibliography no decoder could read, a scan with no text layer, a chatty
+citation with no verbatim sentence - and every repair was the same sentence in
+a different tense: an empty result has to name what made it empty.
+
+**Evidence.** `tests/test_latex_end_to_end.py::TestASplitPaperIsNotASilentZero`
+asserts the names appear for a split paper and that a document holding its own
+text gets no such note. Three mutations turn it red: `render` ignoring
+`included`, `cmd_draft` never collecting the names, and the finder skipping
+`strip_comments` so a commented-out `\input` counts as a file that was not
+read. Following the includes is deliberately not done here - that is a design
+change, and the note is what makes the design's limit visible instead of
+silent.
+
+Seen 1.
