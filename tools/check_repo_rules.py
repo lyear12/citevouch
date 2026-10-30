@@ -57,6 +57,24 @@ def _run_git(*args: str, cwd: Path) -> str:
     return proc.stdout
 
 
+def _run_section(body: str) -> str:
+    """The text from ``Run:`` up to the next evidence section.
+
+    Measurements live there and nowhere else. A commit body is also prose, and
+    prose about a past measurement quotes its number: "the commit before this
+    one measured 508 and 501" is a true sentence about history, not a claim
+    about this run. Held against the whole body, the gate would demand that a
+    commit never explain what it changed - so the scope is the one section
+    AGENTS.md designates for evidence.
+    """
+    start = body.find(REQUIRED_SECTIONS[0])
+    if start < 0:
+        return ""
+    rest = body[start + len(REQUIRED_SECTIONS[0]) :]
+    ends = [rest.find(section) for section in REQUIRED_SECTIONS[1:] if section in rest]
+    return rest[: min(ends)] if ends else rest
+
+
 def commit_message_violations(repo: Path, rev_range: str) -> list[str]:
     """Subjects of non-merge commits in ``rev_range`` missing an evidence section."""
     bad: list[str] = []
@@ -227,10 +245,11 @@ def main(argv: list[str] | None = None) -> int:
             if _RELEASE_SUBJECT.match(subject.strip()):
                 continue
             mismatches: list[str] = []
+            measured = _run_section(body)
             if args.passed is not None:
-                mismatches += passed_count_mismatches(body, args.passed[0], args.passed[1:])
+                mismatches += passed_count_mismatches(measured, args.passed[0], args.passed[1:])
             if args.formatted is not None:
-                mismatches += formatted_count_mismatches(body, args.formatted)
+                mismatches += formatted_count_mismatches(measured, args.formatted)
             for mismatch in mismatches:
                 problems.append(f"{subject.strip()[:60]}: {mismatch}")
 

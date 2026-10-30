@@ -193,3 +193,27 @@ def test_a_number_nobody_measured_is_still_caught():
 def test_one_number_still_has_to_be_the_right_one():
     assert cr.passed_count_mismatches("Run: pytest (508 passed)", 508) == []
     assert cr.passed_count_mismatches("Run: pytest (317 passed)", 508)
+
+
+def test_a_number_in_the_prose_is_not_a_claim_about_this_run():
+    """A body explains what changed, and that explanation quotes the numbers
+    that came before. Held against the whole body, the gate would require a
+    commit to stop explaining itself."""
+    body = (
+        "Let a commit measure more than one suite\n"
+        "\n"
+        "The commit before this one measured 508 and 501.\n"
+        "\n"
+        "Run: PYTHONPATH=src python -m pytest (511 passed)\n"
+        "\n"
+        "Not tried: nothing\n"
+        "\n"
+        "Broken by hand: none.\n"
+    )
+    assert cr._run_section(body).strip().startswith("PYTHONPATH=src")
+    assert cr.passed_count_mismatches(cr._run_section(body), 511) == []
+
+
+def test_a_number_inside_the_run_section_is_still_policed():
+    body = "Subject\n\nRun: pytest (317 passed)\n\nNot tried: x\n"
+    assert cr.passed_count_mismatches(cr._run_section(body), 511)

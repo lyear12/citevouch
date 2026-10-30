@@ -19,6 +19,11 @@ tag and that file disagree.
   rule is "every `N passed` was measured in this run" rather than "every
   `N passed` equals the first one" - the first rule caught an honest message,
   which teaches the next agent to write fewer measurements.
+- `tools/check_repo_rules.py` compares measured counts against the `Run:`
+  section only, not the whole commit body. A body explains what changed and
+  quotes the numbers that came before it; held against the whole body, the gate
+  would require a commit to stop explaining itself. The section AGENTS.md
+  designates for evidence is the one that gets policed.
 - The source archive now carries every file its own test suite reads. `MANIFEST.in`
   said `graft tests` and shipped `tests/` without `tools/`, `.pre-commit-hooks.yaml`,
   `action.yml`, `.github/`, `docs/img/`, or `demo/papers/`. Unpacking the published
