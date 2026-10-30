@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.2] — 2026-10-30
 ### Fixed
 
 - A number written in another script's digits is now the same number as
@@ -27,7 +28,6 @@ tag and that file disagree.
   (U+066B) and percent (U+066A) signs, so `40٬688` and `40,688` still
   agree.  A genuinely different number still reaches the numbers tier:
   `40699` against `40688` is still a number problem, not a missing quote.
-
 ## [0.19.1] — 2026-10-30
 ### Fixed
 
@@ -984,7 +984,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.2...HEAD
+[0.19.2]: https://github.com/lyear12/citevouch/releases/tag/v0.19.2
 [0.19.1]: https://github.com/lyear12/citevouch/releases/tag/v0.19.1
 [0.19.0]: https://github.com/lyear12/citevouch/releases/tag/v0.19.0
 [0.18.10]: https://github.com/lyear12/citevouch/releases/tag/v0.18.10
