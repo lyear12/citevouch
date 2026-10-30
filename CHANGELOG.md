@@ -13,6 +13,12 @@ tag and that file disagree.
 ## [Unreleased]
 ### Added
 
+- `.pre-commit-hooks.yaml`: two hooks, `citevouch` (checks, writes nothing)
+  and `citevouch-record` (rescans and writes the ledger). They are separate
+  ids because a hook that re-records on every commit turns "the PDF changed
+  under me" into "the ledger now agrees", which is the one failure this tool
+  exists to catch.
+
 - `citevouch draft`: turns an existing manuscript into reviewable claim
   blocks. It finds every Pandoc (`[@key]`) and LaTeX (`\cite{key}`)
   citation, takes the sentence around it as the claim, resolves the key to
@@ -23,6 +29,16 @@ tag and that file disagree.
   a citation, and always exits 0: whatever it could not do is written into
   the file as a comment. Hand-writing the first hundred blocks was the
   largest barrier between this tool and a real manuscript.
+
+### Fixed
+
+- The file count quoted in a `Run:` line is now measured over the tracked
+  files (`tools/format_check.sh`) instead of the working tree. `ruff format
+  --check .` counts untracked drafts, so the number it printed was only true
+  on the machine that printed it: three releases in a row quoted a count that
+  disagreed with CI, and the gate caught each one after the fact. `xargs`
+  reports a child's exit 1 as 123, which the script maps back to 1 - the gate
+  only reads "zero or not", but a person reading a red build reads the number.
 
 ## [0.13.0] — 2026-10-30
 ### Added

@@ -1,0 +1,36 @@
+# Hooks for https://pre-commit.com
+#
+# `pre-commit` finds this file at the repository root and offers each entry as a
+# hook id. It runs the hook in an isolated environment built from `pyproject.toml`
+# unless the repository is already installed, which is why the `entry` names an
+# installed console script rather than a path.
+#
+# The point of the hook is that the check runs before a bad ledger is pushed, not
+# after. It reads the committed ledger by default: a hook that silently re-records
+# evidence would turn "the file changed under me" into "the file now matches",
+# which is the one failure this tool exists to catch.
+
+- id: citevouch
+  name: citevouch - check that every claim still matches its source
+  description: >
+    Reads the recorded ledger and re-checks each claim against the local source
+    files. Fails when a quote moved, went missing, or the source file is no
+    longer the one the ledger recorded.
+  entry: citevouch check
+  language: python
+  files: '\.(md|markdown|tex)$'
+  pass_filenames: false
+  require_serial: true
+  additional_dependencies: []
+
+- id: citevouch-record
+  name: citevouch - record evidence for a changed manuscript
+  description: >
+    The mutating counterpart. `scan` writes a new ledger; run it deliberately,
+    review the diff, and commit the ledger with the manuscript that changed.
+  entry: citevouch scan
+  language: python
+  files: '\.(md|markdown|tex)$'
+  pass_filenames: false
+  require_serial: true
+  additional_dependencies: []

@@ -1094,3 +1094,31 @@ the same way: a section heading has no full stop, so splitting on punctuation
 glued a title, its `====` rule and the sentence below it into one string, and
 the filter then rejected the whole thing - `_sentences_of` now splits on
 paragraph breaks first. Seen 1.
+
+## A measurement of the working tree is a measurement of one machine
+
+**Rule.** When a number from a local command is written into a commit message or
+held to by a gate, the command has to read the set of inputs every clone has -
+the tracked files - not whatever is lying in the directory the author happens to
+be sitting in. A number whose inputs differ per machine is not a measurement; it
+is a coincidence that usually repeats.
+
+**Why.** `ruff format --check .` walks the working tree. On the machine writing a
+change that is `N files`; in CI's checkout of the same commit it is `N-1`,
+because an untracked draft exists in the first and not the second. Three
+releases in a row quoted a file count that was only true locally, and each time
+the gate caught the discrepancy after the commit was already pushed - the check
+worked, which is exactly why repeating it three times was wasteful. The fix is
+not a better guess but a narrower input: `git ls-files` is the same set on every
+clone, so the count in a message is one the reader can reproduce.
+
+**Evidence.** `tools/format_check.sh` measures the tracked files and the lint
+job runs it in both places (`ruff check .` and `sh tools/format_check.sh`), so
+the local number and CI's number are the same command over the same input.
+`tests/test_format_check.py::test_an_untracked_file_does_not_change_the_count`
+writes a draft into a two-file repository and asserts the count stays at two;
+`::test_a_checkout_with_nothing_in_it_is_not_a_clean_checkout` pins the other
+half - no files is exit 2, not "0 files already formatted", because an empty
+checkout read as clean is the same mistake as reading zero passing tests out of
+a suppressed summary line. Seen 3, counting the two earlier wrong numbers
+(`N passed` 317 vs 273, `N files` 47 vs 46).

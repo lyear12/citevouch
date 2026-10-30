@@ -81,7 +81,7 @@ A change is done when all of the following hold. Run them; do not assume.
 
 ```bash
 python -m pytest -q                                  # all tests
-python -m ruff check . && python -m ruff format --check .  # exactly CI's lint job, both halves
+python -m ruff check . && sh tools/format_check.sh  # exactly CI's lint job, both halves
 python -m venv .venv && .venv/Scripts/pip install -e .  # Windows; POSIX uses .venv/bin/pip
 python -m citevouch init-demo /tmp/x && cd /tmp/x && python -m citevouch verify manuscript.md  # the documented first run works
 ```

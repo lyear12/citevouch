@@ -21,6 +21,7 @@ quietly breaking the rule is not.
 | Nothing that can block runs under a lock somebody needs | The extraction cache is written by atomic replace, after the work, outside any loop that holds state. |
 | A default never overwrites what the user set | `--ledger`, `--root`, `--fail-on` fill in only when absent. `sources.toml` wins over discovery, never the reverse. |
 | Check the boundaries the change touches | Empty manuscript, one claim, a source with one page, a quote longer than its page, a page hint of 0 and of 10^6. |
+| A number in a message is measured over the tracked files | A count that depends on what is lying in the working tree is only true on the machine that printed it. `python -m pytest` and `sh tools/format_check.sh` measure the same set on every clone; quote those, not a number from a command that walked the directory. |
 
 ## Findings
 
@@ -55,7 +56,7 @@ A change is not done until all of these have been run and passed. Run them; do n
    passes files that `format --check` rejects, and running one is not running the gate:
    ```bash
    python -m pytest -q
-   python -m ruff check . && python -m ruff format --check .
+   python -m ruff check . && sh tools/format_check.sh
    ```
 3. **The package still installs and the entry point resolves:**
    ```bash
@@ -90,9 +91,13 @@ A change is not done until all of these have been run and passed. Run them; do n
 ## Policing these rules
 
 `tools/check_repo_rules.py` runs in the lint job and checks the rules that are decidable without
-reading prose: every non-release commit carries `Run:` / `Not tried:` / `Broken by hand:`, and every
-`LESSONS.md` entry marked `Seen` three or more times has been promoted into this file. A rule that
-lives only in a document is a rule that fails at the exact moment nobody thinks to look it up.
+reading prose: every non-release commit carries `Run:` / `Not tried:` / `Broken by hand:`, every
+`LESSONS.md` entry marked `Seen` three or more times has been promoted into this file, and the
+`N passed` and `N files` a commit's `Run:` line claims are compared against what this job measured.
+That last comparison only works when both sides measure the same input, which is why the file count
+comes from `sh tools/format_check.sh` (tracked files) and never from `ruff format --check .` (the
+working tree). A rule that lives only in a document is a rule that fails at the exact moment nobody
+thinks to look it up.
 
 ## Commits
 

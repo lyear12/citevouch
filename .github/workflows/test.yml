@@ -61,9 +61,14 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install -e ".[dev]"
       - name: ruff
+        # format --check runs through tools/format_check.sh: it measures the
+        # tracked files, not whatever happens to be in the working tree. The
+        # plain `ruff format --check .` counts untracked drafts too, so the
+        # number it prints depends on which machine ran it - and three
+        # releases quoted a file count that was only true locally.
         run: |
           ruff check .
-          ruff format --check .
+          sh tools/format_check.sh
       - name: repository rules
         # The rules this project states about itself, checked rather than
         # remembered: commit-message evidence sections, lesson promotions, and
@@ -107,7 +112,7 @@ jobs:
             echo "::error::the suite skipped tests; a skipped test proves nothing"
             exit 1
           fi
-          formatted=$(python -m ruff format --check . 2>&1 | grep -oE '[0-9]+ files' | tail -1 | cut -d' ' -f1)
+          formatted=$(sh tools/format_check.sh 2>&1 | grep -oE '[0-9]+ files' | tail -1 | cut -d' ' -f1)
           python tools/check_repo_rules.py --range "$range" --passed "$passed" \
             --formatted "${formatted:-0}"
 

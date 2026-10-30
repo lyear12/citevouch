@@ -64,9 +64,18 @@ def test_only_ruff_lines_are_read_for_a_file_count():
 
 
 def test_the_workflow_measures_the_file_count_it_holds_messages_to():
+    """The count has to come from the set of files every clone has.
+
+    The plain `ruff format --check .` counts the working tree, so a number it
+    prints is only true on the machine that printed it.  Three releases quoted
+    a file count that held locally and not in CI; the gate caught each one
+    after the fact.  Measuring the tracked files is what makes the number in a
+    commit message reproducible by whoever reads it.
+    """
     workflow = (REPO / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
     assert "--formatted" in workflow
-    assert "ruff format --check . 2>&1 | grep" in workflow
+    assert "tools/format_check.sh" in workflow
+    assert "ruff format --check . 2>&1 | grep" not in workflow
 
 
 def _repo_with_message(tmp_path: Path, body: str) -> Path:
