@@ -12,6 +12,28 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A SARIF rule's level is now one the schema allows.** Fifteen of the
+  twenty-six rules said `"blocking"`, which is not a SARIF 2.1.0 level — the
+  schema allows exactly `none`, `note`, `warning` and `error`. A document whose
+  `defaultConfiguration.level` is an unknown string fails schema validation,
+  and uploading that document is the entire point of `--format sarif`: the
+  GitHub action exists to put findings on the pull request as annotations.
+  `claim-without-evidence` was wrong in the other direction, saying `warning`
+  for a finding `model.CODES` calls `low`, so the same finding was a note in
+  the text report and a warning in GitHub.
+- **The level has one source instead of two.** `SARIF_RULES` used to be a table
+  of `(description, level)` pairs — a second, hand-written copy of a severity
+  that already lives in `model.CODES`. It is now a table of descriptions, and
+  the level is `_LEVEL[severity_of(code)]`, which is the same expression the
+  result's own `level` already used. A rule and its result can no longer
+  disagree with each other inside one document.
+
+  Both defects survived sixteen releases because every existing test compared
+  the *key sets* of `CODES` and `SARIF_RULES` and never their values — which is
+  what a second table looks like when nobody diffs it.
+
 ## [0.19.9] — 2026-10-30
 ### Fixed
 

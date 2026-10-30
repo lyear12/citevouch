@@ -12,64 +12,57 @@ from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import quote
 
-from .model import SEVERITIES, Finding, Ledger, worst
+from .model import SEVERITIES, Finding, Ledger, severity_of, worst
 from .textnorm import count_of, verb_for, word_for
 from .verify import VerifyResult
 
+# One description per finding code, keyed like ``model.CODES``.
+#
+# This table used to carry a SARIF level per entry as well, and that second
+# copy of the severity was wrong in two ways nobody could see:
+#
+# * fifteen codes said "blocking", which is not a SARIF 2.1.0 level at all -
+#   the schema allows exactly none, note, warning and error.  A rule whose
+#   ``defaultConfiguration.level`` is an unknown string makes the document
+#   invalid, and the whole point of ``--format sarif`` is to upload it to code
+#   scanning;
+# * ``claim-without-evidence`` is ``low`` in ``model.CODES`` but said
+#   ``warning`` here, so the same finding was a note in the text report and a
+#   warning in GitHub.
+#
+# Both survived because the tests compared the two tables' *key sets* and never
+# their values, and because a level that no one reads back looks like data.
+# The level is now derived from ``model.CODES`` in one place, so there is
+# nothing left to disagree with.
 SARIF_RULES = {
-    "quote-missing": ("A quoted passage is not in the source.", "blocking"),
-    "quote-fuzzy": (
-        "A quoted passage is only approximately in the source; nothing proves it.",
-        "blocking",
-    ),
-    "quote-moved": (
-        "A quoted passage is on a different page than recorded.",
-        "warning",
-    ),
-    "quote-found": ("A quoted passage is where the ledger says it is.", "note"),
-    "number-absent-in-quote": (
-        "A number in a quote is not on the cited page.",
-        "blocking",
-    ),
-    "source-missing": ("A source file is missing.", "blocking"),
-    "source-changed": ("A source file differs from the recorded copy.", "warning"),
-    "source-unreadable": ("A source file could not be read.", "blocking"),
-    "source-no-text": ("A source file was read and held no text at all.", "blocking"),
-    "bib-key-missing": ("A cited key is absent from the bibliography.", "blocking"),
-    "bib-key-unused": ("A bibliography entry is never cited.", "note"),
-    "bib-field-empty": ("A required bibliography field is empty.", "warning"),
-    "bib-field-malformed": ("A bibliography field could not be read.", "warning"),
-    "bib-field-duplicate": ("A bibliography field is given twice.", "warning"),
-    "bib-duplicate-key": ("A bibliography key appears twice.", "blocking"),
-    "bib-macro-unknown": ("A @string macro used by a field is not defined.", "warning"),
-    "bib-entry-header-unparsed": ("An @ header is not a usable entry.", "warning"),
-    "bib-unparsed-entry": (
-        "An entry never closes, so the entries after it could not be read.",
-        "blocking",
-    ),
-    "bib-unreadable": (
-        "Not one entry could be read, so no reference was checked against it.",
-        "blocking",
-    ),
-    "page-out-of-range": ("A page hint exceeds the source length.", "blocking"),
-    "claim-block-unclosed": (
-        "A block never closes, so later claims in the file were never read.",
-        "blocking",
-    ),
+    "quote-missing": "A quoted passage is not in the source.",
+    "quote-fuzzy": "A quoted passage is only approximately in the source; nothing proves it.",
+    "quote-moved": "A quoted passage is on a different page than recorded.",
+    "quote-found": "A quoted passage is where the ledger says it is.",
+    "number-absent-in-quote": "A number in a quote is not on the cited page.",
+    "source-missing": "A source file is missing.",
+    "source-changed": "A source file differs from the recorded copy.",
+    "source-unreadable": "A source file could not be read.",
+    "source-no-text": "A source file was read and held no text at all.",
+    "bib-key-missing": "A cited key is absent from the bibliography.",
+    "bib-key-unused": "A bibliography entry is never cited.",
+    "bib-field-empty": "A required bibliography field is empty.",
+    "bib-field-malformed": "A bibliography field could not be read.",
+    "bib-field-duplicate": "A bibliography field is given twice.",
+    "bib-duplicate-key": "A bibliography key appears twice.",
+    "bib-macro-unknown": "A @string macro used by a field is not defined.",
+    "bib-entry-header-unparsed": "An @ header is not a usable entry.",
+    "bib-unparsed-entry": "An entry never closes, so the entries after it could not be read.",
+    "bib-unreadable": "Not one entry could be read, so no reference was checked against it.",
+    "page-out-of-range": "A page hint exceeds the source length.",
+    "claim-block-unclosed": "A block never closes, so later claims in the file were never read.",
     "claim-uncheckable": (
-        "A claim block cannot be looked up at all, so its quote was never compared to anything.",
-        "blocking",
+        "A claim block cannot be looked up at all, so its quote was never compared to anything."
     ),
-    "page-unreadable": (
-        "A page hint is not a number and is being ignored.",
-        "warning",
-    ),
-    "claim-without-evidence": ("A claim carries no verifiable evidence.", "warning"),
-    "ledger-stale": ("The ledger predates the manuscript.", "blocking"),
-    "no-claim-blocks": (
-        "A manuscript holds no claim blocks, so nothing in it was checked.",
-        "blocking",
-    ),
+    "page-unreadable": "A page hint is not a number and is being ignored.",
+    "claim-without-evidence": "A claim carries no verifiable evidence.",
+    "ledger-stale": "The ledger predates the manuscript.",
+    "no-claim-blocks": "A manuscript holds no claim blocks, so nothing in it was checked.",
 }
 
 _LEVEL = {"high": "error", "medium": "warning", "low": "note", "info": "note"}
@@ -217,7 +210,15 @@ def render_sarif(
     codes = sorted({f.code for f in findings})
     rules = []
     for code in codes:
-        description, level = SARIF_RULES.get(code, ("citevouch finding", "warning"))
+        description = SARIF_RULES.get(code, "citevouch finding")
+        # The level is the severity from ``model.CODES``, translated once by
+        # ``_LEVEL``.  It used to be a hand-written column in ``SARIF_RULES``,
+        # which is how fifteen rules came to say "blocking" - not a level the
+        # schema allows - while ``claim-without-evidence`` said "warning" about
+        # a finding ``CODES`` calls ``low``.  The result's own ``level`` below
+        # was always derived correctly, so one document could disagree with
+        # itself, rule against result, and nothing looked.
+        level = _LEVEL[severity_of(code)]
         rules.append(
             {
                 "id": code,

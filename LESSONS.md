@@ -2028,3 +2028,34 @@ Evidence: the probe output `1 char -> 1 character at line 1 was between entries
 and were not read` before the second edit, and `... and was not read` after it;
 `tests/test_counts.py::TestTheBibliographyReaderAgreesWithItsCount` asserts the
 absence of the plural verb, not just the presence of the singular one. Seen 1.
+
+## A second table of the same fact is a table nobody diffs
+
+**Rule.** When two data structures carry the same fact, one of them must be
+deleted. A derived value is allowed to be written twice in two reports — but it
+must be computed once, from one source, in both places.
+
+**Why.** Two tables can be compared by a test, and the test that gets written
+is the one that is easy to write: the key sets. `set(CODES) == set(SARIF_RULES)`
+is true, cheap, and says nothing about whether the two tables *agree*. Every
+entry could carry a different level in each and the assertion would still pass.
+The values are the part that matters and the part nobody diffs by hand.
+
+**Evidence.** `src/citevouch/report.py` carried `SARIF_RULES` as
+`{code: (description, level)}` while `src/citevouch/model.py:CODES` already held
+a severity for every one of those codes, and `_LEVEL` already translated a
+severity into a SARIF level for the *results*. So the document derived a result
+level correctly and a rule level from a hand-written copy, and the two
+disagreed in two ways:
+
+* fifteen rules said `"blocking"` — not a level the SARIF 2.1.0 schema allows;
+* `claim-without-evidence` said `warning` about a code `CODES` calls `low`.
+
+Neither was visible from the outside because nothing read a level back. The
+probe that found it printed the table next to `severity_of(code)` and marked the
+rows that disagreed; the fix deleted the second column. Restoring either
+behaviour — the hand-written `"blocking"`, or `"low": "warning"` in `_LEVEL` —
+turns `tests/test_report.py::TestTheSarifLevelIsALevel` red, and so does making
+the result level stop matching the rule level.
+
+Seen 1.

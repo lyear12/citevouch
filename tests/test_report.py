@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import ClassVar
 from urllib.parse import unquote
 
 from citevouch.model import SEVERITIES, Finding
@@ -35,6 +36,85 @@ def _findings() -> list[Finding]:
         ),
         Finding(code="bib-key-unused", message="ghost is unused"),
     ]
+
+
+class TestTheSarifLevelIsALevel:
+    """The level in a SARIF rule has to be one the schema allows.
+
+    Fifteen rules used to say "blocking", which is not a SARIF 2.1.0 level at
+    all - the schema allows exactly none, note, warning and error.  The whole
+    point of ``--format sarif`` is to upload the document to code scanning, and
+    an unknown level makes that document invalid.
+
+    Every test in this module until now compared the *key sets* of ``CODES``
+    and ``SARIF_RULES`` and never their values, which is how a level nobody
+    reads back survived sixteen releases looking like data.
+    """
+
+    VALID: ClassVar[frozenset[str]] = frozenset({"none", "note", "warning", "error"})
+
+    def test_every_severity_the_tool_can_report_becomes_a_legal_level(self):
+        # The dictionary that does the translation, not just the document it
+        # produces: a severity added to ``SEVERITIES`` with no entry here would
+        # raise KeyError in the SARIF writer only when someone uploaded it.
+        from citevouch.model import SEVERITIES
+        from citevouch.report import _LEVEL
+
+        assert set(_LEVEL) == set(SEVERITIES)
+        bad = {severity: level for severity, level in _LEVEL.items() if level not in self.VALID}
+        assert not bad, f"severities mapped to a level that does not exist: {bad}"
+
+    def test_every_rule_level_is_one_the_schema_allows(self):
+        from citevouch.model import CODES
+
+        document = json.loads(render_sarif([Finding(code=code, message="x") for code in CODES]))
+        rules = document["runs"][0]["tool"]["driver"]["rules"]
+        assert len(rules) == len(CODES)
+        bad = sorted(
+            rule["id"]
+            for rule in rules
+            if rule["defaultConfiguration"]["level"] not in self.VALID
+        )
+        assert not bad, f"rules with a level that does not exist: {bad}"
+
+    def test_the_rule_level_is_the_severity_the_rest_of_the_tool_uses(self):
+        from citevouch.model import CODES, severity_of
+        from citevouch.report import _LEVEL
+
+        document = json.loads(render_sarif([Finding(code=code, message="x") for code in CODES]))
+        wrong = {}
+        for rule in document["runs"][0]["tool"]["driver"]["rules"]:
+            expected = _LEVEL[severity_of(rule["id"])]
+            if rule["defaultConfiguration"]["level"] != expected:
+                wrong[rule["id"]] = (rule["defaultConfiguration"]["level"], expected)
+        assert not wrong, f"rule level disagrees with CODES: {wrong}"
+
+    def test_a_rule_and_its_result_never_disagree(self):
+        # The result's level was always derived from the finding, so a
+        # hand-written rule column could make one document contradict itself.
+        from citevouch.model import CODES
+
+        document = json.loads(render_sarif([Finding(code=code, message="x") for code in CODES]))
+        run = document["runs"][0]
+        rules = {
+            rule["id"]: rule["defaultConfiguration"]["level"]
+            for rule in run["tool"]["driver"]["rules"]
+        }
+        results = {result["ruleId"]: result["level"] for result in run["results"]}
+        disagree = {
+            code: (rules[code], results[code]) for code in rules if rules[code] != results[code]
+        }
+        assert not disagree, f"rule level and result level disagree: {disagree}"
+
+    def test_the_low_severity_is_a_note_and_not_a_warning(self):
+        # claim-without-evidence is ``low`` in CODES and said ``warning`` in
+        # the old table, so the same finding was a note in the text report and
+        # a warning in GitHub.
+        document = json.loads(
+            render_sarif([Finding(code="claim-without-evidence", message="x")])
+        )
+        rule = document["runs"][0]["tool"]["driver"]["rules"][0]
+        assert rule["defaultConfiguration"]["level"] == "note"
 
 
 def test_every_code_has_a_sarif_rule():
