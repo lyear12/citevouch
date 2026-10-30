@@ -248,12 +248,19 @@ would a person actually have on disk", not by reading the code.
   the first version did: that library is not installed on CI, so the tests
   skipped, and the lint job fails on any skip.
 
-- [ ] **A right-to-left manuscript.** Arabic and Hebrew text normalises to runs
-  that the quote matcher never lines up, so every claim reads `quote-missing`.
-  This is a whole-script gap like the CJK one that needed its own tier, not a
-  bug to patch. *Done when* a right-to-left fixture verifies, or the tool says
-  plainly that it cannot read that script instead of blaming the author's
-  quotes. Who is blocked: every author in those scripts.
+- [ ] **A right-to-left manuscript.** *Unverified — needs a real Arabic or
+  Hebrew PDF before this entry means anything.* The claim as originally
+  written ("normalises to runs the matcher never lines up") is **not** what
+  measurement found: an Arabic or Hebrew quote in a plain text source matches
+  at the exact tier, and the failure that looked like a script gap was the
+  digit system, fixed in `1a4230e`. What is still untested is narrower and
+  different: whether PDF extraction *reorders* runs on a right-to-left page, so
+  the extracted text is a different string than the one on the page. Nobody has
+  evidence either way, so this stays open as a question rather than a defect.
+  *Done when* someone with a real RTL PDF records what extraction actually
+  does; if it reorders, that is a real entry and it needs its own design, and
+  if it does not, this line is deleted rather than left to imply a defect that
+  does not exist. Who is blocked: unknown until measured.
 
 - [ ] **A manuscript over a network path.** `\\server\share\paper.md` on
   Windows, or a file that disappears mid-run. *Done when* the run either works
