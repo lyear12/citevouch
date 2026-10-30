@@ -41,19 +41,6 @@ class ScanOptions:
     now: str = ""
 
 
-def _why_not_a_file(path: Path) -> str:
-    """Say what is wrong with a path that was expected to be a file.
-
-    Kept as a module-level name because two call sites import it, but the
-    wording lives in :func:`citevouch.errors.why_not_a_file`, which knows the
-    difference between a directory, a missing file and a share that is not
-    reachable.  It moved there when the third case arrived: this one used to
-    answer "does not exist" about a network path that was simply not mounted,
-    which is a false sentence about a file the author never lost.
-    """
-    return why_not_a_file(path)
-
-
 def _resolve(root: Path, raw: str) -> Path:
     """Resolve ``raw`` against ``root``, but accept a path that already works.
 
@@ -173,7 +160,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     root = Path(options.root)
     manuscript_path = _resolve(root, options.manuscript)
     if not manuscript_path.is_file():
-        raise UsageError(f"manuscript {manuscript_path} {_why_not_a_file(manuscript_path)}")
+        raise UsageError(f"manuscript {manuscript_path} {why_not_a_file(manuscript_path)}")
     if looks_like_latex(manuscript_path):
         # A .tex file has no claim blocks, so scanning one reads zero claims and
         # reports a clean run - a green light for a manuscript nothing looked at.
@@ -297,7 +284,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             findings.append(
                 Finding(
                     code="source-missing",
-                    message=(f"bib file {bib_path} {_why_not_a_file(bib_path)}"),
+                    message=(f"bib file {bib_path} {why_not_a_file(bib_path)}"),
                     path=str(bib_path),
                 )
             )
