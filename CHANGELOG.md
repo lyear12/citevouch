@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.4] — 2026-10-30
 ### Fixed
 
 - A quote is no longer reported missing because the page carries a character
@@ -30,7 +32,6 @@ tag and that file disagree.
   directions - every `Cf` removed, nothing outside it touched - so a Unicode
   release that adds a format character fails there rather than passing as a
   gap in a hand-typed list.
-
 ## [0.19.3] — 2026-10-30
 ### Fixed
 
@@ -1040,7 +1041,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.3...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.4...HEAD
+[0.19.4]: https://github.com/lyear12/citevouch/releases/tag/v0.19.4
 [0.19.3]: https://github.com/lyear12/citevouch/releases/tag/v0.19.3
 [0.19.2]: https://github.com/lyear12/citevouch/releases/tag/v0.19.2
 [0.19.1]: https://github.com/lyear12/citevouch/releases/tag/v0.19.1
