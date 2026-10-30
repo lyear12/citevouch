@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.9] — 2026-10-30
 ### Fixed
 
 - Counts now agree with their nouns and verbs everywhere. Four modules spelled
@@ -25,7 +27,6 @@ tag and that file disagree.
   `textnorm.count_of` / `word_for` / `verb_for` / `is_are`; `report.py` and
   `cli.py` keep their private names as one-line forwards, and a test fails if
   a message module spells a plural with `noun + "s"` again.
-
 ## [0.19.8] — 2026-10-30
 ### Fixed
 
@@ -1121,7 +1122,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.8...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.9...HEAD
+[0.19.9]: https://github.com/lyear12/citevouch/releases/tag/v0.19.9
 [0.19.8]: https://github.com/lyear12/citevouch/releases/tag/v0.19.8
 [0.19.7]: https://github.com/lyear12/citevouch/releases/tag/v0.19.7
 [0.19.6]: https://github.com/lyear12/citevouch/releases/tag/v0.19.6
