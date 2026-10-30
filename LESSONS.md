@@ -1122,3 +1122,28 @@ half - no files is exit 2, not "0 files already formatted", because an empty
 checkout read as clean is the same mistake as reading zero passing tests out of
 a suppressed summary line. Seen 3, counting the two earlier wrong numbers
 (`N passed` 317 vs 273, `N files` 47 vs 46).
+
+## A process that inherits nothing starts as a different machine
+
+**Rule.** `subprocess.run(..., env=...)` replaces the environment. Any dict
+handed to `env=` in this repository starts from `dict(os.environ)` and only
+adds to it, and `tests/test_child_env.py` refuses the literal form so the rule
+does not depend on remembering it.
+
+**Why.** The defect is silent where it is written and loud where it is not. On
+Linux the child starts anyway and the test passes; on Windows the interpreter
+aborts in `_Py_HashRandomization_Init` before `main()` runs, so the failure
+arrives as `assert 1 == 0` on a job in a matrix cell the author was not
+thinking about, carrying no mention of the environment at all. The same three
+lines were written twice - once in `tests/test_critic_round2.py`, found by a red
+`3.10` job, and again in `tests/test_precommit.py`, found the same way months of
+commits later. A rule written only in a lesson is a rule the next author has not
+read; the guard is what makes it hold.
+
+**Evidence.** CI run 41049992854: nine of ten jobs green, `test
+(windows-latest, 3.10)` red, `Fatal Python error: _Py_HashRandomization_Init:
+failed to get random numbers to initialize Python`. Every affected call site now
+builds its environment with `_env(...)` or `dict(os.environ)`;
+`tests/test_child_env.py::test_the_detector_recognises_both_shapes` pins both
+shapes so a guard that matches nothing cannot look like a clean repository.
+Seen 2.

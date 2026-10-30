@@ -40,6 +40,14 @@ tag and that file disagree.
   reports a child's exit 1 as 123, which the script maps back to 1 - the gate
   only reads "zero or not", but a person reading a red build reads the number.
 
+- `tests/test_precommit.py` and `tests/test_critic_round2.py` hand `env=`
+  a dict that starts from `os.environ`. A dict there replaces the whole
+  environment rather than extending it; on Windows that removes `SYSTEMROOT`
+  and CPython dies before it can report anything, which surfaced as
+  `assert 1 == 0` on `test (windows-latest, 3.10)`. `tests/test_child_env.py`
+  now walks every call with `ast` and refuses a literal `env=` dict, so the
+  same defect cannot be written a third time.
+
 ## [0.13.0] — 2026-10-30
 ### Added
 

@@ -13,8 +13,10 @@ ledger now agrees", which is the single failure this tool exists to catch.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -23,6 +25,25 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 HOOKS = ROOT / ".pre-commit-hooks.yaml"
+
+
+def _env(**overrides: str) -> dict[str, str]:
+    """The environment for a child interpreter, built on top of this one.
+
+    Handing `subprocess` a dict that is not `os.environ` replaces the whole
+    environment rather than extending it.  On Windows that takes `SYSTEMROOT`
+    away, and CPython dies before it can print a test result:
+
+        Fatal Python error: _Py_HashRandomization_Init: failed to get random
+        numbers to initialize Python
+
+    which surfaces as `assert 1 == 0` on whichever test spawned it.  The same
+    defect was fixed once in `tests/test_critic_round2.py` and reintroduced
+    here, so the shape lives in one place now.
+    """
+    env = dict(os.environ)
+    env.update(overrides)
+    return env
 
 
 def hooks() -> list[dict]:
@@ -156,12 +177,12 @@ class TestTheHookCommandActuallyRuns:
         self, root: Path, entry: str, tmp_path: Path, *, extra: str = "manuscript.md"
     ) -> subprocess.CompletedProcess:
         folder = self._bin(tmp_path)
-        env = {
-            "PATH": f"{folder.as_posix()}:/usr/bin:/bin",
-            "PYTHON": __import__("sys").executable,
-            "PYTHONPATH": str(ROOT / "src"),
-            "PYTHONIOENCODING": "utf-8",
-        }
+        env = _env(
+            PATH=f"{folder.as_posix()}:/usr/bin:/bin",
+            PYTHON=sys.executable,
+            PYTHONPATH=str(ROOT / "src"),
+            PYTHONIOENCODING="utf-8",
+        )
         script = f"cd {root.as_posix()!r} && {entry} {extra}"
         # Decoding is explicit: the child writes the manuscript's own quote back
         # in a failure message, and this machine's default code page cannot hold
@@ -182,7 +203,7 @@ class TestTheHookCommandActuallyRuns:
         assert (
             subprocess.run(
                 [
-                    __import__("sys").executable,
+                    sys.executable,
                     "-m",
                     "citevouch",
                     "scan",
@@ -192,7 +213,7 @@ class TestTheHookCommandActuallyRuns:
                 ],
                 cwd=root,
                 capture_output=True,
-                env={"PYTHONPATH": str(ROOT / "src"), "PYTHONIOENCODING": "utf-8", "PATH": ""},
+                env=_env(PYTHONPATH=str(ROOT / "src"), PYTHONIOENCODING="utf-8"),
             ).returncode
             == 0
         )
@@ -201,9 +222,9 @@ class TestTheHookCommandActuallyRuns:
 
     def test_a_drifted_manuscript_fails_the_check_hook(self, tmp_path: Path) -> None:
         root = self._project(tmp_path)
-        env = {"PYTHONPATH": str(ROOT / "src"), "PYTHONIOENCODING": "utf-8", "PATH": ""}
+        env = _env(PYTHONPATH=str(ROOT / "src"), PYTHONIOENCODING="utf-8")
         subprocess.run(
-            [__import__("sys").executable, "-m", "citevouch", "scan", "manuscript.md"],
+            [sys.executable, "-m", "citevouch", "scan", "manuscript.md"],
             cwd=root,
             capture_output=True,
             env=env,
