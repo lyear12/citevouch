@@ -196,7 +196,26 @@ not what changed, but what proves the change works.
   The GIF is deliberately not done - a recording has to stay legible at README
   width, and a blurred GIF is worse than two sharp stills. It stays open below.
 
-- [ ] **No launch material.**
+- [x] **No launch material.**
   *Who is blocked*: the owner, who cannot post without text.
   *Done when*: `docs/launch/` holds `show-hn.md`, `v2ex.md`, `xiaohongshu.md`,
   `douyin-30s.md`. Publishing is the owner's decision; preparing it is not.
+  **Done, and here is what each file is for:** `show-hn.md` and `v2ex.md` are the
+  two that would actually bring people who will run it, so they carry finished
+  copy, a claim block the reader can paste, the install line, and the two
+  questions those audiences always ask (why not Zotero; my publisher wants
+  LaTeX). `xiaohongshu.md` is two notes whose text never contains a command -
+  the audience there is graduate students, not engineers, and "pip install" in
+  the body kills the post. `douyin-30s.md` is a 30-second shot list for a video
+  that is honestly not going to convert anyone: its own notes say so, and say
+  that if there is one shot to take, it is the other two platforms. Every file
+  ends with posting notes rather than ending at the copy, because the useful
+  part is the part that stops a post from being a gimmick - do not lead with
+  "an agent wrote this", do not put a link in the body of a Xiaohongshu note,
+  run the demo yourself before quoting its output.
+
+- [ ] **No video anywhere.** Deliberate for now, not forgotten: see the note in
+  the figure entry above. A recording has to stay legible at README width, and a
+  blurred GIF is worse than the two sharp stills that are there. Revisit if the
+  README ever gets a full-width section where a 12-second loop can be seen at
+  its real size.
