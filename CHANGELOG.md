@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-30
 ### Fixed
 
 - A source recorded as a directory is reported, not fatal. `verify` read a
@@ -68,8 +69,6 @@ tag and that file disagree.
   `.md` was in the set, so a key that could not be resolved could be told the
   answer was `README.md` - a file that could never hold the quote. A
   suggestion pointing at the wrong kind of file is worse than no suggestion.
-
-
 ## [0.5.0] — 2026-10-30
 ### Fixed
 
@@ -334,7 +333,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lyear12/citevouch/releases/tag/v0.6.0
 [0.5.0]: https://github.com/lyear12/citevouch/releases/tag/v0.5.0
 [0.4.1]: https://github.com/lyear12/citevouch/releases/tag/v0.4.1
 [0.4.0]: https://github.com/lyear12/citevouch/releases/tag/v0.4.0
