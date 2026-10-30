@@ -997,3 +997,51 @@ requirement against the imports under `src/`; putting the old line back turns tw
 tests red. The parser deliberately does not use `tomllib`: it arrived in 3.11,
 this package supports 3.10, and a guard that cannot be collected on a supported
 interpreter is a guard with the same hole it was built to close. Seen 1.
+
+## A file nobody runs is a file nobody has read
+
+**Rule.** When a repository grows a second kind of executable artefact — YAML an
+external runner consumes, a hook file, a shell script a workflow calls — give it
+a test that executes it and reads back what it did. Reading the file and
+asserting that it contains the right substrings is not a test of the file; it is
+a test of your ability to scan text.
+
+**Why.** `action.yml` is not imported by anything, so nothing in the suite would
+notice if an input were declared and never forwarded, if a path with a space
+split into three arguments, or if exit 2 were reported as a clean manuscript.
+All three are invisible to a type checker and to a reviewer who reads the YAML
+top to bottom, because the YAML is correct — the shell inside it is what is
+wrong.
+
+**Evidence.** `tests/test_action.py` runs each composite step's `run:` body with
+a stub `citevouch` and a stub `python` on PATH, records their argument vectors,
+and asserts on them. It found two real defects in the first draft, both
+invisible when reading the file. The SARIF path was assembled from
+`${{ runner.temp }}` copied into a hand-named environment variable, while
+GitHub already exports `RUNNER_TEMP` to every step: the file landed wherever
+`/tmp` happened to point, and the expression could not be exercised without a
+runner. And both READMEs showed the three-line `pip install` form only, so a
+shipped action nobody documents is a feature that exists for the maintainer
+alone - the test that reads the docs found that, not a reader. Seen 1.
+
+## A pinned version has one spelling, or the release tool cannot find it
+
+**Rule.** When a machine rewrites version numbers in documents, it can only
+rewrite the shapes it knows. Either spell every copy the way the tool matches,
+or leave the number out - and make the disagreement a test failure rather than
+something a reader has to notice.
+
+**Why.** The release commit after the action landed bumped the `pip install`
+pins from `v0.11.0` to `v0.12.0` and left the four new `uses:
+lyear12/citevouch@v0.11.0` lines exactly where they were, because the tool
+matches `citevouch@vX.Y.Z` and those lines do match. The rebase then produced a
+README showing two different versions of the same tool three lines apart, which
+is not a typo a reader can resolve: it reads as "the action is older than the
+package", and both lines are copy-pasteable.
+
+**Evidence.** `tests/test_readme_example.py::TestThePinsAgree` compares every pin
+against `_version.py` and fails on any `vX.Y.Z` in either README that is not a
+pin the release tool would rewrite. Both checks are red against the rebased
+tree and green after the pins were moved by hand. The general lesson is the one
+worth keeping: an automated rewrite and a hand-written example will drift, so
+the drift has to be an assertion, not an observation.

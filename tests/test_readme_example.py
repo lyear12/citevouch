@@ -150,3 +150,38 @@ def test_the_severity_table_lists_every_code_and_the_right_severity(name: str) -
         if severity != CODES[code]
     }
     assert not mismatched, f"{name}: documented severity != real severity: {mismatched}"
+
+
+class TestThePinsAgree:
+    """Every version written into a document is the version being shipped.
+
+    The release tool rewrites `citevouch@vX.Y.Z`, but it only runs at release
+    time: a commit that adds a new pin - the action examples - carries whatever
+    version was current when it was typed. That is how one README ended up
+    showing `pip install ...@v0.12.0` three lines above
+    `uses: lyear12/citevouch@v0.11.0`, which reads as two different tools.
+    """
+
+    @pytest.mark.parametrize("name", ["README.md", "README.zh-CN.md"])
+    def test_every_citevouch_pin_names_the_declared_version(self, name: str):
+        from citevouch._version import __version__
+
+        text = (ROOT / name).read_text(encoding="utf-8")
+        pins = re.findall(r"citevouch@v(\d+\.\d+\.\d+)", text)
+        assert pins, f"{name}: no install pin found, so nobody can copy one"
+        stale = sorted({pin for pin in pins if pin != __version__})
+        assert not stale, f"{name}: pins {stale} but the package is {__version__}"
+
+    @pytest.mark.parametrize("name", ["README.md", "README.zh-CN.md"])
+    def test_the_pins_are_not_the_only_place_a_version_is_written(self, name: str):
+        # `tools/next_version.py` rewrites `citevouch@vX.Y.Z` and nothing else,
+        # so a version pinned in some other shape would rot silently. This
+        # fails when a document grows a `v1.2.3` that the release tool cannot
+        # see; the fix is to spell it as a pin or leave the number out.
+        text = (ROOT / name).read_text(encoding="utf-8")
+        stray = [
+            match.group(0) for match in re.finditer(r"(?<!citevouch@)\bv\d+\.\d+\.\d+\b", text)
+        ]
+        assert not stray, (
+            f"{name}: versions the release tool cannot rewrite: {sorted(set(stray))}"
+        )

@@ -1,0 +1,115 @@
+name: citevouch
+description: Fail the job when the evidence behind a manuscript's claims has drifted
+author: lyear12
+
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  manuscript:
+    description: Path to the manuscript, relative to the repository root
+    required: true
+  root:
+    description: Project directory holding sources.toml and the source files
+    required: false
+    default: .
+  ledger:
+    description: Path to the committed ledger, relative to the repository root
+    required: false
+    default: citevouch.lock.json
+  fail-on:
+    description: Lowest severity that fails the job (info, low, medium, high)
+    required: false
+    default: high
+  format:
+    description: Output format for stdout (text, json, sarif, markdown)
+    required: false
+    default: sarif
+  python-version:
+    description: Interpreter to install citevouch with
+    required: false
+    default: "3.12"
+
+outputs:
+  sarif:
+    description: Path to the SARIF file, when format is sarif
+    value: ${{ steps.run.outputs.sarif }}
+  exit-code:
+    description: Exit code of the citevouch run
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install citevouch
+      # Installed from the ref this action is pinned to, so the check that runs
+      # is the check the workflow asked for. The tag is the action's own ref
+      # where the caller pinned one; falling back to main would make a pinned
+      # action silently test a floating tool.
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_REPO: ${{ github.action_repository }}
+        PYTHON_VERSION: ${{ inputs.python-version }}
+      run: |
+        set -euo pipefail
+        ref="${ACTION_REF:-main}"
+        python -m pip install --disable-pip-version-check \
+          "citevouch @ git+https://github.com/${ACTION_REPO}@${ref}"
+
+    - name: Run the check
+      id: run
+      shell: bash
+      env:
+        # Values arrive through the environment rather than being spliced into
+        # the script, because a manuscript path is user input and a path with a
+        # space or a quote must not become shell syntax.
+        IN_MANUSCRIPT: ${{ inputs.manuscript }}
+        IN_ROOT: ${{ inputs.root }}
+        IN_LEDGER: ${{ inputs.ledger }}
+        IN_FAIL_ON: ${{ inputs.fail-on }}
+        IN_FORMAT: ${{ inputs.format }}
+      run: |
+        set -uo pipefail
+        cd "${GITHUB_WORKSPACE}"
+
+        # RUNNER_TEMP is set by every GitHub runner and points at a directory
+        # that is wiped between jobs. Falling back to /tmp keeps the script
+        # runnable by hand, where the counting matters and the temp dir does
+        # not.
+        out="${RUNNER_TEMP:-/tmp}/citevouch.sarif"
+        args=(
+          check "$IN_MANUSCRIPT"
+          --root "$IN_ROOT"
+          --ledger "$IN_LEDGER"
+          --use-recorded
+          --fail-on "$IN_FAIL_ON"
+          --format "$IN_FORMAT"
+        )
+
+        set +e
+        if [ "$IN_FORMAT" = "sarif" ]; then
+          citevouch "${args[@]}" > "$out"
+        else
+          citevouch "${args[@]}"
+        fi
+        code=$?
+        set -e
+
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ "$IN_FORMAT" = "sarif" ]; then
+          echo "sarif=$out" >> "$GITHUB_OUTPUT"
+          echo "::notice::citevouch wrote $out"
+        fi
+
+        # 0 is clean and 1 is "findings at or above the threshold": both are
+        # verdicts about the manuscript, and the caller decides what a red
+        # verdict means. 2 is a usage error -- a missing ledger, a path that is
+        # not there -- and continuing past it would report a green job for a
+        # check that never ran.
+        if [ "$code" -eq 2 ]; then
+          echo "::error::citevouch could not run (exit 2); see the log above"
+          exit 2
+        fi
+        exit "$code"

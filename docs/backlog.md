@@ -81,12 +81,21 @@ not what changed, but what proves the change works.
   the documented output cannot describe a smaller tool than the shipped one.
   Exit is 1 for a broken machine and 0 otherwise.
 
-- [ ] **No `action.yml`.**
+- [x] **No `action.yml`.**
   The Marketplace is the only place people look for "a check I can add to CI".
   *Who is blocked*: anyone who would use this if it were one line of YAML.
   *Done when*: a composite action takes `manuscript`/`root`/`fail-on`, runs
   `check --use-recorded --format sarif`, and a test asserts the inputs are
   actually forwarded rather than declared and ignored.
+  **Done — why it is now true:** `action.yml` is a composite action with six
+  inputs (manuscript required, root, ledger, fail-on, format, python-version),
+  two outputs (`sarif`, `exit-code`) and two steps: install from the ref the
+  caller pinned the action to, then run `check --use-recorded` with every value
+  passed through the environment rather than spliced into the script. Exit 2 is
+  re-raised as a failure so a missing ledger cannot look like a clean
+  manuscript. `tests/test_action.py` executes each step's shell with a stub
+  `citevouch` on PATH and reads back the argument vector, so the file is tested
+  as behaviour rather than as YAML text.
 
 - [ ] **No `.pre-commit-hooks.yaml`.**
   *Who is blocked*: anyone who gates their repo before pushing rather than in CI.

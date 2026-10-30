@@ -203,6 +203,30 @@ sample" unambiguously.
 
 ### CI
 
+The shortest form is the action. It installs the tag it is pinned to and runs the gate:
+
+```yaml
+- uses: lyear12/citevouch@v0.12.0
+  with:
+    manuscript: manuscript.md
+```
+
+It writes a SARIF file and exposes its path as the `sarif` output, so adding a code-scanning upload
+is one more step:
+
+```yaml
+- uses: lyear12/citevouch@v0.12.0
+  id: citevouch
+  with:
+    manuscript: manuscript.md
+    fail-on: high
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.citevouch.outputs.sarif }}
+```
+
+If you would rather not use an action, three lines do the same job:
+
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }

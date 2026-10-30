@@ -11,6 +11,25 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- A pin that disagrees with `_version.py` now fails the suite.
+  `tests/test_readme_example.py::TestThePinsAgree` reads every
+  `citevouch@vX.Y.Z` in both READMEs and rejects any other `vX.Y.Z` the release
+  tool cannot rewrite. The release that followed the action landed bumped the
+  `pip install` pins and left the four new `uses:` lines at the previous
+  version, so one README showed two versions of the same tool three lines
+  apart.
+
+- `action.yml`: a composite action that installs the tag it is pinned to and
+  runs `check --use-recorded`, with `manuscript`, `root`, `ledger`, `fail-on`,
+  `format` and `python-version` as inputs and `sarif` / `exit-code` as outputs.
+  The Marketplace entry is the only place people look for "a check I can add to
+  CI", and until now they had to assemble it from three shell lines.
+  `tests/test_action.py` runs each step's shell against a stub `citevouch` on
+  PATH and asserts every declared input reaches the command line, that a path
+  with a space stays one argument, that exits 0 and 1 pass through unchanged,
+  and that exit 2 is reported as "could not run" rather than as a verdict.
 
 ## [0.12.0] — 2026-10-30
 ### Removed

@@ -177,6 +177,29 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 
 ### 挂进 CI
 
+最短的接法是 action：它装上自己被钉住的那个 tag，然后跑闸门。
+
+```yaml
+- uses: lyear12/citevouch@v0.12.0
+  with:
+    manuscript: manuscript.md
+```
+
+它会写出 SARIF 文件，并把路径作为 `sarif` 输出交出来，所以再加一步就能传给 code scanning：
+
+```yaml
+- uses: lyear12/citevouch@v0.12.0
+  id: citevouch
+  with:
+    manuscript: manuscript.md
+    fail-on: high
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.citevouch.outputs.sarif }}
+```
+
+不想用 action 的话，三行等价：
+
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
