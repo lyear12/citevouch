@@ -44,6 +44,10 @@ SARIF_RULES = {
         "An entry never closes, so the entries after it could not be read.",
         "blocking",
     ),
+    "bib-unreadable": (
+        "Not one entry could be read, so no reference was checked against it.",
+        "blocking",
+    ),
     "page-out-of-range": ("A page hint exceeds the source length.", "blocking"),
     "claim-block-unclosed": (
         "A block never closes, so later claims in the file were never read.",

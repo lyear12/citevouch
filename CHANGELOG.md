@@ -11,6 +11,30 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- `bib-unreadable` (high): a bibliography the parser could read *no*
+  entries out of is reported, instead of leaving the run green.
+  `verify` skips `bib-key-missing` entirely when the ledger recorded no
+  entries, so before this a completely unreadable bibliography produced
+  a quieter report than one missing a single key — the wrong way round
+  for a tool whose job is to fail on what nobody checked.
+
+### Fixed
+
+- Files are decoded by what they say they are, not assumed to be
+  UTF-8.  Notepad's "Unicode" save and Excel's text export both write
+  UTF-16; read as UTF-8 that becomes one replacement character and a
+  NUL between every letter, which the rest of the pipeline treats as
+  text.  A bibliography saved that way parsed to zero entries and the
+  run finished with exit 0 and a *medium* finding about an unparsed
+  header.  `read_text` now honours UTF-8/16/32 byte-order marks and
+  falls back to the NUL pattern a 16-bit-per-character file has, since
+  the mark-less spellings (`UTF-16-LE`) are just as easy to produce.
+  Every file this tool reads goes through that one function.
+- `textnorm.read_text` carried a `try: ... except OSError: raise`, which
+  reads like error handling and is exactly nothing.  Removed; the
+  callers that do care catch `OSError` themselves.
 
 ## [0.18.10] — 2026-10-30
 ### Fixed

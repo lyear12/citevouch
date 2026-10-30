@@ -73,6 +73,7 @@ rots:
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
 | `bib-duplicate-key` | high | two entries share a key |
 | `bib-unparsed-entry` | high | an entry never closes, so everything after it was not read |
+| `bib-unreadable` | high | not one entry could be read, so no reference was checked against it |
 | `bib-entry-header-unparsed` | medium | text between entries, or an `@` header that is not a usable entry |
 | `bib-field-malformed` | medium | a field could not be read; later fields of the entry are still parsed |
 | `bib-field-duplicate` | medium | one field given twice in an entry (names are case-insensitive); first kept |

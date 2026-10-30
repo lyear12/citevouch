@@ -127,6 +127,54 @@ def canonical_number(token: str) -> str:
 #: One UTF-8 byte-order mark, as it arrives after decoding.
 _BOM = "\ufeff"
 
+#: Byte-order marks as they arrive *before* decoding, longest first, with the
+#: codec each one names.  Decoding with the named codec consumes the mark, so
+#: the result never starts with it.
+_BYTE_BOMS = (
+    (b"\x00\x00\xfe\xff", "utf-32"),
+    (b"\xff\xfe\x00\x00", "utf-32"),
+    (b"\xef\xbb\xbf", "utf-8"),
+    (b"\xff\xfe", "utf-16"),
+    (b"\xfe\xff", "utf-16"),
+)
+
+
+def _strip_bom(text: str) -> str:
+    return text[1:] if text.startswith(_BOM) else text
+
+
+def _decode_text(raw: bytes) -> str:
+    """Decode text bytes the way the program that wrote them meant them.
+
+    Files reach this tool from editors, not from a protocol.  On Windows the
+    default "Unicode" save in Notepad is UTF-16, and Excel exports UTF-16 too;
+    a byte-order mark is how they say so.  Decoding those bytes as UTF-8 does
+    not fail loudly - it produces one replacement character and then a NUL
+    between every letter, which the rest of the pipeline treats as text:
+
+    * a bibliography saved that way parsed to zero entries, and since the
+      report only names entries it read, the run finished with exit 0 and a
+      medium finding about an "unparsed header" - quieter than the missing-key
+      error It would have raised if the file had been read correctly.
+
+    With no mark to go on, a NUL byte is the tell: no text file this tool reads
+    contains one, and a file of 16-bit code units is mostly NULs on one side of
+    every pair.  The threshold is deliberately high, because guessing wrong on
+    a genuinely binary file only replaces one kind of noise with another.
+    """
+    for mark, codec in _BYTE_BOMS:
+        if raw.startswith(mark):
+            return _strip_bom(raw.decode(codec, errors="replace"))
+    head = raw[:4096]
+    if b"\x00" in head:
+        pairs = len(head) // 2
+        if pairs:
+            if head[1::2].count(0) > pairs * 0.6:
+                return _strip_bom(raw.decode("utf-16-le", errors="replace"))
+            if head[0::2].count(0) > pairs * 0.6:
+                return _strip_bom(raw.decode("utf-16-be", errors="replace"))
+    return _strip_bom(raw.decode("utf-8", errors="replace"))
+
 
 def read_text(path: Path | str) -> str:
     """Read a text file for this tool, without its byte-order mark.
@@ -147,8 +195,4 @@ def read_text(path: Path | str) -> str:
     removed here rather than at each call site because the call sites are the
     four ways this bug came back.
     """
-    try:
-        text = Path(path).read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        raise
-    return text[1:] if text.startswith(_BOM) else text
+    return _decode_text(Path(path).read_bytes())

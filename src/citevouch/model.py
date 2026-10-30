@@ -41,6 +41,11 @@ CODES = {
     "bib-macro-unknown": "medium",
     "bib-entry-header-unparsed": "medium",
     "bib-unparsed-entry": "high",
+    # A bibliography nobody could read is not an empty bibliography, and it is
+    # not a small problem: verify has nothing to check any reference against,
+    # so every bib-key-missing is suppressed.  Quietest possible run for the
+    # worst possible input.
+    "bib-unreadable": "high",
     "page-out-of-range": "high",
     "claim-block-unclosed": "high",
     # A claim block that cannot be looked up at all: no source=, no quote, no

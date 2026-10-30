@@ -70,6 +70,7 @@ worst severity: high
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
 | `bib-duplicate-key` | high | 两个条目共用一个键 |
 | `bib-unparsed-entry` | high | 有条目定界符始终未闭合，它之后的条目全部读不到 |
+| `bib-unreadable` | high | 一条条目都读不出来，所有引用都没能跟文献库核对 |
 | `bib-entry-header-unparsed` | medium | 条目之间残留了读不到的文本，或 `@` 头不是可用条目 |
 | `bib-field-malformed` | medium | 某字段无法读取；该条目的其余字段仍会继续解析 |
 | `bib-field-duplicate` | medium | 同一条目里同一字段出现两次（字段名不分大小写）；保留首个值 |

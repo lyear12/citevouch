@@ -364,6 +364,30 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
         entries[key] = BibEntry(
             key=key, entry_type=etype, fields=fields, path=path, line=entry_line
         )
+    if not entries and text.strip():
+        # A file with content in it that yielded no entries at all is a
+        # different failure from a file with one bad entry, and it has to be
+        # reported as one.  Downstream, an empty bibliography is not "no
+        # bibliography": verify skips bib-key-missing entirely when the ledger
+        # recorded no entries, so a bibliography nobody could read produced a
+        # *quieter* run than one missing a single key.  That is the shape of
+        # bug this project exists to refuse - a green run over input that was
+        # never read - and a medium finding about an unparsed header does not
+        # name it.
+        findings.append(
+            Finding(
+                code="bib-unreadable",
+                message=(
+                    f"not one entry could be read from {path}, so every reference "
+                    "in the manuscript is unchecked against a bibliography that "
+                    "is effectively empty. Often the file is not the encoding it "
+                    "claims: a UTF-16 save read as UTF-8 gives a replacement "
+                    "character and a NUL between every letter."
+                ),
+                path=path,
+                line=1,
+            )
+        )
     return BibResult(entries=entries, findings=findings, strings=strings)
 
 
