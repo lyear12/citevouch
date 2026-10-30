@@ -1120,7 +1120,7 @@ writes a draft into a two-file repository and asserts the count stays at two;
 `::test_a_checkout_with_nothing_in_it_is_not_a_clean_checkout` pins the other
 half - no files is exit 2, not "0 files already formatted", because an empty
 checkout read as clean is the same mistake as reading zero passing tests out of
-a suppressed summary line. Seen 3, counting the two earlier wrong numbers
+a suppressed summary line. Seen 3. Counting the two earlier wrong numbers
 (`N passed` 317 vs 273, `N files` 47 vs 46).
 
 ## A process that inherits nothing starts as a different machine
@@ -1247,7 +1247,7 @@ fix had been reported as "the ledger records portable paths" rather than
 `tests/test_scan_verify.py::test_the_ledger_names_the_manuscript_the_same_way_from_any_directory`
 and `tests/test_demo_fixture.py::test_the_committed_ledger_is_one_this_version_would_write`,
 which re-scans `demo/` and requires the committed lockfile to match field for
-field except `generated_at` and `tool_version`. Seen 2 - the first was
+field except `generated_at` and `tool_version`. Seen 2. The first was
 `test_the_ledger_records_a_portable_path`, and it only ever checked sources.
 
 ---
@@ -1486,3 +1486,46 @@ it takes `--manuscript` — so following the advice exits 2. `tests/test_doctor.
 now extracts the backticked command with `re.search(r"`(citevouch [^`]+)`", ...)`
 and calls `build_parser().parse_args(...)` on it, and asserts the parsed
 `manuscript` is the path the message promised. Seen 1.
+
+## The confident summary of nothing is the worst output a checker can produce
+
+**Rule.** Before a command reports a verdict, it must establish that it read
+something. "0 claims, 0 verified, 0 missing" is only good news when the input
+was a format the command understands; when it was not, the summary is a verdict
+about nothing and it must be refused, not printed.
+
+**Why.** A checker's whole value is that green means checked. Every other
+failure mode of this tool - a missing PDF, a wrong page, a fabricated quote -
+produces a visible complaint that a human eventually reads. This one produces
+the shape of success, and the reader has no signal at all that nothing was
+looked at. It is also the easiest false green to reach by accident, because the
+neighbouring command accepts the format: `citevouch draft paper.tex` works, so
+`citevouch check paper.tex` is the next thing anyone tries.
+
+**Evidence.** `check paper.tex --root .` exited 0 and printed
+`0 claims — 0 verified, 0 moved, 0 missing` with `worst severity: info`. The
+`.tex` file held a citation and a real number; none of it was out of scope, it
+was simply a format `scan` does not read. `src/citevouch/scan.py` now raises
+`UsageError` when `looks_like_latex(manuscript_path)`, and the message names
+`citevouch draft`, because refusing without a next step is a different way of
+wasting the reader's afternoon. Seen 1.
+
+## A hand-written marker is a format, and a format needs a parser that fails closed
+
+**Rule.** When a human writes a machine-read marker, spell out every shape it
+takes and make an unrecognised shape an error. Do not let "the pattern did not
+match" quietly mean "this item does not have that property".
+
+**Why.** The two readings are indistinguishable at the point of use and produce
+opposite decisions: a marker that cannot be parsed is an item that needs
+attention, while a missing marker is an item that is fine. Silently reading the
+first as the second turns the enforcing gate into the thing it was written to
+prevent, and nothing anywhere says so.
+
+**Evidence.** `tools/check_repo_rules.py` counted lessons with
+`re.compile(r"Seen (\d+)\.")`. Two of the 72 lessons are written
+`Seen 2 - the first was ...`, without the period, and were therefore counted as
+never seen. Widening the pattern to `Seen (\d+)(?:\.|\s|$)` and adding a
+fail-closed "says Seen but names no number" branch immediately turned the gate
+red: a lesson already at `Seen 3` had never been promoted. The hole was hiding a
+real debt for as long as it existed. Seen 1.

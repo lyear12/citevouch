@@ -67,6 +67,31 @@ Newest first. Seen 1.
     assert cr.lesson_promotions_due(text, "x") == []
 
 
+def test_a_seen_marker_without_a_period_still_counts():
+    """The marker is hand-written, so it comes in two shapes. Requiring the
+    period made the gate read `Seen 2 - the first was ...` as "never seen" and
+    stay silent; a counting rule that silently undercounts never promotes the
+    lesson it is counting."""
+    text = GOOD_LESSON.replace("Seen 3.", "Seen 3 - the fourth review and two before it.")
+    assert cr.lesson_promotions_due(text, "nothing") == [
+        "A matrix cell that cannot run is not a passing cell"
+    ]
+
+
+def test_a_seen_marker_that_names_no_number_is_reported_not_skipped():
+    """Silence is not a verdict here: a lesson that says Seen but carries no
+    readable count is a broken marker, and it has to be named."""
+    text = GOOD_LESSON.replace("Seen 3.", "Seen many times.")
+    due = cr.lesson_promotions_due(text, "nothing")
+    assert len(due) == 1
+    assert due[0].startswith("unparseable Seen marker in A matrix cell")
+
+
+def test_the_word_seen_inside_another_word_is_not_a_marker():
+    assert cr._SEEN_WORD.search("Unseen prose about a lesson") is None
+    assert cr._SEEN_WORD.search("Seen") is not None
+
+
 def test_several_counts_in_one_block_take_the_maximum():
     text = GOOD_LESSON.replace("Seen 3.", "Seen 1.") + "\nLater review: Seen 4.\n"
     assert len(cr.lesson_promotions_due(text, "nothing")) == 1

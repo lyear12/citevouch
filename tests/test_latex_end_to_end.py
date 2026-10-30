@@ -10,6 +10,7 @@ its own documented next command rejected, and the two halves were each passing.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -196,3 +197,41 @@ nobody has a file for the other key \citep{absent2025}.
         assert "LaTeX-converted" not in written, (
             "markdown is not converted, so the note would be a lie"
         )
+
+
+class TestALatexManuscriptIsRefusedNotQuietlyPassed:
+    """`draft` accepts .tex, so a person reasonably tries `check` on one too.
+
+    There are no claim blocks in a .tex file, so the old behaviour was to
+    read zero claims and report `0 claims - 0 verified, 0 moved, 0 missing`
+    with exit 0: the one verdict this tool exists to never give.
+    """
+
+    def test_scanning_a_tex_manuscript_is_refused(self, tmp_path: Path) -> None:
+        paper = tmp_path / "paper.tex"
+        paper.write_text(self.SOURCE, encoding="utf-8")
+        proc = _run(["check", "paper.tex"], tmp_path)
+        assert proc.returncode == 2
+        assert "is LaTeX" in proc.stderr
+        assert "citevouch draft" in proc.stderr
+
+    def test_the_refusal_names_the_command_that_does_work(self, tmp_path: Path) -> None:
+        paper = tmp_path / "paper.tex"
+        paper.write_text(self.SOURCE, encoding="utf-8")
+        proc = _run(["check", "paper.tex"], tmp_path)
+        command = re.search(r"`(citevouch draft [^`]+)`", proc.stderr)
+        assert command is not None, proc.stderr
+        assert command.group(1).endswith("-o claims.md"), command.group(1)
+
+    def test_a_markdown_manuscript_is_not_refused(self, tmp_path: Path) -> None:
+        manuscript = tmp_path / "manuscript.md"
+        manuscript.write_text("Just prose, no claim blocks." + chr(10), encoding="utf-8")
+        proc = _run(["check", "manuscript.md"], tmp_path)
+        assert "is LaTeX" not in proc.stderr
+
+    SOURCE = (
+        "\\documentclass{article}\n"
+        "\\begin{document}\n"
+        "The corpus contains 154,391 utterances \\citep{smith2026cxn}.\n"
+        "\\end{document}\n"
+    )

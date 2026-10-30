@@ -32,7 +32,16 @@ REQUIRED_SECTIONS = ("Run:", "Not tried:", "Broken by hand:")
 # subject line is stable because tools/next_version's caller owns it.
 _RELEASE_SUBJECT = re.compile(r"^Release \d+\.\d+\.\d+$")
 
-_SEEN = re.compile(r"Seen (\d+)\.")
+# The marker is written by hand, so it comes in more than one shape:
+# "Seen 3." is the canonical form, "Seen 2 - the first was ..." is what
+# an author writes when the evidence needs a clause. Requiring the period
+# made the gate read the second shape as "this lesson was never seen" and
+# stay silent - a counting rule that silently undercounts is worse than no
+# rule, because the count is the only thing that promotes a lesson.
+_SEEN = re.compile(r"Seen (\d+)(?:\.|\s|$)")
+# A lesson that says "Seen" but carries no readable number is a broken
+# marker, not an unseen lesson: report it rather than skip it.
+_SEEN_WORD = re.compile(r"\bSeen\b")
 _LESSON_HEADING = re.compile(r"^## (?P<title>.+?)\s*$", re.MULTILINE)
 _PASSED = re.compile(r"\b(\d+)\s+passed\b")
 # `ruff format --check` reports a file count, and a `Run:` line quotes it the
@@ -151,6 +160,7 @@ def lesson_promotions_due(lessons_text: str, standards_text: str) -> list[str]:
     from being fragile, the match is on a four-word shard of the title - enough
     to be specific, short enough to survive light rewording.
     """
+    unreadable: list[str] = []
     due: list[str] = []
     blocks = re.split(r"\n---\n", lessons_text)
     for block in blocks:
@@ -167,13 +177,20 @@ def lesson_promotions_due(lessons_text: str, standards_text: str) -> list[str]:
         ]
         counts = [int(m.group(1)) for m in seen if m]
         if not counts:
+            broken = [
+                line
+                for line in block.splitlines()
+                if _SEEN_WORD.search(line) and not _SEEN.search(line)
+            ]
+            if broken:
+                unreadable.append(f"{title}: {broken[0].strip()[:60]}")
             continue
         if max(counts) >= 3:
             words = re.sub(r"[^a-z ]", "", title.lower()).split()
             shard = " ".join(words[:4])
             if shard and shard not in re.sub(r"[^a-z ]", "", standards_text.lower()):
                 due.append(title)
-    return due
+    return due + [f"unparseable Seen marker in {item}" for item in unreadable]
 
 
 def main(argv: list[str] | None = None) -> int:

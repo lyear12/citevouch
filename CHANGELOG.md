@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `scan`, `verify` and `check` accepted a `.tex` manuscript and reported `0 claims — 0 verified, 0
+  moved, 0 missing` with exit 0. There are no claim blocks in a `.tex` file, so that clean summary
+  was a verdict about nothing - the one answer this tool exists to never give - and it is easy to
+  reach by accident, because `draft` does take `.tex`. Scanning one is now refused with exit 2 and a
+  message naming `citevouch draft`, which is the command that turns a `.tex` manuscript into claim
+  blocks.
+- The `Seen N.` counter in `LESSONS.md` had to end in a period, so `Seen 2 - the first was ...` was
+  read as "this lesson was never seen", and the gate that promotes a lesson seen on three separate
+  days stayed silent about it. The marker now accepts either shape, and a lesson that says `Seen`
+  without a readable number is reported instead of skipped. Widening it surfaced a real debt the
+  narrow pattern had been hiding: a lesson already at `Seen 3` had never been promoted, and is now a
+  rule in `docs/code-standards.md`.
 
 ## [0.17.0] — 2026-10-30
 ### Added

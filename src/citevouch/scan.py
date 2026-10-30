@@ -16,6 +16,7 @@ from pathlib import Path
 from . import __version__
 from .bibtex import parse_bib
 from .errors import UsageError
+from .latex import looks_like_latex
 from .manuscript import parse_manuscript, scan_unbound_markers
 from .model import Finding, Ledger, SourceRef
 from .sources import (
@@ -103,6 +104,20 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     manuscript_path = _resolve(root, options.manuscript)
     if not manuscript_path.is_file():
         raise UsageError(f"manuscript {manuscript_path} does not exist")
+    if looks_like_latex(manuscript_path):
+        # A .tex file has no claim blocks, so scanning one reads zero claims and
+        # reports a clean run - a green light for a manuscript nothing looked at.
+        # That is the one verdict this tool must never give, and it is easy to
+        # reach by accident because `draft` does accept .tex. Refuse here, at the
+        # step that would have recorded the empty ledger, and name the command
+        # that does work on a .tex source.
+        raise UsageError(
+            f"manuscript {manuscript_path} is LaTeX, and citevouch reads claim "
+            "blocks - which live in Markdown, not in a .tex file. Propose them "
+            f"first: `citevouch draft {manuscript_path} -o claims.md`, then check "
+            "claims.md. Scanning the .tex would record zero claims and report a "
+            "clean run for a manuscript nothing checked."
+        )
 
     findings: list[Finding] = []
     text = manuscript_path.read_text(encoding="utf-8", errors="replace")

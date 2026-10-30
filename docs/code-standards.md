@@ -22,6 +22,7 @@ quietly breaking the rule is not.
 | A default never overwrites what the user set | `--ledger`, `--root`, `--fail-on` fill in only when absent. `sources.toml` wins over discovery, never the reverse. |
 | Check the boundaries the change touches | Empty manuscript, one claim, a source with one page, a quote longer than its page, a page hint of 0 and of 10^6. |
 | A number in a message is measured over the tracked files | A count that depends on what is lying in the working tree is only true on the machine that printed it. `python -m pytest` and `sh tools/format_check.sh` measure the same set on every clone; quote those, not a number from a command that walked the directory. |
+| The unambiguous form of a question is worth designing for | When two inputs are indistinguishable, report the one that loses data. A fence left open around a claim and a code sample that legitimately contains one are the same text: guessing "sample" drops the file's claims silently, guessing "forgot the fence" reports a fence someone nested on purpose. Break the tie toward the loss, and give the author a structurally different way to say what they meant — a four-backtick outer fence, not "be careful". |
 
 ## Findings
 
