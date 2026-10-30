@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.10.3] — 2026-10-30
 ### Fixed
 
 - A quote that runs across a page break is no longer reported as missing.
@@ -24,7 +26,6 @@ tag and that file disagree.
   either of the two pages is counted as verified rather than `quote-moved`, and
   the number check reads both pages so a statistic carried in the second half
   is not reported absent.
-
 ## [0.10.2] — 2026-10-30
 ### Fixed
 
@@ -532,7 +533,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.10.3...HEAD
+[0.10.3]: https://github.com/lyear12/citevouch/releases/tag/v0.10.3
 [0.10.2]: https://github.com/lyear12/citevouch/releases/tag/v0.10.2
 [0.10.1]: https://github.com/lyear12/citevouch/releases/tag/v0.10.1
 [0.10.0]: https://github.com/lyear12/citevouch/releases/tag/v0.10.0
