@@ -12,10 +12,10 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.18] — 2026-10-31
 ### Fixed
 
 - An attribute left empty took the next attribute as its value.  `claim id=c1 source= page=1` read as `source="page=1"`, so a block with a half-filled `source=` was bound to a key nobody wrote and the report complained about `sources.toml` for a typo in the block.  The attribute reader now splits the two spellings: with no space after `=` the token is the value outright, so `source=a=b` still says `a=b`; with a space, a following `something=` is the next attribute, so `source= page=1` is an empty source and earns `claim-uncheckable`.  Three mutations are red, and each one only fails the tests about its own half.
-
 ## [0.19.17] — 2026-10-31
 ### Fixed
 
@@ -1259,7 +1259,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.17...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.18...HEAD
+[0.19.18]: https://github.com/lyear12/citevouch/releases/tag/v0.19.18
 [0.19.17]: https://github.com/lyear12/citevouch/releases/tag/v0.19.17
 [0.19.16]: https://github.com/lyear12/citevouch/releases/tag/v0.19.16
 [0.19.15]: https://github.com/lyear12/citevouch/releases/tag/v0.19.15
