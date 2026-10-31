@@ -275,6 +275,29 @@ def _clip(text: str, limit: int) -> str:
     return text[: limit - 1] + "…"
 
 
+def _code(text: str) -> str:
+    """Wrap ``text`` in a code span that survives backticks inside it.
+
+    The id column used to be ``_cell('`' + claim.id + '`')``, which escapes the
+    id and *then* wraps it - so an id holding a backtick closed the span early
+    and the table rendered one cell short of its header.  A code span closes on
+    the first run of backticks of its own length, so the delimiter has to be
+    longer than any run inside the content: that is the whole rule, and it only
+    works if the delimiter is chosen after looking at the content.
+
+    The result is then escaped like any other cell, because pipes and newlines
+    still break the table no matter how the span is delimited.
+    """
+    longest = 0
+    run = 0
+    for character in text:
+        run = run + 1 if character == "`" else 0
+        longest = max(longest, run)
+    fence = "`" * (longest + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return _cell(f"{fence}{pad}{text}{pad}{fence}")
+
+
 def _count(count: int, noun: str, plural: str = "") -> str:
     """Write "1 claim" or "5 claims"; the message is read by people."""
     return count_of(count, noun, plural)
@@ -429,9 +452,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         # "no page"; a 0 is a number the reader is entitled to see, and one
         # worth seeing.
         page_cell = "—" if claim.page is None else claim.page
-        lines.append(
-            f"| {_cell('`' + claim.id + '`')} | {_cell(claim.source)} | {page_cell} | {quote} |"
-        )
+        lines.append(f"| {_code(claim.id)} | {_cell(claim.source)} | {page_cell} | {quote} |")
     _emit("\n".join(lines) + "\n")
     return 0
 

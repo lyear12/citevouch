@@ -347,6 +347,83 @@ class TestTheTableIsATable:
         assert len({self._columns(ln) for ln in rows}) == 1, out
 
 
+class TestAClaimIdIsRenderedAsItsOwnCodeSpan:
+    """The id column wrapped the *escaped* id, so a backtick ended the span.
+
+    ``_cell('`' + claim.id + '`')`` escapes the id and then adds a delimiter
+    around it.  A code span closes on the first run of backticks as long as its
+    opening run, so an id that already contains one closes the span early: the
+    cell rendered as ``<code>c</code>1` `` and the row came out one cell short
+    of its header.  The delimiter has to be chosen by looking at the content,
+    which is why this is a function and not string concatenation.
+
+    ``_code`` is tested directly rather than through a Markdown renderer: no
+    renderer is a dependency of this package, and the rule it has to satisfy
+    (the closing run is longer than any run inside) is a rule about the string.
+    """
+
+    @staticmethod
+    def _span(cell: str) -> tuple[str, str]:
+        """Split a rendered cell into (delimiter, content), CommonMark-style."""
+        import re
+
+        found = re.match(r"^(`+)(.*?)\1$", cell)
+        assert found is not None, f"not one code span: {cell!r}"
+        return found.group(1), found.group(2)
+
+    def test_an_id_without_backticks_is_wrapped_in_one(self):
+        from citevouch.cli import _code
+
+        assert _code("c1") == "`c1`"
+
+    def test_an_id_with_a_backtick_gets_a_longer_delimiter(self):
+        from citevouch.cli import _code
+
+        fence, content = self._span(_code("c`1"))
+        assert len(fence) == 2, fence
+        assert content == "c`1", content
+
+    def test_an_id_ending_in_a_backtick_is_padded(self):
+        # CommonMark strips one space from each side when the content starts or
+        # ends with a backtick, so the delimiter cannot sit flush against it.
+        from citevouch.cli import _code
+
+        fence, content = self._span(_code("c`"))
+        assert len(fence) == 2, fence
+        assert content.strip() == "c`", content
+
+    def test_an_id_holding_a_pipe_still_cannot_end_the_column(self):
+        from citevouch.cli import _code
+
+        cell = _code("c|1")
+        unescaped = cell.replace("\\\\", chr(0)).replace("\\|", chr(0))
+        assert unescaped.count("|") == 0, cell
+
+    def test_the_report_row_has_the_same_number_of_cells(self, tmp_path, capsys):
+        root = tmp_path / "p"
+        root.mkdir()
+        (root / "sources.toml").write_text(
+            '[sources]\ns = "s.txt"\n', encoding="utf-8", newline="\n"
+        )
+        (root / "s.txt").write_text(
+            "We train on two corpora.\n", encoding="utf-8", newline="\n"
+        )
+        manuscript = (
+            "```claim id=c`1 source=s page=1\nquote: |\n  We train on two corpora.\n```\n"
+        )
+        (root / "manuscript.md").write_text(manuscript, encoding="utf-8", newline="\n")
+        assert main(["scan", "manuscript.md", "--root", str(root)]) == 0
+        capsys.readouterr()
+        assert main(["report", "--root", str(root)]) == 0
+        out = capsys.readouterr().out
+        rows = [ln for ln in out.split("\n") if ln.startswith("| ")]
+        # The header row plus the one claim row; the separator starts with "|-".
+        assert len(rows) == 2, out
+        for row in rows:
+            unescaped = row.replace("\\\\", chr(0)).replace("\\|", chr(0))
+            assert unescaped.count("|") == 5, row
+
+
 class TestAPathThatCannotBeWrittenIsAUsageError:
     """The exit code has to say "bad path", not "your manuscript failed".
 

@@ -2305,3 +2305,32 @@ is why the rule above says *shape*: the shape of a path includes the base it
 was resolved against. The regression test now executes the printed command
 instead of pattern-matching it, because a string match cannot see a missing
 flag. Seen 2.
+
+## A delimiter has to be chosen after looking at the content
+
+**Rule.** When you wrap a string in a delimiter that can also appear inside
+it, the delimiter must be chosen by inspecting the string, not by writing it
+first in the source. And when the string also has to survive an escaping
+step, wrap *after* escaping is finished - never escape a fragment and then
+build a larger thing around it.
+
+**Why.** A CommonMark code span closes on the first run of backticks as long
+as its opening run. ``_cell('`' + claim.id + '`')`` therefore closed early on
+an id holding a backtick, and the row lost a cell. The fix is not a longer
+constant: how long is long enough is a property of the *value*, so the
+delimiter cannot be a literal.
+
+**How to apply.** Ask what varies with the input before choosing a wrapper.
+If the answer is "the delimiter", make it a function of the value; then
+hand the finished string to the escaper, so the two rules do not have to be
+reasoned about together. Test the rule against the string (does the closing
+run exceed every interior run?) rather than through a renderer, unless the
+renderer is a real dependency.
+
+**Evidence.** Measured 2026-10-31 on 0.19.22:
+`citevouch report` with `id=c`1` printed
+`| `c`1` | s | 1 | The corpus contains 154,391 utterances. |` and a GitHub
+preview renders it as `<code>c</code>1`, one cell short. After the fix the
+same row is `| ``c`1`` | s | 1 | ... |`. Three mutations (wrap the escaped
+id again, always use one backtick, never pad) each turned the new tests red.
+Seen 1.

@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A claim id holding a backtick broke the `report` table.**
+  The id column wrapped the id in backticks *after* escaping it, so an id
+  containing one closed the code span early: the cell rendered as
+  `<code>c</code>1` and the row came out one cell short of its header. A
+  code span closes on the first run of backticks as long as its opening
+  run, so the delimiter has to be chosen by looking at the content. The
+  result is still escaped as a cell, because pipes and newlines break the
+  table however the span is delimited. The rule is tested against the
+  string rather than through a Markdown renderer, since no renderer is a
+  dependency of this package.
+
 ## [0.19.22] — 2026-10-31
 ### Fixed
 
