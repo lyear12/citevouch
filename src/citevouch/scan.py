@@ -131,6 +131,20 @@ def _ledger_path(root: Path, path: str | Path) -> str:
     return relative.as_posix()
 
 
+def _manifest_name(table: SourceTable | None) -> str:
+    """The manifest file the project has, for a sentence that tells the author to edit it.
+
+    `sources.toml` is the default only because it is the one the README
+    walks through. When the project keeps its keys in `sources.json` instead,
+    telling the author to add the entry to `sources.toml` sends them to a
+    file that is not in their checkout; they either create it and end up
+    with two manifests, or conclude the tool read a different project.
+    """
+    if table is not None and table.manifest_name:
+        return table.manifest_name
+    return "sources.toml"
+
+
 def _missing_source_message(
     key: str, candidates: list[str], claim_id: str, table: SourceTable | None = None
 ) -> str:
@@ -156,9 +170,13 @@ def _missing_source_message(
                 f"resolves it, because the manifest could not be read: "
                 f"{table.manifest_problem}"
             )
+    # Name the manifest the project actually has. A project that keeps its
+    # keys in `sources.json` was told to go and add the entry to
+    # `sources.toml`, a file that does not exist in their checkout.
+    named = _manifest_name(table)
     base = (
-        f"claim {claim_id} names source={key!r} but no entry in sources.toml "
-        "and no --source path resolves it; add it to sources.toml"
+        f"claim {claim_id} names source={key!r} but no entry in {named} "
+        f"and no --source path resolves it; add it to {named}"
     )
     close = near_misses(key, candidates)
     if not close:

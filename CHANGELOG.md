@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two `sources` manifests on disk was a ranking nobody stated.** A project that
+  kept a `sources.json` beside its live `sources.toml` was resolved against
+  whichever name came first in `MANIFEST_NAMES`, and the other file was
+  invisible in every message - including the one telling the author to add an
+  entry they had already added to the file that lost. `read_manifest` now
+  refuses when both exist: it names both files and asks the author to delete or
+  merge, because which manifest is authoritative is a fact the checkout knows
+  and the tool does not. One manifest alone is still read exactly as before.
+- **A project keeping its keys in `sources.json` was told to edit
+  `sources.toml`.** The per-claim sentence hard-coded `sources.toml` in both
+  halves - "no entry in sources.toml" and "add it to sources.toml" - so the
+  reader was sent to a file that is not in their checkout, and the likeliest
+  repair (create it) is what produces the two-manifest refusal above.
+  `SourceTable` now carries `manifest_name`, and the sentence uses it; a
+  project with no manifest at all still hears about `sources.toml`, because
+  that is the file the README teaches you to make.
+
 ## [0.19.19] — 2026-10-31
 ### Fixed
 

@@ -2234,3 +2234,33 @@ manifest - are all red. Seen 1.
 **How to apply.** Resolve both paths before comparing them, so that naming the same file twice is not a collision. Say the key and both paths in the message. And keep the quiet path quiet: `--source papers/x.pdf` against a manifest entry that already points there must still work, or the refusal becomes the new reason people stop using the flag.
 
 **Evidence.** Measured 2026-10-31: a manifest entry `dup = "p.txt"` plus `--source dup.txt` printed only `[high] quote-missing ... quote not found in p.txt`; two `--source` flags on `a/x.txt` and `b/x.txt` did the same. Three mutations (drop the manifest check, drop the flag check, compare paths as text instead of resolving them) each turned the new tests red. Seen 1.
+
+---
+
+## Two files that each claim the same role cannot be ranked, only refused
+
+**Rule.** When a lookup can find more than one thing that occupies the same
+position, refuse and name every candidate. Do not read the first and stay
+silent about the rest: the file that was not read is not merely unused, it is
+evidence the author will consult to reconstruct what happened. A refusal can
+also be the only message that admits the losing file exists.
+
+**Why.** The tool resolved keys against `sources.toml` and reported every
+disagreement as though the checkout had one manifest. In a tree that held a
+stale `sources.json` beside the live TOML, the JSON could hold the answer and
+still never appear in any sentence: the author reads a message about a file
+that is not the one being read, edits it, and the run does not change. The
+sentence is not wrong about a path, it is wrong about *which* paths exist.
+
+**How to apply.** Enumerate the candidates before opening either, decide the
+refusal at that point, and let the message name all of them by the names the
+reader would see in their file manager. Keep the single-candidate path
+byte-identical to what it was: a refusal that costs the working case is a new
+outage in place of an old silence.
+
+**Evidence.** Measured 2026-10-31: with `sources.toml` pointing at
+`wrong.txt` and `sources.json` at `p.txt`, `check` printed
+`[high] quote-missing ... quote not found in wrong.txt`, and swapping the two
+contents flipped the result - the ranking was a fact about `MANIFEST_NAMES`,
+not about the files. Three mutations (hard-code the name back, forget
+`manifest_name`, restore the ranking) each turned the new tests red. Seen 1.

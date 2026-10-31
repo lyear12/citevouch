@@ -485,10 +485,24 @@ def read_manifest(root: str | Path) -> tuple[dict[str, str], str | None]:
     value and the per-claim message below could only guess which one it was.
     """
     root = Path(root)
-    for name in MANIFEST_NAMES:
+    used = [name for name in MANIFEST_NAMES if (root / name).exists()]
+    if len(used) > 1:
+        # Both files are here and there is no way to tell which one the
+        # author meant.  The loop below used to read whichever came first
+        # and never mention the other, so a project that kept a stale
+        # ``sources.json`` beside its live ``sources.toml`` was resolved
+        # against one of them at random - and the losing file was invisible
+        # in every message, including the one telling the author to go and
+        # add an entry they had already added.
+        return (
+            {},
+            "both "
+            + " and ".join(used)
+            + " exist, and only one of them is read; "
+            + "delete the one you are not using, or merge them",
+        )
+    for name in used:
         path = root / name
-        if not path.exists():
-            continue
         try:
             text = read_text(path)
             if name.endswith(".json"):
@@ -539,6 +553,7 @@ class SourceTable:
     found: dict[str, str] = field(default_factory=dict)
     unusable: dict[str, str] = field(default_factory=dict)
     manifest_problem: str | None = None
+    manifest_name: str | None = None
 
 
 def read_source_table(root: str | Path, extra: list[str] | None = None) -> SourceTable:
@@ -633,7 +648,25 @@ def read_source_table(root: str | Path, extra: list[str] | None = None) -> Sourc
             unusable[key] = (
                 f"sources.toml maps {key!r} to {value!r}, but {value!r} {why_not_a_file(path)}"
             )
-    return SourceTable(found=found, unusable=unusable, manifest_problem=problem)
+    return SourceTable(
+        found=found,
+        unusable=unusable,
+        manifest_problem=problem,
+        manifest_name=_manifest_name(root),
+    )
+
+
+def _manifest_name(root: Path) -> str | None:
+    """Which manifest file is on disk, if any.
+
+    Kept separate from the parse so the name survives a manifest that
+    will not parse: the message for a broken `sources.json` should still
+    name `sources.json` rather than the TOML file the README uses.
+    """
+    for name in MANIFEST_NAMES:
+        if (root / name).exists():
+            return name
+    return None
 
 
 def explain_unresolved(key: str, table: SourceTable) -> str | None:

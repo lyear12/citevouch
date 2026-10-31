@@ -354,3 +354,87 @@ class TestAKeyBoundTwiceIsRefusedInsteadOfResolved:
         result = _check(project, extra=[str(project / "a" / "dup.txt")])
         assert result.returncode == 0
         assert "quote found" in result.stdout
+
+
+def _toml(body: str) -> str:
+    return "[sources]" + chr(10) + body + chr(10)
+
+
+def _claim(source: str) -> str:
+    return (
+        "```claim id=c1 source=" + source + chr(10) + "quote: hello" + chr(10) + "```" + chr(10)
+    )
+
+
+class TestTwoManifestsAreRefusedInsteadOfRanked:
+    def test_both_files_on_disk_is_not_a_choice_the_tool_makes(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, _toml('p = "note.txt"'))
+        (project / "sources.json").write_text(
+            '{"sources": {"p": "other.txt"}}', encoding="utf-8"
+        )
+        table = read_source_table(project)
+        assert table.found == {}
+        assert table.manifest_problem is not None
+        assert "both sources.toml and sources.json exist" in table.manifest_problem
+
+    def test_the_message_says_which_files_collided(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, _toml('p = "note.txt"'))
+        (project / "sources.json").write_text(
+            '{"sources": {"p": "note.txt"}}', encoding="utf-8"
+        )
+        result = _check(project)
+        assert result.returncode == 1
+        assert "both sources.toml and sources.json exist" in result.stdout
+        assert "delete the one you are not using" in result.stdout
+
+    def test_one_manifest_alone_is_still_read(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, _toml('p = "note.txt"'))
+        table = read_source_table(project)
+        # The table stores the path it resolved, not the string the manifest
+        # held: the resolved one is what gets opened, and it is absolute
+        # precisely so the manifest cannot be read from two places.
+        assert Path(table.found["p"]).name == "note.txt"
+        assert table.manifest_problem is None
+        assert table.manifest_name == "sources.toml"
+
+    def test_a_json_manifest_alone_is_named_json(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, None)
+        (project / "sources.json").write_text(
+            '{"sources": {"p": "note.txt"}}', encoding="utf-8"
+        )
+        table = read_source_table(project)
+        assert Path(table.found["p"]).name == "note.txt"
+        assert table.manifest_name == "sources.json"
+
+
+class TestTheSentenceNamesTheManifestTheProjectHas:
+    def _bare(self, tmp_path: Path, claim: str) -> Path:
+        (tmp_path / "note.txt").write_text("hello" + chr(10), encoding="utf-8")
+        (tmp_path / "m.md").write_text(claim, encoding="utf-8")
+        return tmp_path
+
+    def test_a_json_project_is_not_told_to_edit_the_toml_file(self, tmp_path: Path) -> None:
+        project = self._bare(tmp_path, _claim("absent"))
+        (project / "sources.json").write_text(
+            '{"sources": {"p": "note.txt"}}', encoding="utf-8"
+        )
+        result = _check(project)
+        assert result.returncode == 1
+        assert "no entry in sources.json" in result.stdout
+        assert "add it to sources.json" in result.stdout
+        assert "no entry in sources.toml" not in result.stdout
+
+    def test_a_toml_project_is_told_to_edit_the_toml_file(self, tmp_path: Path) -> None:
+        project = self._bare(tmp_path, _claim("absent"))
+        (project / "sources.toml").write_text(_toml('other = "note.txt"'), encoding="utf-8")
+        result = _check(project)
+        assert result.returncode == 1
+        assert "no entry in sources.toml" in result.stdout
+
+    def test_a_broken_json_manifest_is_named_as_json(self, tmp_path: Path) -> None:
+        project = self._bare(tmp_path, _claim("p"))
+        (project / "sources.json").write_text('{"sources": {bad}}', encoding="utf-8")
+        result = _check(project)
+        assert result.returncode == 1
+        assert "sources.json could not be read as JSON" in result.stdout
+        assert "sources.toml" not in result.stdout
