@@ -319,3 +319,19 @@ would a person actually have on disk", not by reading the code.
   deciding it means deciding what the flag means when the stem and the key
   disagree too - `--source real.txt` binds `real`, not `p`, so the flag can
   only override an entry whose key equals a filename.
+
+- [x] **An empty attribute binds the claim to the attribute beside it.** *Done 2026-10-31.*
+  ` ```claim id=c1 source= page=1 ` parsed as `source="page=1"`, so a block
+  whose author had written `source=` and stopped to think was bound to a key
+  nobody had typed.  `sources.toml` had no such key, and the finding read
+  `claim c1 names source='page=1' but no entry in sources.toml ... add it to
+  sources.toml` - a sentence about the manifest, which was correct, for a
+  typo in the block.  The attribute pattern in
+  `src/citevouch/manuscript.py:_attrs` ended in an unbounded token, so an
+  empty value took the next word.  *Done when* an empty attribute is empty:
+  the pattern now splits on the author's spacing - no space after `=` makes
+  the token the value outright (so `source=a=b` still means the key `a=b`),
+  a space means a following `key=` starts the next attribute, so
+  `source= page=1` earns `claim-uncheckable`.  *Verified by* three mutations
+  that each fail only their own half, and by keeping the `a=b` spelling
+  pinned: the first fix used one lookahead for both spellings and broke it.
