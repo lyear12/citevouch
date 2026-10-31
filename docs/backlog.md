@@ -361,3 +361,18 @@ would a person actually have on disk", not by reading the code.
   `source= page=1` earns `claim-uncheckable`.  *Verified by* three mutations
   that each fail only their own half, and by keeping the `a=b` spelling
   pinned: the first fix used one lookahead for both spellings and broke it.
+
+- [x] **Advice the tool prints that the tool refuses.** Two commands in one
+  sentence, both un-runnable: `no-claim-blocks` named the manuscript by
+  basename (right for a finding's `path`, wrong for a shell), and it always
+  suggested `-o claims.md`, so a `claims.md` with no blocks was told to write
+  onto itself. *Done when* the advice carries the path the reader typed and
+  picks an output name that differs from it. *Verified by*
+  `tests/test_no_claims.py::TestTheAdviceCanBeFollowed` (4 tests; three
+  mutations - basename, fixed output name, callers not passing the typed
+  path - each turned exactly one test red) and by running both printed
+  commands for real: exit 0 on a subdirectory manuscript and on a
+  self-named `claims.md`. *Not covered*: only the `no-claim-blocks` advice is
+  guarded; `draft`'s own "read it, then check it" line and the `.tex`
+  refusal still print the path they were handed, which is right for both
+  because neither drops a directory.
