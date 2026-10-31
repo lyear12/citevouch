@@ -591,6 +591,17 @@ def read_source_table(root: str | Path, extra: list[str] | None = None) -> Sourc
             # author goes looking for a missing PDF that is not missing.
             what = why_not_a_file(path)
             raise UsageError(f"source {path} {what}")
+        earlier = found.get(path.stem)
+        if earlier is not None and Path(earlier).resolve() != path.resolve():
+            # Two ``--source`` flags land on the same key. Last-one-wins here
+            # is the same defect as last-one-wins against the manifest, only
+            # closer: the claim is searched for in the file the caller named
+            # second, and the first one is reported as not containing it.
+            raise UsageError(
+                f"source key {path.stem!r} is bound twice by --source, to "
+                f"{earlier!r} and to {str(path)!r}; name the files differently "
+                "or pass only the one you mean"
+            )
         found[path.stem] = str(path)
 
     manifest, problem = read_manifest(root)
@@ -600,6 +611,21 @@ def read_source_table(root: str | Path, extra: list[str] | None = None) -> Sourc
         if not path.is_absolute():
             path = root / path
         if path.is_file():
+            previous = found.get(key)
+            if previous is not None and Path(previous).resolve() != path.resolve():
+                # Two sources name the same key and point at different files.
+                # The older resolver let the manifest overwrite the flag, so a
+                # caller who passed ``--source`` to replace one stale entry got
+                # no error and no effect: the quote was searched for in the file
+                # they had just tried to stop using. Refusing is not deciding
+                # which side wins; it is declining to guess between two files
+                # the caller can see and we cannot rank.
+                raise UsageError(
+                    f"source key {key!r} is bound twice, to {previous!r} by "
+                    f"--source and to {str(path)!r} by {root / 'sources.toml'}; "
+                    "drop one of them, or rename the file so only one binding "
+                    "is left"
+                )
             found[key] = str(path)
         else:
             # The value is what the author wrote, so quoting it back is more

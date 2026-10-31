@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A source key bound twice resolved to whichever binding came last, quietly.**
+  A `--source` flag and a `sources.toml` entry that named the same key pointed the
+  claim at the manifest's file, so a caller who passed the flag to stop using one
+  stale entry got no error, no effect, and a finding saying the quote was not in
+  the file they had just tried to replace. Two `--source` flags whose files share a
+  stem behaved the same way, resolving to the second one. `read_source_table` now
+  refuses both with a usage error naming the key and the two paths, and stays
+  silent when they resolve to the same file.
+
 ## [0.19.18] — 2026-10-31
 ### Fixed
 

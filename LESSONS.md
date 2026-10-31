@@ -2224,3 +2224,13 @@ manifest - are all red. Seen 1.
 **Why.** The failure is not a crash and not a wrong count.  It is a sentence about a different part of the project.  The claim gets bound to a source named `page=1`, `sources.toml` has no such key, and the report sends the author to the manifest - the one file that is correct.  Nothing in the message mentions the empty `source=` in front of them.
 
 **Evidence.** `src/citevouch/manuscript.py:_attrs` matched `(?P<value>"[^"]*"|'[^']*'|\S+)`, so `claim id=c1 source= page=1` produced `{"source": "page=1"}` and `verify` reported `claim c1 names source='page=1' but no entry in sources.toml`.  The fix splits the alternation on the space after `=` and keeps the greedy reading for the tight form, so `source=a=b` still means the key `a=b`.  Three mutations are red and each fails only its own half: the old greedy pattern, removing the lookahead from the spaced form, and refusing unquoted values in the tight form.  The first attempt used a single lookahead for both spellings and silently broke `source=a=b` - which is why both spellings are now pinned by a test.  Seen 1.
+
+## Two sources can name one key, and the loser is always silent
+
+**Rule.** When two independent inputs can bind the same name, refuse the collision and say which two things collided. Do not let the later one win on the theory that order is obvious - the order is obvious to whoever wrote the loop, and invisible to whoever runs the command.
+
+**Why.** A key bound twice does not fail loudly, it fails as a finding about something else. The claim is searched for in one of the two files; the other file, the one the caller was trying to use, is reported as not containing the quote. Every word of that finding is true about the file it names, and the reader is sent to fix the wrong thing: they re-check their quote, then their page number, then whether the PDF is the right edition.
+
+**How to apply.** Resolve both paths before comparing them, so that naming the same file twice is not a collision. Say the key and both paths in the message. And keep the quiet path quiet: `--source papers/x.pdf` against a manifest entry that already points there must still work, or the refusal becomes the new reason people stop using the flag.
+
+**Evidence.** Measured 2026-10-31: a manifest entry `dup = "p.txt"` plus `--source dup.txt` printed only `[high] quote-missing ... quote not found in p.txt`; two `--source` flags on `a/x.txt` and `b/x.txt` did the same. Three mutations (drop the manifest check, drop the flag check, compare paths as text instead of resolving them) each turned the new tests red. Seen 1.

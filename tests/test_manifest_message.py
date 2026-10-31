@@ -36,23 +36,26 @@ def _project(tmp_path: Path, manifest: str | None) -> Path:
     return tmp_path
 
 
-def _check(project: Path) -> subprocess.CompletedProcess[str]:
+def _check(project: Path, extra: list[str] | None = None) -> subprocess.CompletedProcess[str]:
     env = {
         **os.environ,
         "PYTHONPATH": str(ROOT / "src"),
         "PYTHONIOENCODING": "utf-8",
     }
+    argv = [
+        sys.executable,
+        "-m",
+        "citevouch",
+        "check",
+        "m.md",
+        "--root",
+        str(project),
+        "--no-cache",
+    ]
+    for path in extra or []:
+        argv.extend(["--source", path])
     return subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "citevouch",
-            "check",
-            "m.md",
-            "--root",
-            str(project),
-            "--no-cache",
-        ],
+        argv,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
@@ -286,3 +289,68 @@ class TestTheDraftProposalNamesTheCauseToo:
         project = _project(tmp_path, None)
         out = self._draft(project)
         assert "not in sources.toml, no `file` field" in out
+
+
+class TestAKeyBoundTwiceIsRefusedInsteadOfResolved:
+    """Two sources naming the same key used to resolve to whichever came last.
+
+    The manifest branch overwrote what a --source flag had bound, so a caller
+    who passed the flag to replace one stale entry got no error, no effect, and
+    a finding saying the quote was not in the file they had just tried to stop
+    using.  Refusing is not picking a winner; it is declining to rank two files
+    the caller can see and the tool cannot.
+    """
+
+    def _project(self, tmp_path: Path) -> Path:
+        (tmp_path / "m.md").write_text(
+            "```claim id=c1 source=dup page=1"
+            + chr(10)
+            + "quote: alpha text here."
+            + chr(10)
+            + "```"
+            + chr(10),
+            encoding="utf-8",
+        )
+        (tmp_path / "a").mkdir()
+        (tmp_path / "b").mkdir()
+        (tmp_path / "a" / "dup.txt").write_text("alpha text here." + chr(10), encoding="utf-8")
+        (tmp_path / "b" / "dup.txt").write_text("beta text here." + chr(10), encoding="utf-8")
+        return tmp_path
+
+    def _manifest(self, project: Path, value: str) -> None:
+        (project / "sources.toml").write_text(
+            "[sources]" + chr(10) + "dup = " + chr(34) + value + chr(34) + chr(10),
+            encoding="utf-8",
+        )
+
+    def test_the_flag_and_the_manifest_cannot_both_win(self, tmp_path: Path) -> None:
+        project = self._project(tmp_path)
+        self._manifest(project, "b/dup.txt")
+        result = _check(project, extra=[str(project / "a" / "dup.txt")])
+        assert result.returncode == 2
+        assert "bound twice" in result.stderr
+        assert "--source" in result.stderr
+        assert "sources.toml" in result.stderr
+
+    def test_two_flags_on_the_same_stem_are_refused(self, tmp_path: Path) -> None:
+        project = self._project(tmp_path)
+        result = _check(
+            project,
+            extra=[str(project / "a" / "dup.txt"), str(project / "b" / "dup.txt")],
+        )
+        assert result.returncode == 2
+        assert "bound twice by --source" in result.stderr
+
+    def test_the_same_file_named_twice_is_not_a_conflict(self, tmp_path: Path) -> None:
+        project = self._project(tmp_path)
+        same = str(project / "a" / "dup.txt")
+        result = _check(project, extra=[same, same])
+        assert result.returncode == 0
+        assert "quote found" in result.stdout
+
+    def test_the_manifest_naming_the_same_file_is_not_a_conflict(self, tmp_path: Path) -> None:
+        project = self._project(tmp_path)
+        self._manifest(project, "a/dup.txt")
+        result = _check(project, extra=[str(project / "a" / "dup.txt")])
+        assert result.returncode == 0
+        assert "quote found" in result.stdout

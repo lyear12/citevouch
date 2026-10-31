@@ -306,19 +306,17 @@ would a person actually have on disk", not by reading the code.
   searches, one of which had in fact succeeded.  It now asks the same
   function.  Its resolution order is unchanged and correct: a manifest entry,
   then the bibliography's `file` field, then a file whose stem is the key, so
-  only a key that resolves *nowhere* reaches the sentence at all.  *Not
-  covered:* what happens to a key that a `--source` flag binds while the
-  manifest also names it under a different path - measured 2026-10-31: **the
-  manifest wins**, silently, because `read_source_table` fills `found` from the
-  flag first and then overwrites with the manifest `if path.is_file()` branch.
-  `discover_sources`' own docstring says "in this order: `--source`, then the
-  manifest", which reads as priority and is not what the code does. A user who
-  passes `--source` to override one stale entry gets no error and no effect.
-  Left as an open question rather than changed here: which of the two *should*
-  win is a design decision (the usual convention is that the flag does), and
-  deciding it means deciding what the flag means when the stem and the key
-  disagree too - `--source real.txt` binds `real`, not `p`, so the flag can
-  only override an entry whose key equals a filename.
+  only a key that resolves *nowhere* reaches the sentence at all.  *Also
+  covered (second pass, same day):* a key bound twice. A `--source` flag that
+  bound one key against a `sources.toml` entry for the same key resolved to the
+  manifest, silently; two `--source` flags whose files share a stem resolved to
+  the second one, silently. In both cases the quote was then searched for in
+  the file the caller had just tried to stop using, and the finding said the
+  quote was missing. `read_source_table` now raises `UsageError` when two
+  different files claim one key, and stays quiet when the two paths resolve to
+  the same file - so `--source papers/x.pdf` on a manifest entry that already
+  points there is still fine. Refusing is not the same as deciding which side
+  wins: both files are visible to the caller and neither is to the tool.
 
 - [x] **An empty attribute binds the claim to the attribute beside it.** *Done 2026-10-31.*
   ` ```claim id=c1 source= page=1 ` parsed as `source="page=1"`, so a block
