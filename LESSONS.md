@@ -2166,3 +2166,41 @@ and `TestTheCommand::test_sarif_carries_the_broken_checks` hold the new
 `check-unavailable` code in place, and the four symmetry guards (`CODES`,
 `SARIF_RULES`, both README tables) go red at once if a code is added to one
 and not the others. Seen 1.
+
+## An entry that was dropped cannot be described, so describe it before you drop it
+
+A message about a project file has to be true about that file. When four
+different situations produce the same sentence, the reader is told the one
+thing that is wrong least often, and the fix they attempt is the one that
+cannot help. Keep the failures you cannot use, with the reason, until the
+sentence that names them has been written.
+
+**Why.** `sources.toml` naming `p = "gone.txt"` produced, per claim,
+`claim c1 names source='p' but no entry in sources.toml and no --source path
+resolves it; add it to sources.toml`. The author had the entry. Re-reading
+the manifest is the one action that cannot fix it, and it is the action the
+sentence names. The mechanism was upstream and invisible:
+`discover_sources` walked the manifest with `if path.is_file():` and no
+`else`, so the entry was already gone by the time the message was built, and
+"no manifest", "no such key", "key names a file that is not there" and
+"manifest will not parse" all arrived as `{}`. A function that returns only
+what succeeded cannot support a message about what failed; the information
+is destroyed one stack frame before it is needed.
+
+**Why it survived being read.** The same function had two tests, four lines
+apart, reaching opposite conclusions about the same judgement: a directory
+passed to `--source` must be refused, while a directory named in the
+manifest is ignored. Both were written as expected behaviour and both
+passed. The half that was wrong was the half that did nothing - dropping an
+entry produces no output, so there was nothing to read and nothing to doubt.
+A behaviour that leaves no trace is not reviewed; it is only inherited.
+
+**Evidence.** Five manifest shapes against one fixture - valid, absent,
+broken TOML, empty string, key naming a missing file, key naming a
+directory - produced two distinct sentences instead of five, and the two
+wrong ones both said "no entry in sources.toml".
+`tests/test_manifest_message.py` now asserts the sentence for each cause,
+and `test_critic_round3.py`'s manifest half no longer disagrees with its
+`--source` half. Four mutations - dropping the entry, ignoring the table in
+the message, not passing the table in, and not reporting an unparseable
+manifest - are all red. Seen 1.

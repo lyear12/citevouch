@@ -19,6 +19,7 @@ from citevouch.sources import (
     discover_sources,
     near_misses,
     page_hint_is_valid,
+    read_source_table,
     resolve_source,
 )
 
@@ -225,7 +226,19 @@ class TestUsageMistakesStayInsideTheExitContract:
             discover_sources(project, [str(project / "adir")])
         assert "is a directory, not a file" in str(caught.value)
 
-    def test_a_directory_in_the_manifest_is_ignored_too(self, project):
+    def test_a_directory_in_the_manifest_is_kept_not_ignored(self, project):
+        """The sibling of the test above, and it used to conclude the opposite.
+
+        `test_a_directory_passed_as_a_source_is_refused_not_ignored` says a
+        directory the caller named is a usage error.  This one said a directory
+        the manifest named is simply dropped - same judgement, same function,
+        opposite answers, and both were written down as expected behaviour.  The
+        drop was also invisible: `discover_sources` returned a mapping without
+        the key, so the per-claim message could only say "no entry in
+        sources.toml" about a project whose manifest had the entry.  The key now
+        survives in `unusable` with the sentence that explains it, while the
+        function still keeps its "bindings only" return shape.
+        """
         (project / "adir").mkdir(exist_ok=True)
         (project / "sources.toml").write_text(
             '[sources]\np = "papers/2026_smith_networks.txt"\nother = "adir"\n',
@@ -234,6 +247,9 @@ class TestUsageMistakesStayInsideTheExitContract:
         found = discover_sources(project, [])
         assert "other" not in found
         assert "p" in found
+        table = read_source_table(project)
+        assert "other" in table.unusable
+        assert "is a directory, not a file" in table.unusable["other"]
 
     def test_init_demo_on_a_file_exits_two_with_a_sentence(self, tmp_path):
         target = tmp_path / "already-a-file.txt"

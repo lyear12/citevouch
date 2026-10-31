@@ -1,0 +1,164 @@
+"""What the tool says when a manifest entry cannot be used.
+
+The message used to be identical for four different situations: no manifest,
+a manifest without that key, a manifest whose key points at a file that is not
+there, and a manifest that could not be parsed at all.  Three of those four are
+sentences about something the author already did right - they wrote the entry -
+so the reader goes back to the manifest, finds their line, and concludes the
+tool is broken.  A message about a path has to be true about that path.
+
+`discover_sources` threw the unusable entries away (`if path.is_file()` with no
+`else`), which is why the per-claim message could not tell the cases apart: by
+the time it ran, the information was gone.  `read_source_table` keeps it.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from citevouch.sources import discover_sources, read_manifest, read_source_table
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _project(tmp_path: Path, manifest: str | None) -> Path:
+    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
+    (tmp_path / "m.md").write_text(
+        "```claim id=c1 source=p\nquote: hello\n```\n", encoding="utf-8"
+    )
+    if manifest is not None:
+        (tmp_path / "sources.toml").write_text(manifest, encoding="utf-8")
+    return tmp_path
+
+
+def _check(project: Path) -> subprocess.CompletedProcess[str]:
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(ROOT / "src"),
+        "PYTHONIOENCODING": "utf-8",
+    }
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "citevouch",
+            "check",
+            "m.md",
+            "--root",
+            str(project),
+            "--no-cache",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        cwd=str(project),
+        check=False,
+    )
+
+
+class TestTheTableKeepsWhatItCouldNotUse:
+    def test_a_key_whose_file_is_gone_is_kept_as_unusable(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "gone.txt"\n')
+        table = read_source_table(project)
+        assert table.found == {}
+        assert "p" in table.unusable
+        assert "does not exist" in table.unusable["p"]
+
+    def test_a_key_whose_file_is_a_directory_says_so(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "."\n')
+        table = read_source_table(project)
+        assert "p" in table.unusable
+        assert "is a directory, not a file" in table.unusable["p"]
+
+    def test_a_key_that_resolves_is_not_listed_as_unusable(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "note.txt"\n')
+        table = read_source_table(project)
+        assert "p" in table.found
+        assert table.unusable == {}
+
+    def test_a_manifest_that_will_not_parse_reports_itself(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources\np = "note.txt"\n')
+        table = read_source_table(project)
+        assert table.found == {}
+        assert table.manifest_problem is not None
+        assert "sources.toml" in table.manifest_problem
+
+    def test_no_manifest_is_not_a_problem(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, None)
+        table = read_source_table(project)
+        assert table.found == {}
+        assert table.unusable == {}
+        assert table.manifest_problem is None
+
+    def test_discover_sources_still_returns_only_the_bindings(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "note.txt"\nq = "gone.txt"\n')
+        found = discover_sources(project)
+        assert set(found) == {"p"}
+
+    def test_load_manifest_is_the_mapping_alone(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "note.txt"\n')
+        assert read_manifest(project) == ({"p": "note.txt"}, None)
+
+
+class TestTheReportedSentenceIsTrue:
+    def test_a_missing_file_is_not_called_a_missing_entry(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "gone.txt"\n')
+        result = _check(project)
+        assert result.returncode == 1
+        assert "no entry in sources.toml" not in result.stdout
+        assert "sources.toml maps 'p' to 'gone.txt'" in result.stdout
+        assert "does not exist" in result.stdout
+
+    def test_a_directory_says_directory(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "."\n')
+        result = _check(project)
+        assert result.returncode == 1
+        assert "is a directory, not a file" in result.stdout
+
+    def test_an_unreadable_manifest_is_named_as_the_cause(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources\np = "note.txt"\n')
+        result = _check(project)
+        assert result.returncode == 1
+        assert "the manifest could not be read" in result.stdout
+        assert "sources.toml could not be read as TOML" in result.stdout
+
+    def test_no_manifest_still_says_add_it(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, None)
+        result = _check(project)
+        assert result.returncode == 1
+        assert "no entry in sources.toml" in result.stdout
+        assert "add it to sources.toml" in result.stdout
+
+    def test_a_resolved_project_says_nothing_at_all(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\np = "note.txt"\n')
+        result = _check(project)
+        assert result.returncode == 0
+        assert "source" not in result.stdout
+
+
+class TestTheContradictionThatWasWrittenDown:
+    """The pair that made this bug survive: same call, opposite conclusions."""
+
+    def test_a_directory_in_the_manifest_is_kept_not_dropped(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, '[sources]\nother = "."\n')
+        table = read_source_table(project)
+        # The sibling test in test_critic_round3.py used to assert this path was
+        # ignored, while the test above it asserted a --source directory must be
+        # refused.  Both passed, because the manifest half threw the entry away
+        # and the sentence written about it blamed the manifest for not having it.
+        assert "other" in table.unusable
+        assert "other" not in table.found
+
+    def test_a_bad_source_flag_is_still_a_usage_error(self, tmp_path: Path) -> None:
+        from citevouch.errors import UsageError
+
+        project = _project(tmp_path, None)
+        (project / "adir").mkdir()
+        with pytest.raises(UsageError):
+            read_source_table(project, [str(project / "adir")])

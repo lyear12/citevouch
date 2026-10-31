@@ -475,18 +475,14 @@ def _load_toml(text: str) -> dict:
     return tomllib.loads(text)
 
 
-def load_manifest(root: str | Path) -> dict[str, str]:
-    """Read a ``sources`` manifest mapping claim source keys to file paths.
+def read_manifest(root: str | Path) -> tuple[dict[str, str], str | None]:
+    """Read the ``sources`` manifest, and say why it could not be read.
 
-    Only the two shapes that cost nothing to support are supported:
-
-    * ``sources.json`` — ``{"vaneecke2026": "papers/2026.pdf"}``
-    * ``sources.toml`` — ``[sources]`` table, same mapping
-
-    ``sources.toml`` works on 3.10 as well as 3.11+: see :func:`_mini_toml` for
-    why a subset is parsed there.  A malformed manifest yields an empty mapping
-    rather than an error — the project then reports ``source-missing`` per
-    claim, which names the problem instead of half-solving it.
+    The second element is ``None`` when a manifest was found and parsed, and a
+    sentence naming the problem when one exists but is not readable.  It used to
+    be dropped on the floor: the caller got ``{}`` either way, so "this project
+    has no manifest" and "this project's manifest is broken" arrived as the same
+    value and the per-claim message below could only guess which one it was.
     """
     root = Path(root)
     for name in MANIFEST_NAMES:
@@ -503,11 +499,46 @@ def load_manifest(root: str | Path) -> dict[str, str]:
                 mapping = blob.get("sources", {}) if isinstance(blob, dict) else {}
             else:
                 continue
-        except (OSError, ValueError):
-            continue
+        except (OSError, ValueError) as exc:
+            return (
+                {},
+                f"{name} could not be read as {'JSON' if name.endswith('.json') else 'TOML'} ({exc})",
+            )
         if isinstance(mapping, dict):
-            return {str(k): str(v) for k, v in mapping.items() if isinstance(v, str)}
-    return {}
+            return {str(k): str(v) for k, v in mapping.items() if isinstance(v, str)}, None
+    return {}, None
+
+
+def load_manifest(root: str | Path) -> dict[str, str]:
+    """Read a ``sources`` manifest mapping claim source keys to file paths.
+
+    Only the two shapes that cost nothing to support are supported:
+
+    * ``sources.json`` — ``{"vaneecke2026": "papers/2026.pdf"}``
+    * ``sources.toml`` — ``[sources]`` table, same mapping
+
+    ``sources.toml`` works on 3.10 as well as 3.11+: see :func:`_mini_toml` for
+    why a subset is parsed there.  A malformed manifest yields an empty mapping
+    rather than an error — use :func:`read_manifest` when the difference between
+    "no manifest" and "unreadable manifest" has to reach the reader.
+    """
+    return read_manifest(root)[0]
+
+
+@dataclass(frozen=True)
+class SourceTable:
+    """What the manifest and ``--source`` together bind, and what they could not.
+
+    ``unusable`` maps a key the manifest *does* name to the sentence explaining
+    why that entry cannot be used.  It exists because the previous version threw
+    those entries away inside ``discover_sources`` and then reported, per claim,
+    "no entry in sources.toml" — a false sentence about a project whose
+    ``sources.toml`` was the one thing it had done right.
+    """
+
+    found: dict[str, str] = field(default_factory=dict)
+    unusable: dict[str, str] = field(default_factory=dict)
+    manifest_problem: str | None = None
 
 
 def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[str, str]:
@@ -528,6 +559,33 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
 
     A missing key is still easy to fix: :func:`near_misses` supplies candidates
     for the error message, so the author picks instead of the tool guessing.
+
+    A key the manifest names but whose file is not usable is not "missing": see
+    :func:`read_source_table` for why that distinction had to leave this
+    function.
+    """
+    return read_source_table(root, extra).found
+
+
+def read_source_table(root: str | Path, extra: list[str] | None = None) -> SourceTable:
+    """Resolve every key, and keep the ones that failed along with their reason.
+
+    ``found`` is what ``discover_sources`` returns. The other two fields are for
+    the error message, and they exist because merging the failures into one
+    bucket made the message lie:
+
+    * ``unusable`` — the manifest names ``p`` and ``p`` is a directory, or the
+      file has been moved away.  The old code dropped the entry, and the claim
+      that needed it was then told "no entry in sources.toml", which is exactly
+      the thing the author had got right.  They go read the manifest, find their
+      line, and conclude the tool is broken.
+    * ``manifest_problem`` — a manifest exists but could not be parsed.  Same
+      lie, one level up: the project does have an entry, and no re-reading of it
+      will help.
+
+    ``--source`` stays a hard error rather than a recorded failure: it is a
+    string on the command line, so a bad one is a typo the caller can fix in
+    place, not project state that a later reader has to be warned about.
     """
     root = Path(root)
     found: dict[str, str] = {}
@@ -544,14 +602,21 @@ def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[s
             raise UsageError(f"source {path} {what}")
         found[path.stem] = str(path)
 
-    manifest = load_manifest(root)
+    manifest, problem = read_manifest(root)
+    unusable: dict[str, str] = {}
     for key, value in manifest.items():
         path = Path(value)
         if not path.is_absolute():
             path = root / path
         if path.is_file():
             found[key] = str(path)
-    return found
+        else:
+            # The value is what the author wrote, so quoting it back is more
+            # useful than describing the joined path they never typed.
+            unusable[key] = (
+                f"sources.toml maps {key!r} to {value!r}, but {value!r} {why_not_a_file(path)}"
+            )
+    return SourceTable(found=found, unusable=unusable, manifest_problem=problem)
 
 
 def page_hint_is_valid(page: int | None, page_count: int) -> bool:

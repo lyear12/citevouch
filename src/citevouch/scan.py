@@ -20,11 +20,12 @@ from .latex import looks_like_latex
 from .manuscript import _CLAIMISH, parse_manuscript, scan_unbound_markers
 from .model import Finding, Ledger, SourceRef
 from .sources import (
+    SourceTable,
     candidate_files,
-    discover_sources,
     extract_pages,
     near_misses,
     page_hint_is_valid,
+    read_source_table,
     resolve_source,
     sha256_file,
 )
@@ -130,7 +131,9 @@ def _ledger_path(root: Path, path: str | Path) -> str:
     return relative.as_posix()
 
 
-def _missing_source_message(key: str, candidates: list[str], claim_id: str) -> str:
+def _missing_source_message(
+    key: str, candidates: list[str], claim_id: str, table: SourceTable | None = None
+) -> str:
     """Say the key cannot be resolved, and name what was probably meant.
 
     The candidates are printed, not used.  A tool that binds a claim to a PDF
@@ -138,7 +141,21 @@ def _missing_source_message(key: str, candidates: list[str], claim_id: str) -> s
     wrong paper, and the author would never learn the page number it cited was
     from something else.  Naming the near misses keeps the fix to one paste
     while leaving the decision where it belongs.
+
+    ``table`` carries the two failures that are not "no entry": a key the
+    manifest names whose file cannot be used, and a manifest nobody could parse.
+    Both used to reach the reader as "no entry in sources.toml", which is a
+    sentence about the one thing the author had already got right.
     """
+    if table is not None:
+        if key in table.unusable:
+            return f"claim {claim_id} cannot be resolved: {table.unusable[key]}"
+        if table.manifest_problem:
+            return (
+                f"claim {claim_id} names source={key!r}, and no --source path "
+                f"resolves it, because the manifest could not be read: "
+                f"{table.manifest_problem}"
+            )
     base = (
         f"claim {claim_id} names source={key!r} but no entry in sources.toml "
         "and no --source path resolves it; add it to sources.toml"
@@ -197,7 +214,8 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     # claim spans keeps documented claims from being reported as unbound.
     findings.extend(scan_unbound_markers(text, path=manuscript_path.name, spans=parsed.spans))
 
-    known = discover_sources(root, options.sources)
+    table = read_source_table(root, options.sources)
+    known = table.found
     ledger = Ledger(
         # Stored relative to ``root``, like the source paths below, so that
         # `scan demo/manuscript.md --root demo` and `cd demo && scan
@@ -223,7 +241,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             findings.append(
                 Finding(
                     code="source-missing",
-                    message=_missing_source_message(claim.source, candidates, claim.id),
+                    message=_missing_source_message(claim.source, candidates, claim.id, table),
                     claim_id=claim.id,
                     path=claim.path,
                     line=claim.line,

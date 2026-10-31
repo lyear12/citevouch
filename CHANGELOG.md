@@ -11,7 +11,27 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
 
+- **A manifest entry whose file is not usable is no longer called a missing
+  entry.** `sources.toml` naming `p = "gone.txt"` made every claim that used
+  `p` report `claim c1 names source='p' but no entry in sources.toml ... add it
+  to sources.toml` - a sentence about the one thing the author had got right,
+  which sent them back to a file that already had their line in it. The cause
+  was `discover_sources` throwing the entry away (`if path.is_file():` with no
+  `else`) before the message was written, so "no manifest", "no such key",
+  "key names a file that is not there" and "manifest will not parse" all
+  arrived as the same empty mapping. Those last two now travel with the
+  sentence that explains them (`read_source_table` / `SourceTable`), and the
+  reader is told what is actually wrong: `sources.toml maps 'p' to
+  'gone.txt', but 'gone.txt' does not exist`, `'.' is a directory, not a
+  file`, or `the manifest could not be read: sources.toml could not be read
+  as TOML (...)`. Two tests in `tests/test_critic_round3.py` had written down
+  opposite conclusions about the same judgement - a directory passed to
+  `--source` is refused, a directory named in the manifest is ignored - and
+  the ignored half is what hid this: ignoring was never visible, so nobody
+  could see it was happening. The manifest half now keeps the key as
+  unusable rather than dropping it.
 ## [0.19.14] — 2026-10-30
 ### Fixed
 
