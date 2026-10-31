@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.16] — 2026-10-31
 ### Fixed
 
 - **`scan` and `verify` now describe a broken manifest the same way.** The
@@ -1241,7 +1243,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.15...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.16...HEAD
+[0.19.16]: https://github.com/lyear12/citevouch/releases/tag/v0.19.16
 [0.19.15]: https://github.com/lyear12/citevouch/releases/tag/v0.19.15
 [0.19.14]: https://github.com/lyear12/citevouch/releases/tag/v0.19.14
 [0.19.13]: https://github.com/lyear12/citevouch/releases/tag/v0.19.13
