@@ -308,14 +308,63 @@ def _project_with_paper(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _advice(root: Path, typed: str) -> str:
+def _advice(root: Path, typed: str, run: bool = False, root_arg: str = ".") -> str:
+    """The draft command printed for ``typed``, read the way a reader typed it.
+
+    ``root`` is the directory the reader is standing in, and ``root_arg`` is
+    the ``--root`` they passed - a *relative* string, because that is what a
+    command line carries.  Handing ``scan`` an absolute root instead would make
+    every assertion below pass against advice naming
+    ``C:\\Windows\\Temp\\pytest-of-...``, which no reader ever types.
+    """
+    import contextlib
+    import io
+    import os
     import re
 
-    findings = scan(ScanOptions(manuscript=typed, root=str(root)))[1]
+    previous = Path.cwd()
+    try:
+        os.chdir(root)
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            findings = scan(ScanOptions(manuscript=typed, root=root_arg))[1]
+    finally:
+        os.chdir(previous)
     message = next(f.message for f in findings if f.code == "no-claim-blocks")
     found = re.search(r"`(citevouch draft [^`]+)`", message)
     assert found is not None, message
-    return found.group(1)
+    command = found.group(1)
+    if run:
+        # A path only means what it meant alongside the `--root` it was read
+        # against: `check m.md --root paper` printed `citevouch draft m.md`,
+        # which resolved against the working directory and answered "manuscript
+        # m.md does not exist".  No assertion on the string catches that,
+        # because the string was right about the manuscript and wrong about the
+        # pair.
+        _run(root, command)
+    return command
+
+
+def _run(root: Path, command: str) -> None:
+    """Run a printed command exactly as written, from ``root``."""
+    import contextlib
+    import io
+    import os
+    import shlex
+
+    argv = shlex.split(command)
+    assert argv[0] == "citevouch", command
+    out = io.StringIO()
+    previous = Path.cwd()
+    try:
+        os.chdir(root)
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            code = main(argv[1:])
+    finally:
+        os.chdir(previous)
+    assert code == 0, f"{command} answered exit {code}: {out.getvalue()}"
 
 
 class TestTheAdviceCanBeFollowed:
@@ -347,6 +396,23 @@ class TestTheAdviceCanBeFollowed:
     def test_the_plain_case_still_suggests_the_documented_default(self, tmp_path: Path):
         root = _project(tmp_path, PROSE)
         assert _advice(root, "m.md") == "citevouch draft m.md -o claims.md"
+
+    def test_the_advice_is_runnable_even_at_the_plain_default(self, tmp_path: Path):
+        # The plain sentence must stay byte-identical *and* still run, so this
+        # one executes it rather than pattern-matching it.
+        root = _project(tmp_path, PROSE)
+        _advice(root, "m.md", run=True)
+        assert (root / "claims.md").exists()
+
+    def test_the_advice_carries_the_root_it_was_read_against(self, tmp_path: Path):
+        # `check m.md --root paper` reads `paper/m.md`.  The command it printed
+        # resolved `m.md` against the working directory instead, answered
+        # "manuscript m.md does not exist", and exit 2 - a reader standing one
+        # directory up with a correct file in front of them.
+        root = _project_with_paper(tmp_path)
+        command = _advice(root, "m.md", run=True, root_arg="paper")
+        assert command == "citevouch draft m.md --root paper -o claims.md", command
+        assert (root / "paper" / "claims.md").exists()
 
     def test_the_finding_still_names_the_basename(self, tmp_path: Path):
         # The advice may carry a directory; the finding's own path must not, or

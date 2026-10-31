@@ -2296,4 +2296,12 @@ itself named `claims.md`, the printed advice was
 (writing proposals over their source), exit 2. Both are now covered by
 `tests/test_no_claims.py::TestTheAdviceCanBeFollowed`; three mutations
 (basename in the advice, output name always `claims.md`, callers not passing
-the typed path) each turned exactly one test red. Seen 1.
+the typed path) each turned exactly one test red. Seen 2 - the second was
+the same sentence, one flag later: `check m.md --root paper` printed `citevouch
+draft m.md -o claims.md`, and running that answered `manuscript m.md does not
+exist` because a relative path and its `--root` are one fact in two pieces. The
+first fix moved the string from basename to typed path and stopped there, which
+is why the rule above says *shape*: the shape of a path includes the base it
+was resolved against. The regression test now executes the printed command
+instead of pattern-matching it, because a string match cannot see a missing
+flag. Seen 2.

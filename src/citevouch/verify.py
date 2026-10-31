@@ -177,7 +177,12 @@ def verify(
             )
         elif not any(f.code.startswith("claim-") for f in parsed.findings):
             result.findings.append(
-                _no_claim_blocks_finding(text, manuscript_path.name, typed=options.manuscript)
+                _no_claim_blocks_finding(
+                    text,
+                    manuscript_path.name,
+                    typed=options.manuscript,
+                    root=options.root,
+                )
             )
         else:
             # A block the parser found and refused is not the same thing as a

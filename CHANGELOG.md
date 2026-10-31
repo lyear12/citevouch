@@ -12,6 +12,18 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The advice from `no-claim-blocks` did not carry `--root`.**
+  `check m.md --root paper` reads `paper/m.md` and printed
+  `citevouch draft m.md -o claims.md`; pasted back, that resolved `m.md`
+  against the working directory and answered `manuscript m.md does not
+  exist`, exit 2 - with the correct file one directory away. A path only
+  means what it meant alongside the root it was resolved against, so the
+  advice now repeats `--root` whenever the caller named one. The default
+  is still printed as nothing, because `--root .` in advice is noise; that
+  sentence is pinned by tests and by the README.
+
 ## [0.19.21] — 2026-10-31
 ### Fixed
 

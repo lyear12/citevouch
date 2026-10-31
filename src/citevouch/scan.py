@@ -57,11 +57,11 @@ def _resolve(root: Path, raw: str) -> Path:
     return root / path
 
 
-def _draft_advice(typed: str, name: str) -> str:
+def _draft_advice(typed: str, name: str, root: str = ".") -> str:
     """The command that would propose claim blocks for ``typed``.
 
-    Two things made the sentence this replaces un-runnable, and both are about
-    the string being copied into a shell verbatim:
+    Three things made the sentence this replaces un-runnable, and all of them
+    are about the string being copied into a shell verbatim:
 
     * ``path`` is the *basename* everywhere in this module, because a finding
       must read the same on every machine.  Advice is not a finding: a reader
@@ -73,12 +73,23 @@ def _draft_advice(typed: str, name: str) -> str:
       ``claims.md``, which is exactly the state a reader reaches after
       following the advice once.  The output name therefore has to differ from
       the input name; ``proposals.md`` is the next name that does.
+    * A path only means what it meant alongside the ``--root`` it was resolved
+      against.  ``check m.md --root paper`` reads ``paper/m.md``, so the
+      command it printed - without the flag - resolved ``m.md`` against the
+      current directory instead and reported ``manuscript m.md does not exist``.
+      The advice repeats the root whenever the caller named one, so the pair
+      keeps meaning what it meant.  The default is printed as nothing, because
+      ``--root .`` in advice is noise and the plain sentence is pinned by tests
+      and by the README.
     """
     output = "claims.md" if name != "claims.md" else "proposals.md"
-    return f"`citevouch draft {typed} -o {output}`"
+    where = "" if root in ("", ".") else f" --root {root}"
+    return f"`citevouch draft {typed}{where} -o {output}`"
 
 
-def _no_claim_blocks_finding(text: str, path: str, typed: str | None = None) -> Finding:
+def _no_claim_blocks_finding(
+    text: str, path: str, typed: str | None = None, root: str = "."
+) -> Finding:
     """Report a manuscript that produced no claim blocks at all.
 
     The message tries to be useful in the order the reader needs it: what
@@ -87,9 +98,10 @@ def _no_claim_blocks_finding(text: str, path: str, typed: str | None = None) -> 
     the command that would write correct blocks for them.
 
     ``typed`` is the manuscript string as the caller's command line carried it,
-    used only for the suggested command (see :func:`_draft_advice`); the
-    finding's own ``path`` stays the basename so that a report of the same
-    project reads identically wherever it is checked out.
+    used only for the suggested command (see :func:`_draft_advice`), together
+    with ``root``, the ``--root`` it was read against; the finding's own
+    ``path`` stays the basename so that a report of the same project reads
+    identically wherever it is checked out.
 
     ``no-claim-blocks`` is the only finding that can be true of a file holding
     no claims, and it is deliberately the *last* thing checked: a manuscript
@@ -106,7 +118,7 @@ def _no_claim_blocks_finding(text: str, path: str, typed: str | None = None) -> 
         detail = (
             "a claim block opens with three backticks, the word `claim`, then "
             "`id=` and `source=`. This file has none. If its citations are "
-            f"already written, {_draft_advice(typed or path, path)} proposes "
+            f"already written, {_draft_advice(typed or path, path, root)} proposes "
             "blocks for them."
         )
     else:
@@ -253,7 +265,9 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     # gets the same answer.
     if not parsed.claims and not any(f.code.startswith("claim-") for f in parsed.findings):
         findings.append(
-            _no_claim_blocks_finding(text, manuscript_path.name, typed=options.manuscript)
+            _no_claim_blocks_finding(
+                text, manuscript_path.name, typed=options.manuscript, root=options.root
+            )
         )
     # A credibility marker outside a claim block is the most common way a
     # manuscript looks verified while nothing can be checked.  Passing the
