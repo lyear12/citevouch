@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.21] — 2026-10-31
 ### Fixed
 
 - **The command `no-claim-blocks` printed could not be run.** Two faults in one
@@ -24,7 +26,6 @@ tag and that file disagree.
   the path the reader typed and picks an output name that differs from it; the
   finding's own `path` stays the basename, so the same project still reads the
   same from any directory.
-
 ## [0.19.20] — 2026-10-31
 ### Fixed
 
@@ -1302,7 +1303,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.20...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.21...HEAD
+[0.19.21]: https://github.com/lyear12/citevouch/releases/tag/v0.19.21
 [0.19.20]: https://github.com/lyear12/citevouch/releases/tag/v0.19.20
 [0.19.19]: https://github.com/lyear12/citevouch/releases/tag/v0.19.19
 [0.19.18]: https://github.com/lyear12/citevouch/releases/tag/v0.19.18
