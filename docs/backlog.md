@@ -318,6 +318,34 @@ would a person actually have on disk", not by reading the code.
   points there is still fine. Refusing is not the same as deciding which side
   wins: both files are visible to the caller and neither is to the tool.
 
+- [x] **Two `sources` manifests on disk, and the name a message uses.**
+  *Done 2026-10-31.* Same shape as the key-bound-twice entry above, one level
+  up: two files that each claim the role of "the manifest" cannot be ranked,
+  only refused. `read_manifest` returned whichever name came first in
+  `MANIFEST_NAMES` and never mentioned the other, so a tree holding a stale
+  `sources.json` beside its live `sources.toml` was resolved against one of
+  them at random - swapping the two files' contents flipped which one
+  decided - and the losing file was invisible in every message, including the
+  one telling the author to add an entry they had already added. It now
+  enumerates the candidates before opening either and refuses with both names
+  and a choice (delete one, or merge), because which manifest is
+  authoritative is a fact the checkout knows and the tool does not. The
+  second half is the same defect one level down: the per-claim sentence
+  hard-coded `sources.toml` in both halves, so a project keeping its keys in
+  `sources.json` was told `no entry in sources.toml ... add it to
+  sources.toml` - a file not in their checkout, and creating it is exactly
+  what produces the refusal above. `SourceTable` now carries
+  `manifest_name`; `scan._manifest_name` falls back to `sources.toml` only
+  when no manifest was found at all, because that is the file the README
+  teaches you to make. *Verified by:* `tests/test_manifest_message.py`
+  `TestTwoManifestsAreRefusedInsteadOfRanked` (4 tests) and
+  `TestTheSentenceNamesTheManifestTheProjectHas` (3 tests); three mutations
+  each red - hard-code the name back in `scan`, drop `manifest_name` from the
+  table, restore the ranking. *Not covered:* two manifests that agree
+  key-for-key are refused too, deliberately - the tool cannot tell "same
+  answer twice" from "one is stale" without reading both, and reading both
+  is the ranking this removes.
+
 - [x] **An empty attribute binds the claim to the attribute beside it.** *Done 2026-10-31.*
   ` ```claim id=c1 source= page=1 ` parsed as `source="page=1"`, so a block
   whose author had written `source=` and stopped to think was bound to a key
