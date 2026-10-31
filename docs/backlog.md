@@ -376,3 +376,16 @@ would a person actually have on disk", not by reading the code.
   guarded; `draft`'s own "read it, then check it" line and the `.tex`
   refusal still print the path they were handed, which is right for both
   because neither drops a directory.
+
+- [x] **The advice from `no-claim-blocks` did not carry `--root`.** *Done
+  2026-10-31, one flag after the first attempt.* `check m.md --root paper`
+  reads `paper/m.md` and printed `citevouch draft m.md -o claims.md`; pasted
+  back it answered `manuscript m.md does not exist`, exit 2. *Done when* the
+  advice repeats the root whenever the caller named one, and the default
+  sentence stays byte-identical. *Verified by*
+  `tests/test_no_claims.py::TestTheAdviceCanBeFollowed`, which now **executes**
+  the printed command through `main()` from the directory the reader stands
+  in instead of pattern-matching it, plus two mutations (drop the root,
+  always print it) that each turned exactly one test red. *Not covered*: an
+  absolute `--root` on another drive is repeated verbatim - correct, long,
+  and unasserted.
