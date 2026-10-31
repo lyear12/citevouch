@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.22] — 2026-10-31
 ### Fixed
 
 - **The advice from `no-claim-blocks` did not carry `--root`.**
@@ -23,7 +24,6 @@ tag and that file disagree.
   advice now repeats `--root` whenever the caller named one. The default
   is still printed as nothing, because `--root .` in advice is noise; that
   sentence is pinned by tests and by the README.
-
 ## [0.19.21] — 2026-10-31
 ### Fixed
 
@@ -1315,7 +1315,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.21...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.22...HEAD
+[0.19.22]: https://github.com/lyear12/citevouch/releases/tag/v0.19.22
 [0.19.21]: https://github.com/lyear12/citevouch/releases/tag/v0.19.21
 [0.19.20]: https://github.com/lyear12/citevouch/releases/tag/v0.19.20
 [0.19.19]: https://github.com/lyear12/citevouch/releases/tag/v0.19.19
