@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.24] — 2026-10-31
 ### Fixed
 
 - **The pre-commit hooks could not run.**
@@ -1344,7 +1345,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.23...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.24...HEAD
+[0.19.24]: https://github.com/lyear12/citevouch/releases/tag/v0.19.24
 [0.19.23]: https://github.com/lyear12/citevouch/releases/tag/v0.19.23
 [0.19.22]: https://github.com/lyear12/citevouch/releases/tag/v0.19.22
 [0.19.21]: https://github.com/lyear12/citevouch/releases/tag/v0.19.21
