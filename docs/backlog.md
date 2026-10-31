@@ -277,3 +277,31 @@ would a person actually have on disk", not by reading the code.
   the extraction and the hash comparison, which no test can schedule; the sentence
   in that window is whatever the failing call reports, which is now the three-way
   one rather than "does not exist".
+
+- [x] **A `sources.toml` entry whose file cannot be used.** *Done 2026-10-31.*
+  Four situations - no manifest, a manifest without the key, a key whose file is
+  gone or is a directory, and a manifest that will not parse - all produced the
+  same sentence, `claim c1 names source='p' but no entry in sources.toml ...
+  add it to sources.toml`, and in three of the four the entry **was** in the
+  manifest.  The author re-read the one file they had got right.  The mechanism
+  was one line: `discover_sources` filtered the manifest with
+  `if path.is_file():` and no `else`, so the failures were destroyed before the
+  message that needed them was built.  `read_source_table` now returns the
+  bindings, the unusable keys with a sentence each, and the reason a manifest
+  could not be parsed; `discover_sources` and `load_manifest` keep their old
+  return shapes, so no caller changes.  Two tests in
+  `tests/test_critic_round3.py` had recorded opposite conclusions about the same
+  judgement - a directory given to `--source` is refused, a directory named in
+  the manifest is ignored - and the ignored half is what hid this, because
+  dropping an entry produces nothing to read.  *Done when* the sentence names
+  the cause: `sources.toml maps 'p' to 'gone.txt', but 'gone.txt' does not
+  exist`, `'.' is a directory, not a file`, `the manifest could not be read:
+  sources.toml could not be read as TOML (...)`.  *Also done:* `verify` told a
+  different story about the same project - `source 'p' cannot be found any
+  more` - because each reader built its own sentence from its own copy of the
+  mapping.  Both now ask `sources.explain_unresolved`, and a key nobody named
+  keeps the old sentence because there is nothing better to say.  *Not
+  covered:* `draft`'s resolver prefers the bibliography's `file` field over a
+  manifest entry, so a project with a moved PDF may still be drafted from a
+  path the bibliography remembers; that ordering is deliberate, and it means
+  `draft` is the one command that never reports this particular sentence.

@@ -26,9 +26,11 @@ from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
 from .scan import ScanOptions, _no_claim_blocks_finding, _resolve, scan
 from .sources import (
-    discover_sources,
+    SourceTable,
+    explain_unresolved,
     extract_pages,
     page_hint_is_valid,
+    read_source_table,
     resolve_source,
     sha256_file,
 )
@@ -186,7 +188,8 @@ def verify(
             result.findings.extend(parsed.findings)
         return result
 
-    known = discover_sources(root, options.sources)
+    table: SourceTable = read_source_table(root, options.sources)
+    known = table.found
     pages_cache: dict[str, tuple[list, str]] = {}
     # Sources whose text could not be extracted.  Their claims are skipped
     # rather than searched, because searching no pages can only produce a
@@ -222,10 +225,21 @@ def verify(
                 path = str(recorded) if recorded.is_file() else None
         if path is None:
             result.missing += 1
+            # The same table that failed to resolve the key can say why. Saying
+            # nothing here was a second opinion about the same project: scan
+            # named the manifest entry and the value it held, while this line
+            # reported "cannot be found any more" - which is true of the file
+            # and silent about the entry the author has to go and edit.
+            reason = explain_unresolved(claim.source, table)
+            message = (
+                f"claim {claim.id} cannot be resolved: {reason}"
+                if reason
+                else f"claim {claim.id}: source {claim.source!r} cannot be found any more"
+            )
             result.findings.append(
                 Finding(
                     code="source-missing",
-                    message=f"claim {claim.id}: source {claim.source!r} cannot be found any more",
+                    message=message,
                     claim_id=claim.id,
                     path=claim.path,
                     line=claim.line,

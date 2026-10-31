@@ -619,6 +619,26 @@ def read_source_table(root: str | Path, extra: list[str] | None = None) -> Sourc
     return SourceTable(found=found, unusable=unusable, manifest_problem=problem)
 
 
+def explain_unresolved(key: str, table: SourceTable) -> str | None:
+    """The reason ``key`` did not resolve, when the table knows one.
+
+    ``None`` means the table has nothing to add: no manifest, the manifest does
+    not mention the key, or the key simply is not there.  That is the caller's
+    cue to fall back to its own sentence and its own near-miss list.
+
+    Both readers of the manifest use this, which is the point.  ``scan`` and
+    ``verify`` were telling different stories about the same broken project -
+    one named the entry and its value, the other said the source "cannot be
+    found any more" - because each built its message from whatever its own copy
+    of the mapping had left behind.
+    """
+    if key in table.unusable:
+        return table.unusable[key]
+    if table.manifest_problem:
+        return f"the manifest could not be read: {table.manifest_problem}"
+    return None
+
+
 def page_hint_is_valid(page: int | None, page_count: int) -> bool:
     """Whether ``page`` names a page this document actually has.
 

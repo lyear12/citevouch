@@ -162,3 +162,66 @@ class TestTheContradictionThatWasWrittenDown:
         (project / "adir").mkdir()
         with pytest.raises(UsageError):
             read_source_table(project, [str(project / "adir")])
+
+
+class TestBothReadersTellTheSameStory:
+    """`scan` and `verify` read the same manifest; they used to describe it differently."""
+
+    def _scan_and_verify(self, project: Path) -> tuple[str, str]:
+        env = {
+            **os.environ,
+            "PYTHONPATH": str(ROOT / "src"),
+            "PYTHONIOENCODING": "utf-8",
+        }
+
+        def run(verb: str) -> str:
+            done = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "citevouch",
+                    verb,
+                    "m.md",
+                    "--root",
+                    str(project),
+                    "--no-cache",
+                ],
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                cwd=str(project),
+                check=False,
+            )
+            return done.stdout
+
+        return run("scan"), run("verify")
+
+    def test_an_unusable_entry_is_named_by_both(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, "[sources]" + chr(10) + 'p = "gone.txt"' + chr(10))
+        scanned, verified = self._scan_and_verify(project)
+        for out in (scanned, verified):
+            assert "sources.toml maps 'p' to 'gone.txt'" in out
+        # The old verify line: true about the file, silent about the entry the
+        # author has to edit.
+        assert "cannot be found any more" not in verified
+
+    def test_an_unreadable_manifest_is_named_by_both(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, "[sources" + chr(10) + 'p = "note.txt"' + chr(10))
+        scanned, verified = self._scan_and_verify(project)
+        for out in (scanned, verified):
+            assert "the manifest could not be read" in out
+
+    def test_a_key_nobody_named_keeps_the_old_sentence(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, None)
+        _, verified = self._scan_and_verify(project)
+        assert "cannot be found any more" in verified
+
+    def test_the_table_answers_only_what_it_knows(self, tmp_path: Path) -> None:
+        from citevouch.sources import SourceTable, explain_unresolved
+
+        empty = SourceTable()
+        assert explain_unresolved("p", empty) is None
+        bad = SourceTable(unusable={"p": "p is gone"}, manifest_problem="broke")
+        assert explain_unresolved("p", bad) == "p is gone"
+        assert explain_unresolved("q", bad) == "the manifest could not be read: broke"

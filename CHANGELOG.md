@@ -11,7 +11,16 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
 
+- **`scan` and `verify` now describe a broken manifest the same way.** The
+  release above taught `scan` to name the entry it could not use; `verify` was
+  still reporting `source 'p' cannot be found any more` for the same project
+  and the same claim. That sentence is true about the file and silent about the
+  entry the author has to edit, so the reader who runs `verify` - which is the
+  half a reader runs - got the older, weaker message. Both now build it from
+  `sources.explain_unresolved`, which is one function for one fact. A key
+  nobody named keeps the old sentence, because there is nothing better to say.
 ## [0.19.15] — 2026-10-31
 ### Fixed
 
