@@ -531,9 +531,9 @@ class SourceTable:
 
     ``unusable`` maps a key the manifest *does* name to the sentence explaining
     why that entry cannot be used.  It exists because the previous version threw
-    those entries away inside ``discover_sources`` and then reported, per claim,
-    "no entry in sources.toml" — a false sentence about a project whose
-    ``sources.toml`` was the one thing it had done right.
+    those entries away inside a mapping-only helper that no longer exists, and
+    then reported, per claim, "no entry in sources.toml" — a false sentence
+    about a project whose ``sources.toml`` was the one thing it had done right.
     """
 
     found: dict[str, str] = field(default_factory=dict)
@@ -541,51 +541,42 @@ class SourceTable:
     manifest_problem: str | None = None
 
 
-def discover_sources(root: str | Path, extra: list[str] | None = None) -> dict[str, str]:
-    """Map claim source keys to files, and only to files someone named.
-
-    Two sources, in this order: ``extra`` paths from ``--source``, then the
-    project's manifest.
-
-    Deliberately excluded: guessing. An earlier version of this docstring
-    promised a third step — "any file under ``root`` whose stem equals the
-    key, then the longest stem the key starts with" — and the code never had
-    it. That was a comment describing a wish, and the wish was a bad one.
-    Binding a claim to a PDF because the filenames share a prefix is the exact
-    inference this tool exists to refuse: a wrong automatic binding yields a
-    confident ``quote-found`` against the wrong paper, which is worse than
-    ``source-missing``, which at least says so. If a key should resolve, the
-    project says what it means in ``sources.toml``.
-
-    A missing key is still easy to fix: :func:`near_misses` supplies candidates
-    for the error message, so the author picks instead of the tool guessing.
-
-    A key the manifest names but whose file is not usable is not "missing": see
-    :func:`read_source_table` for why that distinction had to leave this
-    function.
-    """
-    return read_source_table(root, extra).found
-
-
 def read_source_table(root: str | Path, extra: list[str] | None = None) -> SourceTable:
     """Resolve every key, and keep the ones that failed along with their reason.
 
-    ``found`` is what ``discover_sources`` returns. The other two fields are for
-    the error message, and they exist because merging the failures into one
-    bucket made the message lie:
+    ``found`` is the mapping the rest of the tool searches.  The other two
+    fields exist because merging the failures into one bucket made the message
+    lie:
 
     * ``unusable`` — the manifest names ``p`` and ``p`` is a directory, or the
-      file has been moved away.  The old code dropped the entry, and the claim
-      that needed it was then told "no entry in sources.toml", which is exactly
-      the thing the author had got right.  They go read the manifest, find their
-      line, and conclude the tool is broken.
+      file has been moved away.  The code this replaced dropped the entry, and
+      the claim that needed it was then told "no entry in sources.toml", which
+      is exactly the thing the author had got right.  They go read the
+      manifest, find their line, and conclude the tool is broken.
     * ``manifest_problem`` — a manifest exists but could not be parsed.  Same
       lie, one level up: the project does have an entry, and no re-reading of it
       will help.
 
+    There used to be a second name for the first field alone, ``discover_sources``,
+    kept "so callers do not change shape".  It outlived its last caller by three
+    commands - every one of them was rewritten to ask for the whole table - and a
+    mapping-only view is precisely the thing that loses the information the
+    messages need.  Leaving it around left the next caller a way to reintroduce
+    the bug by picking the tidier name.
+
     ``--source`` stays a hard error rather than a recorded failure: it is a
     string on the command line, so a bad one is a typo the caller can fix in
     place, not project state that a later reader has to be warned about.
+
+    Guessing is deliberately absent. An earlier docstring promised "any file
+    under ``root`` whose stem equals the key, then the longest stem the key
+    starts with" and the code never had it. That was a comment describing a
+    wish, and the wish was a bad one: binding a claim to a PDF because the
+    filenames share a prefix yields a confident ``quote-found`` against the
+    wrong paper, which is worse than ``source-missing``, which at least says
+    so. If a key should resolve, the project says what it means in
+    ``sources.toml``. :func:`near_misses` supplies candidates for the message,
+    so the author picks instead of the tool guessing.
     """
     root = Path(root)
     found: dict[str, str] = {}

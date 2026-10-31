@@ -16,7 +16,6 @@ import pytest
 from citevouch.errors import UsageError
 from citevouch.model import Ledger
 from citevouch.sources import (
-    discover_sources,
     near_misses,
     page_hint_is_valid,
     read_source_table,
@@ -223,7 +222,7 @@ class TestUsageMistakesStayInsideTheExitContract:
         """
         (project / "adir").mkdir(exist_ok=True)
         with pytest.raises(UsageError) as caught:
-            discover_sources(project, [str(project / "adir")])
+            read_source_table(project, [str(project / "adir")])
         assert "is a directory, not a file" in str(caught.value)
 
     def test_a_directory_in_the_manifest_is_kept_not_ignored(self, project):
@@ -233,21 +232,19 @@ class TestUsageMistakesStayInsideTheExitContract:
         directory the caller named is a usage error.  This one said a directory
         the manifest named is simply dropped - same judgement, same function,
         opposite answers, and both were written down as expected behaviour.  The
-        drop was also invisible: `discover_sources` returned a mapping without
+        drop was also invisible: the mapping-only helper returned a view without
         the key, so the per-claim message could only say "no entry in
         sources.toml" about a project whose manifest had the entry.  The key now
-        survives in `unusable` with the sentence that explains it, while the
-        function still keeps its "bindings only" return shape.
+        survives in `unusable` with the sentence that explains it.
         """
         (project / "adir").mkdir(exist_ok=True)
         (project / "sources.toml").write_text(
             '[sources]\np = "papers/2026_smith_networks.txt"\nother = "adir"\n',
             encoding="utf-8",
         )
-        found = discover_sources(project, [])
-        assert "other" not in found
-        assert "p" in found
         table = read_source_table(project)
+        assert "other" not in table.found
+        assert "p" in table.found
         assert "other" in table.unusable
         assert "is a directory, not a file" in table.unusable["other"]
 

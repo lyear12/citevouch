@@ -2204,3 +2204,13 @@ and `test_critic_round3.py`'s manifest half no longer disagrees with its
 `--source` half. Four mutations - dropping the entry, ignoring the table in
 the message, not passing the table in, and not reporting an unparseable
 manifest - are all red. Seen 1.
+
+---
+
+## A compatibility shim that returns less than the real function is a shim the next caller picks
+
+**Rule.** A wrapper kept "so callers do not change shape" must return something the caller cannot get wrong. If the real function returns a record precisely because the flat return lost the information needed to explain a failure, then the flat wrapper is not a compatibility layer - it is a way back to the bug, under a friendlier name. Delete it once the last caller is gone, and say in the surviving function's docstring that it existed and why it went.
+
+**Why.** Dead code is harmless when it is unreachable. This was reachable: it was imported by name in two test files, so it read as live API, and it was the shorter name for the common case. A caller adding one more consumer of `src/citevouch/sources.py:read_source_table` has no reason to look at the other function's docstring, and the flat mapping it returns is exactly the shape that made `scan` tell authors "no entry in sources.toml" about a manifest entry that was right there.
+
+**Evidence.** `discover_sources` was kept when `read_source_table` was introduced, on the reasoning that the three commands could keep their old shape. Within two rounds all three - `src/citevouch/scan.py`'s `_missing_source_message`, `src/citevouch/verify.py`'s per-claim message and `src/citevouch/draft.py`'s `_why_no_file` - asked for the table instead, because the mapping alone cannot say why an entry failed. `grep -rn discover_sources src/` then returned only its own definition and a docstring reference: no callers, while `tests/test_critic_round3.py` and `tests/test_manifest_message.py` still imported it, which is what kept it looking alive. Removing it changed no behaviour and no test needed a new assertion; one test kept only `assert "other" not in found`, an assertion that cannot tell a dropped entry from a kept one, and now asserts the failure is recorded. Seen 1.

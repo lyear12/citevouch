@@ -7,7 +7,7 @@ sentences about something the author already did right - they wrote the entry -
 so the reader goes back to the manifest, finds their line, and concludes the
 tool is broken.  A message about a path has to be true about that path.
 
-`discover_sources` threw the unusable entries away (`if path.is_file()` with no
+`read_source_table` now keeps them, but the old `discover_sources` threw the unusable entries away (`if path.is_file()` with no
 `else`), which is why the per-claim message could not tell the cases apart: by
 the time it ran, the information was gone.  `read_source_table` keeps it.
 """
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from citevouch.sources import discover_sources, read_manifest, read_source_table
+from citevouch.sources import read_manifest, read_source_table
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -96,10 +96,11 @@ class TestTheTableKeepsWhatItCouldNotUse:
         assert table.unusable == {}
         assert table.manifest_problem is None
 
-    def test_discover_sources_still_returns_only_the_bindings(self, tmp_path: Path) -> None:
+    def test_the_table_keeps_the_bindings_and_keeps_the_failures(self, tmp_path: Path) -> None:
         project = _project(tmp_path, '[sources]\np = "note.txt"\nq = "gone.txt"\n')
-        found = discover_sources(project)
-        assert set(found) == {"p"}
+        table = read_source_table(project)
+        assert set(table.found) == {"p"}
+        assert "q" in table.unusable
 
     def test_load_manifest_is_the_mapping_alone(self, tmp_path: Path) -> None:
         project = _project(tmp_path, '[sources]\np = "note.txt"\n')
