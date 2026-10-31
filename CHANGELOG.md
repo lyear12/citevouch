@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.19] — 2026-10-31
 ### Fixed
 
 - **A source key bound twice resolved to whichever binding came last, quietly.**
@@ -22,7 +23,6 @@ tag and that file disagree.
   stem behaved the same way, resolving to the second one. `read_source_table` now
   refuses both with a usage error naming the key and the two paths, and stays
   silent when they resolve to the same file.
-
 ## [0.19.18] — 2026-10-31
 ### Fixed
 
@@ -1270,7 +1270,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.18...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.19...HEAD
+[0.19.19]: https://github.com/lyear12/citevouch/releases/tag/v0.19.19
 [0.19.18]: https://github.com/lyear12/citevouch/releases/tag/v0.19.18
 [0.19.17]: https://github.com/lyear12/citevouch/releases/tag/v0.19.17
 [0.19.16]: https://github.com/lyear12/citevouch/releases/tag/v0.19.16
