@@ -11,6 +11,19 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The command `no-claim-blocks` printed could not be run.** Two faults in one
+  sentence. It named the manuscript by *basename* - correct for the finding's
+  `path`, wrong for something a reader pastes into a shell - so checking
+  `paper/m.md` from the project root printed `citevouch draft m.md`, which
+  answers `manuscript m.md does not exist` and exit 2. And it always suggested
+  `-o claims.md`, so a `claims.md` that still had no blocks was told to run
+  `draft claims.md -o claims.md`, which `draft` refuses by design because the
+  output would land on the manuscript it was reading. The advice now carries
+  the path the reader typed and picks an output name that differs from it; the
+  finding's own `path` stays the basename, so the same project still reads the
+  same from any directory.
 
 ## [0.19.20] — 2026-10-31
 ### Fixed

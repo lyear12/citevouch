@@ -57,13 +57,39 @@ def _resolve(root: Path, raw: str) -> Path:
     return root / path
 
 
-def _no_claim_blocks_finding(text: str, path: str) -> Finding:
+def _draft_advice(typed: str, name: str) -> str:
+    """The command that would propose claim blocks for ``typed``.
+
+    Two things made the sentence this replaces un-runnable, and both are about
+    the string being copied into a shell verbatim:
+
+    * ``path`` is the *basename* everywhere in this module, because a finding
+      must read the same on every machine.  Advice is not a finding: a reader
+      who checked ``paper/m.md`` and copied ``citevouch draft m.md`` got
+      ``manuscript m.md does not exist``, an exit 2, and a command that never
+      mentioned the directory they were looking at.  So the advice names the
+      manuscript the way the reader typed it.
+    * ``-o claims.md`` is refused by ``draft`` when the manuscript *is*
+      ``claims.md``, which is exactly the state a reader reaches after
+      following the advice once.  The output name therefore has to differ from
+      the input name; ``proposals.md`` is the next name that does.
+    """
+    output = "claims.md" if name != "claims.md" else "proposals.md"
+    return f"`citevouch draft {typed} -o {output}`"
+
+
+def _no_claim_blocks_finding(text: str, path: str, typed: str | None = None) -> Finding:
     """Report a manuscript that produced no claim blocks at all.
 
     The message tries to be useful in the order the reader needs it: what
     happened, the closest thing to a claim block in the file (usually a
     near miss - a capitalised ``Claim``, four backticks, a stray indent), and
     the command that would write correct blocks for them.
+
+    ``typed`` is the manuscript string as the caller's command line carried it,
+    used only for the suggested command (see :func:`_draft_advice`); the
+    finding's own ``path`` stays the basename so that a report of the same
+    project reads identically wherever it is checked out.
 
     ``no-claim-blocks`` is the only finding that can be true of a file holding
     no claims, and it is deliberately the *last* thing checked: a manuscript
@@ -80,7 +106,7 @@ def _no_claim_blocks_finding(text: str, path: str) -> Finding:
         detail = (
             "a claim block opens with three backticks, the word `claim`, then "
             "`id=` and `source=`. This file has none. If its citations are "
-            f"already written, `citevouch draft {path} -o claims.md` proposes "
+            f"already written, {_draft_advice(typed or path, path)} proposes "
             "blocks for them."
         )
     else:
@@ -226,7 +252,9 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     # parser does not accept - is the same hole with a different name, so it
     # gets the same answer.
     if not parsed.claims and not any(f.code.startswith("claim-") for f in parsed.findings):
-        findings.append(_no_claim_blocks_finding(text, manuscript_path.name))
+        findings.append(
+            _no_claim_blocks_finding(text, manuscript_path.name, typed=options.manuscript)
+        )
     # A credibility marker outside a claim block is the most common way a
     # manuscript looks verified while nothing can be checked.  Passing the
     # claim spans keeps documented claims from being reported as unbound.

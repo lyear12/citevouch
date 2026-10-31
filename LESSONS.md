@@ -2264,3 +2264,36 @@ outage in place of an old silence.
 contents flipped the result - the ranking was a fact about `MANIFEST_NAMES`,
 not about the files. Three mutations (hard-code the name back, forget
 `manifest_name`, restore the ranking) each turned the new tests red. Seen 1.
+---
+
+## A command you print is a command someone will run
+
+**Rule.** When a message contains a command, treat the message as a test
+case: copy the command out of the output and run it in the state the reader
+will be in. The path in a *finding* is for machines - a basename reads the
+same on every checkout - but the path in *advice* is for the person holding
+the file, and it has to be the path they typed. When the advice tells them to
+write a file, make sure the output name differs from the input name for every
+input the advice can name.
+
+**Why.** Advice that fails is worse than silence, because it spends the
+reader's trust twice: they learn the tool is wrong *and* they learn to stop
+reading its suggestions. Both faults here were invisible to the test suite
+because every test asserted on the finding's `path` and none executed the
+sentence. A guard that reads a string is not a guard that runs it.
+
+**How to apply.** Extract the command with a regex in the test, assert its
+*shape* (right directory, different output), and - where the tool can be
+invoked in-process - actually invoke it and require the documented exit code.
+Keep the machine-facing and human-facing forms in one function so the day one
+changes, the other is in the same review.
+
+**Evidence.** Measured 2026-10-31 on 0.19.20: `check paper/m.md --root .`
+printed `citevouch draft m.md -o claims.md`; running it gave
+`citevouch: manuscript m.md does not exist` and exit 2. With the manuscript
+itself named `claims.md`, the printed advice was
+`citevouch draft claims.md -o claims.md`, which `draft` refuses on purpose
+(writing proposals over their source), exit 2. Both are now covered by
+`tests/test_no_claims.py::TestTheAdviceCanBeFollowed`; three mutations
+(basename in the advice, output name always `claims.md`, callers not passing
+the typed path) each turned exactly one test red. Seen 1.

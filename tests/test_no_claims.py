@@ -298,3 +298,60 @@ class TestTheLatexRefusalStillStands:
         )
         with pytest.raises(UsageError):
             scan(ScanOptions(manuscript="paper.tex", root=str(tmp_path)))
+
+
+def _project_with_paper(tmp_path: Path) -> Path:
+    (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
+    (tmp_path / "a.txt").write_text("x\n", encoding="utf-8")
+    (tmp_path / "paper").mkdir()
+    (tmp_path / "paper" / "m.md").write_text(PROSE, encoding="utf-8")
+    return tmp_path
+
+
+def _advice(root: Path, typed: str) -> str:
+    import re
+
+    findings = scan(ScanOptions(manuscript=typed, root=str(root)))[1]
+    message = next(f.message for f in findings if f.code == "no-claim-blocks")
+    found = re.search(r"`(citevouch draft [^`]+)`", message)
+    assert found is not None, message
+    return found.group(1)
+
+
+class TestTheAdviceCanBeFollowed:
+    """A command the tool prints has to be a command the tool accepts.
+
+    Both halves of this were broken at once, and neither showed up in a test:
+    the message named the manuscript by *basename* - which is right for the
+    finding's ``path`` and wrong for something a reader pastes into a shell -
+    so checking ``paper/m.md`` from the project root printed
+    ``citevouch draft m.md``, which answers ``manuscript m.md does not exist``
+    and exit 2.  And the output name was always ``claims.md``, so a
+    ``claims.md`` that still has no blocks was told to run ``draft claims.md
+    -o claims.md``, which ``draft`` refuses by design because the output would
+    land on the input.
+    """
+
+    def test_the_advice_names_the_directory_the_reader_typed(self, tmp_path: Path):
+        action = _advice(_project_with_paper(tmp_path), "paper/m.md")
+        assert action.startswith("citevouch draft paper/m.md "), action
+
+    def test_the_advice_does_not_write_over_the_manuscript_it_reads(self, tmp_path: Path):
+        (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
+        (tmp_path / "a.txt").write_text("x\n", encoding="utf-8")
+        (tmp_path / "claims.md").write_text(PROSE, encoding="utf-8")
+        action = _advice(tmp_path, "claims.md")
+        assert "-o claims.md" not in action, action
+        assert action.endswith("-o proposals.md"), action
+
+    def test_the_plain_case_still_suggests_the_documented_default(self, tmp_path: Path):
+        root = _project(tmp_path, PROSE)
+        assert _advice(root, "m.md") == "citevouch draft m.md -o claims.md"
+
+    def test_the_finding_still_names_the_basename(self, tmp_path: Path):
+        # The advice may carry a directory; the finding's own path must not, or
+        # the same project reported from two machines stops reading alike.
+        root = _project_with_paper(tmp_path)
+        findings = scan(ScanOptions(manuscript="paper/m.md", root=str(root)))[1]
+        finding = next(f for f in findings if f.code == "no-claim-blocks")
+        assert finding.path == "m.md"
