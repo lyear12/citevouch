@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.20] — 2026-10-31
 ### Fixed
 
 - **Two `sources` manifests on disk was a ranking nobody stated.** A project that
@@ -30,7 +31,6 @@ tag and that file disagree.
   `SourceTable` now carries `manifest_name`, and the sentence uses it; a
   project with no manifest at all still hears about `sources.toml`, because
   that is the file the README teaches you to make.
-
 ## [0.19.19] — 2026-10-31
 ### Fixed
 
@@ -1289,7 +1289,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.19...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.20...HEAD
+[0.19.20]: https://github.com/lyear12/citevouch/releases/tag/v0.19.20
 [0.19.19]: https://github.com/lyear12/citevouch/releases/tag/v0.19.19
 [0.19.18]: https://github.com/lyear12/citevouch/releases/tag/v0.19.18
 [0.19.17]: https://github.com/lyear12/citevouch/releases/tag/v0.19.17
