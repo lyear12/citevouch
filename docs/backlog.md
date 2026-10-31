@@ -401,3 +401,19 @@ would a person actually have on disk", not by reading the code.
   never pad - that each turned them red. *Not covered*: an actual GitHub
   table render; the rule checked is CommonMark's closure rule, read from the
   spec rather than observed on github.com.
+
+- [x] **The pre-commit hooks cannot run.**
+  *Who is blocked*: anyone who gates their repository before pushing instead
+  of in CI - the reader this hook exists for.
+  *Done when*: running each hook's `entry` with exactly the arguments
+  pre-commit would supply exits 0 on a clean project and 1 on a drifted one.
+  **Done - why it is now true:** `.pre-commit-hooks.yaml` names
+  `args: [manuscript.md]` on both ids and keeps `pass_filenames: false`,
+  because `files:` matches every Markdown file in the repository (README
+  included) and `check` takes exactly one. `tests/test_precommit.py` (16)
+  composes the command from the file's `entry`, `args` and `pass_filenames`
+  and runs it, so the file is tested as the thing pre-commit executes rather
+  than as YAML plus a default the test supplies.
+  *Not covered*: pre-commit itself was not installed and run; the harness
+  reproduces its invocation rule, not its environment construction. A
+  repository whose manuscript is not `manuscript.md` must edit `args`.

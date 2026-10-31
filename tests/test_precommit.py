@@ -75,11 +75,23 @@ class TestTheFilePreCommitReads:
             assert hook["entry"].startswith("citevouch ")
 
     def test_a_hook_does_not_receive_filenames(self) -> None:
-        # The command takes a manuscript and a ledger, not a list of changed
-        # files. With filenames appended, `citevouch check a.md b.md` is a usage
-        # error - exit 2 - and the author is told the hook is broken.
+        # The command takes exactly one manuscript. `files:` matches every
+        # Markdown file in the repository, so handing pre-commit's list
+        # over would pass several and `check` would exit 2 on the extras.
         for hook in hooks():
             assert hook.get("pass_filenames") is False, hook["id"]
+
+    def test_the_manuscript_is_named_somewhere(self) -> None:
+        """Filenames off means the hook has to supply the path itself.
+
+        This is the half the old file was missing: it said
+        `pass_filenames: false` and nothing else, so pre-commit ran a bare
+        `citevouch check`, which exits 2 on the missing argument. A hook
+        whose command cannot run has no opinion about the manuscript.
+        """
+        for hook in hooks():
+            args = hook.get("args") or []
+            assert any(not arg.startswith("-") for arg in args), hook["id"]
 
 
 class TestWhatItMatches:
@@ -173,9 +185,7 @@ class TestTheHookCommandActuallyRuns:
         wrapper.chmod(0o755)
         return folder
 
-    def _run(
-        self, root: Path, entry: str, tmp_path: Path, *, extra: str = "manuscript.md"
-    ) -> subprocess.CompletedProcess:
+    def _run(self, root: Path, hook_id: str, tmp_path: Path) -> subprocess.CompletedProcess:
         folder = self._bin(tmp_path)
         env = _env(
             PATH=f"{folder.as_posix()}:/usr/bin:/bin",
@@ -183,7 +193,15 @@ class TestTheHookCommandActuallyRuns:
             PYTHONPATH=str(ROOT / "src"),
             PYTHONIOENCODING="utf-8",
         )
-        script = f"cd {root.as_posix()!r} && {entry} {extra}"
+        # The command is composed from the file, not from a guess. These
+        # tests used to append `manuscript.md` themselves, which is how a
+        # hook that ran a bare `citevouch check` - exit 2, no claim read -
+        # stayed green: the test ran the command it wished the hook ran.
+        hook = by_id()[hook_id]
+        handed = " ".join(hook.get("args") or ())
+        if hook["pass_filenames"]:
+            handed = f"{handed} manuscript.md".strip()
+        script = f"cd {root.as_posix()!r} && {hook['entry']} {handed}".rstrip()
         # Decoding is explicit: the child writes the manuscript's own quote back
         # in a failure message, and this machine's default code page cannot hold
         # it. A test that dies of an encoding error has proved nothing about the
@@ -217,7 +235,7 @@ class TestTheHookCommandActuallyRuns:
             ).returncode
             == 0
         )
-        done = self._run(root, by_id()["citevouch"]["entry"], tmp_path)
+        done = self._run(root, "citevouch", tmp_path)
         assert done.returncode == 0, done.stdout + done.stderr
 
     def test_a_drifted_manuscript_fails_the_check_hook(self, tmp_path: Path) -> None:
@@ -231,5 +249,22 @@ class TestTheHookCommandActuallyRuns:
         )
         # The source changes under the ledger: this is the case the hook is for.
         (root / "papers" / "a.txt").write_text("Something else entirely.\n", encoding="utf-8")
-        done = self._run(root, by_id()["citevouch"]["entry"], tmp_path)
+        done = self._run(root, "citevouch", tmp_path)
         assert done.returncode == 1, done.stdout + done.stderr
+
+    def test_the_hook_command_can_actually_run(self) -> None:
+        """A `check` with no argument is an argparse error, not a verdict.
+
+        This is the defect that hid behind these tests: `pass_filenames:
+        false` plus `entry: citevouch check` and no `args:` means
+        pre-commit runs the command with no manuscript, and `check` exits 2
+        without reading a claim. The suite stayed green because the helper
+        added `manuscript.md` itself - it tested the command it wished the
+        hook ran.
+        """
+        for hook in hooks():
+            named = [arg for arg in hook.get("args") or [] if not arg.startswith("-")]
+            assert named, (
+                f"{hook['id']} names no manuscript and takes no filenames, so "
+                "pre-commit runs it with no argument and it exits 2"
+            )

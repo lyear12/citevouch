@@ -12,6 +12,22 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The pre-commit hooks could not run.**
+  `.pre-commit-hooks.yaml` named `entry: citevouch check` and said
+  `pass_filenames: false`, and pre-commit does exactly what that says: it
+  runs the command with no argument. `check` takes the manuscript as a
+  positional one, so every commit was refused with
+  `the following arguments are required: manuscript` and exit 2, without a
+  single claim being read - a gate that fails for a reason that has nothing
+  to do with the manuscript. The hooks now name `args: [manuscript.md]`,
+  which is the file the check is about, and still pass no filenames: `files:`
+  matches every Markdown file in the repository, README included, and
+  `check` takes exactly one. The suite did not catch this because its helper
+  appended `manuscript.md` itself - it ran the command it wished the hook
+  ran. That helper now composes the command out of `entry`, `args` and
+  `pass_filenames`, so a hook that cannot run is a hook whose tests fail.
 ## [0.19.23] — 2026-10-31
 ### Fixed
 

@@ -2334,3 +2334,33 @@ preview renders it as `<code>c</code>1`, one cell short. After the fix the
 same row is `| ``c`1`` | s | 1 | ... |`. Three mutations (wrap the escaped
 id again, always use one backtick, never pad) each turned the new tests red.
 Seen 1.
+
+## A test that supplies the argument the hook does not is testing itself
+
+**Rule.** When a test exercises an entry point defined in a data file, build
+the invocation out of that file's fields. Never let the test add a piece the
+file forgot. If you find yourself writing `entry + " manuscript.md"`, the
+file has already stopped being the subject.
+
+**Why.** `.pre-commit-hooks.yaml` said `entry: citevouch check` with
+`pass_filenames: false` and no `args:`. pre-commit runs precisely that: no
+argument. `check` takes the manuscript positionally, so the hook exited 2 on
+an argparse error - no claim read, every commit refused, and the message
+blamed the author's arguments. The suite covered the hook "as behaviour",
+and its helper had a default of `extra: str = "manuscript.md"`. The tests
+ran the command the author wished the hook ran, so the defect could not
+appear in the one place it was guaranteed to matter.
+
+**How to apply.** A default that fills in a required input is the bug, not
+the convenience: delete it and let the composition read `args`,
+`pass_filenames` and `entry` from the file. Then the honest assertion is
+structural - the command can run at all - which is the half the old test
+was missing, since it only asserted that *no* filenames were passed.
+
+**Evidence.** Measured 2026-10-31 on 0.19.23: running the hook's entry with
+no argument printed `citevouch check: error: the following arguments are
+required: manuscript` and exited 2, while `tests/test_precommit.py` reported
+13 passing. Changing the helper's default to `""` turned two tests red
+immediately, and restoring `args:` turned them green. Three mutations of the
+repaired file - drop `args`, make `args` flags only, turn filenames back on
+- each turned the suite red. Seen 1.

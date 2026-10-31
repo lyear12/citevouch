@@ -19,6 +19,14 @@
   entry: citevouch check
   language: python
   files: '\.(md|markdown|tex)$'
+  # This hook used to say `pass_filenames: false` and nothing else, so
+  # pre-commit ran a bare `citevouch check`: exit 2 on a missing
+  # argument, no claim read, and every commit refused for a reason that
+  # had nothing to do with the manuscript. The manuscript is named here
+  # rather than taken from the changed-file list, because `files:`
+  # matches every Markdown file in the repository - README included -
+  # and `check` takes exactly one. Edit `args` to point at yours.
+  args: [manuscript.md]
   pass_filenames: false
   require_serial: true
   additional_dependencies: []
@@ -31,6 +39,7 @@
   entry: citevouch scan
   language: python
   files: '\.(md|markdown|tex)$'
+  args: [manuscript.md]
   pass_filenames: false
   require_serial: true
   additional_dependencies: []
