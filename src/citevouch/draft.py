@@ -410,12 +410,36 @@ def _claim_id(key: str, used: set[str]) -> str:
     return candidate
 
 
+def _why_no_file(key: str, table: sources.SourceTable | None) -> str:
+    """Say which of the three ways a key can have no local file actually happened.
+
+    The sentence used to be one string for every case: "no local file: not in
+    sources.toml, no `file` field in the bibliography, and no file named after
+    the key".  It reads as a summary of what was searched, and it is a lie in
+    the case that matters most - a key whose `sources.toml` line is there but
+    points at a file that has moved.  The author is told the manifest does not
+    mention their key while they are looking at the line that mentions it.
+
+    The table knows better for two of the cases, and both readers of the
+    manifest should say the same thing about the same project.
+    """
+    if table is not None:
+        reason = sources.explain_unresolved(key, table)
+        if reason:
+            return f"no local file: {reason}"
+    return (
+        "no local file: not in sources.toml, no `file` field in the "
+        "bibliography, and no file named after the key"
+    )
+
+
 def draft(
     text: str,
     *,
     bib: dict[str, BibEntry],
     known: dict[str, str],
     root,
+    table: sources.SourceTable | None = None,
     page_cache: dict | None = None,
     max_terms: int = 0,
 ) -> Draft:
@@ -436,8 +460,7 @@ def draft(
             result.skipped.append(
                 Skipped(
                     key=site.key,
-                    reason="no local file: not in sources.toml, no `file` field in the "
-                    "bibliography, and no file named after the key",
+                    reason=_why_no_file(site.key, table),
                     line=site.line,
                 )
             )

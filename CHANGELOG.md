@@ -11,7 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
 
+- **`draft` names the cause instead of reciting all three candidates.** A key
+  whose `sources.toml` line was present but pointed at a moved file was
+  reported as `no local file: not in sources.toml, no 'file' field in the
+  bibliography, and no file named after the key`. That sentence claims three
+  searches came up empty, and the first one is about a line the author is
+  looking at. `draft` now asks the same `sources.explain_unresolved` that
+  `scan` and `verify` use, so all three readers of the manifest say the same
+  thing about the same project. A key nobody named keeps the old sentence,
+  because there the three-way summary is accurate.
 ## [0.19.16] — 2026-10-31
 ### Fixed
 

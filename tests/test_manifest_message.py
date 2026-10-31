@@ -225,3 +225,63 @@ class TestBothReadersTellTheSameStory:
         bad = SourceTable(unusable={"p": "p is gone"}, manifest_problem="broke")
         assert explain_unresolved("p", bad) == "p is gone"
         assert explain_unresolved("q", bad) == "the manifest could not be read: broke"
+
+
+class TestTheDraftProposalNamesTheCauseToo:
+    """The third reader of the manifest, and it had the same generic sentence."""
+
+    def _draft(self, project: Path) -> str:
+        (project / "m.md").write_text(
+            "Prior work trains on two corpora of real sentences [@smith2020]." + chr(10),
+            encoding="utf-8",
+        )
+        (project / "refs.bib").write_text(
+            "@article{smith2020," + chr(10) + "  title = {A Paper}" + chr(10) + "}" + chr(10),
+            encoding="utf-8",
+        )
+        env = {
+            **os.environ,
+            "PYTHONPATH": str(ROOT / "src"),
+            "PYTHONIOENCODING": "utf-8",
+        }
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "citevouch",
+                "draft",
+                "m.md",
+                "--root",
+                str(project),
+                "--bib",
+                "refs.bib",
+                "-o",
+                "claims.md",
+                "--force",
+            ],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            cwd=str(project),
+            check=False,
+        )
+        return (project / "claims.md").read_text(encoding="utf-8")
+
+    def test_an_unusable_entry_is_not_described_as_absent(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, "[sources]" + chr(10) + 'smith2020 = "gone.txt"' + chr(10))
+        out = self._draft(project)
+        assert "sources.toml maps 'smith2020' to 'gone.txt'" in out
+        # The generic sentence claims all three searches failed. Two of the
+        # three are about this project and neither is what happened.
+        assert "not in sources.toml, no `file` field" not in out
+
+    def test_an_unreadable_manifest_is_named(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, "[sources" + chr(10) + 'smith2020 = "gone.txt"' + chr(10))
+        out = self._draft(project)
+        assert "the manifest could not be read" in out
+
+    def test_a_key_nobody_named_keeps_the_generic_sentence(self, tmp_path: Path) -> None:
+        project = _project(tmp_path, None)
+        out = self._draft(project)
+        assert "not in sources.toml, no `file` field" in out

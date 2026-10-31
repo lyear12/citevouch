@@ -33,7 +33,7 @@ from .errors import CitevouchError, UsageError, why_not_a_file
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, scan
-from .sources import discover_sources
+from .sources import read_source_table
 from .textnorm import count_of, read_text
 from .verify import VerifyResult, verify
 
@@ -338,6 +338,8 @@ def cmd_draft(args: argparse.Namespace) -> int:
         bib.update(parsed.entries)
 
     text = read_text(manuscript)
+    table = read_source_table(root, args.source)
+    known = table.found
     converted = latex_module.looks_like_latex(manuscript)
     included: list[str] = []
     if converted:
@@ -349,8 +351,9 @@ def cmd_draft(args: argparse.Namespace) -> int:
     result = draft_module.draft(
         text,
         bib=bib,
-        known=discover_sources(root, args.source),
+        known=known,
         root=root,
+        table=table,
     )
     text = draft_module.render(result, manuscript.name, converted=converted, included=included)
     _write_text_lf(output, text)
