@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from citevouch.manuscript import parse_manuscript, scan_unbound_markers
+from citevouch.manuscript import _attrs, parse_manuscript, scan_unbound_markers
 
 
 def test_fenced_block_is_parsed():
@@ -326,3 +326,44 @@ class TestAnInlineQuoteIsTheValueAndNotTheMarks:
 
     def test_a_lone_mark_is_left_alone(self):
         assert self._quote_of('quote: "') == '"'
+
+
+class TestAnEmptyAttributeIsEmptyAndNotTheNextAttribute:
+    """`source= page=1` is a missing source, not a source called `page=1`."""
+
+    def test_an_empty_value_does_not_swallow_the_neighbour(self) -> None:
+        """The greedy value pattern took whatever token came next.
+
+        `source=` said by omission that the key was not filled in yet, and the
+        reader turned the next attribute into its value.  The claim was then
+        bound to `page=1` and the report named a source the author never typed -
+        a sentence about the manifest for a typo in the block.
+        """
+        assert _attrs("id=c1 source= page=1") == {"id": "c1", "page": "1"}
+        assert _attrs("id=c1 source = page=1") == {"id": "c1", "page": "1"}
+        assert _attrs("id=c1 source=") == {"id": "c1"}
+
+    def test_a_value_that_contains_an_equals_sign_survives(self) -> None:
+        """The fix above must not cost the shape it was protecting.
+
+        A bib key can be `a=b`.  With no space after `=` the token is the
+        value outright, so the attribute reader has to keep the old reading
+        for that spelling while the spaced form splits.  Both are pinned,
+        because a rule that only covers the case in the commit title is how
+        the second version of a fix reintroduces the first bug.
+        """
+        assert _attrs("id=c1 source=a=b") == {"id": "c1", "source": "a=b"}
+        assert _attrs('id=c1 source="a=b" page=1') == {
+            "id": "c1",
+            "source": "a=b",
+            "page": "1",
+        }
+
+    def test_the_manuscript_path_reports_the_missing_source(self) -> None:
+        """End to end: the block parses, and the verdict is about `source=`."""
+        text = "```claim id=c1 source= page=1\nquote: a sentence\n```\n"
+        parsed = parse_manuscript(text, "m.md")
+        assert parsed.claims == []
+        codes = [f.code for f in parsed.findings]
+        assert codes == ["claim-uncheckable"]
+        assert "names no source=" in parsed.findings[0].message

@@ -47,7 +47,24 @@ _TABLE_CLAIM = re.compile(
     r"^\|\s*(?P<id>[A-Za-z0-9_.:-]+)\s*\|\s*(?P<source>[^|]+?)\s*\|"
     r"\s*(?P<page>\d+|-)\s*\|\s*(?P<quote>[^|]+?)\s*\|\s*(?P<text>[^|]+?)\s*\|"
 )
-_ATTR = re.compile(r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)\s*=\s*(?P<value>\"[^\"]*\"|'[^']*'|\S+)")
+# ``value`` comes in two forms, and the difference is the space after ``=``.
+#
+#   * ``key=value``  - no space, so the token is the value outright, even when
+#     the value itself contains ``=`` (``source=a=b`` is the key ``a=b``).
+#   * ``key = value`` - space, so a following ``something=`` is the next
+#     attribute and not this one's value.  ``source= page=1`` therefore reads as
+#     an empty ``source`` plus a separate ``page``, which is the author saying
+#     "this key is not finished yet" and earns `claim-uncheckable`.
+#
+# Without that split the greedy third form swallowed the neighbour: an empty
+# ``source=`` took ``page=1`` as its value and the report complained about a key
+# nobody had typed.  Values that are themselves ``a=b`` are still written the
+# way every other value is: in quotes, or with no space after ``=``.
+_ATTR = re.compile(
+    r"(?P<tight>[A-Za-z_][A-Za-z0-9_-]*)=(?P<tvalue>\"[^\"]*\"|'[^']*'|\S+)"
+    r"|(?P<loose>[A-Za-z_][A-Za-z0-9_-]*)\s*=\s*"
+    r"(?P<lvalue>\"[^\"]*\"|'[^']*'|(?![A-Za-z_][A-Za-z0-9_-]*\s*=)\S+)"
+)
 # A line a human would read as "here begins a claim block", in any of the
 # spellings close enough to the real one to be a mistake rather than prose.
 # Used only to explain a file that yielded no claims: naming the line that was
@@ -97,10 +114,11 @@ def _attrs(blob: str) -> dict[str, str]:
     """
     out: dict[str, str] = {}
     for m in _ATTR.finditer(blob or ""):
-        value = m.group("value")
+        key = m.group("tight") or m.group("loose")
+        value = m.group("tvalue") or m.group("lvalue")
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
-        out[m.group("key").lower()] = value
+        out[key.lower()] = value
     if "id" not in out:
         head = (blob or "").strip().split()
         if head and "=" not in head[0] and head[0] not in (":", "-"):
