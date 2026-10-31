@@ -389,3 +389,15 @@ would a person actually have on disk", not by reading the code.
   always print it) that each turned exactly one test red. *Not covered*: an
   absolute `--root` on another drive is repeated verbatim - correct, long,
   and unasserted.
+
+- [x] **A claim id holding a backtick broke the `report` table.** *Done
+  2026-10-31.* The id column wrapped the id in backticks after escaping it,
+  so an id containing one closed the code span early and the row came out a
+  cell short. *Done when* the delimiter is chosen from the content and the
+  row keeps its column count. *Verified by*
+  `tests/test_cli.py::TestAClaimIdIsRenderedAsItsOwnCodeSpan` (five tests,
+  four of them against `_code` directly and one end-to-end through `main()`),
+  plus three mutations - wrap the escaped id again, always use one backtick,
+  never pad - that each turned them red. *Not covered*: an actual GitHub
+  table render; the rule checked is CommonMark's closure rule, read from the
+  spec rather than observed on github.com.
