@@ -38,6 +38,16 @@ FOUR_TICKS = "# P\n\n````claim id=c1 source=a\nThe corpus has 100 utterances.\n`
 CAPITAL = "# P\n\n```Claim id=c1 source=a\nThe corpus has 100 utterances.\n```\n"
 HTML = "# P\n\n<!-- claim: c1 source=a\n>> The corpus has 100 utterances.\n-->\n"
 TABLE = "# P\n\n| c1 | a | 1 | The corpus has 100 utterances. | The corpus is small. |\n"
+# A README that documents the syntax: one example, indented so Markdown
+# renders it as a code sample, and no real claim anywhere.
+INDENTED = """A README line, then the syntax shown indented:
+
+
+    ```claim id=example source=a
+    quote: The corpus has 100 utterances.
+    ```
+
+Then the rest of the paper."""
 
 
 class TestWhatGetsReported:
@@ -77,6 +87,30 @@ class TestWhatGetsReported:
         root = _project(tmp_path, CAPITAL)
         _ledger, findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
         assert "case" in findings[0].message
+
+    def test_an_indented_fence_is_named_as_an_indent(self, tmp_path: Path):
+        """The message must not quote a line that satisfies its own rule.
+
+        An indented fence is a Markdown code sample, so it is a near miss
+        and not a claim block. Before this it fell through to the generic
+        sentence about what a claim fence looks like, and then printed
+        exactly such a line, so the message contradicted itself where the
+        reader is already confused.
+        """
+        root = _project(tmp_path, INDENTED)
+        _ledger, findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
+        message = findings[0].message
+        assert "indented by 4" in message, message
+        assert "code sample" in message, message
+        assert "claim fences are three backticks followed by the word" not in message
+
+    def test_a_left_margin_fence_keeps_the_generic_sentence(self, tmp_path: Path):
+        # The control: with no indent there is nothing special to report, so
+        # the generic sentence has to stay available for the case it was
+        # written for instead of being replaced wholesale.
+        root = _project(tmp_path, PROSE)
+        _ledger, findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
+        assert "indented by" not in findings[0].message
 
     def test_a_manuscript_with_a_prose_hint_suggests_draft(self, tmp_path: Path):
         root = _project(tmp_path, PROSE)

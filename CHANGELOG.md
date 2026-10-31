@@ -12,6 +12,18 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The `no-claim-blocks` message quoted a line that satisfied the rule it
+  had just described.**
+  An indented fence is a Markdown code sample and not a claim block, so the
+  near-miss detector found it and the generic branch explained that claim
+  fences are three backticks followed by the word `claim` - then printed the
+  offending line, which is exactly that. The reader is told their block is
+  wrong in a sentence their block satisfies. It now names the indent, says
+  that an indented fence is a code sample in Markdown, and says where to put
+  it instead. A block at the left margin still gets the generic sentence,
+  because there it is true.
 ## [0.19.24] — 2026-10-31
 ### Fixed
 

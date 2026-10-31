@@ -122,17 +122,28 @@ def _no_claim_blocks_finding(
             "blocks for them."
         )
     else:
-        line = lines[near - 1].strip()
+        raw = lines[near - 1]
+        line = raw.strip()
         ticks = len(line) - len(line.lstrip("`~"))
-        # Name the near miss precisely.  "Four backticks" and "a capital C" are
-        # the two ways to write something that reads like a claim block and is
-        # not one, and telling the author which they did is the whole value of
-        # this message.  The sample is indented rather than backtick-quoted on
-        # purpose: a fenced line inside backticks renders as a longer fence.
+        indent = len(raw) - len(raw.lstrip())
+        # Name the near miss precisely.  "Four backticks", "a capital C" and
+        # "an indent" are the three ways to write something that reads like a
+        # claim block and is not one, and telling the author which they did is
+        # the whole value of this message.  The indent case used to fall
+        # through to the generic sentence, which then quoted a line that
+        # matched the rule it had just described - the message contradicted
+        # itself in front of the reader.  The sample is indented rather than
+        # backtick-quoted on purpose: a fenced line inside backticks renders as
+        # a longer fence.
         if ticks > 3:
             why = f"it opens with {ticks} backticks and a claim fence has three"
         elif "claim" not in line:
             why = "the keyword is spelled in a case the parser does not accept"
+        elif indent:
+            why = (
+                f"it is indented by {indent} space(s), and an indented fence is a "
+                "code sample in Markdown, not a claim: start it at the left margin"
+            )
         else:
             why = "claim fences are three backticks followed by the word `claim`"
         detail = (

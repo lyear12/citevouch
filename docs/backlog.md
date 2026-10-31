@@ -417,3 +417,21 @@ would a person actually have on disk", not by reading the code.
   *Not covered*: pre-commit itself was not installed and run; the harness
   reproduces its invocation rule, not its environment construction. A
   repository whose manuscript is not `manuscript.md` must edit `args`.
+
+## P4 - messages that contradict themselves
+
+- [x] **The `no-claim-blocks` message quoted a line that met its own rule.**
+  *Who is blocked*: the author whose README shows the syntax - the exact
+  person the message exists to teach.
+  *Done when*: an indented example gets a reason that is true of that indent,
+  and a left-margin block still gets the generic sentence.
+  **Done - why it is now true:** `src/citevouch/scan.py` measures the indent
+  from the raw line and, when there is one, says the fence is indented by N
+  spaces and that an indented fence is a Markdown code sample. Proved by
+  `tests/test_no_claims.py` (2 new), which asserts the specific phrase is
+  present and the generic one is absent, plus the control case. Three
+  mutations each turned it red.
+  *Not covered*: list items and blockquotes are still reported as "this file
+  has none" rather than by their marker. That is not a false statement -
+  `\- ` and `> ` really do not open a fence - so it is left alone rather
+  than given a branch it does not need.

@@ -2364,3 +2364,34 @@ required: manuscript` and exited 2, while `tests/test_precommit.py` reported
 immediately, and restoring `args:` turned them green. Three mutations of the
 repaired file - drop `args`, make `args` flags only, turn filenames back on
 - each turned the suite red. Seen 1.
+
+## A message that quotes the counterexample is arguing against itself
+
+**Rule.** When a message names a rule, check the sample it prints against
+that rule. If the sample satisfies it, the message is not imprecise - it is
+self-refuting, and the reader concludes the tool is broken rather than the
+file.
+
+**Why.** The `no-claim-blocks` message had three branches: too many
+backticks, wrong case, and "everything else". Everything else got the
+generic sentence "claim fences are three backticks followed by the word
+`claim`", then the near-miss line was appended. For an indented example -
+the shape a README uses to document the syntax - that line is
+`` ```claim id=example `` , which is precisely three backticks followed by
+the word `claim`. The one distinguishing fact, the indent, was measured by
+neither the detector nor the message.
+
+**How to apply.** Give the fallback branch nothing to explain. Enumerate the
+distinguishing features where the near miss is detected, and keep the
+generic sentence for the case that has no distinguishing feature at all -
+then assert, in a test, both that the specific reason appears and that the
+generic sentence does not.
+
+**Evidence.** Measured 2026-10-31 on 0.19.24: a README-style manuscript with
+one 4-space-indented sample printed "line 5 reads like a claim block but is
+not one the parser accepts (claim fences are three backticks followed by the
+word `claim`)" and then the line ```claim id=example source=a - which is
+that. After the fix it says "it is indented by 4 space(s), and an indented
+fence is a code sample in Markdown". Three mutations (drop the branch, keep
+the branch but never test it, measure the indent from the stripped line so
+it is always 0) each turned the new test red. Seen 1.
