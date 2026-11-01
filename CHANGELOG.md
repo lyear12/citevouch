@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.31] — 2026-11-01
 ### Fixed
 
 - **`check --use-recorded` reported one finding twice, and `check` did not.**
@@ -24,7 +26,6 @@ tag and that file disagree.
   is now one function both paths call, and a new test compares the two paths to
   *each other* rather than to a remembered count - the assertion that would
   have caught this without already knowing which code duplicated.
-
 ## [0.19.30] — 2026-11-01
 ### Fixed
 
@@ -1464,7 +1465,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.30...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.31...HEAD
+[0.19.31]: https://github.com/lyear12/citevouch/releases/tag/v0.19.31
 [0.19.30]: https://github.com/lyear12/citevouch/releases/tag/v0.19.30
 [0.19.29]: https://github.com/lyear12/citevouch/releases/tag/v0.19.29
 [0.19.28]: https://github.com/lyear12/citevouch/releases/tag/v0.19.28
