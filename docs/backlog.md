@@ -435,3 +435,30 @@ would a person actually have on disk", not by reading the code.
   has none" rather than by their marker. That is not a false statement -
   `\- ` and `> ` really do not open a fence - so it is left alone rather
   than given a branch it does not need.
+
+---
+
+## P4 - an example the tool reads as the thing it demonstrates
+
+- [x] **A LaTeX paper that shows its citation syntax was read as citing.**
+  *Who is blocked*: every LaTeX author whose paper documents what
+  `\citep` looks like - a code sample in the appendix, a README, a
+  tutorial section. They get a verified citation for a key that appears only
+  in the example.
+  *Done when*: an inline verbatim body never reaches the citation pattern or
+  the converter, a `%` inside one does not start a comment, and a
+  `verbatim` environment's `%` does not eat the `\end{verbatim}`.
+  **Done - why it is now true:** `src/citevouch/latex.py` masks verbatim
+  bodies before comments are stripped, hides them again from `_CITE` and from
+  `_convert`, and restores the literal characters at the very end of
+  `to_text`, so `50\verb|%|` still prints a percent sign. `included_files`
+  uses the same masked text. Proved by
+  `tests/test_latex.py::TestATeXExampleIsNotACitation` (7 tests, one
+  parametrised over `\verb*`, `\lstinline`, `\mintinline{tex}` and
+  `\lstinline[language=TeX]`). Three mutations (no environment masking,
+  no inline masking in `to_text`, bodies restored as nothing) each turned a
+  test red.
+  *Not covered*: `tabular` and `tikzpicture` still honour `%` - they are
+  dropped from the output anyway, and pretending otherwise would only break
+  for a document that nests one inside a verbatim block. `\verb` with an
+  unbalanced delimiter inside a line is left alone rather than guessed at.
