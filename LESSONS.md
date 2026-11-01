@@ -2431,3 +2431,41 @@ mutations (no environment masking, no inline masking in `to_text`, bodies
 restored as nothing) each turned a new test red; the test that had been there
 for the environment case asserted only that `to_text` returned a string.
 Seen 1.
+## A tier named after a conclusion has to actually measure that conclusion
+
+**Rule.** When a layer's name or message states a fact ("the numbers do not
+match"), compute that fact. A layer that knows only that the *literal*
+comparison failed knows nothing about the reason, and the reason is what the
+reader acts on.
+
+**Why.** The tier that reports `number-absent-in-quote` proved nothing about
+the numbers. It masked every number out of both sides, found the remaining
+words equal, and concluded the numbers must therefore differ. That inference
+holds only if "the literal comparison failed" implies "the values differ",
+and the whole point of a normalising tool is that it does not: `40.688` and
+`40,688` are one value spelling itself two ways. The message then told an
+author that a number they had copied off the page was not on the page, which
+is the one accusation this tool must never make falsely. The test suite could
+not have caught it by accident either: every existing case for that tier used
+numbers that really did differ, so the mask-and-assume shortcut agreed with
+the truth on every input anyone had tried.
+
+**How to apply.** For each branch, ask what it *knows* versus what it
+*claims*. A claim that generalises over a comparison the branch never ran
+belongs in its own tier with its own comparison, not in the message of the
+branch that failed for another reason. And when a new spelling of a value
+enters the normaliser, the branch that reports on that value has to be
+re-tested with two spellings of one value, not only with two different values.
+
+**Evidence.** Measured 2026-11-01 on 0.19.26. Page `Overall we counted 40.688
+entries in the corpus.` against quote `Overall we counted 40,688 entries in
+the corpus.` gave `[high] number-absent-in-quote` and exit 1, with the masked
+text on both sides identical (`Overall we counted \x00 entries in the
+corpus.`). `41,000` against `40,688` was indistinguishable from it. Adding a
+`canonical` tier - both sides with every number rewritten to one spelling -
+made the first `quote-found` and left the second `number-absent-in-quote`.
+Five mutations were tried; three turned red at once, and the two that stayed
+green were green because their test asserted the excerpt still *contained*
+the quote, which a sixty-character margin buys back after a wrong offset.
+Tightening the test to assert the window's width as well turned both red.
+Seen 1.

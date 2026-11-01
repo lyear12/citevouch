@@ -11,7 +11,27 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
 
+- **The same number written the European way was reported as a different
+  number.** `40.688` on the page and `40,688` in the quote are one number, and
+  `40 688` is a third spelling of it. The tool read the dots as decimal points
+  and the commas as thousands separators, so two of the three spellings never
+  met: `check` exited 1 with `[high] number-absent-in-quote`, telling an author
+  that the number they had just copied off the page was not on the page. The
+  reading of a number is now one function used by both sides. `,` and `.` are
+  grouping marks when they sit between exactly three digits and the number does
+  not start `0` (`1.234.567`, `1,234,567`, `1.000,5`), and a decimal point
+  otherwise (`48.4`, `0.688`, `1.0005`); the pattern that finds numbers reads
+  `1.234.567` as one number instead of `1.234` and `567`. The verifier gained a
+  fifth matching tier, `canonical`, tried after the literal comparisons and
+  before the one that reports mismatched numbers: it compares the two texts
+  with every number rewritten in one spelling, so a quote that differs from the
+  page only in its thousands separators is now `quote-found` rather than
+  `number-absent-in-quote`. Everything else stays where it was: `41,000` against
+  `40,688` is still `number-absent-in-quote`, a number the page spells with a
+  bare space is still not silently equal to one the quote groups, and the
+  search that straddles a page break is unchanged.
 ## [0.19.26] — 2026-11-01
 ### Fixed
 

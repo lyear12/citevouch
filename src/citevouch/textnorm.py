@@ -199,10 +199,27 @@ def squash(text: str) -> str:
 # "40688" against "٤٠" and "٦٨٨", and the tool reports that the source does not
 # contain a number that is printed on the page in front of them - the same
 # false accusation the cross-page rule exists to avoid.
-_THOUSANDS = "[,\\u00a0\\u066c]"
-_DECIMAL = "[.\\u066b]"
-REPORT_PATTERN = re.compile(rf"\d+(?:{_THOUSANDS}\d{{3}})*(?:{_DECIMAL}\d+)?[%\u066a]?")
-MASK_PATTERN = re.compile(rf"\d+(?:[, \u00a0\u066c]\d{{3}})*(?:{_DECIMAL}\d+)?[%\u066a]?")
+#
+# A dot is a thousands separator in most of Europe and a decimal point in the
+# anglophone world, and "40.688" is a real number either way.  Both the pattern
+# and `canonical_number` resolve it the same way: a separator groups digits only
+# when exactly three follow it, so "40.688" and "40,688" are one number, while
+# "48.4" and "1.0005" keep a decimal point.  Without this an author quoting a
+# European-printed table types 40,688 against a page that prints 40.688, and the
+# tool calls the number absent - an accusation about a number the reader can see
+# on the page, which is the worst output this tool can produce.
+_THOUSANDS = "[,\u00a0\u066c.]"
+#: The fractional part.  A locale may write it with a dot or a comma:
+#: a comma counts only when one or two digits follow it, so "48,4" and
+#: "1.000,5" are decimals while "2019,2020" is two years and stays two
+#: numbers.  A dot that failed the three-digit group rule is unambiguous,
+#: so it takes any number of digits - "1.0005" is not 1,000 and 5.
+_DECIMAL_TAIL = r"(?:\.\d+|\u066b\d+|,\d{1,2}(?!\d))"
+REPORT_PATTERN = re.compile(rf"\d+(?:{_THOUSANDS}\d{{3}}(?!\d))*{_DECIMAL_TAIL}?[%\u066a]?")
+MASK_PATTERN = re.compile(rf"\d+(?:[, \u00a0\u066c.]\d{{3}}(?!\d))*{_DECIMAL_TAIL}?[%\u066a]?")
+
+#: The separators `canonical_number` has to resolve into a group or a point.
+_GROUPING = re.compile(r"[.,]")
 
 
 def numbers_in(text: str) -> tuple[str, ...]:
@@ -233,21 +250,36 @@ def canonical_number(token: str) -> str:
     `unicodedata.decimal` is the mapping: it returns the value of every
     character in Unicode category Nd and nothing else, so no table is needed
     and a future script needs no change here.
+
+    Separators are then resolved by the same rule the pattern uses - a
+    separator followed by exactly three digits groups, anything else is a
+    decimal point - so "40.688", "40,688" and "40 688" are one value and
+    "48.4" keeps its point.  See the comment above `_THOUSANDS`.
     """
     digits = "".join(
         str(value) if (value := unicodedata.decimal(ch, None)) is not None else ch
         for ch in token
     )
-    return (
-        digits.replace(",", "")
+    digits = (
+        digits.replace("\u066b", ".")
+        .replace("\u066c", ",")
         .replace("\u00a0", "")
-        .replace("\u066c", "")
-        .replace("\u066b", ".")
         .replace("\u066a", "")
         .replace("%", "")
         .replace(" ", "")
         .strip()
     )
+    return _without_grouping(digits)
+
+
+def _without_grouping(number: str) -> str:
+    """Drop the separators that group digits; keep the one meaning a point."""
+    parts = _GROUPING.split(number)
+    if len(parts) < 2:
+        return number
+    if parts[0] != "0" and all(len(part) == 3 for part in parts[1:]):
+        return "".join(parts)
+    return "".join(parts[:-1]) + "." + parts[-1]
 
 
 #: One UTF-8 byte-order mark, as it arrives after decoding.

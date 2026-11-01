@@ -1,22 +1,30 @@
-"""Locating a quote inside a source: exact, whitespace-free, number-blind, fuzzy.
+"""Locating a quote inside a source: exact, canonical, squashed, numbers, fuzzy.
 
-Four tiers, tried in order, each strictly weaker than the last:
+Five tiers, tried in order, each strictly weaker than the last:
 
 1. **exact** — the normalised quote appears in the normalised page text *at
    word boundaries*: "in the paper" must not match inside "a bin the papers";
-2. **squashed** — the quote appears once *all* whitespace is removed, which
+2. **canonical** — the same comparison, after every number on both sides is
+   rewritten in one spelling.  A page printing 40.688 and a quote saying
+   40,688 hold one number and one sentence; without this tier the masker in
+   tier 4 finds the words, sees different digits, and reports the figure as
+   absent - an accusation about a number the reader can see on the page;
+3. **squashed** — the quote appears once *all* whitespace is removed, which
    rescues text an extractor ran together or split across columns.  The
    boundary is gone at this tier by construction, so a minimum length keeps it
    from certifying a coincidence;
-3. **numbers** — every number in the quote is masked out on both sides and the
-   *words* still match at full length.  This is the tier that separates "you
-   typed the statistic wrong" from "the quote is not in this document";
-4. **fuzzy** — a sliding token-window comparison, used only to say "the quote
+4. **numbers** — every number in the quote is masked out on both sides and the
+   *words* still match at full length while the *values* still differ.  This
+   is the tier that separates "you typed the statistic wrong" from "the quote
+   is not in this document";
+5. **fuzzy** — a sliding token-window comparison, used only to say "the quote
    looks like the source but is not present verbatim", which is reported as a
    medium-severity finding rather than silently accepted.
 
-Neither tier 3 nor tier 4 ever upgrades a claim to verified.  They turn a flat
-"not found" into an actionable "these digits differ" / "these words differ".
+Tier 2 counts as found: the words match and so do the values, only the
+separator differs.  Tiers 4 and 5 never upgrade a claim to verified - they
+turn a flat "not found" into an actionable "these digits differ" / "these
+words differ".
 """
 
 from __future__ import annotations
@@ -26,7 +34,7 @@ import re
 from dataclasses import dataclass
 
 from .sources import PageText
-from .textnorm import MASK_PATTERN, fold, squash
+from .textnorm import MASK_PATTERN, REPORT_PATTERN, canonical_number, fold, squash
 
 # A quote must be at least this long before fuzzy matching is allowed to opine.
 # Below it, short quotes match too many places for a similarity score to mean
@@ -88,7 +96,7 @@ def _is_word_char(ch: str) -> bool:
 
 @dataclass
 class Match:
-    tier: str  # "exact" | "squashed" | "numbers" | "fuzzy" | "none"
+    tier: str  # "exact" | "canonical" | "squashed" | "numbers" | "fuzzy" | "none"
     page: int | None = None
     similarity: float = 0.0
     context: str = ""
@@ -97,8 +105,14 @@ class Match:
 
     @property
     def found(self) -> bool:
-        """True only for the tiers that may be called verified."""
-        return self.tier in ("exact", "squashed")
+        """True only for the tiers that may be called verified.
+
+        ``canonical`` belongs here: the words match at word boundaries and
+        every number matches by value, so the only difference left is which
+        character the locale prints between digit groups.  A tool that called
+        that absent would be reporting a number the author can see on the page.
+        """
+        return self.tier in ("exact", "canonical", "squashed")
 
 
 def mask_numbers(text: str) -> str:
@@ -119,8 +133,53 @@ def number_spans(text: str) -> list[tuple[str, int]]:
     return [(m.group(0), m.start()) for m in _NUMBER.finditer(text)]
 
 
-def _bounded_pages(page: PageText, needle: str) -> list[int]:
-    """Start offsets of `needle` in the page's folded text at word boundaries.
+def _canonical_numbers(text: str) -> str:
+    """Rewrite every number in ``text`` in the one spelling ``canonical_number`` picks.
+
+    ``REPORT_PATTERN`` rather than ``MASK_PATTERN`` on purpose: the quote side
+    has to agree with what the ledger recorded, and the ledger records
+    ``numbers_in``, which is the report pattern.  Where the two patterns
+    disagree - a bare space between digit triples - neither side sees a number
+    there and both texts stay as they were, which is the safe direction.
+
+    Rewriting is idempotent, so applying it to text that is already canonical
+    changes nothing and a page never has to be reasoned about twice.
+    """
+    return REPORT_PATTERN.sub(lambda m: canonical_number(m.group(0)), text)
+
+
+def _canonical_with_map(text: str) -> tuple[str, list[int]]:
+    """Canonicalised text, plus the original offset of every character in it.
+
+    The map exists because the caller needs both answers: *where* the quote
+    matched (in canonical text) and *what* to show the reader around it (in
+    the text as printed).  Rewriting 40.688 as 40688 shortens the string, so a
+    canonical offset is not an original offset - and a context excerpt sliced
+    with a shifted index shows a sentence nobody wrote.
+
+    Inside a rewritten number every character maps to the number's first
+    original character: a match never starts mid-number at a word boundary
+    unless the quote itself starts mid-number, which ``_bounded_in`` refuses.
+    """
+    if not REPORT_PATTERN.search(text):
+        return text, list(range(len(text)))
+    pieces: list[str] = []
+    offsets: list[int] = []
+    last = 0
+    for match in REPORT_PATTERN.finditer(text):
+        pieces.append(text[last : match.start()])
+        offsets.extend(range(last, match.start()))
+        rewritten = canonical_number(match.group(0))
+        pieces.append(rewritten)
+        offsets.extend([match.start()] * len(rewritten))
+        last = match.end()
+    pieces.append(text[last:])
+    offsets.extend(range(last, len(text)))
+    return "".join(pieces), offsets
+
+
+def _bounded_in(haystack: str, needle: str) -> list[int]:
+    """Start offsets of ``needle`` in ``haystack`` at word boundaries.
 
     A match whose neighbours are letters or digits is a match *inside* words:
     "in the paper" inside "a bin the papers" reads as a quote that exists
@@ -135,7 +194,6 @@ def _bounded_pages(page: PageText, needle: str) -> list[int]:
     old rule, wrong about what the sentence is.
     """
     hits: list[int] = []
-    haystack = page.folded
     open_start = not needle or not _is_word_char(needle[0])
     open_end = not needle or not _is_word_char(needle[-1])
     start = haystack.find(needle)
@@ -147,6 +205,11 @@ def _bounded_pages(page: PageText, needle: str) -> list[int]:
             hits.append(start)
         start = haystack.find(needle, start + 1)
     return hits
+
+
+def _bounded_pages(page: PageText, needle: str) -> list[int]:
+    """``_bounded_in`` over one page's folded text."""
+    return _bounded_in(page.folded, needle)
 
 
 def _context(page_text: str, needle_index: int, needle_len: int, width: int = 120) -> str:
@@ -245,6 +308,35 @@ def find_in_pages(
                 reason="the quote crosses a page break",
                 spans_to=end_number,
             )
+
+    # Canonical: the same comparison after both sides spell their numbers one
+    # way.  A page printing 40.688 and a quote saying 40,688 hold one number;
+    # without this tier the numbers tier below finds the words, sees digits
+    # that differ, and reports the figure absent.  A separator is a locale's
+    # spelling of a value, not a disagreement about it.
+    #
+    # Tried before squashed so the finding can still say which page the quote
+    # is on, and skipped entirely when the quote holds no number - there is
+    # then nothing this tier can see that exact did not.
+    if REPORT_PATTERN.search(quote_norm):
+        quote_canon = _canonical_numbers(quote_norm)
+        for index in order:
+            page = pages[index]
+            canon, offsets = _canonical_with_map(page.folded)
+            hits = _bounded_in(canon, quote_canon)
+            if hits:
+                start = offsets[hits[0]]
+                end = offsets[hits[0] + len(quote_canon) - 1] + 1
+                return Match(
+                    tier="canonical",
+                    page=page.number,
+                    similarity=1.0,
+                    context=_context(page.folded, start, max(end - start, 1)),
+                    reason=(
+                        "the quote is on this page; the numbers are the same "
+                        "values written with a different thousands separator"
+                    ),
+                )
 
     for index in order:
         page = pages[index]
