@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.35] — 2026-11-01
 ### Fixed
 
 - **The third reporting site with the same shape: `bib-field-malformed`.** The
@@ -31,7 +33,6 @@ tag and that file disagree.
   one finding per entry names every field and every macro, with counts that
   deduplicate repeated names (`jalpha # jalpha` is one undefined macro, not
   two). Nothing that used to be reported stopped being reported.
-
 ## [0.19.34] — 2026-11-01
 ### Fixed
 
@@ -1521,7 +1522,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.34...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.35...HEAD
+[0.19.35]: https://github.com/lyear12/citevouch/releases/tag/v0.19.35
 [0.19.34]: https://github.com/lyear12/citevouch/releases/tag/v0.19.34
 [0.19.33]: https://github.com/lyear12/citevouch/releases/tag/v0.19.33
 [0.19.32]: https://github.com/lyear12/citevouch/releases/tag/v0.19.32
