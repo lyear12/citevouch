@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.36] — 2026-11-01
 ### Fixed
 
 - **An entry missing four required fields reported one of them.** The fourth
@@ -24,7 +26,6 @@ tag and that file disagree.
   a second clause rather than a second finding: they share the entry's code
   and line, so a separate finding was dropped by the same duplicate pass that
   hid the others.
-
 ## [0.19.35] — 2026-11-01
 ### Fixed
 
@@ -1535,7 +1536,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.35...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.36...HEAD
+[0.19.36]: https://github.com/lyear12/citevouch/releases/tag/v0.19.36
 [0.19.35]: https://github.com/lyear12/citevouch/releases/tag/v0.19.35
 [0.19.34]: https://github.com/lyear12/citevouch/releases/tag/v0.19.34
 [0.19.33]: https://github.com/lyear12/citevouch/releases/tag/v0.19.33
