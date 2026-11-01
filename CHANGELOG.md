@@ -11,6 +11,21 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A compound word broken at a line end made a correct quote unfindable.**
+  A page that sets `high-dimensional` with the break between the two halves
+  extracts as `high-\ndimensional`. Normalisation reads that hyphen as
+  typeset hyphenation and joins it, giving `highdimensional` — right for
+  `pro-\cessing`, wrong for `high-dimensional`, and the extracted bytes are
+  identical in both cases. An author quoting the page as it is printed writes
+  `high-dimensional`, which matched no tier: a sentence that is on the page was
+  reported `quote-missing` at high severity. On this project's own 20-page
+  sample of real linguistics PDFs the shape occurs 312 times. A new `hyphen`
+  tier compares the quote in both spellings against the page as the extractor
+  settled it; it counts as found, and it is one-directional — the page is never
+  stripped of hard hyphens, so a page reading `re-cover the sofa` still cannot
+  satisfy a quote reading `recover the sofa`.
 
 ## [0.19.28] — 2026-11-01
 ### Fixed

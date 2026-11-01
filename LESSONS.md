@@ -2517,3 +2517,44 @@ the excerpt's trailing ellipsis instead of on the excerpt's width. That is the
 same lesson as the canonical tier's offset map, one level down: an assertion
 about "contains" is an assertion about a window, not about the boundary.
 Seen 1.
+
+## An ambiguity the input cannot settle has to be carried, not resolved
+
+**Rule.** When the extracted text genuinely supports two readings and nothing in
+the bytes distinguishes them, do not pick one and call the other a mismatch.
+Make the comparison accept both — in the direction that cannot invent evidence.
+
+**Why.** A hyphen at a line end means typeset hyphenation in one paper and a
+compound word broken across lines in the next.
+
+    "the subsequent pro-\ncessing is assumed"    -> pro + cessing   (typeset)
+    "a sequence of high-\ndimensional vectors"   -> high-dimensional (compound)
+
+The extracted bytes of those two lines are the same shape. `normalize` joins,
+which is right for the first and destroys a character of the second; an author
+quoting the page as it is printed writes `high-dimensional` and got
+`quote-missing` at high severity for a sentence that is on the page. That is the
+worst thing this tool can say, and it was saying it about ordinary pages: 312
+occurrences in a 20-page sample of real linguistics PDFs.
+
+**How to apply.** Let the quote be tried in both spellings against the page as
+the extractor settled it. Never strip the hard hyphens from the page as well:
+`re-cover`/`recover`, `re-sign`/`resign`, `co-op`/`coop` are real pairs of real
+words, and blinding both sides certifies a quote the page does not support.
+The relaxation must be one-directional, and a mutation that makes it symmetric
+must be the one the tests kill. The same reasoning governs the tier's test
+suite: the four "different word" cases only exercise the direction if the quote
+*and* the page carry a hard hyphen, so the first version of those tests passed
+with the page blinded too — the guard was doing the work, not the tests.
+
+**Evidence.** Measured 2026-11-01. Page `input in the form of a sequence of
+high-\ndimensional vectors` against quote `a sequence of high-dimensional
+vectors` gave `tier=none found=False` on 0.19.28; after the `hyphen` tier the
+same pair gives `tier=hyphen found=True` while `They had to re-cover the roof.`
+still refuses `they had to recover the roof`. Eight mutations, all red: tier
+never runs, tier does not count as found, quote not blinded, **page blinded
+too**, boundary check removed, number-slice guard removed, reason says nothing,
+tier mislabelled. The page-blinding mutation stayed green on the first pass —
+the tests that were supposed to enforce the direction only ran when the *quote*
+carried a hyphen, so they never exercised the case where the direction matters.
+Seen 1.

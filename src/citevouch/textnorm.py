@@ -47,6 +47,27 @@ _EQUIV = {
 # Hyphenation at a line break: "con-\n scruction" -> "construction".  Only a
 # lowercase-before/lowercase-after pair is joined, because "pre-\n1990" and
 # "Van Eecke-\nBeuls" must keep their hyphen.
+#
+# The join is *ambiguous*, and this is the reading that guesses.  A hyphen at
+# the end of a line means one of two things and the extracted text does not say
+# which:
+#
+#   "the subsequent pro-\ncessing is assumed"      -> "processing"   (typeset)
+#   "a sequence of high-\ndimensional vectors"     -> "high-dimensional" (compound)
+#
+# Joining is right for the first and drops a character that belongs to the word
+# for the second.  An author quoting the second page writes "high-dimensional",
+# because that is what the page shows them, and against a text that says
+# "highdimensional" the quote matches no tier: a correct quote is reported
+# ``quote-missing`` at high severity.  On this project's own 20-page sample of
+# real linguistics PDFs that shape occurs 312 times, so it is not a corner.
+#
+# Neither reading can be dropped, and this function cannot know which one it
+# has, so it keeps the commoner one (every existing expectation is built on it)
+# and the matcher compensates: its ``hyphen`` tier tries the quote in both
+# spellings against the page as this function settled it.  That direction is
+# deliberate - stripping the page as well would conflate re-cover/recover and
+# co-op/coop, real pairs of real words.
 _HYPHEN_BREAK = re.compile(r"(?<=[a-z])-\s*\n\s*(?=[a-z])")
 
 _WS = re.compile(r"\s+")

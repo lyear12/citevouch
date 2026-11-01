@@ -1,30 +1,36 @@
-"""Locating a quote inside a source: exact, canonical, squashed, numbers, fuzzy.
+"""Locating a quote inside a source: exact, canonical, hyphen, squashed, numbers, fuzzy.
 
-Five tiers, tried in order, each strictly weaker than the last:
+Six tiers, tried in order, each strictly weaker than the last:
 
 1. **exact** — the normalised quote appears in the normalised page text *at
    word boundaries*: "in the paper" must not match inside "a bin the papers";
 2. **canonical** — the same comparison, after every number on both sides is
    rewritten in one spelling.  A page printing 40.688 and a quote saying
    40,688 hold one number and one sentence; without this tier the masker in
-   tier 4 finds the words, sees different digits, and reports the figure as
+   tier 5 finds the words, sees different digits, and reports the figure as
    absent - an accusation about a number the reader can see on the page;
-3. **squashed** — the quote appears once *all* whitespace is removed, which
+3. **hyphen** — the same comparison with every hyphen between two letters
+   removed on both sides.  A page that broke ``high-dimensional`` at the line
+   end extracts as ``high-\\ndimensional``; joining it gives
+   ``highdimensional``, while the author who reads the page quotes
+   ``high-dimensional``.  Which of those the page means is not in the bytes,
+   so this tier refuses to let the difference matter;
+4. **squashed** — the quote appears once *all* whitespace is removed, which
    rescues text an extractor ran together or split across columns.  The
    boundary is gone at this tier by construction, so a minimum length keeps it
    from certifying a coincidence;
-4. **numbers** — every number in the quote is masked out on both sides and the
+5. **numbers** — every number in the quote is masked out on both sides and the
    *words* still match at full length while the *values* still differ.  This
    is the tier that separates "you typed the statistic wrong" from "the quote
    is not in this document";
-5. **fuzzy** — a sliding token-window comparison, used only to say "the quote
+6. **fuzzy** — a sliding token-window comparison, used only to say "the quote
    looks like the source but is not present verbatim", which is reported as a
    medium-severity finding rather than silently accepted.
 
-Tier 2 counts as found: the words match and so do the values, only the
-separator differs.  Tiers 4 and 5 never upgrade a claim to verified - they
-turn a flat "not found" into an actionable "these digits differ" / "these
-words differ".
+Tiers 2 and 3 count as found: the words match and so do the values, and the
+only difference is a separator or a hyphen that the page's own layout makes
+ambiguous.  Tiers 5 and 6 never upgrade a claim to verified - they turn a flat
+"not found" into an actionable "these digits differ" / "these words differ".
 
 Every tier that may certify a quote also refuses a match whose span cuts a
 number in half (``_cuts_a_number``).  Tier 1's word-boundary rule alone does
@@ -40,6 +46,11 @@ from dataclasses import dataclass
 
 from .sources import PageText
 from .textnorm import MASK_PATTERN, REPORT_PATTERN, canonical_number, fold, squash
+
+# A hyphen between two letters.  On a page that broke the word at a line end
+# this character may or may not belong to the word, so this is the one
+# difference the ``hyphen`` tier is allowed to ignore.
+_HARD_HYPHEN = re.compile(r"(?<=[a-z])-(?=[a-z])")
 
 # A quote must be at least this long before fuzzy matching is allowed to opine.
 # Below it, short quotes match too many places for a similarity score to mean
@@ -101,7 +112,7 @@ def _is_word_char(ch: str) -> bool:
 
 @dataclass
 class Match:
-    tier: str  # "exact" | "canonical" | "squashed" | "numbers" | "fuzzy" | "none"
+    tier: str  # "exact" | "canonical" | "hyphen" | "squashed" | "numbers" | "fuzzy" | "none"
     page: int | None = None
     similarity: float = 0.0
     context: str = ""
@@ -117,7 +128,7 @@ class Match:
         character the locale prints between digit groups.  A tool that called
         that absent would be reporting a number the author can see on the page.
         """
-        return self.tier in ("exact", "canonical", "squashed")
+        return self.tier in ("exact", "canonical", "hyphen", "squashed")
 
 
 def mask_numbers(text: str) -> str:
@@ -215,6 +226,28 @@ def _bounded_in(haystack: str, needle: str) -> list[int]:
 def _bounded_pages(page: PageText, needle: str) -> list[int]:
     """``_bounded_in`` over one page's folded text."""
     return _bounded_in(page.folded, needle)
+
+
+def _hyphen_blind(text: str) -> str:
+    """``text`` with every hyphen between two letters removed.
+
+    The quote side of the ``hyphen`` tier.  A page that broke
+    ``high-dimensional`` at the line end extracts as ``high-\\ndimensional``,
+    and ``normalize`` reads that as typeset hyphenation and joins it to
+    ``highdimensional`` - a fact about the page, already settled by the time
+    the matcher sees it.  The author, who reads the page, may quote either
+    ``high-dimensional`` (what the page shows) or ``highdimensional`` (what a
+    copy-paste of the extraction gives).  Both mean the same sentence, so the
+    quote is compared in both spellings.
+
+    The relaxation is one-directional on purpose.  This runs on the *quote*
+    only: the page is never stripped of hard hyphens, so a page reading
+    ``re-cover the sofa`` still cannot satisfy a quote reading ``recover the
+    sofa``.  Stripping the page too would conflate ``re-cover``/``recover``,
+    ``re-sign``/``resign`` and ``co-op``/``coop`` - real pairs of real words -
+    and certify a quote the page does not support.
+    """
+    return _HARD_HYPHEN.sub("", text)
 
 
 def _number_spans(text: str) -> list[tuple[int, int]]:
@@ -397,6 +430,41 @@ def find_in_pages(
                     reason=(
                         "the quote is on this page; the numbers are the same "
                         "values written with a different thousands separator"
+                    ),
+                )
+
+    # Hyphen-blind: the quote spells a compound with its hyphen and the page's
+    # extraction joined it, or the other way round.
+    #
+    #   page:  "... sequence of high-\ndimensional vectors"   (extracted)
+    #   page:  "... sequence of highdimensional vectors"       (normalize joins it)
+    #   quote: "... sequence of high-dimensional vectors"      (what the page shows)
+    #
+    # Typeset hyphenation and a compound broken at the line end extract
+    # identically, so the joiner has to guess.  This tier makes the guess not
+    # matter by letting the *quote* be tried in both spellings against the page
+    # as the extractor settled it.  Only the quote is relaxed: see
+    # ``_hyphen_blind`` for why stripping the page as well would be wrong.
+    quote_blind = _hyphen_blind(quote_norm)
+    if quote_blind != quote_norm:
+        for index in order:
+            page = pages[index]
+            spans = _number_spans(page.folded)
+            for hit in _bounded_in(page.folded, quote_blind):
+                # Removing a hyphen shortens the quote, so the span this hit
+                # covers is the shorter length - and the slice check has to run
+                # on the page's own coordinates, or this tier becomes a second
+                # door to the truncation the exact tier refuses.
+                if _cuts_a_number(spans, hit, hit + len(quote_blind)):
+                    continue
+                return Match(
+                    tier="hyphen",
+                    page=page.number,
+                    similarity=1.0,
+                    context=_context(page.folded, hit, len(quote_blind)),
+                    reason=(
+                        "the quote is on this page; the page's extraction joined a "
+                        "hyphenated compound at a line break"
                     ),
                 )
 
