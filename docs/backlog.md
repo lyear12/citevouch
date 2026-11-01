@@ -257,53 +257,60 @@ would a person actually have on disk", not by reading the code.
   the first version did: that library is not installed on CI, so the tests
   skipped, and the lint job fails on any skip.
 
-- [ ] **A right-to-left manuscript: extraction reverses every Hebrew word in
-  place.** *Measured 2026-11-01 — the question is answered, and the answer is a
-  real defect. Needs a design, so not done in one run.* The earlier note asked
-  whether PDF extraction *reorders* runs on an RTL page. It does, and not the
-  way I expected: for a page written with pymupdf+`insert_htmlbox` (HarfBuzz
-  shaping, so the layout is what Word and InDesign also produce), `pypdf` 6.16.1
-  returns **each Hebrew word as its own reversal, with the word order
-  preserved**:
+- [ ] **A right-to-left manuscript: two producers, two different defects.**
+  *Measured 2026-11-01 on real RTL PDFs. Needs a design, so not done in one
+  run.* The earlier note asked whether extraction *reorders* runs on an RTL
+  page. It does not do one thing: it does one of two things depending on how the
+  file was made, and neither is visible from the manuscript.
+
+  **Producer A - pymupdf `insert_htmlbox`** (HarfBuzz shaping; this is what a
+  browser print-to-PDF does). `pypdf` 6.16.1 returns **each Hebrew word as its
+  own reversal, word order preserved**:
 
   ```
   on the page : נטען כי המשתתפים קיבלו 40,688 דוגמאות במילון.
   pypdf says  : ןעטנ  יכ  םיפתתשמה  ולביק 40,688 תואמגוד  ןולימב .
   ```
 
-  Every word is exactly its reverse (`נטען` → `ןעטנ`, all four checked), the
-  number `40,688` and the LTR line on the same page are untouched, and
-  `pymupdf.get_text()` on the same file returns the correct logical order — so
-  the reversal is in the pypdf path, not in the file. **Consequence**: a
-  perfectly correct Hebrew quote is reported `[high] quote-missing`, i.e. the
-  tool tells an author they quoted something the page does not say, when the
-  page says exactly that. `pdftotext` is worse than wrong here: on the same page
-  it returns only `".  40,688"`, so the fallback extractor that would have
-  papered over it returns no usable text at all.
+  Every word is exactly its reverse (all four checked), the number `40,688` and
+  the LTR line on the same page are untouched, and `pymupdf.get_text()` on the
+  same file returns correct logical order - so the reversal is in the pypdf
+  path, not the file. **Consequence**: a correct Hebrew quote is reported
+  `[high] quote-missing`.
 
-  *Not a defect in the file*: two other generators were tried and neither
-  reproduces it (`insert_text` with a real Hebrew TTF comes back as `····` -
-  the glyphs are unrecoverable for both extractors, a different problem). So
-  the reversal is specific to a properly shaped RTL run, which is exactly what a
-  real Arabic or Hebrew paper has, and it is the case this entry was opened for.
+  **Producer B - LibreOffice 26, a real word processor.** No reversal at all:
+  the words come back in the right order and the correct forms. But it **drops
+  the space between a Hebrew word and an adjacent number**, and the loss is the
+  extractor's, not the file's - the PDF holds a space glyph at x=427 with the
+  number starting at x=379, and `pymupdf` reads `קיבלו40,688` from the same
+  bytes. **Consequence**: an author who quotes just the number (`40,688`), the
+  most quotable thing on the page, gets `[high] number-absent-in-quote` and
+  `quote-missing`, while quoting the whole clause works via the whitespace-free
+  tier. The LTR control from the same pipeline reads `We collected 40,688
+  examples` and matches `40,688` at `exact`, so this is specific to the run
+  boundary next to an RTL word.
 
-  *Done when* there is a decision, not a patch, because the honest fixes have
-  different costs: (a) detect visual order and un-reverse runs before matching
-  (needs a script-run analysis and will silently damage any quote that is
-  genuinely a palindrome or that mixes scripts inside one word); (b) prefer an
-  extractor that emits logical order when one is available, and say in the
-  finding which extractor produced the text (pymupdf is not a dependency and
-  `src/` may not grow a new one without a decision); or (c) keep the current
-  extraction and make `quote-missing` on an RTL-looking page say so, so the
-  author is not told they are wrong. **Option (b) is the one I would take** -
-  the tool already records which extractor ran in the cache key and the report
-  has room to name it - but it changes a dependency decision, so it stops here.
+  Two separate bugs, one root cause: both are the extractor joining or reversing
+  text across a **bidi run boundary**, and the tool trusts the string it got.
+  `pdftotext` is no fallback for either - on producer A it returns only
+  `".  40,688"`, and on producer B only `'40,688    .'` with every Hebrew word
+  gone.
 
-  Under `AGENTS.md` this is also the "need a design change" case: it is not a
-  bug I can fix in one run without choosing between three behaviours that
-  differ in what the tool promises. Who is blocked: any author writing Arabic or
-  Hebrew who runs `check` and believes the `[high]`.
+  *Done when* there is a decision, not a patch, because the honest fixes differ
+  in what the tool promises: (a) detect visual order and un-reverse runs before
+  matching (needs script-run analysis, and will silently damage a genuinely
+  palindromic or mixed-script quote); (b) prefer an extractor that emits logical
+  order and name the extractor in the finding (`pymupdf` is not a dependency and
+  `src/` may not grow one without a decision); or (c) keep the extraction and
+  make a `quote-missing` on a page whose text fails a bidi sanity check say the
+  page may be RTL, so the author is not told they are wrong. **Option (b)
+  addresses producer A but not B** - LibreOffice is already logical-order and
+  still loses the space - so (b) alone is no longer sufficient, which is what
+  changed today. Who is blocked: every author writing Arabic or Hebrew, on at
+  least two of the pipelines they actually use.
 
+  Under `AGENTS.md` this is the "need a design change" case: three behaviours
+  with different promises, and I am not choosing between them alone.
 
 - [x] **A manuscript over a network path.** `\\server\share\paper.md` on
   Windows, or a file that disappears mid-run.  *Done 2026-10-31.* Windows reports an
