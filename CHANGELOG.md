@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.30] — 2026-11-01
 ### Fixed
 
 - **The `hyphen` tier shipped in 0.19.29 certified words the page never
@@ -27,7 +29,6 @@ tag and that file disagree.
   fixed - a quote reading `high-dimensional` against a page that broke
   `high-\ndimensional` at the line end is found - and all six pairs above are
   now refused.
-
 ## [0.19.29] — 2026-11-01
 ### Fixed
 
@@ -1450,7 +1451,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.29...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.30...HEAD
+[0.19.30]: https://github.com/lyear12/citevouch/releases/tag/v0.19.30
 [0.19.29]: https://github.com/lyear12/citevouch/releases/tag/v0.19.29
 [0.19.28]: https://github.com/lyear12/citevouch/releases/tag/v0.19.28
 [0.19.27]: https://github.com/lyear12/citevouch/releases/tag/v0.19.27
