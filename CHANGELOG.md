@@ -13,6 +13,16 @@ tag and that file disagree.
 ## [Unreleased]
 ### Fixed
 
+- **The third reporting site with the same shape: `bib-field-malformed`.** The
+  previous commit left this one alone and said it was unreachable. It is not:
+  an entry with a bad field, a readable field, and another bad field produces
+  two fragments, and they share the entry's line, so the duplicate pass kept
+  the first and hid the second. Two fragments are now one finding naming both,
+  and the two branches that append a fragment (nothing to resume at, and
+  resumed at the next field) land in the same list rather than reporting
+  separately. A filter that could never reject anything was removed rather
+  than left in as reassurance.
+
 - **The same aggregation bug, one code over: `bib-macro-unknown`.** The previous
   entry fixed this shape for `bib-field-duplicate` and stopped there, so a
   field using two undefined macros still reported only the first, and two

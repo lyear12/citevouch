@@ -316,6 +316,7 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
         fields: dict[str, str] = {}
         pos = km.end() if km else 0
         body_len = len(body)
+        malformed: list[str] = []
         while pos < body_len:
             fm = _FIELD_HEAD.match(body, pos)
             if not fm:
@@ -323,24 +324,21 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
                 # next field if the text offers one; otherwise record the
                 # leftover and stop.  Silence here is what let a whole entry's
                 # year disappear behind one typo without a word.
+                #
+                # Collected rather than reported, for the reason the doubled
+                # fields and the undefined macros are: every finding for an
+                # entry carries the entry's line, so the duplicate pass would
+                # keep the first fragment and hide the rest.
                 remainder = body[pos:].strip(" ,\t\r\n")
                 if not remainder:
                     break
                 anchor = _NEXT_FIELD.search(body, pos)
                 if anchor is None:
-                    report(
-                        "bib-field-malformed",
-                        f"{key}: text after the last readable field was not a "
-                        f"field: {remainder[:60]!r}",
-                        entry_line,
+                    malformed.append(
+                        f"the text after the last readable field, {remainder[:60]!r}"
                     )
                     break
-                report(
-                    "bib-field-malformed",
-                    f"{key}: could not read {body[pos : anchor.start()].strip()[:60]!r} "
-                    "as a field; resumed at the next one",
-                    entry_line,
-                )
+                malformed.append(f"{body[pos : anchor.start()].strip()[:60]!r}")
                 pos = anchor.start() + 1  # resume at the field name after the comma
                 continue
             name = fm.group(1).lower()
@@ -353,11 +351,7 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
                 # field so the message can still say which one used it.
                 unknown_macros.setdefault(key, {}).setdefault(name, []).extend(missing)
             if not ok:
-                report(
-                    "bib-field-malformed",
-                    f"{key}: field {name!r} never closes its value",
-                    entry_line,
-                )
+                malformed.append(f"field {name!r} never closes its value")
             if name in fields:
                 repeated.setdefault(key, []).append(name)
             else:
@@ -373,6 +367,14 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
                 f"{key}: {count_of(len(doubled), 'field')} given twice ({names}); "
                 "BibTeX field names are case-insensitive, so the first value of "
                 "each was kept",
+                entry_line,
+            )
+        if malformed:
+            parts = "; ".join(malformed)
+            report(
+                "bib-field-malformed",
+                f"{key}: {count_of(len(malformed), 'fragment')} "
+                f"could not be read as a field: {parts}",
                 entry_line,
             )
         used_unknown = unknown_macros.pop(key, {})

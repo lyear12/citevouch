@@ -2729,6 +2729,17 @@ fire more than once with the same `(code, path, line)`. In `bibtex.py` that was
 mechanical, and it is much cheaper than the round trip through CI, a release,
 and a user noticing.
 
+**Second correction, same rule, one round later.** This lesson was written
+after fixing `bib-macro-unknown`, and the commit that carried it said
+`bib-field-malformed` was left alone because it could not fire twice. That was
+checked by reading the code, not by running it: an entry with `badone,` then a
+good field then `badtwo,` produces two fragments on the same line, and the
+duplicate pass hid the second. **"I could not construct the input" and "the
+input cannot be constructed" are different claims, and only one of them can be
+settled by reading.** The third site is now fixed. The enumeration the rule
+asks for has to be done by exercising each call site, not by scanning for
+plausible ones.
+
 **Evidence.** 2026-11-02, one round after the `bib-field-duplicate` fix, in the
 same file. Measured: `journal = jalpha # jbeta` gave `raw: 2, dedup: 1` (only
 `jalpha` survived); `journal = jalpha # jbeta` plus `publisher = pgamma` gave
