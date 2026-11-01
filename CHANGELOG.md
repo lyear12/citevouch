@@ -11,6 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A claim with two wrong numbers reported one of them.** The same shape as the four bibliography sites fixed in 0.19.34-0.19.36, in the verifier this time: `_number_checks` produced one finding per absent number and every one of them carried the claim's line, so the duplicate pass kept the first. Measured before this: a claim whose quote names two numbers the page does not contain gave `raw: 2, dedup: 1`, and the surviving line named only the first. All absent numbers are now one finding that names each of them.
+- **The vaguer of two sentences about one claim was the one that survived.** The `numbers` tier appended a summary ("the words match page 1 but the numbers do not; the quote records ...") before the specific per-number findings, so the duplicate pass kept the summary and the author was never told which number was wrong. The specific findings now come first and the summary is a fallback for the case where there is nothing specific to say.
+
 
 ## [0.19.36] — 2026-11-01
 ### Fixed

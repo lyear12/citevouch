@@ -385,19 +385,28 @@ def verify(
             # The words are right and the digits are not — a typo, not a
             # fabricated quote, so it is reported as a number problem.
             result.missing += 1
-            result.findings.append(
-                Finding(
-                    code="number-absent-in-quote",
-                    message=(
-                        f"claim {claim.id}: the words match page {match.page} but the numbers "
-                        f"do not; the quote records {', '.join(claim.numbers) or 'no numbers'}"
-                    ),
-                    claim_id=claim.id,
-                    path=claim.path,
-                    line=claim.line,
+            # The specific sentence first, because the duplicate pass keeps the
+            # first of two findings that share a code and a line.  The summary
+            # below says only that some number differs; `_number_checks` names
+            # which one, which is the sentence the author can act on.  Emitted
+            # last, the summary won and the answer was dropped - measured, this
+            # branch printed "the numbers do not" and nothing else.
+            specific = _number_checks(claim, pages, match.page)
+            result.findings.extend(specific)
+            if not specific:
+                result.findings.append(
+                    Finding(
+                        code="number-absent-in-quote",
+                        message=(
+                            f"claim {claim.id}: the words match page {match.page} but the "
+                            f"numbers do not; the quote records "
+                            f"{', '.join(claim.numbers) or 'no numbers'}"
+                        ),
+                        claim_id=claim.id,
+                        path=claim.path,
+                        line=claim.line,
+                    )
                 )
-            )
-            result.findings.extend(_number_checks(claim, pages, match.page))
         else:
             result.missing += 1
             result.findings.append(
@@ -476,23 +485,33 @@ def _number_checks(
             present.update(canonical_number(t) for t in _numbers(candidate.text))
     if not present:
         return out
-    for raw in claim.numbers:
-        if canonical_number(raw) not in present:
-            where = "page " + str(page_number)
-            if spans_to is not None:
-                where += f" or {spans_to}"
-            out.append(
-                Finding(
-                    code="number-absent-in-quote",
-                    message=(
-                        f"claim {claim.id}: the quote says {raw} but {where} "
-                        "of the source does not contain that number"
-                    ),
-                    claim_id=claim.id,
-                    path=claim.path,
-                    line=claim.line,
-                )
+    absent = [raw for raw in claim.numbers if canonical_number(raw) not in present]
+    if absent:
+        where = "page " + str(page_number)
+        if spans_to is not None:
+            where += f" or {spans_to}"
+        # One claim yields every one of its findings at the claim's own line, so
+        # the duplicate pass kept the first wrong number and hid the rest: the
+        # author corrected it, ran again, and met the second.  Measured before
+        # this: a claim with two wrong numbers gave `raw: 2, dedup: 1`.
+        if len(absent) == 1:
+            listed = absent[0]
+            tail = "that number"
+        else:
+            listed = ", ".join(absent[:-1]) + f" and {absent[-1]}"
+            tail = "those numbers"
+        out.append(
+            Finding(
+                code="number-absent-in-quote",
+                message=(
+                    f"claim {claim.id}: the quote says {listed} but {where} "
+                    f"of the source does not contain {tail}"
+                ),
+                claim_id=claim.id,
+                path=claim.path,
+                line=claim.line,
             )
+        )
     return out
 
 

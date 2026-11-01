@@ -2788,3 +2788,16 @@ lines. A mixed entry (`author = {}`, no `journal`, no `year`) gave
 split-findings version was caught before it shipped. Two mutations, both red:
 report one finding per field again, and name only the first field in the
 aggregated message. Seen 1.
+
+## When two findings about one fact share a key, the first one written is the one that survives
+
+The duplicate pass keeps the first finding it sees for a key and drops the rest, which is right for two producers saying the same thing and wrong for two sentences saying different amounts about the same thing. The `numbers` tier appended a summary - "the words match page 1 but the numbers do not; the quote records 11,111, 22,222" - and *then* the per-number findings. Both carried the claim's code and line, so the summary won and the author was never told which number was wrong. The specific sentence existed, was correct, and was discarded every time.
+
+**Rule.** Order matters when the same key can be reached twice: write the most specific finding first and let the general one be the fallback, not the reverse. A summary that survives in place of a detail is worse than no summary, because it looks like the tool looked.
+
+**Why a test did not catch it.** Each producer was tested alone, and each alone is correct. The defect only exists in the join, which is where dedup lives - so the test has to run both and read the surviving line, not count the lines.
+
+**How to apply.** After adding any `result.findings.extend(...)` next to a `result.findings.append(...)` for the same claim, ask which one the dedup keeps and whether that is the one a person needs.
+
+**Evidence.** 2026-11-01. Measured before the fix: the raw output listed the summary first (`the words match page 1 but the numbers do not; the quote records 11,111, 22,222`) and the specific line second (`the quote says 22,222 but page 1 of the source does not contain that number`); after dedup only the first remained. Two mutations, both red: name only the first absent number, and drop the specific list so the summary wins. Seen 1.
+

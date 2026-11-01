@@ -16,6 +16,8 @@ from pathlib import Path
 
 from citevouch.cli import main
 
+NL = chr(10)
+
 PAGE = "We collected 40,688 examples in the corpus.\n"
 MANUSCRIPT = """```claim id=c1 source=a page=1
 quote: |
@@ -88,25 +90,44 @@ def test_the_two_modes_agree_about_how_many_findings_there_are(tmp_path: Path):
     assert [c for c in recorded if c[0] != "source-changed"] == fresh
 
 
-def test_the_duplicate_was_real_in_the_verifier(tmp_path: Path):
-    """The dedup is not hiding a bug in the verifier: both lines come out of it."""
+def test_the_duplicate_was_real_in_the_two_producers(tmp_path: Path):
+    """The dedup is not hiding a bug: two producers really do agree twice.
+
+    This used to assert that the verifier itself printed ``number-absent-in-quote``
+    twice for one claim - two branches, one code, one line.  Those two sentences
+    are now one aggregated finding, so that particular duplicate is gone; the
+    pass is still needed for the pair below, where ``scan`` and ``verify`` each
+    find the same uncheckable claim and neither is wrong to say so.  The test
+    names the live duplicate rather than a remembered one, because a test that
+    remembers a duplicate which no longer exists stops testing the dedup.
+    """
     from citevouch import scan as scan_module
     from citevouch import verify as verify_module
 
-    root = _project(tmp_path)
-    main(["scan", "m.md", "--root", str(root)])
-    (root / "page.txt").write_text(
-        "We collected 12 examples in the corpus.\n", encoding="utf-8"
+    root = tmp_path
+    body = NL.join(
+        [
+            "```claim id=c1",
+            "quote: |",
+            "  alpha beta gamma",
+            "```",
+            "",
+        ]
     )
+    (root / "m.md").write_text(body, encoding="utf-8", newline=NL)
 
     args = _options_for(root)
-    ledger, _ = scan_module.scan(args)
+    ledger, scan_findings = scan_module.scan(args)
     result = verify_module.verify(ledger, args, check_manuscript_hash=False)
-    absent = [f for f in result.findings if f.code == "number-absent-in-quote"]
-    assert len(absent) == 2, (
-        "expected the verifier to reach this conclusion twice before dedup; if "
-        "it now reaches it once, the dedup may be unnecessary - check whether "
-        f"the CLI test above still fails without it. Got: {[f.message for f in absent]}"
+    same = [
+        f
+        for f in scan_findings + result.findings
+        if f.code == "claim-uncheckable" and f.claim_id == "c1"
+    ]
+    assert len(same) == 2, (
+        "expected the two producers to reach this conclusion once each; if one "
+        "of them stopped, check whether the dedup pass is still doing anything. "
+        f"Got: {[f.message for f in same]}"
     )
 
 
