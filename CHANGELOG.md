@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.34] — 2026-11-01
 ### Fixed
 
 - **One entry with three doubled fields reported one of them.** `parse_bib`
@@ -22,7 +24,6 @@ tag and that file disagree.
   now reports the set, the way `bib-key-unused` already did, naming every
   doubled field in one finding per entry. Nothing that used to be reported
   stopped being reported; what changed is that it all arrives at once.
-
 ## [0.19.33] — 2026-11-01
 ### Fixed
 
@@ -1500,7 +1501,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.33...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.34...HEAD
+[0.19.34]: https://github.com/lyear12/citevouch/releases/tag/v0.19.34
 [0.19.33]: https://github.com/lyear12/citevouch/releases/tag/v0.19.33
 [0.19.32]: https://github.com/lyear12/citevouch/releases/tag/v0.19.32
 [0.19.31]: https://github.com/lyear12/citevouch/releases/tag/v0.19.31
