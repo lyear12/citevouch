@@ -11,12 +11,12 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.37] — 2026-11-01
 ### Fixed
 
 - **A claim with two wrong numbers reported one of them.** The same shape as the four bibliography sites fixed in 0.19.34-0.19.36, in the verifier this time: `_number_checks` produced one finding per absent number and every one of them carried the claim's line, so the duplicate pass kept the first. Measured before this: a claim whose quote names two numbers the page does not contain gave `raw: 2, dedup: 1`, and the surviving line named only the first. All absent numbers are now one finding that names each of them.
 - **The vaguer of two sentences about one claim was the one that survived.** The `numbers` tier appended a summary ("the words match page 1 but the numbers do not; the quote records ...") before the specific per-number findings, so the duplicate pass kept the summary and the author was never told which number was wrong. The specific findings now come first and the summary is a fallback for the case where there is nothing specific to say.
-
-
 ## [0.19.36] — 2026-11-01
 ### Fixed
 
@@ -1541,7 +1541,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.36...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.37...HEAD
+[0.19.37]: https://github.com/lyear12/citevouch/releases/tag/v0.19.37
 [0.19.36]: https://github.com/lyear12/citevouch/releases/tag/v0.19.36
 [0.19.35]: https://github.com/lyear12/citevouch/releases/tag/v0.19.35
 [0.19.34]: https://github.com/lyear12/citevouch/releases/tag/v0.19.34
