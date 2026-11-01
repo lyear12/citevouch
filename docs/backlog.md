@@ -257,19 +257,53 @@ would a person actually have on disk", not by reading the code.
   the first version did: that library is not installed on CI, so the tests
   skipped, and the lint job fails on any skip.
 
-- [ ] **A right-to-left manuscript.** *Unverified — needs a real Arabic or
-  Hebrew PDF before this entry means anything.* The claim as originally
-  written ("normalises to runs the matcher never lines up") is **not** what
-  measurement found: an Arabic or Hebrew quote in a plain text source matches
-  at the exact tier, and the failure that looked like a script gap was the
-  digit system, fixed in `1a4230e`. What is still untested is narrower and
-  different: whether PDF extraction *reorders* runs on a right-to-left page, so
-  the extracted text is a different string than the one on the page. Nobody has
-  evidence either way, so this stays open as a question rather than a defect.
-  *Done when* someone with a real RTL PDF records what extraction actually
-  does; if it reorders, that is a real entry and it needs its own design, and
-  if it does not, this line is deleted rather than left to imply a defect that
-  does not exist. Who is blocked: unknown until measured.
+- [ ] **A right-to-left manuscript: extraction reverses every Hebrew word in
+  place.** *Measured 2026-11-01 — the question is answered, and the answer is a
+  real defect. Needs a design, so not done in one run.* The earlier note asked
+  whether PDF extraction *reorders* runs on an RTL page. It does, and not the
+  way I expected: for a page written with pymupdf+`insert_htmlbox` (HarfBuzz
+  shaping, so the layout is what Word and InDesign also produce), `pypdf` 6.16.1
+  returns **each Hebrew word as its own reversal, with the word order
+  preserved**:
+
+  ```
+  on the page : נטען כי המשתתפים קיבלו 40,688 דוגמאות במילון.
+  pypdf says  : ןעטנ  יכ  םיפתתשמה  ולביק 40,688 תואמגוד  ןולימב .
+  ```
+
+  Every word is exactly its reverse (`נטען` → `ןעטנ`, all four checked), the
+  number `40,688` and the LTR line on the same page are untouched, and
+  `pymupdf.get_text()` on the same file returns the correct logical order — so
+  the reversal is in the pypdf path, not in the file. **Consequence**: a
+  perfectly correct Hebrew quote is reported `[high] quote-missing`, i.e. the
+  tool tells an author they quoted something the page does not say, when the
+  page says exactly that. `pdftotext` is worse than wrong here: on the same page
+  it returns only `".  40,688"`, so the fallback extractor that would have
+  papered over it returns no usable text at all.
+
+  *Not a defect in the file*: two other generators were tried and neither
+  reproduces it (`insert_text` with a real Hebrew TTF comes back as `····` -
+  the glyphs are unrecoverable for both extractors, a different problem). So
+  the reversal is specific to a properly shaped RTL run, which is exactly what a
+  real Arabic or Hebrew paper has, and it is the case this entry was opened for.
+
+  *Done when* there is a decision, not a patch, because the honest fixes have
+  different costs: (a) detect visual order and un-reverse runs before matching
+  (needs a script-run analysis and will silently damage any quote that is
+  genuinely a palindrome or that mixes scripts inside one word); (b) prefer an
+  extractor that emits logical order when one is available, and say in the
+  finding which extractor produced the text (pymupdf is not a dependency and
+  `src/` may not grow a new one without a decision); or (c) keep the current
+  extraction and make `quote-missing` on an RTL-looking page say so, so the
+  author is not told they are wrong. **Option (b) is the one I would take** -
+  the tool already records which extractor ran in the cache key and the report
+  has room to name it - but it changes a dependency decision, so it stops here.
+
+  Under `AGENTS.md` this is also the "need a design change" case: it is not a
+  bug I can fix in one run without choosing between three behaviours that
+  differ in what the tool promises. Who is blocked: any author writing Arabic or
+  Hebrew who runs `check` and believes the `[high]`.
+
 
 - [x] **A manuscript over a network path.** `\\server\share\paper.md` on
   Windows, or a file that disappears mid-run.  *Done 2026-10-31.* Windows reports an
