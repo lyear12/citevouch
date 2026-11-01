@@ -11,6 +11,16 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The same aggregation bug, one code over: `bib-macro-unknown`.** The previous
+  entry fixed this shape for `bib-field-duplicate` and stopped there, so a
+  field using two undefined macros still reported only the first, and two
+  fields each using one reported only the first field - both because findings
+  for one entry share its line and the duplicate pass keeps one per line. Now
+  one finding per entry names every field and every macro, with counts that
+  deduplicate repeated names (`jalpha # jalpha` is one undefined macro, not
+  two). Nothing that used to be reported stopped being reported.
 
 ## [0.19.34] — 2026-11-01
 ### Fixed

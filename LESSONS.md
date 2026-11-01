@@ -2700,3 +2700,42 @@ Measured before the fix: three doubled fields, `raw: 3`, `dedup: 1`. After:
 `raw: 1`, naming `'author', 'title', 'year'`. Five mutations, five red - report
 each again; name only the first; count values instead of fields; always say
 "fields"; hoist the aggregation out of the per-entry loop. Seen 1.
+
+## Fix the shape, not the instance
+
+**Rule.** When you find that a finding-producing code collapses because
+several findings share a coordinate, do not patch that code. Enumerate every
+code in the module and ask the same question of each. The bug is in the
+reporting shape, and the shape is shared.
+
+**Why.** `bib-field-duplicate` was fixed by aggregating the doubled field
+names per entry, and the fix was written up as a lesson about sets. The very
+same module had `bib-macro-unknown` fifteen lines away with the identical
+defect: a field using two undefined macros reported only the first, and two
+fields each using one reported only the first field. Both were verified to hit
+`raw: 2 / dedup: 1` before the fix. The first fix took one code from broken to
+correct and left its twin broken in the same file, in the same function, under
+the same `entry_line`.
+
+The tell is that the previous lesson's How-to-apply already said what to do -
+"report the set" - and it was applied to the finding in hand rather than to
+the class of finding. A rule about a *shape* that is applied to one *instance*
+buys one instance.
+
+**How to apply.** After fixing a reporting-shape bug, grep the module for every
+call site of the reporting function and classify each one by whether it can
+fire more than once with the same `(code, path, line)`. In `bibtex.py` that was
+13 call sites; the two that could were adjacent. The classification question is
+mechanical, and it is much cheaper than the round trip through CI, a release,
+and a user noticing.
+
+**Evidence.** 2026-11-02, one round after the `bib-field-duplicate` fix, in the
+same file. Measured: `journal = jalpha # jbeta` gave `raw: 2, dedup: 1` (only
+`jalpha` survived); `journal = jalpha # jbeta` plus `publisher = pgamma` gave
+`raw: 2, dedup: 1` (only the `journal` line survived). Fixed to one finding per
+entry naming every field and macro. Five mutations: report per macro again,
+report per field, name only the first macro, count the raw list instead of the
+deduplicated set, and hardcode the plural - all red. A sixth mutation I wrote
+first was an equivalent mutant (it recomputed a set that was already a set) and
+proved nothing; distinguishing an equivalent mutant from a surviving one is
+part of running them. Seen 1.

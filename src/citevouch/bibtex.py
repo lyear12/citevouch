@@ -216,6 +216,10 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
     # the author fixed it, re-ran, and met the second.  The set is the fact.
     repeated: dict[str, list[str]] = {}
 
+    # Undefined macros have the same shape and the same fix.  Grouped by the
+    # field that used them, so the message still says which field to look at.
+    unknown_macros: dict[str, dict[str, list[str]]] = {}
+
     def report(code: str, message: str, line: int) -> None:
         findings.append(Finding(code=code, message=message, path=path, line=line))
 
@@ -342,13 +346,12 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
             name = fm.group(1).lower()
             missing: list[str] = []
             value, next_pos, ok = _read_field_value(body, fm.end(), strings, missing)
-            for macro in missing:
-                report(
-                    "bib-macro-unknown",
-                    f"{key}: field {name!r} uses the macro {macro!r}, which no "
-                    "@string defines; the name was kept as literal text",
-                    entry_line,
-                )
+            if missing:
+                # Same shape as the doubled fields below: one finding per macro
+                # shared this entry's line, so the duplicate pass kept the first
+                # and the author never learned about the rest.  Grouped by
+                # field so the message can still say which one used it.
+                unknown_macros.setdefault(key, {}).setdefault(name, []).extend(missing)
             if not ok:
                 report(
                     "bib-field-malformed",
@@ -370,6 +373,26 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
                 f"{key}: {count_of(len(doubled), 'field')} given twice ({names}); "
                 "BibTeX field names are case-insensitive, so the first value of "
                 "each was kept",
+                entry_line,
+            )
+        used_unknown = unknown_macros.pop(key, {})
+        if used_unknown:
+            # One finding for the entry, naming every field and every macro.
+            # Grouping by field looked tidier and lost data for the same reason
+            # the per-macro loop did: findings for one entry share its line, so
+            # the duplicate pass kept the first field and hid the others.
+            parts = []
+            total = 0
+            for field_name in sorted(used_unknown):
+                macros = sorted(set(used_unknown[field_name]))
+                total += len(macros)
+                names = ", ".join(repr(macro) for macro in macros)
+                parts.append(f"{field_name!r} uses {names}")
+            report(
+                "bib-macro-unknown",
+                f"{key}: {count_of(total, 'undefined macro', 'undefined macros')} "
+                f"in {count_of(len(parts), 'field')} ({'; '.join(parts)}); no "
+                "@string defines them, so each name was kept as literal text",
                 entry_line,
             )
         if key in entries:
