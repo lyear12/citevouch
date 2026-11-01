@@ -1933,6 +1933,16 @@ is what CI agrees with. This is the second time this exact step has cost a
 round: the same thing happened to `tests/test_no_claims.py` in the release
 that introduced `no-claim-blocks`. Seen 2.
 
+**Third time, 2026-11-01, and not about a new file.** `fbbd832` ran the
+suite, then edited `docs/backlog.md`, then pushed. Every count in the
+message was honest and every file was tracked - the tree simply changed
+after it was measured. Eleven CI jobs failed on
+`tests/test_critic_round3.py`, whose rule is that a doc line mentioning
+`pyproject.toml` has to say what it is read for. Promoted into
+[docs/code-standards.md](docs/code-standards.md) acceptance rule 10, where
+it now reads as a rule about *when* the gate is run rather than about what
+it reads. Seen 3.
+
 ## A path and a URI are two different strings wearing the same characters
 
 `artifactLocation.uri` is a URI. Every other path this tool handles is a file

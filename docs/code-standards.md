@@ -112,6 +112,18 @@ A change is not done until all of these have been run and passed. Run them; do n
    install -e .` builds inside an isolated environment and throws it away, so the very next step
    failed with `Cannot import 'setuptools.build_meta'`. A green install above an empty environment
    reads like a green light.
+10. **The gate that counts tracked files will pass before the file is tracked,
+    and the gate you ran is a measurement of the tree at that moment.** Two
+    halves of one rule about *when*, not about *what*. (a) Counting commands
+    that read the index (`sh tools/format_check.sh`, `git ls-files`) must run
+    after `git add`; before a file is staged their answer is evidence about a
+    tree you are not committing. (b) Editing any file after the suite finishes -
+    a doc line, a backlog note, a commit template - means the pushed tree has
+    never been through it, even though the numbers in the commit message are
+    real numbers about a real run. Re-run the cheap ones (`pytest`, `ruff check
+    .`, `sh tools/format_check.sh`) after the last edit, or make that edit
+    first. The failure is not a wrong count; it is a green local run and eleven
+    red CI jobs on the one assertion you did not think could reach prose.
 
 ## Policing these rules
 
