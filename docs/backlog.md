@@ -312,6 +312,18 @@ would a person actually have on disk", not by reading the code.
   Under `AGENTS.md` this is the "need a design change" case: three behaviours
   with different promises, and I am not choosing between them alone.
 
+  *Partly worked around 2026-11-01.* The `hyphen` tier shipped in 0.19.29 was
+  built for a defect the same exploration turned up, and it removes one of the
+  two failure modes an RTL page hits. Producer B loses the space between an RTL
+  word and the next token, and an author who quotes that gap goes to the
+  `squashed` tier - which strips all whitespace and does not care - so the quote
+  is found. Producer A reverses every word in place, and no tier can help: the
+  letters themselves are wrong, not their spacing. What is still open is what
+  the **finding** says when a page is RTL and the quote does not match: today it
+  says "no passage in the source is close to this quote", which is a verdict
+  about the author's sentence. That sentence is the remaining work, and it is
+  still option (c) and still a design decision.
+
 - [x] **A manuscript over a network path.** `\\server\share\paper.md` on
   Windows, or a file that disappears mid-run.  *Done 2026-10-31.* Windows reports an
   unreachable share as `ERROR_BAD_NETPATH` (53) and an absent file as
