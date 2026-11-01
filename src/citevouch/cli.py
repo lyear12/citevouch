@@ -251,17 +251,27 @@ def _deconflict(findings: list) -> list:
     source into the first one - the reviewer OCRs ``a.txt``, re-runs, and
     meets ``b.txt`` for the first time.
 
+    The line belongs in the key for the mirror-image reason: two claim blocks
+    that both forgot ``id=`` share the empty claim id, and two blocks that
+    forgot it on lines 1 and 8 are two mistakes the author has to make twice.
+    Without the line, ``check`` said "one problem" about a file with two, and
+    fixing the first block made the second vanish from the report rather than
+    from the file.
+
     This lives in one function because it lived in one branch.  The fresh
     scan deduplicated its findings and the recorded path did not, so ``check``
     and ``check --use-recorded`` disagreed about how many findings the same
     tree contained - and the recorded path is the one in ``action.yml``, so
     the difference showed up first on somebody's pull request.
     """
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, str, int]] = set()
     return [
         f
         for f in findings
-        if not ((f.code, f.claim_id, f.path) in seen or seen.add((f.code, f.claim_id, f.path)))
+        if not (
+            (f.code, f.claim_id, f.path, f.line) in seen
+            or seen.add((f.code, f.claim_id, f.path, f.line))
+        )
     ]
 
 

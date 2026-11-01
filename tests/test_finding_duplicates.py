@@ -185,3 +185,48 @@ def test_every_verb_that_prints_findings_prints_each_fact_once(tmp_path: Path):
     for name, argv in verbs.items():
         seen = _findings_for(argv)
         assert len(seen) == len(set(seen)), f"{name} printed a fact twice: {seen}"
+
+
+def test_two_blocks_that_both_forgot_an_id_are_two_problems(tmp_path: Path):
+    """Two findings that are not the same fact must not share a key.
+
+    Both blocks below carry an empty claim id, so a key of
+    (code, claim_id, path) collapsed them into one and the report named only
+    line 1.  The author fixes line 1, re-runs, and meets line 8 for the first
+    time - the report was describing the file one mistake at a time.
+    """
+    root = tmp_path
+    body = (
+        "```claim source=a page=1\n"
+        "quote: |\n"
+        "  We collected 40,688 examples.\n"
+        "claim: |\n"
+        "  A block with no id.\n"
+        "```\n"
+        "\n"
+        "```claim source=a page=1\n"
+        "quote: |\n"
+        "  We collected 40,688 examples.\n"
+        "claim: |\n"
+        "  Another block with no id.\n"
+        "```\n"
+    )
+    (root / "m.md").write_text(body, encoding="utf-8")
+    (root / "page.txt").write_text("We collected 40,688 examples.\n", encoding="utf-8")
+    (root / "sources.toml").write_text('[sources]\na = "page.txt"\n', encoding="utf-8")
+
+    seen = _findings_for(["check", "m.md", "--root", str(root), "--format", "json"])
+    uncheckable = [c for c in seen if c[0] == "claim-uncheckable"]
+    assert len(uncheckable) == 2, (
+        f"two id-less blocks reported as {len(uncheckable)} problem(s)"
+    )
+
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        main(["check", "m.md", "--root", str(root), "--format", "json"])
+    lines = [
+        f.get("line")
+        for f in json.loads(buffer.getvalue())["findings"]
+        if f["code"] == "claim-uncheckable"
+    ]
+    assert lines == [1, 8], f"the two findings named lines {lines}"

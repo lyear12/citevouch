@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The deduplication key was missing the line, so two mistakes reported as
+  one.** Moving the pass into `_render` in 0.19.32 made it apply to `scan` as
+  well, and `scan` is where findings for blocks the parser could not turn into
+  claims are born. Two claim blocks that both forgot `id=` share the empty
+  claim id, so a key of `(code, claim_id, path)` called them the same finding:
+  a manuscript with two of them was reported as having one, and fixing line 1
+  made line 8 vanish from the report while staying in the file. The key is now
+  `(code, claim_id, path, line)`. A genuine duplicate - the numbers tier and
+  the per-number check naming the same number on the same claim - still
+  collapses, because both carry the line of the claim they are about.
 
 ## [0.19.32] — 2026-11-01
 ### Fixed
