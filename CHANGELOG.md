@@ -11,6 +11,19 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **An entry missing four required fields reported one of them.** The fourth
+  site with the shape fixed three times already: `field_findings` produced one
+  finding per missing field, every one of them carrying the entry's opening
+  line, so the duplicate pass kept `author` and hid `title`, `journal` and
+  `year`. Measured before this: two entries missing four fields each gave
+  `raw: 8, dedup: 2`. The author filled in one, ran again, and met the next
+  one - four runs to learn four fields. Missing fields are now one finding per
+  entry naming all of them. Present-but-empty fields join that same message as
+  a second clause rather than a second finding: they share the entry's code
+  and line, so a separate finding was dropped by the same duplicate pass that
+  hid the others.
 
 ## [0.19.35] — 2026-11-01
 ### Fixed

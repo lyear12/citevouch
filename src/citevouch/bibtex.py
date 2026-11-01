@@ -452,32 +452,52 @@ def field_findings(entries: dict[str, BibEntry]) -> list[Finding]:
     with different wording.  A missing required field is usually a hand-rolled
     entry or one whose rest was lost to a malformed fragment, and a bibliography
     that is silent about it undercuts every claim built on the entry.
+
+    One entry yields one line, so the duplicate pass keys every finding about it
+    to the same coordinate.  Reported field by field, an entry missing four
+    required fields produced four findings of which one survived: the author
+    filled that one in, ran again, and met the next.  Measured before this:
+    ``raw: 8, dedup: 2`` for two entries missing four fields each.  The parts
+    are named inside one message instead, the way the doubled fields and the
+    undefined macros already are.
     """
     out: list[Finding] = []
     for key, entry in entries.items():
+        missing: list[str] = []
+        empty: list[str] = []
         for name in REQUIRED_FIELDS.get(entry.entry_type, ()):
             if name in entry.fields:
                 if not entry.fields[name].strip():
-                    out.append(
-                        Finding(
-                            code="bib-field-empty",
-                            message=f"{key}: field {name!r} exists but is empty",
-                            path=entry.path,
-                            line=entry.line,
-                        )
-                    )
+                    empty.append(name)
             else:
-                out.append(
-                    Finding(
-                        code="bib-field-empty",
-                        message=(
-                            f"{key}: required field {name!r} for @{entry.entry_type} is missing"
-                        ),
-                        path=entry.path,
-                        line=entry.line,
-                    )
+                missing.append(name)
+        parts: list[str] = []
+        if missing:
+            parts.append(
+                f"{count_of(len(missing), 'required field')} missing: {_names(missing)}"
+            )
+        if empty:
+            parts.append(
+                f"{count_of(len(empty), 'required field')} present but empty: {_names(empty)}"
+            )
+        if parts:
+            out.append(
+                Finding(
+                    code="bib-field-empty",
+                    message=f"{key}: {'; '.join(parts)}",
+                    path=entry.path,
+                    line=entry.line,
                 )
+            )
     return out
+
+
+def _names(fields: list[str]) -> str:
+    """``'author', 'title' and 'year'`` - quoted, because they are field names."""
+    quoted = [repr(name) for name in fields]
+    if len(quoted) == 1:
+        return quoted[0]
+    return ", ".join(quoted[:-1]) + f" and {quoted[-1]}"
 
 
 def normalize_doi(value: str) -> str:

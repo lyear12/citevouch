@@ -2750,3 +2750,41 @@ deduplicated set, and hardcode the plural - all red. A sixth mutation I wrote
 first was an equivalent mutant (it recomputed a set that was already a set) and
 proved nothing; distinguishing an equivalent mutant from a surviving one is
 part of running them. Seen 1.
+
+## A fix that makes the number of findings depend on the number of fields has one more field to be wrong about
+
+`field_findings` reported a required field per finding. Every finding about an
+entry carries that entry's opening line, and the duplicate pass keys on
+`(code, claim_id, path, line)` - so an `@article` with only a `note` field
+produced four findings and the author saw one. This is the fifth site in the
+same file with the same shape, and the reason it stayed hidden is worth
+recording: it is the only one whose count depends on the **entry type**.
+`duplicate`, `macro-unknown` and `malformed` produce a bounded number of
+findings per entry under any input. This one produces as many as
+`REQUIRED_FIELDS[type]` is long, and the collapse only becomes visible at two
+or more - which is exactly what an entry with a single typo does not have.
+
+**Rule.** When a finding's cardinality is data-dependent rather than
+structural, report the collection in one finding. The tell is a `for` loop
+whose body appends a `Finding` at a fixed line: if the loop can run twice, the
+second one is already lost.
+
+**Why splitting "missing" from "present but empty" into two findings also
+failed.** They are one coordinate: same code, same entry, same line. Two
+findings there are two findings the duplicate pass will reduce to one, no
+matter how different the repairs are. A message with two clauses is the shape
+that survives.
+
+**How to apply.** Enumerate the call sites by running each one, not by reading
+for plausible ones - the previous lesson entry says this and this round added
+a fifth site anyway. After aggregating, count: `raw` and `dedup` must be equal
+for every entry shape, because if they differ the author is missing a line.
+That assertion is the test, and it is the one that would have caught all five.
+
+**Evidence.** 2026-11-02. Measured before: two entries missing four required
+fields each gave `raw: 8, dedup: 2`, and the survivors were the two `author`
+lines. A mixed entry (`author = {}`, no `journal`, no `year`) gave
+`raw: 2, dedup: 1` after the first attempt at this fix, which is how the
+split-findings version was caught before it shipped. Two mutations, both red:
+report one finding per field again, and name only the first field in the
+aggregated message. Seen 1.
