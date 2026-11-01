@@ -143,3 +143,45 @@ def test_the_path_is_part_of_what_makes_a_finding_duplicate(tmp_path: Path):
         "both unreadable sources must be named; a key without the path keeps "
         f"one and hides the other. Codes seen: {codes}"
     )
+
+
+def _findings_for(argv: list[str]) -> list[tuple[str, str]]:
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        main(argv)
+    return [
+        (f["code"], f.get("claim_id") or "") for f in json.loads(buffer.getvalue())["findings"]
+    ]
+
+
+def test_every_verb_that_prints_findings_prints_each_fact_once(tmp_path: Path):
+    """The pass belongs at the writer, not in each caller's branch.
+
+    Fixing this one caller at a time is how it got to three: ``check``
+    deduplicated, ``check --use-recorded`` did not, and ``verify`` - a verb
+    this file's first version never ran - did not either.  A test naming two
+    of the three callers would have passed while the third stayed broken, so
+    this one enumerates the verbs instead of the branches.
+    """
+    root = _project(tmp_path)
+    main(["scan", "m.md", "--root", str(root)])
+    (root / "page.txt").write_text(
+        "We collected 12 examples in the corpus.\n", encoding="utf-8"
+    )
+
+    verbs = {
+        "verify": ["verify", "m.md", "--root", str(root), "--format", "json"],
+        "check": ["check", "m.md", "--root", str(root), "--format", "json"],
+        "check --use-recorded": [
+            "check",
+            "m.md",
+            "--root",
+            str(root),
+            "--format",
+            "json",
+            "--use-recorded",
+        ],
+    }
+    for name, argv in verbs.items():
+        seen = _findings_for(argv)
+        assert len(seen) == len(set(seen)), f"{name} printed a fact twice: {seen}"

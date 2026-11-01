@@ -11,6 +11,16 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The deduplication moved to the writer, where every verb reaches it.** 0.19.31
+  gave `check` and `check --use-recorded` a shared pass and left `verify` printing
+  the verifier's duplicates, because the fix was applied one call site at a time
+  and there were three. `verify` is the verb a developer runs locally, so the same
+  project reported two `number-absent-in-quote` lines for one claim there and one
+  through `check`. The pass now lives in `_render`, which all three verbs call,
+  and the new test enumerates the verbs instead of the branches - a test naming
+  two of three callers would have stayed green while the third stayed broken.
 
 ## [0.19.31] — 2026-11-01
 ### Fixed

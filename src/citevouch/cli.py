@@ -225,21 +225,13 @@ def cmd_check(args: argparse.Namespace) -> int:
     if args.use_recorded:
         ledger = _read_ledger(ledger_path)
         result = verify(ledger, options, check_manuscript_hash=not args.allow_stale)
-        # The verifier can reach the same conclusion about one claim twice.
-        # A quote whose words match a page but whose numbers do not is
-        # reported by the `numbers` tier and again by the per-number check,
-        # which is two sentences for one fact.  Without the pass below, the
-        # CI path printed both lines while a local `check` printed one, so
-        # the list a reviewer read on GitHub did not look like the list they
-        # could reproduce - and the second line named the same number the
-        # first line had just named.
-        result.findings = _deconflict(result.findings)
     else:
         ledger, scan_findings = scan(options)
         result = verify(ledger, options, check_manuscript_hash=False)
         # Scan findings come first: a claim that could not be bound to a source
         # explains why the verification below it says nothing about that claim.
-        result.findings = _deconflict(scan_findings + result.findings)
+        # Duplicates are removed in _render, which every verb goes through.
+        result.findings = scan_findings + result.findings
     _emit(_render(result.findings, ledger, args, result))
     return _exit_code(result.findings, args.fail_on)
 
@@ -553,6 +545,14 @@ def _render(
     result: VerifyResult | None = None,
 ) -> str:
     fmt = args.format
+    # Every verb prints through here, so this is the only place the pass has
+    # to exist.  It was in the fresh `check` branch alone, which meant three
+    # callers disagreed: `verify` printed the verifier's duplicates,
+    # `check --use-recorded` printed them too until it got its own copy, and
+    # `check` did not.  Fixing them one branch at a time is how it got to
+    # three; a pass that only some writers run is a pass that only some
+    # readers get.
+    findings = _deconflict(findings)
     run = findings
     if args.quiet and fmt != "text":
         # `--quiet` means "I only want the things that are wrong", and that
