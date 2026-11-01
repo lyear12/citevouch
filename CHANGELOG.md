@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **One entry with three doubled fields reported one of them.** `parse_bib`
+  reports every finding for an entry at the line the entry opens on, and the
+  duplicate pass keys on `(code, claim, path, line)`. Three findings about
+  `title`, `year` and `author` in the same entry therefore collapsed to the
+  first: an author fixed `title`, re-ran, and met `year` for the first time -
+  a report that has to be run three times to be read once. `bib-field-duplicate`
+  now reports the set, the way `bib-key-unused` already did, naming every
+  doubled field in one finding per entry. Nothing that used to be reported
+  stopped being reported; what changed is that it all arrives at once.
 
 ## [0.19.33] — 2026-11-01
 ### Fixed

@@ -207,6 +207,15 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
     def line_of(pos: int) -> int:
         return bisect.bisect_right(line_starts, pos)
 
+    # Repeated fields are collected per entry and reported once, the way
+    # `bib-key-unused` reports a set rather than each member.  Reporting each
+    # one separately looked right and was not: every finding for one entry
+    # carries that entry's opening line, so downstream deduplication - which
+    # keys on (code, claim, path, line) - kept the first and dropped the rest.
+    # A bibliography with three doubled fields in one entry produced one line;
+    # the author fixed it, re-ran, and met the second.  The set is the fact.
+    repeated: dict[str, list[str]] = {}
+
     def report(code: str, message: str, line: int) -> None:
         findings.append(Finding(code=code, message=message, path=path, line=line))
 
@@ -347,17 +356,22 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
                     entry_line,
                 )
             if name in fields:
-                report(
-                    "bib-field-duplicate",
-                    f"{key}: field {name!r} given twice (BibTeX field names are "
-                    "case-insensitive); the first value was kept",
-                    entry_line,
-                )
+                repeated.setdefault(key, []).append(name)
             else:
                 fields[name] = _clean(value)
             if next_pos <= fm.end():
                 break
             pos = next_pos
+        doubled = repeated.pop(key, [])
+        if doubled:
+            names = ", ".join(repr(name) for name in sorted(doubled))
+            report(
+                "bib-field-duplicate",
+                f"{key}: {count_of(len(doubled), 'field')} given twice ({names}); "
+                "BibTeX field names are case-insensitive, so the first value of "
+                "each was kept",
+                entry_line,
+            )
         if key in entries:
             report(
                 "bib-duplicate-key",

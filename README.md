@@ -78,7 +78,7 @@ rots:
 | `bib-unreadable` | high | not one entry could be read, so no reference was checked against it |
 | `bib-entry-header-unparsed` | medium | text between entries, or an `@` header that is not a usable entry |
 | `bib-field-malformed` | medium | a field could not be read; later fields of the entry are still parsed |
-| `bib-field-duplicate` | medium | one field given twice in an entry (names are case-insensitive); first kept |
+| `bib-field-duplicate` | medium | one or more fields given twice in an entry (names are case-insensitive); first value of each kept, all names reported together |
 | `bib-macro-unknown` | medium | a field uses a `@string` macro that is not defined yet |
 | `bib-field-empty` | medium | a required field is empty or missing |
 | `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block |

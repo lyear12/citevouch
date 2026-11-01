@@ -75,7 +75,7 @@ worst severity: high
 | `bib-unreadable` | high | 一条条目都读不出来，所有引用都没能跟文献库核对 |
 | `bib-entry-header-unparsed` | medium | 条目之间残留了读不到的文本，或 `@` 头不是可用条目 |
 | `bib-field-malformed` | medium | 某字段无法读取；该条目的其余字段仍会继续解析 |
-| `bib-field-duplicate` | medium | 同一条目里同一字段出现两次（字段名不分大小写）；保留首个值 |
+| `bib-field-duplicate` | medium | 同一条目里有一个或多个字段出现两次（字段名不分大小写）；保留各字段的首个值，所有字段名一并报告 |
 | `bib-macro-unknown` | medium | 字段引用了尚未定义的 `@string` 宏；宏名按字面保留 |
 | `bib-field-empty` | medium | 必填字段为空或缺失 |
 | `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块 |

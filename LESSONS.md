@@ -2661,3 +2661,42 @@ mutation B (key loses the path) green until
 `test_the_path_is_part_of_what_makes_a_finding_duplicate` was written, then
 red. The recorded path is the one `action.yml` uses, so this divergence reached
 pull requests first. Seen 1.
+
+## When a fact is a set, report the set, not its members
+
+**Rule.** If one construct can produce several findings of the same code, and
+every one of them carries the same line and the same path, they must be
+aggregated where they are produced - not emitted one per member and left for a
+downstream pass to sort out.
+
+**Why.** `parse_bib` reports every finding for an entry at the line that entry
+opens on. Three doubled fields (`title`, `year`, `author`) in one entry became
+three findings sharing `(code, claim, path, line)`, and the duplicate pass -
+which exists for a different reason, to stop the numbers tier and the
+per-number check saying the same thing twice - kept the first and dropped the
+other two. The author fixed `title`, re-ran, and met `year` for the first time,
+then `author` after that. Nothing was ever misreported and no line said
+anything untrue; the report simply took three runs to read once, and nothing in
+it suggested that.
+
+This is the inverse of the deduplication lesson and they have to be held
+together. There, a pass that merged too much was fixed by giving the key more
+dimensions. Here, the same pass merging findings that were only *positionally*
+similar is a sign the producer is emitting the wrong shape. A deduplicator
+cannot tell "these are one fact stated twice" from "these are two facts that
+happen to share a coordinate"; only the producer knows.
+
+**How to apply.** Report the set, the way `bib-key-unused` does. The tell that
+you have this bug: a count in the message ("N findings") that the tool prints
+once but that a reader experiences one at a time. Test it by asserting the
+count of findings **and** the completeness of the surviving message - a test
+that only checks `len(found) == 1` passes when the aggregate names one field
+out of three.
+
+**Evidence.** 2026-11-01, found by systematically checking every
+`report(...)` call site for codes that can fire more than once per line: 13 call
+sites in `bibtex.py`, all of them sharing `entry_line` for the same entry.
+Measured before the fix: three doubled fields, `raw: 3`, `dedup: 1`. After:
+`raw: 1`, naming `'author', 'title', 'year'`. Five mutations, five red - report
+each again; name only the first; count values instead of fields; always say
+"fields"; hoist the aggregation out of the per-entry loop. Seen 1.
