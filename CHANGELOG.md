@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.32] — 2026-11-01
 ### Fixed
 
 - **The deduplication moved to the writer, where every verb reaches it.** 0.19.31
@@ -21,7 +23,6 @@ tag and that file disagree.
   through `check`. The pass now lives in `_render`, which all three verbs call,
   and the new test enumerates the verbs instead of the branches - a test naming
   two of three callers would have stayed green while the third stayed broken.
-
 ## [0.19.31] — 2026-11-01
 ### Fixed
 
@@ -1475,7 +1476,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.31...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.32...HEAD
+[0.19.32]: https://github.com/lyear12/citevouch/releases/tag/v0.19.32
 [0.19.31]: https://github.com/lyear12/citevouch/releases/tag/v0.19.31
 [0.19.30]: https://github.com/lyear12/citevouch/releases/tag/v0.19.30
 [0.19.29]: https://github.com/lyear12/citevouch/releases/tag/v0.19.29
