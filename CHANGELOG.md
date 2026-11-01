@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.26] — 2026-11-01
 ### Fixed
 
 - **A LaTeX paper that shows its citation syntax was read as making those
@@ -32,7 +33,6 @@ tag and that file disagree.
   percent sign. The `verbatim` environment's own docstring had described this
   as a known limitation that "costs nothing unless the swallowed line is the
   `\end{verbatim}` itself" - which is exactly the case that happened.
-
 ## [0.19.25] — 2026-10-31
 ### Fixed
 
@@ -1379,7 +1379,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.25...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.26...HEAD
+[0.19.26]: https://github.com/lyear12/citevouch/releases/tag/v0.19.26
 [0.19.25]: https://github.com/lyear12/citevouch/releases/tag/v0.19.25
 [0.19.24]: https://github.com/lyear12/citevouch/releases/tag/v0.19.24
 [0.19.23]: https://github.com/lyear12/citevouch/releases/tag/v0.19.23
