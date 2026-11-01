@@ -2615,3 +2615,49 @@ red, including one that restores the old behaviour verbatim
 search `page.folded` again. The mutation that matters most is the one that
 would have caught this the first time: *quote is stripped instead of the page*.
 Seen 1.
+
+## When two paths must report the same thing, assert that they agree, not what they say
+
+`check` scanned, then removed duplicate findings. `check --use-recorded` ran
+the same verifier and printed its output unmodified. So one tree produced two
+`number-absent-in-quote` lines in CI and one on the developer's laptop, for the
+same claim and the same number: the `numbers` tier says "the words match but
+the numbers do not" and the per-number check says "the quote says 40,688 but
+page 1 does not contain that number". Both sentences are true and saying both
+is not an error in either one - the error is that only one of the two callers
+knew they were the same fact.
+
+The fix is a shared `_deconflict`, and the fix is not the lesson. The lesson is
+the test:
+
+```python
+fresh = codes(root, recorded=False)
+recorded = codes(root, recorded=True)
+assert [c for c in recorded if c[0] != "source-changed"] == fresh
+```
+
+Comparing the two paths **to each other** catches a divergence between them
+without knowing in advance which finding was duplicated. Every test I would
+have written from the bug report - "one `number-absent-in-quote` line in
+recorded mode" - hardcodes an expected count and stays green the moment the
+count changes for an unrelated reason. This one describes the property the bug
+violated: *the same tree must be reported the same way*. It is also the only
+assertion that would have failed on the day the bug was introduced rather than
+the day it was noticed.
+
+**Corollary, learned in the same session:** the dedup key was `(code, claim,
+path)` and a comment justified the `path`. Deleting the `path` from the key
+survived every test in the suite - the justification had never been tested, so
+the comment was the only thing holding it up. Writing the test for the
+documented reason ("two unreadable sources are two facts, not one fact twice")
+killed that mutation immediately. A comment explaining why a key has a field is
+not a test that the field is needed.
+
+**Evidence.** 2026-11-01, found by comparing `check` against `check
+--use-recorded` on the same project after replacing a source file. Recorded
+mode printed three findings for two facts; fresh mode printed one for the same
+evidence. Mutation A (recorded path skips the dedup) red on both new tests;
+mutation B (key loses the path) green until
+`test_the_path_is_part_of_what_makes_a_finding_duplicate` was written, then
+red. The recorded path is the one `action.yml` uses, so this divergence reached
+pull requests first. Seen 1.

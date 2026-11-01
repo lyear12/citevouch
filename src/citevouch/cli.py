@@ -225,30 +225,52 @@ def cmd_check(args: argparse.Namespace) -> int:
     if args.use_recorded:
         ledger = _read_ledger(ledger_path)
         result = verify(ledger, options, check_manuscript_hash=not args.allow_stale)
+        # The verifier can reach the same conclusion about one claim twice.
+        # A quote whose words match a page but whose numbers do not is
+        # reported by the `numbers` tier and again by the per-number check,
+        # which is two sentences for one fact.  Without the pass below, the
+        # CI path printed both lines while a local `check` printed one, so
+        # the list a reviewer read on GitHub did not look like the list they
+        # could reproduce - and the second line named the same number the
+        # first line had just named.
+        result.findings = _deconflict(result.findings)
     else:
         ledger, scan_findings = scan(options)
         result = verify(ledger, options, check_manuscript_hash=False)
         # Scan findings come first: a claim that could not be bound to a source
         # explains why the verification below it says nothing about that claim.
-        # One finding per (code, claim, path) triple, because the same
-        # unreadable PDF is discovered by the scan pass and again by the verify
-        # pass, and a reader shown the identical line twice learns nothing and
-        # trusts the list less.  The path belongs in the key because a finding
-        # can be true of a *file* rather than of a claim: `source-no-text` is
-        # reported once per source and carries no claim id, so a key of
-        # (code, claim) collapsed every unreadable source into the first one -
-        # the reviewer OCRs a.txt, re-runs, and meets b.txt for the first time.
-        combined = scan_findings + result.findings
-        seen: set[tuple[str, str, str]] = set()
-        result.findings = [
-            f
-            for f in combined
-            if not (
-                (f.code, f.claim_id, f.path) in seen or seen.add((f.code, f.claim_id, f.path))
-            )
-        ]
+        result.findings = _deconflict(scan_findings + result.findings)
     _emit(_render(result.findings, ledger, args, result))
     return _exit_code(result.findings, args.fail_on)
+
+
+def _deconflict(findings: list) -> list:
+    """One finding per (code, claim, path) triple, in encounter order.
+
+    The same conclusion is reached twice from two directions.  The same
+    unreadable PDF is discovered by the scan pass and again by the verify
+    pass, and a quote whose numbers do not match is reported by the tier that
+    found the words and again by the check that walks the numbers.  A reader
+    shown the identical line twice learns nothing and trusts the list less.
+
+    The path belongs in the key because a finding can be true of a *file*
+    rather than of a claim: ``source-no-text`` is reported once per source and
+    carries no claim id, so a key of (code, claim) collapsed every unreadable
+    source into the first one - the reviewer OCRs ``a.txt``, re-runs, and
+    meets ``b.txt`` for the first time.
+
+    This lives in one function because it lived in one branch.  The fresh
+    scan deduplicated its findings and the recorded path did not, so ``check``
+    and ``check --use-recorded`` disagreed about how many findings the same
+    tree contained - and the recorded path is the one in ``action.yml``, so
+    the difference showed up first on somebody's pull request.
+    """
+    seen: set[tuple[str, str, str]] = set()
+    return [
+        f
+        for f in findings
+        if not ((f.code, f.claim_id, f.path) in seen or seen.add((f.code, f.claim_id, f.path)))
+    ]
 
 
 def _cell(text: str) -> str:

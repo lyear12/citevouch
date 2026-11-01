@@ -11,6 +11,19 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`check --use-recorded` reported one finding twice, and `check` did not.**
+  The fresh path deduplicated its findings before printing them; the recorded
+  path - the one `action.yml` runs on every pull request - never applied that
+  pass, so the same tree produced two lines for one conclusion in CI and one
+  line locally, and nobody sees those two outputs side by side. The duplicate
+  was real: a quote whose words match a page but whose numbers do not is
+  reported by the tier that matched the words and again by the check that walks
+  the numbers, which is two sentences about the same number. The deduplication
+  is now one function both paths call, and a new test compares the two paths to
+  *each other* rather than to a remembered count - the assertion that would
+  have caught this without already knowing which code duplicated.
 
 ## [0.19.30] — 2026-11-01
 ### Fixed
