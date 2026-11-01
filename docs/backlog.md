@@ -150,6 +150,14 @@ not what changed, but what proves the change works.
   prove it worked. What is left is a sign-in I cannot perform. The workflow
   already reports which of the two outcomes happened, so the state is visible in
   every release run rather than inferred from a 404.
+  *Guarded 2026-11-01.* The two facts the click-path depends on are now read
+  out of the files themselves instead of being asserted in prose in one place
+  and true by luck in another: `tests/test_pypi_trust.py` fails if the job or
+  the publish step ever pins an `environment:`, if `id-token: write` goes
+  away, or if the documented project/owner/repository/workflow stops matching
+  `pyproject.toml` and `release.yml`. Nine mutations, nine red. This is the
+  only way to protect a step that no test can perform — the file is checked
+  for the owner, so the owner's one minute cannot be wasted by a stale form.
 
 ## P2 — the audience writes LaTeX
 
