@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.27] — 2026-11-01
 ### Fixed
 
 - **The same number written the European way was reported as a different
@@ -1399,7 +1401,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.26...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.27...HEAD
+[0.19.27]: https://github.com/lyear12/citevouch/releases/tag/v0.19.27
 [0.19.26]: https://github.com/lyear12/citevouch/releases/tag/v0.19.26
 [0.19.25]: https://github.com/lyear12/citevouch/releases/tag/v0.19.25
 [0.19.24]: https://github.com/lyear12/citevouch/releases/tag/v0.19.24
