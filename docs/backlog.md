@@ -155,7 +155,8 @@ not what changed, but what proves the change works.
   and true by luck in another: `tests/test_pypi_trust.py` fails if the job or
   the publish step ever pins an `environment:`, if `id-token: write` goes
   away, or if the documented project/owner/repository/workflow stops matching
-  `pyproject.toml` and `release.yml`. Nine mutations, nine red. This is the
+  `pyproject.toml` declares the name and `release.yml` names the workflow. Nine
+  mutations, nine red. This is the
   only way to protect a step that no test can perform — the file is checked
   for the owner, so the owner's one minute cannot be wasted by a stale form.
 
