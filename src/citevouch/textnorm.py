@@ -160,13 +160,33 @@ def normalize(text: str) -> str:
     InDesign write them in bulk for right-to-left layouts, which is how a
     correct quote of an Arabic page became ``quote-missing``.
     """
+    return _normalise(text, join_hyphenated=True)
+
+
+def fold_keeping_hyphen(text: str) -> str:
+    """Normalised and case-folded, with a line-break hyphen kept as a hyphen.
+
+    ``normalize`` joins ``high-\\ndimensional`` to ``highdimensional`` because
+    the extracted bytes are the same as typeset hyphenation.  That join is a
+    guess, and this is the other reading of the same bytes: the page printed a
+    compound and broke it at the line end.  Comparing a quote against *this*
+    variant is how the matcher asks "did the page actually have a hyphen here"
+    without giving up the joined form, which is right more often and stays the
+    default everywhere else.
+
+    Only the ``hyphen`` tier in ``matching`` uses it, and only on the page.
+    """
+    return _normalise(text, join_hyphenated=False).casefold()
+
+
+def _normalise(text: str, *, join_hyphenated: bool) -> str:
     if not text:
         return ""
     out = unicodedata.normalize("NFKC", text)
     out = strip_format(out)
     out = "".join(_EQUIV.get(ch, ch) for ch in out)
     out = _ascii_digits(out)
-    out = _HYPHEN_BREAK.sub("", out)
+    out = _HYPHEN_BREAK.sub("" if join_hyphenated else "-", out)
     out = _WS.sub(" ", out)
     return out.strip()
 

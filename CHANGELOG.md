@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The `hyphen` tier shipped in 0.19.29 certified words the page never
+  printed.** It removed hyphens from the *quote* and searched a page whose
+  hyphens `normalize` had already removed, so every hyphen was gone from both
+  sides and `re-cover` matched a page reading `recover`, `re-sign` matched
+  `resign`, `re-form` matched `reform`, `co-op` matched `coop`. Those are real
+  pairs of real words, and the tier was certifying claims the source does not
+  support - the failure this project treats as the worst it can produce. The
+  tier now reads the page's line-break hyphen the other way: `fold_keeping_hyphen`
+  keeps it, the quote keeps whatever the author wrote, and the two are compared
+  as they stand. Neither side is ever stripped, so the tier can only compare
+  like with like and cannot manufacture a word. The original defect is still
+  fixed - a quote reading `high-dimensional` against a page that broke
+  `high-\ndimensional` at the line end is found - and all six pairs above are
+  now refused.
 
 ## [0.19.29] — 2026-11-01
 ### Fixed

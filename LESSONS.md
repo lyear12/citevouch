@@ -2558,3 +2558,60 @@ tier mislabelled. The page-blinding mutation stayed green on the first pass —
 the tests that were supposed to enforce the direction only ran when the *quote*
 carried a hyphen, so they never exercised the case where the direction matters.
 Seen 1.
+
+## A relaxation that removes both sides is a relaxation of the question
+
+**Rule.** When you widen a comparison because two spellings might mean the same
+thing, widen **exactly one** side, and keep the other side as the evidence. If
+both sides get relaxed, you are no longer asking "could these be the same
+statement" - you are asking "would they be the same if neither had said
+anything", and every distinction the input carried has been deleted.
+
+**Why.** The `hyphen` tier in 0.19.29 was written to stop `high-dimensional`
+being refused against a page whose extraction said `highdimensional`. It removed
+hyphens from the quote, then searched the page - which `normalize` had already
+had the hyphens removed from, because joining the line break is exactly the
+guess that caused the problem. Both sides arrived hyphen-free. So:
+
+    page says  "we recover the sofa"    quote says  "we re-cover the sofa"   -> certified
+    page says  "they will resign soon"  quote says  "they will re-sign soon" -> certified
+    page says  "they reform the law"    quote says  "they re-form the law"   -> certified
+    page says  "coop the birds"         quote says  "co-op the birds"        -> certified
+
+Four real pairs of real words, four claims the page does not support. The
+comment above the code said "the page is never stripped of hard hyphens, so a
+page reading `re-cover` still cannot satisfy a quote reading `recover`" - which
+was true of `_hyphen_blind` and false of the call site, because the call site
+searched `page.folded`, the already-joined text. **The parity I documented was a
+property of the helper, not of the comparison**, and no test I wrote asked the
+question the comment answered.
+
+**How to apply.** Ask which side holds the evidence and only ever relax the
+side that is the *claim*. Here the page is the evidence; the quote is what must
+be checked against it. The fix was to stop deleting anything and instead build
+the page's *second reading* - `fold_keeping_hyphen`, the same normalisation with
+the line-break hyphen kept - so the comparison reads:
+
+    quote: "high-dimensional"  (as the author wrote it, untouched)
+    page:  "high-dimensional"  (kept hyphen)   -> found
+    quote: "re-cover"          (untouched)
+    page:  "recover"           (no line break, so nothing to keep) -> refused
+
+When two sides must agree, put the relaxation where it cannot delete the
+distinction, and write the negative test as a **pair of real words** rather
+than a synthetic string. `("the abcd-ef layer", "the abc-def layer")` is a test
+that only fails when the code is symmetrically wrong; `("we recover the sofa",
+"we re-cover the sofa")` is a test that fails when the code is wrong at all.
+
+**Evidence.** Measured 2026-11-01 on 0.19.29. Auditing the tier I had shipped an
+hour earlier: page `we recover the sofa` certified quote `we re-cover the sofa`
+at tier `hyphen`, similarity 1.0; same for `resign`/`re-sign`,
+`reform`/`re-form`, `coop`/`co-op`, and `man eating`/`man-eating`. After the
+rewrite all six are `tier=none found=False` while
+`high-\ndimensional` still matches a `high-dimensional` quote and
+`pro-\cessing` still reaches `exact` as `processing`. Nine mutations, all
+red, including one that restores the old behaviour verbatim
+(`_HYPHEN_BREAK.sub("", out)` unconditionally) and one that makes the tier
+search `page.folded` again. The mutation that matters most is the one that
+would have caught this the first time: *quote is stripped instead of the page*.
+Seen 1.

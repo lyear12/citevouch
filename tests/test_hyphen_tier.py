@@ -14,9 +14,9 @@ from __future__ import annotations
 import pytest
 
 from citevouch import cli
-from citevouch.matching import Match, _hyphen_blind, find_in_pages
+from citevouch.matching import Match, find_in_pages
 from citevouch.sources import PageText
-from citevouch.textnorm import fold, normalize
+from citevouch.textnorm import normalize
 
 
 def page(text: str, number: int = 1) -> PageText:
@@ -114,7 +114,8 @@ class TestTheRelaxationIsOneDirectional:
         [
             # Both sides carry a hard hyphen and it is in a different place.
             # A lost hyphen is the ambiguity this tier exists for; a moved one
-            # is a different word, and only blinding the page would hide that.
+            # is a different word, and stripping hyphens from both sides would
+            # hide exactly that.
             ("the abcd-ef layer", "the abc-def layer"),
             ("a data-driven-set model", "a data-driven set model"),
         ],
@@ -125,9 +126,26 @@ class TestTheRelaxationIsOneDirectional:
         match = find(quote, page(page_text))
         assert not match.found, f"{quote!r} was certified against {page_text!r}"
 
-    def test_the_blind_form_is_only_ever_applied_to_the_quote(self) -> None:
-        # If this ever becomes symmetric, the four pairs above start passing.
-        assert _hyphen_blind(fold("re-cover")) == _hyphen_blind(fold("recover"))
+    def test_a_hyphen_the_page_never_printed_is_not_a_hyphen_it_lost(self) -> None:
+        # The first version of this tier deleted the quote's hyphens and
+        # searched a page whose hyphens the join had already deleted, so every
+        # one of these was certified.  They are real pairs of real words.
+        for page_text, quote in [
+            ("we recover the sofa", "we re-cover the sofa"),
+            ("they will resign soon", "they will re-sign soon"),
+            ("they reform the law", "they re-form the law"),
+            ("coop the birds", "co-op the birds"),
+            ("a man eating tiger", "a man-eating tiger"),
+        ]:
+            match = find(quote, page(page_text))
+            assert not match.found, f"{quote!r} was certified against {page_text!r}"
+
+    def test_the_page_is_the_side_that_keeps_the_hyphen(self) -> None:
+        # The tier compares the quote against the page read *with* its
+        # line-break hyphen.  If that ever becomes a comparison against the
+        # joined page, this pair starts passing.
+        match = find("we re-cover the sofa", page("we re-cover the sofa"))
+        assert match.tier == "exact"
 
     def test_a_hit_inside_a_longer_word_is_refused(self) -> None:
         # "highdimensional" appears in "posthighdimensional" starting mid-word.

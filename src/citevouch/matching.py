@@ -45,12 +45,14 @@ import re
 from dataclasses import dataclass
 
 from .sources import PageText
-from .textnorm import MASK_PATTERN, REPORT_PATTERN, canonical_number, fold, squash
-
-# A hyphen between two letters.  On a page that broke the word at a line end
-# this character may or may not belong to the word, so this is the one
-# difference the ``hyphen`` tier is allowed to ignore.
-_HARD_HYPHEN = re.compile(r"(?<=[a-z])-(?=[a-z])")
+from .textnorm import (
+    MASK_PATTERN,
+    REPORT_PATTERN,
+    canonical_number,
+    fold,
+    fold_keeping_hyphen,
+    squash,
+)
 
 # A quote must be at least this long before fuzzy matching is allowed to opine.
 # Below it, short quotes match too many places for a similarity score to mean
@@ -226,28 +228,6 @@ def _bounded_in(haystack: str, needle: str) -> list[int]:
 def _bounded_pages(page: PageText, needle: str) -> list[int]:
     """``_bounded_in`` over one page's folded text."""
     return _bounded_in(page.folded, needle)
-
-
-def _hyphen_blind(text: str) -> str:
-    """``text`` with every hyphen between two letters removed.
-
-    The quote side of the ``hyphen`` tier.  A page that broke
-    ``high-dimensional`` at the line end extracts as ``high-\\ndimensional``,
-    and ``normalize`` reads that as typeset hyphenation and joins it to
-    ``highdimensional`` - a fact about the page, already settled by the time
-    the matcher sees it.  The author, who reads the page, may quote either
-    ``high-dimensional`` (what the page shows) or ``highdimensional`` (what a
-    copy-paste of the extraction gives).  Both mean the same sentence, so the
-    quote is compared in both spellings.
-
-    The relaxation is one-directional on purpose.  This runs on the *quote*
-    only: the page is never stripped of hard hyphens, so a page reading
-    ``re-cover the sofa`` still cannot satisfy a quote reading ``recover the
-    sofa``.  Stripping the page too would conflate ``re-cover``/``recover``,
-    ``re-sign``/``resign`` and ``co-op``/``coop`` - real pairs of real words -
-    and certify a quote the page does not support.
-    """
-    return _HARD_HYPHEN.sub("", text)
 
 
 def _number_spans(text: str) -> list[tuple[int, int]]:
@@ -433,40 +413,50 @@ def find_in_pages(
                     ),
                 )
 
-    # Hyphen-blind: the quote spells a compound with its hyphen and the page's
-    # extraction joined it, or the other way round.
+    # Hyphen kept: the page broke a compound at the line end.
     #
     #   page:  "... sequence of high-\ndimensional vectors"   (extracted)
     #   page:  "... sequence of highdimensional vectors"       (normalize joins it)
     #   quote: "... sequence of high-dimensional vectors"      (what the page shows)
     #
     # Typeset hyphenation and a compound broken at the line end extract
-    # identically, so the joiner has to guess.  This tier makes the guess not
-    # matter by letting the *quote* be tried in both spellings against the page
-    # as the extractor settled it.  Only the quote is relaxed: see
-    # ``_hyphen_blind`` for why stripping the page as well would be wrong.
-    quote_blind = _hyphen_blind(quote_norm)
-    if quote_blind != quote_norm:
-        for index in order:
-            page = pages[index]
-            spans = _number_spans(page.folded)
-            for hit in _bounded_in(page.folded, quote_blind):
-                # Removing a hyphen shortens the quote, so the span this hit
-                # covers is the shorter length - and the slice check has to run
-                # on the page's own coordinates, or this tier becomes a second
-                # door to the truncation the exact tier refuses.
-                if _cuts_a_number(spans, hit, hit + len(quote_blind)):
-                    continue
-                return Match(
-                    tier="hyphen",
-                    page=page.number,
-                    similarity=1.0,
-                    context=_context(page.folded, hit, len(quote_blind)),
-                    reason=(
-                        "the quote is on this page; the page's extraction joined a "
-                        "hyphenated compound at a line break"
-                    ),
-                )
+    # identically, so ``normalize`` has to guess, and it guesses "join".  This
+    # tier reads the same bytes the other way and compares the quote against
+    # *that*: the quote keeps whatever hyphen the author wrote, and the page
+    # keeps the hyphen its line break put there.
+    #
+    # Relaxing the quote instead - deleting its hyphens and searching a page
+    # whose hyphens the join had already deleted - was the first version of
+    # this tier and it was backwards.  It certified ``re-cover`` against a page
+    # reading ``recover``, ``re-sign`` against ``resign``, ``re-form`` against
+    # ``reform`` and ``co-op`` against ``coop``: real pairs of real words, and
+    # a claim the page never supports.  Keeping the hyphen on both sides can
+    # only compare like with like, so this tier cannot manufacture a word the
+    # page did not print.
+    for index in order:
+        page = pages[index]
+        kept = fold_keeping_hyphen(page.text)
+        if kept == page.folded:
+            # No line-break hyphen on this page, so the second reading is the
+            # same string as the first and there is nothing here the tiers
+            # above could not already see.
+            continue
+        spans = _number_spans(kept)
+        for hit in _bounded_in(kept, quote_norm):
+            # ``kept`` is not ``page.folded``, so the slice check runs on
+            # ``kept``'s own coordinates.
+            if _cuts_a_number(spans, hit, hit + len(quote_norm)):
+                continue
+            return Match(
+                tier="hyphen",
+                page=page.number,
+                similarity=1.0,
+                context=_context(kept, hit, len(quote_norm)),
+                reason=(
+                    "the quote is on this page; the page printed the hyphen and "
+                    "the extraction joined it at a line break"
+                ),
+            )
 
     for index in order:
         page = pages[index]
