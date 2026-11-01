@@ -2469,3 +2469,41 @@ green were green because their test asserted the excerpt still *contained*
 the quote, which a sixty-character margin buys back after a wrong offset.
 Tightening the test to assert the window's width as well turned both red.
 Seen 1.
+
+## A word boundary is not a number boundary
+
+**Rule.** A comparison that decides "is this text present on that page" must
+know where the *values* in it start and end, not only where its words do.
+Before certifying a match, ask whether the matched span cuts a number in half.
+
+**Why.** `_is_word_char` is `str.isalnum`, which is the right rule for words
+and blind to numbers: `.` `,` `٫` are neither letters nor digits, so a quote
+ending at `40` before `.688` ends on a non-word character and the boundary rule
+says "clean word end". The page says `40.688`; the claim says `40`; the tool
+reported `exact`, similarity `1.0`, verified. Five shapes did it — `40.`,
+`40`, `40,`, `We used Python 3.` against `3.10.2`, and `The value is 406`
+against `40688`.
+
+**How to apply.** Take the spans from the same pattern that decides what a
+number is everywhere else (`REPORT_PATTERN`), so the guard and the report can
+never disagree about where a number starts and ends. Refuse a match only when
+it lands *strictly* inside a span: ending exactly at the number's end, or
+stopping before it begins, is honest. And when adding the guard to a tier,
+prove the tier can be reached — the canonical tier got one too, and an
+exhaustive sweep of 453 canonical matches over five pages showed it could never
+fire, because canonical text spells every number as one unbroken run with no
+separator to be cut at. An unreachable guard cannot be tested, so it is a
+claim of protection with no evidence behind it; it was removed and the reason
+written where the guard had been.
+
+**Evidence.** Measured 2026-11-01 on 0.19.27. Page `The value is 40.688 in the
+table.` against quote `The value is 40.` gave `tier=exact found=True`; after the
+guard the same pair gives `tier=none found=False` while
+`The value is 40.688` still matches `exact` and `The value is 40,688` matches
+`canonical`. Six mutations of the guard; five turned red immediately, and the
+sixth — the canonical `end` computed from the last matched character rather
+than the character after the match — stayed green until the test asserted on
+the excerpt's trailing ellipsis instead of on the excerpt's width. That is the
+same lesson as the canonical tier's offset map, one level down: an assertion
+about "contains" is an assertion about a window, not about the boundary.
+Seen 1.

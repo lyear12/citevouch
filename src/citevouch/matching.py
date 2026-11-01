@@ -25,6 +25,11 @@ Tier 2 counts as found: the words match and so do the values, only the
 separator differs.  Tiers 4 and 5 never upgrade a claim to verified - they
 turn a flat "not found" into an actionable "these digits differ" / "these
 words differ".
+
+Every tier that may certify a quote also refuses a match whose span cuts a
+number in half (``_cuts_a_number``).  Tier 1's word-boundary rule alone does
+not catch it: ``40`` before ``.688`` ends at a character that is not a letter,
+so a quote reading ``40`` was certified against a page reading ``40.688``.
 """
 
 from __future__ import annotations
@@ -212,6 +217,33 @@ def _bounded_pages(page: PageText, needle: str) -> list[int]:
     return _bounded_in(page.folded, needle)
 
 
+def _number_spans(text: str) -> list[tuple[int, int]]:
+    """Where each number sits in ``text``, as half-open spans."""
+    return [match.span() for match in REPORT_PATTERN.finditer(text)]
+
+
+def _cuts_a_number(spans: list[tuple[int, int]], start: int, end: int) -> bool:
+    """Does ``text[start:end]`` end or start inside a number?
+
+    ``_is_word_char`` is ``str.isalnum``, so ``40`` sitting before ``.688``
+    ends at a character that is not a letter and passes the word-boundary
+    rule: a quote reading ``The value is 40.`` was certified, at similarity
+    1.0, against a page reading ``The value is 40.688``.  That is the worst
+    thing this tool can do - it says a claim is proven when the number in it
+    is a truncation of the real one - and it is a hole the boundary rule
+    cannot close, because ``.`` really is not part of a word.
+
+    A match is honest when it ends exactly where the number ends, or before
+    the number begins.  Landing anywhere strictly inside one is a slice.
+    """
+    for number_start, number_end in spans:
+        if number_start < end < number_end:
+            return True
+        if number_start < start < number_end:
+            return True
+    return False
+
+
 def _context(page_text: str, needle_index: int, needle_len: int, width: int = 120) -> str:
     """A one-line excerpt around the hit, folded to a single line."""
     start = max(0, needle_index - width // 2)
@@ -280,10 +312,18 @@ def find_in_pages(
     order.extend(i for i in range(len(pages)) if i not in order)
 
     # Exact: bounded on both ends (see _bounded_pages), so a quote that exists
-    # only as a fragment of other words never counts as present.
+    # only as a fragment of other words never counts as present.  A match that
+    # slices a number is refused for the same reason (see _cuts_a_number):
+    # the boundary rule cannot see it, because the character a number is cut
+    # at is the separator itself.
     for index in order:
         page = pages[index]
-        hits = _bounded_pages(page, quote_norm)
+        spans = _number_spans(page.folded)
+        hits = [
+            hit
+            for hit in _bounded_pages(page, quote_norm)
+            if not _cuts_a_number(spans, hit, hit + len(quote_norm))
+        ]
         if hits:
             return Match(
                 tier="exact",
@@ -298,7 +338,12 @@ def find_in_pages(
     # after every single page has missed, so a quote that fits on a page is
     # always reported against that page first.
     for joined, end_number in _page_pairs(pages, page_hint):
-        hits = _bounded_pages(joined, quote_norm)
+        spans = _number_spans(joined.folded)
+        hits = [
+            hit
+            for hit in _bounded_pages(joined, quote_norm)
+            if not _cuts_a_number(spans, hit, hit + len(quote_norm))
+        ]
         if hits:
             return Match(
                 tier="exact",
@@ -323,10 +368,27 @@ def find_in_pages(
         for index in order:
             page = pages[index]
             canon, offsets = _canonical_with_map(page.folded)
-            hits = _bounded_in(canon, quote_canon)
-            if hits:
-                start = offsets[hits[0]]
-                end = offsets[hits[0] + len(quote_canon) - 1] + 1
+            for hit in _bounded_in(canon, quote_canon):
+                start = offsets[hit]
+                # The map says where each canonical character *starts* in the
+                # printed text, so the end of a match is the start of the
+                # character after it.  Reading the last matched character's
+                # offset instead would collapse a quote that ends on a
+                # number to the number's first character, because every
+                # character of a rewritten number maps to the same original
+                # position - and that collapsed span then looks exactly like a
+                # truncated number, so a legitimate quote ending in "40,688"
+                # against a page holding "40.688" would be refused.
+                after = hit + len(quote_canon)
+                end = offsets[after] if after < len(canon) else len(page.folded)
+                # No ``_cuts_a_number`` guard on this tier, unlike exact and
+                # squashed.  Canonical text spells every number as one run of
+                # digits with no separator inside it, so a match that started
+                # or ended inside a number would have no word boundary to lean
+                # on and ``_bounded_in`` has already refused it.  A guard here
+                # would be unreachable, and a guard no input can reach is one
+                # no test can prove - so it would live on as a false claim of
+                # protection.
                 return Match(
                     tier="canonical",
                     page=page.number,
@@ -358,6 +420,12 @@ def find_in_pages(
                         "trust a whitespace-free match"
                     ),
                 )
+            # The same slice check the exact tier makes, on this tier's own
+            # view of the text: flattening removes the spaces that separated
+            # words, but it leaves the separators inside a number alone, so a
+            # quote ending at `406` still lands inside `40688`.
+            if _cuts_a_number(_number_spans(flat), pos, pos + len(quote_squash)):
+                continue
             return Match(
                 tier="squashed",
                 page=page.number,

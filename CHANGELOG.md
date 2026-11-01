@@ -12,6 +12,23 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A quote that stopped in the middle of a number was certified as found.**
+  Against a page reading `The value is 40.688 in the table.`, a claim quoting
+  `The value is 40.` came back `exact`, `similarity 1.0`, verified — the number
+  in the claim is a truncation of the one on the page, and the tool called it
+  proven. Five shapes did this: ending just before the decimal separator
+  (`40.`), ending without it (`40`), ending on a thousands comma (`40,`),
+  cutting a version number (`We used Python 3.` against `3.10.2`), and cutting
+  a bare integer (`The value is 406` against `40688`). The word-boundary rule
+  could not see any of them, because the character a number is cut at is the
+  separator itself, and a separator is not a word character. Every tier that
+  may certify a quote now refuses a match whose span lands strictly inside a
+  number (`_cuts_a_number`); a match that ends exactly where the number ends,
+  or stops before it begins, is untouched. A miss sends the author to look at
+  the page; a false pass does not.
+
 ## [0.19.27] — 2026-11-01
 ### Fixed
 
