@@ -2801,3 +2801,15 @@ The duplicate pass keeps the first finding it sees for a key and drops the rest,
 
 **Evidence.** 2026-11-01. Measured before the fix: the raw output listed the summary first (`the words match page 1 but the numbers do not; the quote records 11,111, 22,222`) and the specific line second (`the quote says 22,222 but page 1 of the source does not contain that number`); after dedup only the first remained. Two mutations, both red: name only the first absent number, and drop the specific list so the summary wins. Seen 1.
 
+## Six instances of one shape is a request for a guard, not a seventh fix
+
+The duplicate pass keys on `(code, claim_id, path, line)`. Six separate producers were emitting two findings under one key, and each was found the same way: run something, count the lines, notice the count was lower than the number of mistakes. Four in `bibtex.py` over three releases, two in `verify.py` in the next one. Fixing them one heartbeat at a time was fixing instances; the shape was still unguarded after the sixth, because nothing anywhere asserted the invariant the fixes were all about.
+
+**Rule.** After the second fix of the same shape, write the assertion that would have caught both, before looking for a third. The assertion is usually cheaper than the fixes were: here it is one comparison - build a project carrying every known shape, then require the producer count to equal the writer count - and it needs to know nothing about any message.
+
+**Why counting is the right invariant.** Each individual fix was verified by a test that read the surviving message and checked it named all its members. That test is right about the fix and blind to the next one: it only fails if *that* message loses a member. The count comparison fails for any site, including sites that do not exist yet, because it measures the property the dedup pass is supposed to have rather than the wording of any particular finding.
+
+**How to apply.** When several producers can reach one report, assert the total, not the parts - and include a second test that asserts the fixture really does exercise every shape, or the count comparison quietly passes over a project that triggers none of them.
+
+**Evidence.** 2026-11-01. `tests/test_one_finding_per_fact.py` builds one project carrying all six shapes and requires `len(set(keys)) == len(raw)`; eight mutations across the six sites are all red, including the two that had never been mutation-tested as a group. Seen 1.
+
