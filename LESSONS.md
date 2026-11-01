@@ -2395,3 +2395,39 @@ that. After the fix it says "it is indented by 4 space(s), and an indented
 fence is a code sample in Markdown". Three mutations (drop the branch, keep
 the branch but never test it, measure the indent from the stripped line so
 it is always 0) each turned the new test red. Seen 1.
+
+---
+
+## Text a document does not read as prose has to leave every pass that reads prose
+
+**Rule.** A masking pass that restores what it hid has only solved the
+problem it was written for. Whatever runs after it sees the restored text, so
+either every later pass also knows about the construct, or the pass that
+restores is the wrong place to stop.
+
+**Why.** `strip_comments` hid `verbatim` bodies, scanned for `%`, and put
+them back - correct for its own job, because the `%` inside `50\verb|%|` is
+a character. But the text it returns is read by `_CITE` and by `_convert`, so
+`\verb|\citep{a1}|` came out as a real `[@a1]`: the tool recorded a citation
+the author only *illustrated*. A restore that happens too early is
+indistinguishable from no masking at all, and it is worse than no masking
+because the code reads as if the case were handled.
+
+**How to apply.** When the value is restored, ask who reads the restored
+value and whether each of them can be fooled by it. Hide the construct from
+every pass that reads prose, put it back only at the end, and keep the
+command and its delimiters intact while hiding the body: the last pass has to
+recognise the construct in order to take it apart.
+
+**Evidence.** Measured 2026-10-31 on 0.19.25. `\verb|\citep{a1}|`,
+`\verb*|...|`, `\lstinline|...|`, `\lstinline[language=TeX]|...|` and
+`\mintinline{tex}|...|` each produced a verified citation. `50\verb|%| of it
+\citep{real2020}` lost everything after the `%` including the real citation,
+because the `%` was read as a comment. `%` inside a `verbatim` environment ate
+the `\end{verbatim}`, so `to_text` returned an empty document and every
+citation after it vanished. `included_files` reported a
+`\verb|\input{sec/ghost}|` as a file the tool could not read. Three
+mutations (no environment masking, no inline masking in `to_text`, bodies
+restored as nothing) each turned a new test red; the test that had been there
+for the environment case asserted only that `to_text` returned a string.
+Seen 1.

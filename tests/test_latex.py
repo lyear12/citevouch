@@ -201,3 +201,63 @@ class TestWhatItDoesNotClaimToDo:
 
     def test_the_module_says_it_is_not_a_parser(self) -> None:
         assert "not a TeX parser" in (latex.__doc__ or "")
+
+
+class TestATeXExampleIsNotACitation:
+    r"""A paper shows its citation syntax with ``\\verb``; the tool must not use it.
+
+    Every shape covered here leaks a *false verification*, not a missed
+    detection: the tool believes the author cited a key that appears only in a
+    quotation of the syntax. That is the failure the whole tool exists to
+    prevent, so each family of shapes gets its own test.
+    """
+
+    def test_an_inline_verbatim_is_dropped(self) -> None:
+        converted = latex.to_text(
+            r"\begin{document}We wrote \verb|\citep{a1}| here.\end{document}"
+        )
+        assert "[@a1]" not in converted
+        assert "We wrote" in converted
+
+    @pytest.mark.parametrize(
+        "command", [r"\verb*", r"\lstinline", r"\mintinline{tex}", r"\lstinline[language=TeX]"]
+    )
+    def test_every_inline_verbatim_family_is_dropped(self, command: str) -> None:
+        source = r"\begin{document}Try " + command + r"|\citep{a2}| now.\end{document}"
+        assert "[@a2]" not in latex.to_text(source)
+
+    def test_a_real_citation_beside_the_example_still_counts(self) -> None:
+        source = (
+            r"\begin{document}We wrote \verb|\citep{fake}| and cite \citep{real}."
+            r"\end{document}"
+        )
+        converted = latex.to_text(source)
+        assert "[@real]" in converted
+        assert "[@fake]" not in converted
+
+    def test_a_percent_inside_verbatim_does_not_eat_the_line(self) -> None:
+        r"""``50\verb|%|`` used to start a comment and delete the rest of the line."""
+        converted = latex.to_text(
+            r"\begin{document}We use 50\verb|%| of it \citep{real2020}.\end{document}"
+        )
+        assert "50%" in converted
+        assert "[@real2020]" in converted
+
+    def test_a_percent_inside_a_verbatim_environment_keeps_the_document(self) -> None:
+        r"""An `%` there used to eat ``\\end{verbatim}`` and every line after it."""
+        source = (
+            r"\begin{document}\begin{verbatim}100%\end{verbatim}"
+            "\nWe cite \\citep{real2020} here.\n"
+            r"\end{document}"
+        )
+        converted = latex.to_text(source)
+        assert "[@real2020]" in converted
+        assert "We cite" in converted
+
+    def test_an_input_inside_verbatim_is_not_a_file_the_tool_could_not_read(self) -> None:
+        assert latex.included_files(r"\verb|\input{sec/ghost}|") == []
+        assert latex.included_files(r"\input{sec/real}") == ["sec/real"]
+
+    def test_a_document_with_no_verbatim_is_unchanged(self) -> None:
+        source = r"\begin{document}Plain \citep{a} and \citet{b} here.\end{document}"
+        assert latex.to_text(source) == "Plain [@a] and [@b] here.\n"

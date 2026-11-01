@@ -12,6 +12,27 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A LaTeX paper that shows its citation syntax was read as making those
+  citations.**
+  `\verb|\citep{a1}|` is how a paper *illustrates* what a cite command looks
+  like, and TeX prints it literally; the tool turned it into `[@a1]`, a citation
+  the author never wrote. `\verb*`, `\lstinline` (with or without options) and
+  `\mintinline{tex}` behaved the same way. Two larger failures had the same
+  cause. `50\verb|%| of it \citep{real2020}` lost everything after the `%`,
+  because the `%` was read as the start of a comment - including the real
+  citation. And `%` inside a `verbatim`-family environment ate the
+  `\end{verbatim}` itself, so `to_text` returned an empty document and every
+  citation after that point disappeared. `included_files` had the same gap: a
+  `\verb|\input{sec/ghost}|` was reported as a file the tool could not read.
+  Verbatim bodies are now masked before comments are stripped and hidden from
+  the citation pattern and the converter, then restored as the literal
+  characters TeX prints, so a `%` in `50\verb|%|` still reaches the output as a
+  percent sign. The `verbatim` environment's own docstring had described this
+  as a known limitation that "costs nothing unless the swallowed line is the
+  `\end{verbatim}` itself" - which is exactly the case that happened.
+
 ## [0.19.25] — 2026-10-31
 ### Fixed
 

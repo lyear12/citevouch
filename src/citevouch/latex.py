@@ -45,6 +45,33 @@ _CITE = re.compile(
     r"\*?(?:\s*\[[^\]]*\])*\{([^}]*)\}"
 )
 
+#: Inline commands whose argument TeX prints without interpreting it. The
+#: delimiter is any character the author picks, so there is no brace group to
+#: balance and `_DROP_ARGUMENT` cannot express them. The body may not contain a
+#: newline (that is TeX's own rule for `\verb`), which is what keeps a missing
+#: closing delimiter from eating the rest of the paragraph.
+_INLINE_VERBATIM = re.compile(
+    r"\\(?P<name>verb\*?|lstinline|mintinline)"
+    r"(?P<options>(?:[ \t]*\[[^\]\n]*\])*)"
+    r"(?:[ \t]*\{(?P<language>[^{}\n]*)\})?"
+    r"(?P<delimiter>[^A-Za-z \t\\])"
+    r"(?P<body>[^\n]*?)"
+    r"(?P=delimiter)"
+)
+
+#: Environments whose bodies TeX reads verbatim, so a `%` inside one is a
+#: character and not the start of a comment. `tabular` and `tikzpicture` are
+#: deliberately absent: they are dropped from the output anyway, but they do
+#: honour `%` comments, so claiming otherwise would be a lie that only shows up
+#: in a document that nests one of them inside these.
+_VERBATIM_ENVIRONMENT = re.compile(
+    r"\\begin\s*\{(?P<name>verbatim\*?|lstlisting|minted|filecontents)\}"
+)
+
+#: Stands in for text TeX does not interpret. A control character, so it cannot
+#: collide with anything an author writes in a paper.
+_VERBATIM_MARK = "\x00verbatim:"
+
 # Commands whose first brace argument is text a reader sees.
 _KEEP_ARGUMENT = frozenset(
     {
@@ -209,6 +236,112 @@ def looks_like_latex(path: str | Path) -> bool:
     return Path(path).suffix.lower() in SUFFIXES
 
 
+def _verbs_and_environment_bodies(text: str) -> tuple[str, list[str]]:
+    r"""Put a placeholder where TeX does not read its input as prose.
+
+    Two shapes need protecting, and both of them used to be read as ordinary
+    text. The body of a ``verbatim`` environment (and of ``lstlisting``,
+    ``minted``, ``filecontents``) is taken literally by TeX, so a `%` there is
+    the character and not the start of a comment - reading it as a comment ate
+    the ``\end{verbatim}`` and the rest of the document with it. And an inline
+    verbatim command is how a paper *shows* its citation syntax, so its body
+    must not be read as a citation.
+
+    Returns the text with placeholders and the bodies they stand for, indexed by
+    placeholder number, so `_restore_verbatim` can put them back.
+    """
+    bodies: list[str] = []
+
+    def placeholder(body: str) -> str:
+        bodies.append(body)
+        return _VERBATIM_MARK + str(len(bodies) - 1) + _VERBATIM_MARK
+
+    out: list[str] = []
+    index = 0
+    for match in _VERBATIM_ENVIRONMENT.finditer(text):
+        if match.start() < index:
+            continue
+        name = match.group("name")
+        close = _environment_close(text, match.end(), name)
+        if close is None:
+            continue
+        out.append(text[index : match.end()])
+        out.append(placeholder(text[match.end() : close]))
+        index = close
+    out.append(text[index:])
+    environment_masked = "".join(out)
+
+    out = []
+    index = 0
+    for match in _INLINE_VERBATIM.finditer(environment_masked):
+        if match.start() < index:
+            continue
+        # Only the body is masked. The command and its delimiter stay, because
+        # `_restore_verbatim` puts the body back and the text that comes out of
+        # here has to be the document the author wrote - `to_text` still has to
+        # recognise the construct in order to drop it. Masking the whole call
+        # left `\citep{a1}` sitting where `\verb|\citep{a1}|` used to be, which
+        # is the exact false citation this protection exists to prevent.
+        out.append(environment_masked[index : match.start("body")])
+        out.append(placeholder(match.group("body")))
+        index = match.end("body")
+    out.append(environment_masked[index:])
+    return "".join(out), bodies
+
+
+def _restore_verbatim(text: str, bodies: list[str]) -> str:
+    """Put back what `_verbs_and_environment_bodies` stood in for."""
+    if not bodies:
+        return text
+    pattern = re.compile(re.escape(_VERBATIM_MARK) + r"(\d+)" + re.escape(_VERBATIM_MARK))
+    return pattern.sub(lambda found: bodies[int(found.group(1))], text)
+
+
+#: Stands in for inline verbatim text while the citation pattern and the
+#: converter run, and is put back afterwards as the characters TeX prints.
+#: Different from `_VERBATIM_MARK` because `strip_comments` restores those
+#: immediately: a `\verb|\citep{a}|` has to survive comment stripping as the
+#: construct it is, and only be taken apart here, after the passes that would
+#: otherwise read a quotation of syntax as syntax.
+_DROPPED_MARK = "\x00dropped:"
+
+
+def _drop_inline_verbatim(text: str) -> tuple[str, list[str]]:
+    r"""Hide each ``\verb``-family body from the passes that read citations.
+
+    `strip_comments` protects these bodies and then puts them back, which is
+    right for its own job - the `%` inside them is a character. It is wrong for
+    everything downstream: the restored body is read by `_CITE`, so a paper that
+    *shows* ``\verb|\citep{a}|`` used to come out as a real ``[@a]``, and
+    `_convert` kept whatever followed the command (``\verb|[@a]|``), so the
+    example also became prose. Both of those are the tool reading a quotation of
+    syntax as syntax.
+
+    The bodies come back rather than being discarded: TeX prints them literally,
+    so the `%` in ``50\verb|%|`` has to reach the output as a percent sign.
+    """
+    bodies: list[str] = []
+    out: list[str] = []
+    index = 0
+    for match in _INLINE_VERBATIM.finditer(text):
+        if match.start() < index:
+            continue
+        out.append(text[index : match.start()])
+        out.append(_DROPPED_MARK + str(len(bodies)) + _DROPPED_MARK)
+        bodies.append(match.group("body"))
+        index = match.end()
+    out.append(text[index:])
+    return "".join(out), bodies
+
+
+def _restore_dropped(text: str, bodies: list[str]) -> str:
+    """Put back the literal characters `_drop_inline_verbatim` took out."""
+    if not bodies:
+        return text
+    pattern = re.compile(re.escape(_DROPPED_MARK) + r"(\d+)" + re.escape(_DROPPED_MARK))
+    return pattern.sub(lambda found: bodies[int(found.group(1))], text)
+
+
 def strip_comments(text: str) -> str:
     r"""Remove `%` comments, keeping escaped ``\%`` as a literal percent.
 
@@ -217,27 +350,29 @@ def strip_comments(text: str) -> str:
     a line break followed by a comment. Only the parity of the backslashes before
     the `%` tells them apart, so the parity is counted.
 
-    Known limitation: a `%` inside a ``verbatim`` block is treated as a comment
-    too. That costs nothing unless the swallowed line is the ``\end{verbatim}``
-    itself, which would then be read as prose - a worse proposal, never a false
-    verification.
+    Verbatim text is protected first and put back afterwards: a `%` inside a
+    ``verbatim`` body or inside ``\verb|...|`` is a character, not a comment.
+    Before that, the `%` was read as a comment and the scan ate the rest of the
+    line - including the ``\end{verbatim}`` that closes the block, and with it
+    everything the author wrote afterwards.
     """
+    masked, bodies = _verbs_and_environment_bodies(text)
     out: list[str] = []
     index = 0
-    length = len(text)
+    length = len(masked)
     while index < length:
-        char = text[index]
+        char = masked[index]
         if char == "\\" and index + 1 < length:
-            out.append(text[index : index + 2])
+            out.append(masked[index : index + 2])
             index += 2
             continue
         if char == "%":
-            while index < length and text[index] != "\n":
+            while index < length and masked[index] != "\n":
                 index += 1
             continue
         out.append(char)
         index += 1
-    return "".join(out)
+    return _restore_verbatim("".join(out), bodies)
 
 
 def document_body(text: str) -> str:
@@ -277,6 +412,18 @@ def _group_end(text: str, start: int, opener: str = "{", closer: str = "}") -> i
                 return index + 1
         index += 1
     return -1
+
+
+def _environment_close(text: str, start: int, name: str) -> int | None:
+    r"""Index of the ``\end{name}`` that closes a verbatim block, or None.
+
+    A verbatim body is literal, so nesting is not possible and the first
+    ``\end{name}`` wins. Returning None means the block is never closed, and the
+    caller then leaves the document alone rather than guessing where it stops.
+    """
+    closer = re.compile(r"\\end\s*\{" + re.escape(name) + r"\}")
+    found = closer.search(text, start)
+    return None if found is None else found.start()
 
 
 def _skip_environment(text: str, start: int, name: str) -> int:
@@ -418,7 +565,7 @@ def _plain_math(inner: str) -> str:
 def included_files(tex: str) -> list[str]:
     """Name the files this document pulls in, in the order it pulls them."""
     seen: list[str] = []
-    for match in _INCLUDE.finditer(strip_comments(tex)):
+    for match in _INCLUDE.finditer(_drop_inline_verbatim(strip_comments(tex))[0]):
         name = match.group(1).strip()
         if name and name not in seen:
             seen.append(name)
@@ -432,8 +579,9 @@ def to_text(tex: str) -> str:
     into ``[@key]`` so that `draft` needs no second code path for LaTeX.
     """
     body = document_body(strip_comments(tex))
+    body, verbatim = _drop_inline_verbatim(body)
     body = _CITE.sub(lambda match: _pandoc_marker(match.group(1)), body)
-    text = _convert(body)
+    text = _restore_dropped(_convert(body), verbatim)
     # Collapse the runs of blank lines the block environments produce.
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r" *\n *", "\n", text)
