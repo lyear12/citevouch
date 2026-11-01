@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.29] — 2026-11-01
 ### Fixed
 
 - **A compound word broken at a line end made a correct quote unfindable.**
@@ -26,7 +28,6 @@ tag and that file disagree.
   settled it; it counts as found, and it is one-directional — the page is never
   stripped of hard hyphens, so a page reading `re-cover the sofa` still cannot
   satisfy a quote reading `recover the sofa`.
-
 ## [0.19.28] — 2026-11-01
 ### Fixed
 
@@ -1433,7 +1434,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.28...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.29...HEAD
+[0.19.29]: https://github.com/lyear12/citevouch/releases/tag/v0.19.29
 [0.19.28]: https://github.com/lyear12/citevouch/releases/tag/v0.19.28
 [0.19.27]: https://github.com/lyear12/citevouch/releases/tag/v0.19.27
 [0.19.26]: https://github.com/lyear12/citevouch/releases/tag/v0.19.26
