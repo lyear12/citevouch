@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.71] — 2026-11-02
 ### Fixed
 
 - `Claim`'s docstring said the ledger stores the quote's fingerprint "so a later
@@ -28,7 +29,6 @@ tag and that file disagree.
   only the parser computes a fingerprint, and one fails if any module outside
   `model.py` mentions the field without writing it - which is what a comparison
   would look like.
-
 ## [0.19.70] — 2026-11-02
 ### Fixed
 
@@ -1915,7 +1915,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.70...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.71...HEAD
+[0.19.71]: https://github.com/lyear12/citevouch/releases/tag/v0.19.71
 [0.19.70]: https://github.com/lyear12/citevouch/releases/tag/v0.19.70
 [0.19.69]: https://github.com/lyear12/citevouch/releases/tag/v0.19.69
 [0.19.68]: https://github.com/lyear12/citevouch/releases/tag/v0.19.68
