@@ -711,6 +711,31 @@ not what changed, but what proves the change works.
   pre-scan, not by a TOML-aware check, so a deeply nested inline table is still
   read as one flat value by the subset - and now refused for that reason.
 
+- [x] **The two readers of `sources.toml` disagreed about five spellings, so
+  one manifest bound on 3.12 and reported `source-missing` on 3.10.**
+  *Who is blocked*: anyone on Python 3.10, which is the floor the README
+  states, writing a manifest any of those five ways. The key binds under
+  `tomllib` and vanishes under the subset, so the same commit is green on the
+  3.12 and 3.13 CI cells and red on 3.10 - a project judged by whichever
+  interpreter happens to be installed, and a `source-missing` verdict on a
+  manifest the author wrote correctly.
+  *Done when*: both readers refuse the same files with the same sentence, and
+  a manifest they can both read binds the same sources.
+  **Done - why it is now true:** `_refuse_shapes_only_one_reader_follows` is
+  called by `_load_toml` and `_mini_toml` before either parses, and holds five
+  refusals: a value written across lines, a line ending in a comma, an
+  unspellable key under `[sources]`, two assignments on one line, and the
+  inline-table and dotted-key shapes refused since 0.19.67. Measured at the
+  `read_source_table` level, nine shapes across both readers give
+  `differing tables: 0 of 9`; each refusal produces the identical sentence on
+  either side. Five mutations of the new guards, all RED.
+  *Not covered*: the pre-scan is line-based, so a manifest whose meaning both
+  readers agree on but whose layout neither was written to expect is refused
+  rather than read - refusing a readable file is this code's failure mode, and
+  the tests for the shapes that must still be read are the guard against it.
+  This scan's first version refused `[other] pa.ge = "dir/x"`, which is how
+  that failure was found.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
