@@ -1182,6 +1182,35 @@ not what changed, but what proves the change works.
   `\zihao{-4}` is covered but `\newCJKfontfamily` is not, because its name
   argument is unbraced and needs the definition machinery.
 
+- [x] **A control word ate the Chinese sentence glued to it.**
+  `str.isalpha()` is true for CJK characters, and Chinese prose has no
+  spaces, so `\noindent构式语法认为...` was scanned as a single control word whose name was
+  `noindent` plus the whole sentence - and the sentence went with the name.
+  Measured on a four-line `ctexart` document: what survived was the closing
+  punctuation on each line, all four sentences gone.
+  *Who is blocked*: every Chinese LaTeX manuscript, which is the default shape
+  of one - `\noindent` and `\par` are normally written with no space after them in ctex prose.  The
+  damage is silent in the way that matters: `draft` proposes nothing for a
+  manuscript full of sentences, and `check` reports a clean run over text that
+  was never read.  Neither says anything is wrong, because from inside the tool
+  nothing is.
+  *Done when*: a control word followed directly by Chinese leaves the Chinese,
+  and every reader that scans a control word agrees.
+  **Done - why it is now true:** TeX defines a control word as a backslash and
+  then ASCII letters, so the scan is now `[A-Za-z]` through `_is_letter()`, in
+  all five sites that scan one: the converter, `_without_definitions`,
+  `_conditional_span`, `_without_false_branches` and the main loop.  A
+  `\noindent` glued to a Chinese sentence now keeps the sentence; a four-line
+  `ctexart` document keeps all four lines; `\item1.` keeps its `1` (a digit
+  ends a name in TeX too); `\input` glued to Chinese still reports its file;
+  a `\fi` glued to Chinese now closes its branch instead of running to the end
+  of the file.  24 tests in
+  `tests/test_latex_cjk_control_words.py`; three mutations, none surviving.
+  Shipped in 0.19.83.
+  *Not covered*: no real ctex thesis, so the shapes come from the ctex manual
+  plus the converter's own behaviour; the same fix changes Cyrillic and Greek
+  prose too, which is right, but no test covers either.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
