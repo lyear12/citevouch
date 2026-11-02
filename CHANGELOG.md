@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.48] — 2026-11-02
 ### Fixed
 
 - **A damaged lockfile crashed the three verbs that read it, and a crash exits 1.** `Ledger.from_json` trusted every field: `raw.get(...)` on each list element, `int(...)` on each count. A lockfile edited by hand, truncated by a bad merge, or written against yesterday's shape therefore raised `AttributeError`, `TypeError` or `ValueError` straight out of `main` - and because an uncaught exception makes the interpreter exit **1**, those crashes were indistinguishable from "findings reached the threshold". Twenty damaged shapes were run through `report`, `verify` and `check --use-recorded`; all twenty crashed all three. `cli._read_ledger` already refuses a ledger whose *schema number* is too new ("Reading a future ledger with today's parser would half-parse it ... `source-missing` on a half-read claim is the false verdict this tool exists to avoid"), and that reasoning was never applied to the file's own shape. It is now: `_object`, `_section`, `_whole` and `_texts` refuse what this code cannot read in full and name the section and the key (`ledger claims[0] must be an object, not NoneType`), `_read_ledger` prefixes the path so the reader knows which file to open, and every one of them is a `UsageError`, which is exit 2. `claims: null` is refused rather than read as an empty ledger, and `fields: []` is refused rather than falling back to `{}` - a half-read entry reports `bib-field-missing` about a title that is in the file. Nine mutations; eight red, and the ninth is an equivalent mutant (the type guard makes the old coercion unreachable). A guard that refuses a file the *writer* produces would be worse than the crash it replaced, so the suite also round-trips a real `scan` output through `from_json` and asserts the two are equal.
-
 ## [0.19.47] — 2026-11-02
 ### Fixed
 
@@ -1586,7 +1587,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.47...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.48...HEAD
+[0.19.48]: https://github.com/lyear12/citevouch/releases/tag/v0.19.48
 [0.19.47]: https://github.com/lyear12/citevouch/releases/tag/v0.19.47
 [0.19.46]: https://github.com/lyear12/citevouch/releases/tag/v0.19.46
 [0.19.45]: https://github.com/lyear12/citevouch/releases/tag/v0.19.45
