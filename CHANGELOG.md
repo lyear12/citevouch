@@ -12,6 +12,28 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `--source` resolved its path by a different rule than the other six path
+  flags. Every one of them accepts a path that already works and only falls
+  back to `--root` for the rest, which is what makes
+  `citevouch check paper/m.md --root paper` mean the same as `cd paper &&
+  citevouch check m.md`. `--source` joined the root unconditionally, so with
+  the project in `paper/` and the command typed from one level above,
+  `--bib paper/refs.bib` worked and `--source paper/page.txt` exited 2 with
+  `source paper\paper\page.txt does not exist` - about a file that is there.
+  An author who has just learned one spelling from the error message gets the
+  other spelling wrong, so all seven now share
+  `sources._resolve` (which `scan._resolve` re-exports, so the existing call
+  sites and tests keep working).
+- The same split ran through `draft`'s output guard, which names the inputs a
+  `-o` must not overwrite. It computed those names with its own
+  root-joining rule while `read_source_table` used the shared one, so
+  `draft --source paper/page.txt -o page.txt --force` protected
+  `paper/paper/page.txt` - not a file - and wrote proposals over
+  `paper/page.txt`, the source the run had just read a quote out of. The
+  guard now names the same files the reader opens.
+
 ## [0.19.63] — 2026-11-02
 ### Fixed
 

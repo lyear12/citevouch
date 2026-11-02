@@ -29,6 +29,7 @@ from .sources import (
     resolve_source,
     sha256_file,
 )
+from .sources import _resolve as sources_resolve
 from .textnorm import read_text
 
 
@@ -42,19 +43,19 @@ class ScanOptions:
     now: str = ""
 
 
-def _resolve(root: Path, raw: str) -> Path:
-    """Resolve ``raw`` against ``root``, but accept a path that already works.
-
-    ``citevouch check demo/manuscript.md --root demo`` is what people type, and
-    joining it blindly would look for ``demo/demo/manuscript.md``.  A path that
-    exists as given is never re-rooted: the file on disk is the authority.
-    """
-    path = Path(raw)
-    if path.is_absolute():
-        return path
-    if path.exists():
-        return path
-    return root / path
+#: Resolve a path against the project root, accepting one that already works.
+#:
+#: ``citevouch check demo/manuscript.md --root demo`` is what people type, and
+#: joining it blindly would look for ``demo/demo/manuscript.md``.  A path that
+#: exists as given is never re-rooted: the file on disk is the authority.
+#:
+#: The implementation lives in :mod:`citevouch.sources` because ``--source``
+#: has to resolve the same way and this module imports that one.  It is an
+#: assignment, not a wrapper: a second copy that agrees today is a copy that
+#: disagrees the next time one of them is fixed, and no behavioural test can
+#: see that until it has already bitten - which is precisely how ``--source``
+#: became the one flag out of seven with its own spelling.
+_resolve = sources_resolve
 
 
 def _draft_advice(typed: str, name: str, root: str = ".") -> str:

@@ -3651,3 +3651,58 @@ resolved one, skip the bibliography branch, drop the path from its message, stop
 passing the bibliography at the call site - all red, 4 to 7 tests each.
 
 Seen 1.
+
+## The flag that resolves its own path will be the flag with its own spelling
+
+**Rule.** When several flags take a path, they take it the same way.  A user
+who has learned the rule from one flag applies it to the next one, and the
+error message they get back is the only evidence they have about which flag
+they are holding.  A per-flag rule is not a detail; it is a spelling test
+nobody was told about.
+
+**Why this kept happening.** ``--source`` joined ``--root`` unconditionally
+while six other flags accepted a path that already works.  Both readings are
+defensible on their own - ``--source`` names a file inside the project, so
+why not read it that way - and the disagreement only shows up from a working
+directory where they differ.  Measured, project in ``paper/``, typed from one
+level above:
+
+    --bib paper/refs.bib      resolves, the bibliography is read
+    --source paper/page.txt   exit 2: source paper\paper\page.txt does not exist
+    --source page.txt         resolves
+
+Both paths point at files that are really there.  The message even contains
+the doubled segment, so the author can see the rule but not know it applies
+to one flag out of seven.
+
+**Why one function is not enough.** The rule existed, in ``scan._resolve``,
+and six commands called it.  ``--source`` could not, because
+``sources.py`` is imported by ``scan.py`` and not the other way round - the
+one caller that needed it was the one place it could not be reached from.
+Living in the wrong module is how a shared rule becomes a private copy.  The
+fix moved the implementation down to the module everyone imports and left
+``scan._resolve`` as an assignment, not a wrapper: two functions that agree
+today are two functions that disagree after the next fix, and no behavioural
+test can see the disagreement until it has already bitten.  The test asserts
+``scan._resolve is sources._resolve`` for exactly that reason.
+
+**How to apply.** Enumerate the path flags and run one project through all of
+them from a directory where the two readings differ.  The count is the point:
+one odd flag out of seven is invisible in any test that exercises a single
+command.  Then check the guards, because they compute the same names by the
+same rule and drift the same way - ``draft``'s ``-o`` guard was protecting
+``paper/paper/page.txt``, which is not a file, while writing over
+``paper/page.txt``, which the run had just read a quote out of.  A guard that
+names a different file than the reader opens is not a weaker guard; it is a
+guard for a different run.
+
+**Reverse verification.** Four mutations - join the root unconditionally in
+``--source`` again, drop the already-works branch, restore the guard's own
+root join, give ``scan`` its own copy of the rule - all red.  The last one is
+the useful one: it survived a first attempt because the mutation script's
+anchor was a wrapper body that had just been replaced by an assignment, so the
+script reported the mutation as missing rather than as surviving.  A mutation
+check that cannot tell 'the code changed shape' from 'the test is weak' has to
+say so, not pass.
+
+Seen 1.

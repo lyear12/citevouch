@@ -38,6 +38,30 @@ CACHE_SUBDIR = "cache"
 MANIFEST_NAMES = ("sources.toml", "sources.json")
 
 
+def _resolve(root: Path, raw: str) -> Path:
+    """Resolve ``raw`` against ``root``, but accept a path that already works.
+
+    ``citevouch check demo/manuscript.md --root demo`` is what people type, and
+    joining it blindly would look for ``demo/demo/manuscript.md``.  A path that
+    exists as given is never re-rooted: the file on disk is the authority.
+
+    This lives here rather than in :mod:`citevouch.scan` because ``--source``
+    is one of its callers and ``scan`` imports this module.  It was written for
+    the manuscript flag, and every path flag inherited it except the one that
+    could not import it: measured, with the project in ``paper/`` and the
+    command typed from one level above, ``--bib paper/refs.bib`` resolved and
+    ``--source paper/page.txt`` was refused with ``source paper\\paper\\page.txt
+    does not exist``.  One flag asking for a different spelling than the other
+    six is a spelling the author has to learn from the error message.
+    """
+    path = Path(raw)
+    if path.is_absolute():
+        return path
+    if path.exists():
+        return path
+    return Path(root) / path
+
+
 @dataclass
 class PageText:
     number: int
@@ -748,9 +772,12 @@ def read_source_table(root: str | Path, extra: list[str] | None = None) -> Sourc
     root = Path(root)
     found: dict[str, str] = {}
     for raw in extra or []:
-        path = Path(raw)
-        if not path.is_absolute():
-            path = root / path
+        # ``--source`` is resolved by the same rule as every other path on the
+        # command line.  It used to join the root unconditionally, which made
+        # it the one flag where ``--source paper/page.txt --root paper`` meant
+        # ``paper/paper/page.txt``; measured, that call exited 2 while the
+        # identical ``--bib paper/refs.bib`` worked.
+        path = _resolve(root, raw)
         if not path.is_file():
             # Refused rather than skipped. ``--source`` names a file the
             # caller wants bound to a key; dropping it silently means the

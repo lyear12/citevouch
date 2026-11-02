@@ -581,10 +581,13 @@ def cmd_draft(args: argparse.Namespace) -> int:
 
         parsed = parse_bib(read_text(bib_path), str(bib_path))
         bib.update(parsed.entries)
-    extra_sources = [
-        path if path.is_absolute() else root / path
-        for path in (Path(raw) for raw in args.source)
-    ]
+    # The guard below has to name the same files the run will actually open.
+    # It used to join the root unconditionally while ``read_source_table``
+    # resolved with the shared rule, so the two disagreed about the spelling
+    # ``--source paper/page.txt``: the guard was protecting
+    # ``paper/paper/page.txt``, which is not a file, and ``--force`` could
+    # write proposals over the source the run had just read a quote out of.
+    extra_sources = [_resolve(root, raw) for raw in args.source]
     # ``draft`` has no ``--ledger`` flag, so the path worth protecting is the
     # default one the other four commands read: a draft that replaced it left
     # `verify` saying the ledger is not readable JSON, and the recorded evidence
