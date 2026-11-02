@@ -428,20 +428,24 @@ class TestTheThresholdsAreLoadBearing:
         assert found is not None, "three shared terms must clear a threshold of three"
         assert found[2] == "medium"
 
-    def test_the_shortest_quotable_sentence_is_forty_characters(self) -> None:
+    def test_the_shortest_quotable_passage_is_seven_words(self) -> None:
         """The boundary is pinned as a number, not as a reference to itself.
 
         The first version of this test built its strings from
         ``MIN_SENTENCE``, so changing the constant moved the test with it and
         the suite stayed green: a test that reads the value it is meant to
         guard is a mirror, not a guard.
+
+        The unit changed from characters to words when the tool met Chinese
+        prose: a character is a syllable there and a letter in English, so one
+        character count cannot describe both.  The number is pinned either way.
         """
-        assert draft_module.MIN_SENTENCE == 40, (
-            "39 characters is a fragment and 40 is a sentence; if this number "
+        assert draft_module.MIN_SENTENCE_WORDS == 7, (
+            "six words is a fragment and seven is a sentence; if this number "
             "changes, the docstring and the README example have to change too"
         )
-        assert not draft_module._is_passage("a" * 39)
-        assert draft_module._is_passage("a" * 40)
+        assert not draft_module._is_passage(" ".join(["word"] * 6))
+        assert draft_module._is_passage(" ".join(["word"] * 7))
 
     def test_the_skip_reason_is_built_from_the_constant(self) -> None:
         """The message and the behaviour have to be the same number.

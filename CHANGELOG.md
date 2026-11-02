@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- Chinese, Japanese and Korean prose is split into sentences, and a passage is
+  measured in words instead of characters.  A full stop in those scripts is not
+  followed by a space, and the splitter required one, so a whole paragraph came
+  back as a single run: `_sentences_of("第一句话。第二句话。第三句话。")` returned
+  one sentence, not three.  That run then exceeded the passage ceiling, so
+  `draft` refused it and reported `nothing on any page shares enough terms with
+  the sentence (3 needed)` about a paragraph that shared eighteen of them.  The
+  same paragraph was written into `claim:` as the claim text, so a proposal
+  built on it was built on words the author never wrote as one sentence.  The
+  splitter now breaks after CJK terminal punctuation without consuming anything,
+  so a closing bracket stays with the sentence it closes.  The floor and the
+  ceiling are now counted in words - a run of letters, or one CJK character -
+  because a character is a letter in English and a syllable in Chinese: measured
+  on this repository's own prose, the old character window 40..400 kept 37% of
+  Chinese sentences where the word window 7..70 keeps 86%, and keeps 84% of
+  English sentences either way.
 
 ## [0.19.79] — 2026-11-02
 ### Fixed

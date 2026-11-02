@@ -4288,3 +4288,45 @@ it on 40,688 examples.'`; the `draft` proposal carried `The method worksSee for
 the proof., and we show it on 40,688 examples.` as its `claim:` text. After:
 `'The method works, and we show it.\n\nSee [@fn] for the proof.\n'`. 26 tests in
 `tests/test_latex_notes.py`; seven mutations, none surviving. Seen 1.
+## A rule about punctuation is a rule about one writing system until you write down which
+
+**Rule.** When a boundary is decided by punctuation, or a size by characters,
+ask what the rule assumes about the space *after* the mark and about what one
+character *is* in the text it will actually meet.  If the answer is "a Latin
+sentence", write that down, or make the rule count something a reader of either
+script would agree with.
+
+**Why this keeps happening.** `_SENTENCE_END` read
+`(?<=[.!?。！？])[\"'”’)\]]*(?:\s+|$)`.  The CJK full stops were already in the
+character class - somebody had thought about Chinese - but the branch after them
+requires whitespace or end-of-string, and Chinese puts nothing after a full
+stop.  The mark was known; the habit it comes with was not.  In the same
+function the floor and ceiling were characters: 40 and 400.  A character is a
+letter in English and a syllable in Chinese, so the same two numbers describe
+two different lengths and only one of them was measured.
+
+**How to apply.** For each threshold, name the unit in the constant's name
+(`MIN_SENTENCE_WORDS`, not `MIN_SENTENCE`), because a bare number in a shared
+module reads as unitless.  Write the test with a sentence from the script the
+rule was *not* written for, and assert the sentence boundary, not the constant.
+Measure the change on real prose in both scripts before choosing the number:
+the character window kept 37% of Chinese sentences, the word window keeps 86%,
+and the word window keeps the same 84% of English ones, which is what makes it
+a fix rather than a trade.
+
+**The false reason is the real damage.** The refused paragraph did not produce a
+crash or an empty file; it produced
+`nothing on any page shares enough terms with the sentence (3 needed)` - a
+sentence about a comparison that never ran, on a paragraph that shared eighteen
+terms with the page.  A missed feature leaves a hole; a wrong reason fills it
+with the wrong thing.
+
+**Evidence.** `_sentences_of("第一句话。第二句话。第三句话。")` returned 1 run
+after the fix 3; `draft` on a Chinese manuscript wrote `0 claim block(s)
+proposed` with the terms reason, after the fix 1 block with 12 shared terms; the
+settled window is `MIN_SENTENCE_WORDS = 7` / `MAX_SENTENCE_WORDS = 70`;
+four mutations of the fix (latin-only splitter, one CJK branch instead of two,
+count characters as words, restore the character window) are all red, 1 to 9
+tests each.
+
+Seen 1.

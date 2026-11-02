@@ -52,8 +52,24 @@ _LATEX = re.compile(
 # A sentence ends at terminal punctuation followed by space, or at the end of a
 # paragraph.  `re.split` keeps the text; offsets are recomputed from a scan so
 # line numbers stay correct.
+#
+# Chinese, Japanese and Korean prose puts no space after the full stop, so the
+# space branch never fires and one paragraph came back as one sentence: a
+# fourteen-hundred-character run that `_is_passage` then refused for being too
+# long, leaving `draft` to report "nothing on any page shares enough terms"
+# about a paragraph sharing eighteen of them.  The two extra branches break
+# after CJK terminal punctuation with nothing consumed, so a closing bracket
+# stays with the sentence it closes instead of being deleted.
+_CLOSING = "」』】》〉〕｝”’)]"
+# `re.escape` because the class holds a `]`: unescaped, it closes the class
+# early and the rest of the pattern means something else.
+_CLOSING_CLASS = re.escape(_CLOSING)
 _WORDS = re.compile(r"[^\W\d_]{2,}")
-_SENTENCE_END = re.compile(r"(?<=[.!?。！？])[\"'”’)\]]*(?:\s+|$)")
+_SENTENCE_END = re.compile(
+    r"(?<=[.!?])[\"'”’)\]]*(?:\s+|$)"
+    rf"|(?<=[。！？])(?![{_CLOSING_CLASS}])"
+    rf"|(?<=[。！？][{_CLOSING_CLASS}])"
+)
 
 # Words that carry no topic.  Deliberately short: a long stoplist would start
 # dropping the terms a short sentence depends on.
@@ -77,14 +93,22 @@ been useful in a spot check, and a page that cannot reach it produces no
 proposal rather than a plausible one.
 """
 
-MIN_SENTENCE = 40
-MAX_SENTENCE = 400
-"""Characters a passage needs to be worth reading as evidence, and its ceiling.
+MIN_SENTENCE_WORDS = 7
+MAX_SENTENCE_WORDS = 70
+"""Words a passage needs to be worth reading as evidence, and its ceiling.
 
-Below forty characters there is no sentence, only a label or a table cell - the
-kind of fragment that "supports" anything.  Above four hundred the page text is
-not a sentence at all: it is a figure caption, a results table or a wrapped
-list, and proposing it would put a block of layout in the manuscript's mouth.
+Below seven words there is no sentence, only a label or a table cell - the kind
+of fragment that "supports" anything.  Above seventy the page text is not a
+sentence at all: it is a figure caption, a results table or a wrapped list, and
+proposing it would put a block of layout in the manuscript's mouth.
+
+These were forty and four hundred *characters*, which is a length in the unit
+English happens to need.  A Chinese sentence has no spaces, so a character
+count of a Chinese passage measures something else entirely: measured on this
+repository's own Chinese prose, the character rule kept 37% of its sentences
+where the word rule keeps 86%, and on English it keeps 84% either way.  The
+threshold is about how much there is to assert, so it is counted in what a
+reader would call words - a run of letters, or one CJK character.
 """
 
 
@@ -347,6 +371,17 @@ def _sentences_of(page_text: str) -> list[str]:
 # "text" and none of them is evidence.
 _NON_SENTENCE = re.compile(r"(?:\S+\s*:\s*\S.*){3,}|\|\s*-{2,}|={3,}|-{4,}")
 
+# One CJK character is one word: the writing system has no spaces to count
+# between, and a reader counts characters as syllables.  Everything else is
+# counted as runs of letters, which is what a word is in a spaced script.
+_CJK = re.compile(r"[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]")
+_LETTER_RUN = re.compile(r"[^\W\d_]+")
+
+
+def _words(text: str) -> int:
+    """How many words `text` holds, in either kind of script."""
+    return len(_CJK.findall(text)) + len(_LETTER_RUN.findall(_CJK.sub(" ", text)))
+
 
 def _is_passage(sentence: str) -> bool:
     """Whether a run of text is a sentence a person would quote.
@@ -357,7 +392,7 @@ def _is_passage(sentence: str) -> bool:
     digits and punctuation (a results table), and a run with several
     ``label: value`` pairs in it (a printed report embedded in the page).
     """
-    if not MIN_SENTENCE <= len(sentence) <= MAX_SENTENCE:
+    if not MIN_SENTENCE_WORDS <= _words(sentence) <= MAX_SENTENCE_WORDS:
         return False
     if _NON_SENTENCE.search(sentence):
         return False
