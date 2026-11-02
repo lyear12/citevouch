@@ -3706,3 +3706,58 @@ check that cannot tell 'the code changed shape' from 'the test is weak' has to
 say so, not pass.
 
 Seen 1.
+
+---
+
+## When a key is in the file and the reader says it is not, check what the value is
+
+**Rule.** A reader that keeps some entries and drops the others has to say which
+ones it dropped and why.  Silence about a dropped entry is a sentence about the
+file that is not true - and worse than a sentence, because it is the sentence
+the author has already checked.
+
+**Why this keeps happening.** The drop was one `isinstance` in a dict
+comprehension: `{str(k): str(v) for k, v in mapping.items() if isinstance(v, str)}`.
+Every entry that did not fit the type went missing at exactly the place the code
+was most careful about - the same function whose docstring explains that
+`unusable` exists because an earlier version dropped entries and then told the
+author "no entry in sources.toml" about the entry the author had got right.  The
+reasoning was written down in the file and the defect sat directly opposite it:
+the docstring enumerated the *file missing* cause and the *directory* cause, and
+the value-shape cause was not on the list, so nothing was looking for it.
+
+**How to apply.** For every mapping a reader consumes, ask two questions rather
+than one.  First: "what if the key is absent?" - the well-worn case.  Second:
+"what if the key is present and the value is the wrong shape?" - and answer it
+for each shape the source format allows, not for the one you imagined.  TOML
+admits strings, integers, floats, booleans, arrays and tables, so a manifest
+reader needs six answers; `page = 5` reaches none of the paths written for the
+string case.  Then check whether the same file is read by a second parser: this
+project has `tomllib` on 3.11+ and a hand-written subset parser for 3.10, and
+they disagreed - one dropped the value at the key/value layer, the other kept it
+and discarded it one layer up.  A file that binds a key on one interpreter and
+loses it on another is the same bug in two shapes.
+
+**The other direction.** Do not turn this into "refuse any file that is not all
+strings".  A boolean in `sources.toml` is a typo in one value, not a reason to
+reject a manifest whose other keys are fine, and an empty file really does have
+no entries - "add it to sources.toml" is the right sentence there.  The split is
+between a key the manifest holds with the wrong shape (name it, quote it, keep
+the rest) and a manifest that cannot be read as a manifest at all (`sources = 5`
+is not a table, so `manifest_problem` owns it).  Two buckets, because the
+author's next move differs: edit a value, or replace the file.
+
+**Evidence.** Before: eight shapes - integer, float, boolean, array, inline
+table, `sources = 5`, `sources = "page.txt"`, empty file - all produced
+`claim c1 names source='page' but no entry in sources.toml and no --source path
+resolves it; add it to sources.toml`, with `found={}`, `unusable={}` and
+`manifest_problem=None`.  On 3.10 the same manifest reached the reader as
+`{'sources': {}}`, and `sources = "page.txt"` reached it as
+`{'': {'sources': 'page.txt'}}`.  After: the first five reach `unusable` with
+`the 'sources' key holds ... not a table of keys to paths` for the last two, and
+the empty file keeps the old advice.  Five mutations - stop carrying odd keys
+out of the parser, stop collecting non-string values, ignore the odd keys in the
+table, read a non-table `sources` key as absent, silence the subset reader - all
+red, no survivors.
+
+Seen 1.

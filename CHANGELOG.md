@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A `sources.toml` entry whose value was not a path was dropped in silence, and
+  the claim that named it was told there was no such entry.  `page = 5`
+  produced `claim c1 names source='page' but no entry in sources.toml and no
+  --source path resolves it; add it to sources.toml` about the line the author
+  was reading.  Eight shapes did this: an integer, a float, a boolean, an array,
+  an inline table, `sources = 5`, `sources = "page.txt"`, and an empty file.
+  The first five are keys the manifest holds, so they now reach `unusable` and
+  their message quotes the manifest that binds them; the two `sources = ...`
+  shapes are a manifest that cannot be read at all, so they reach
+  `manifest_problem`; the empty file keeps the old advice, because a file with
+  no entries really does have no entry.  The 3.10 subset reader answers the same
+  way as `tomllib`, so one manifest cannot bind on 3.12 and lie on 3.10.
 
 ## [0.19.65] — 2026-11-02
 ### Fixed

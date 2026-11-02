@@ -519,7 +519,7 @@ def _strip_markup(text: str) -> str:
 # Resolving a claim's source= to a file
 
 
-def _mini_toml(text: str) -> dict:
+def _mini_toml(text: str, odd: list[str] | None = None) -> dict:
     """Parse the slice of TOML a sources manifest actually uses.
 
     Python 3.10 has no :mod:`tomllib`, and ``sources.toml`` is the format the
@@ -582,12 +582,30 @@ def _mini_toml(text: str) -> dict:
             # Binding it differently than tomllib would is worse than dropping
             # it, so this is the only case that drops.
             continue
+        if section == "" and key == "sources":
+            # ``sources = "page.txt"`` at the top level, where the format wants
+            # a ``[sources]`` table. tomllib returns a string here and this
+            # reader would otherwise find no section at all - two different
+            # answers about one file. Both are refusals of the same manifest,
+            # so both raise, and the sentence says which shape was expected.
+            raise ValueError(
+                f"the 'sources' key holds {value.strip()!r}, not a table of keys to paths"
+            )
         text_value = _toml_string_or_none(value.strip())
         if text_value is None:
             # A non-string value (true, 3.5, [a, b], {..}) is not a path, so
             # it is dropped rather than allowed to take the whole manifest
             # with it. tomllib accepts these files on 3.11+, so raising here
             # would be a 3.10-only refusal of a manifest 3.11 binds fine.
+            #
+            # Dropped from ``found``, but not from the reader's knowledge of
+            # it: the key stays, so ``read_manifest`` can say the manifest
+            # names it and the value is not a path. Passing it out is what
+            # keeps 3.10 and 3.11 telling the same story - a reader that
+            # reported the key here and nothing there would make the same
+            # manifest bind on one interpreter and lie on the other.
+            if odd is not None and section == "sources":
+                odd.append(key)
             continue
         parsed.setdefault(section, {})[key] = text_value
     return parsed
@@ -642,16 +660,43 @@ def _toml_string(value: str) -> str:
     return "".join(out)
 
 
-def _load_toml(text: str) -> dict:
-    """Use the real parser when the interpreter has one, the subset otherwise."""
+def _load_toml(text: str, odd: list[str] | None = None) -> dict:
+    """Use the real parser when the interpreter has one, the subset otherwise.
+
+    ``odd`` is how the two agree about a key whose value is not a string: the
+    subset drops such a key while parsing, so it has to say so on the way past,
+    and this branch says so by looking at the parsed table.  Without it the same
+    manifest refused on 3.10 and silently misread on 3.11.
+    """
     try:
         import tomllib  # 3.11+, absent on 3.10
     except ImportError:
-        return _mini_toml(text)
-    return tomllib.loads(text)
+        return _mini_toml(text, odd)
+    blob = tomllib.loads(text)
+    if isinstance(blob, dict) and "sources" in blob:
+        section = blob["sources"]
+        if not isinstance(section, dict):
+            raise ValueError(
+                f"the 'sources' key holds {section!r}, not a table of keys to paths"
+            )
+        if odd is not None:
+            odd.extend(str(key) for key, value in section.items() if not isinstance(value, str))
+    return blob
 
 
-def read_manifest(root: str | Path) -> tuple[dict[str, str], str | None]:
+def _odd_bindings(name: str, keys: list[str]) -> str:
+    """The sentence for a manifest whose values are not paths."""
+    named = ", ".join(repr(key) for key in sorted(keys))
+    return (
+        f"{name} binds {named} to something that is not a path in quotes, and "
+        "every entry under [sources] has to be one; a number, a boolean, a list "
+        "and a nested table all bind nothing, so nothing was bound to that key"
+    )
+
+
+def read_manifest(
+    root: str | Path, odd: dict[str, str] | None = None
+) -> tuple[dict[str, str], str | None]:
     """Read the ``sources`` manifest, and say why it could not be read.
 
     The second element is ``None`` when a manifest was found and parsed, and a
@@ -659,6 +704,14 @@ def read_manifest(root: str | Path) -> tuple[dict[str, str], str | None]:
     be dropped on the floor: the caller got ``{}`` either way, so "this project
     has no manifest" and "this project's manifest is broken" arrived as the same
     value and the per-claim message below could only guess which one it was.
+
+    ``odd`` is where a key whose value is not a path goes - ``enabled = true``,
+    ``ratio = 3.5``, ``tags = []``.  Such a key is neither bound nor a parse
+    failure, so neither return value can carry it: passing a dict here is how a
+    caller learns "the manifest names that key and its value is not a path".
+    Measured before this existed: eight such manifests all told the author "no
+    entry in sources.toml" about a line they were reading, which is the exact
+    sentence ``unusable`` was created to stop.
     """
     root = Path(root)
     used = [name for name in MANIFEST_NAMES if (root / name).exists()]
@@ -679,13 +732,14 @@ def read_manifest(root: str | Path) -> tuple[dict[str, str], str | None]:
         )
     for name in used:
         path = root / name
+        wrong: list[str] = []
         try:
             text = read_text(path)
             if name.endswith(".json"):
                 blob = json.loads(text)
                 mapping = blob.get("sources", blob) if isinstance(blob, dict) else {}
             elif name.endswith(".toml"):
-                blob = _load_toml(text)
+                blob = _load_toml(text, wrong)
                 mapping = blob.get("sources", {}) if isinstance(blob, dict) else {}
             else:
                 continue
@@ -695,7 +749,21 @@ def read_manifest(root: str | Path) -> tuple[dict[str, str], str | None]:
                 f"{name} could not be read as {'JSON' if name.endswith('.json') else 'TOML'} ({exc})",
             )
         if isinstance(mapping, dict):
+            for key, value in mapping.items():
+                if not isinstance(value, str) and odd is not None:
+                    odd[str(key)] = name
+            for key in wrong:
+                if odd is not None:
+                    odd[str(key)] = name
+            # A key that does have a path still binds.  An earlier version let
+            # one boolean take the whole manifest with it; refusing the file
+            # here would be that bug wearing a different hat.
             return {str(k): str(v) for k, v in mapping.items() if isinstance(v, str)}, None
+        if mapping:
+            return (
+                {},
+                f"{name} has a 'sources' key that is not a table of keys to paths",
+            )
     return {}, None
 
 
@@ -798,8 +866,19 @@ def read_source_table(root: str | Path, extra: list[str] | None = None) -> Sourc
             )
         found[path.stem] = str(path)
 
-    manifest, problem = read_manifest(root)
+    odd: dict[str, str] = {}
+    manifest, problem = read_manifest(root, odd)
     unusable: dict[str, str] = {}
+    for key, name in odd.items():
+        # The manifest names this key and the value beside it is not a path.
+        # It used to vanish inside the reader, and the claim that needed it was
+        # told "no entry in sources.toml" - about a line the author was looking
+        # at, which is the sentence ``unusable`` exists to prevent.
+        unusable[key] = (
+            f"{name} binds {key!r} to something that is not a path in quotes; "
+            "a number, a boolean, a list and a nested table are all not a file, "
+            f"so {name} binds nothing to it"
+        )
     for key, value in manifest.items():
         path = Path(value)
         if not path.is_absolute():
