@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.73] — 2026-11-02
 ### Fixed
 
 - `\input` has two spellings and the converter knew one. Plain TeX writes
@@ -26,7 +28,6 @@ tag and that file disagree.
   sentence reads `'We show this in and continue the argument here.'` and the
   note names `sec/intro`. A bare name runs to the next whitespace, as it does
   in TeX, so `\input third/three.tex` keeps its extension.
-
 ## [0.19.72] — 2026-11-02
 ### Fixed
 
@@ -1941,7 +1942,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.72...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.73...HEAD
+[0.19.73]: https://github.com/lyear12/citevouch/releases/tag/v0.19.73
 [0.19.72]: https://github.com/lyear12/citevouch/releases/tag/v0.19.72
 [0.19.71]: https://github.com/lyear12/citevouch/releases/tag/v0.19.71
 [0.19.70]: https://github.com/lyear12/citevouch/releases/tag/v0.19.70
