@@ -12,6 +12,21 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A damaged `.citevouch/cache/<sha>.json` is now a cache miss instead of a
+  crash.  The extraction cache trusted the shapes it read, so a scratch file
+  holding `{"pages": 5}`, `{"pages": [null]}`, a page whose `number` was `"x"`,
+  or a JSON root that was a list all reached the interpreter and exited **1** -
+  the code that means "findings at or above `--fail-on`" - with a traceback
+  (`TypeError: 'int' object is not iterable`, `AttributeError: 'NoneType'
+  object has no attribute 'get'`, `ValueError: invalid literal for int()`).
+  A cache can be recomputed from the bytes it describes, so an unrecognised
+  shape is dropped and the file re-extracted; a *recognised* shape is still
+  used, which is why the fix is not "stop caching" - there are tests that fail
+  if the cache stops being read.  Eight mutations, all red, including one that
+  only a raw-JSON root fixture could kill.
+
 ## [0.19.54] — 2026-11-02
 ### Fixed
 

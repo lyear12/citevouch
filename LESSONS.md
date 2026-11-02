@@ -3358,3 +3358,43 @@ blamed, the failure path asking even when it succeeds, pypdf not asked, pdftotex
 `tests/test_unreadable_reason.py`.
 
 Seen 1.
+
+## Scratch data and durable data fail in opposite directions
+
+The extraction cache and the ledger are both JSON files this tool writes into a project, and they
+must not be handled the same way. `Ledger.from_json` refuses a shape it does not recognise, loudly,
+with the file named - because a ledger is *the record* of what the author claimed against which
+source, and nothing else can reconstruct it. The cache is *a hint* about what some reader produced
+for these exact bytes; the bytes are still in the project, so the hint can be thrown away and the
+fact recomputed.
+
+Both were written the same way instead: trust the shape, read it. The cache then exited **1** with
+a traceback on `{"pages": 5}` - and 1 is the code that means "findings at or above --fail-on", so a
+scratch file could manufacture the one signal the tool exists to produce.
+
+**Why it survived the ledger round.** The previous fix added shape guards to the file that keeps a
+project's evidence, which is the file that *looks* important. The cache directory sits next to it,
+is written by the same code, is JSON as well, and is the one an author is most likely to corrupt by
+hand or by half-finished merge - precisely because it looks disposable. "Untrusted input" was
+scoped to the input that felt load-bearing.
+
+**How to apply.** For every file the tool reads, ask which of the two it is: can the value be
+recomputed from something still present? If yes, an unrecognised shape is a miss, silence, and one
+more read; if no, it is a refusal with the file named. Then apply the guard to *all* of them - the
+list is "every file we read", not "every file that matters".
+
+**The test that nearly hid it.** Seven of eight mutations were caught immediately. The eighth -
+removing `isinstance(blob, dict)` - survived, because every damaged fixture was built by
+`_shape(**extra)` and so was always an object at the root. A cache whose root is `[]`, `null`,
+`"x"` or `5` needed fixtures written as raw JSON strings, which is now its own parameterised class.
+
+**Evidence.** Before: `{"pages": 5}` → `TypeError: 'int' object is not iterable`, exit 1;
+`{"pages": [null]}` → `AttributeError: 'NoneType' object has no attribute 'get'`, exit 1;
+`{"pages": [{"number": "x"}]}` → `ValueError: invalid literal for int() with base 10: 'x'`, exit 1.
+After: all of those plus a list/null/string/number root re-extract and verify, exit 0, and no
+finding mentions the cache. Eight mutations red: the root shape trusted, the pages shape trusted, a
+non-object page trusted, any page number accepted, a bool page number accepted, a page numbered
+from zero accepted, the page text coerced, and the cache never read.
+`tests/test_damaged_cache.py`.
+
+Seen 1.

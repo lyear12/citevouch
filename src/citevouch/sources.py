@@ -119,12 +119,33 @@ def extractor_candidates(suffix: str) -> tuple[str, ...]:
 
 
 def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[PageText] | None:
+    """The cached pages for this file, or ``None`` to extract it again.
+
+    Every reason to mistrust the file ends the same way - ``None``, a cache
+    miss, one more extraction. That is the opposite of what ``Ledger.from_json``
+    does with a damaged ledger, and the difference is worth stating: a ledger is
+    *the record* of what the author claimed against which source, and it cannot
+    be recomputed from anything else, so a shape it does not recognise is
+    refused out loud. A cache is *a hint* about what some reader produced for
+    these exact bytes - the bytes are still here, so the hint can simply be
+    dropped and the fact recomputed. Refusing here would turn a scratch file
+    into a finding about the author's evidence.
+
+    What must not happen is the third option: raising. Before this, a cache
+    directory holding ``{"pages": 5}``, ``{"pages": [null]}`` or a page with a
+    non-numeric ``number`` reached the interpreter and exited **1** - the code
+    that means "findings at or above --fail-on" - with a traceback. Measured:
+    ``TypeError: 'int' object is not iterable``, ``AttributeError: 'NoneType'
+    object has no attribute 'get'``, ``ValueError: invalid literal for int()``.
+    """
     path = _cache_file(root, sha)
     if not path.exists():
         return None
     try:
         blob = json.loads(read_text(path))
     except (OSError, ValueError):
+        return None
+    if not isinstance(blob, dict):
         return None
     if blob.get("schema") != 1:
         return None
@@ -134,10 +155,22 @@ def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[P
         # verdict, and a wrong verdict is the only failure this tool cannot
         # apologise for.
         return None
-    pages = [
-        PageText(number=int(p.get("number", i + 1)), text=str(p.get("text", "")))
-        for i, p in enumerate(blob.get("pages") or [])
-    ]
+    raw_pages = blob.get("pages")
+    if not isinstance(raw_pages, list):
+        return None
+    pages: list[PageText] = []
+    for index, raw in enumerate(raw_pages):
+        if not isinstance(raw, dict):
+            return None
+        number = raw.get("number", index + 1)
+        text = raw.get("text", "")
+        # bool is an int to isinstance and is not a page number; a page number
+        # below one cannot have come from this tool and would index nothing.
+        if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+            return None
+        if not isinstance(text, str):
+            return None
+        pages.append(PageText(number=number, text=text))
     return pages or None
 
 
