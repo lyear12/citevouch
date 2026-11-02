@@ -73,6 +73,10 @@ _ATTR = re.compile(
 _CLAIMISH = re.compile(r"^\s*(?:`{3,}|~{3,}|<!--)\s*[*_]*\s*claim\b", re.IGNORECASE)
 _FIELD_KEY = re.compile(r"^\s*(?P<key>quote|claim|numbers?)\s*:\s*(?P<rest>.*)$")
 
+# The keys a claim may name as attributes.  They are read from the opening line
+# (``​```claim id=c1 source=paper``) and, since the fix below, also from the body.
+_ATTRIBUTE_KEY = re.compile(r"^\s*(?P<key>id|source|ref|cite|page|marker)\s*:\s*(?P<rest>.*)$")
+
 # The credibility markers the surrounding workflow already uses.  Kept as data
 # rather than hard-coded checks so a project can rename them.
 DEFAULT_MARKERS = ("【原文】", "【实测】", "【推测】", "[原文]", "[实测]", "[推测]")
@@ -152,7 +156,18 @@ def _claim_from(
     text: str,
     path: str,
     line: int,
+    body: dict[str, str] | None = None,
 ) -> tuple[Claim | None, list[Finding]]:
+    """Build the claim, letting the body's attribute lines fill in what is absent.
+
+    ``attrs`` comes from the opening line and wins when both name the same key:
+    the fence is where the format is documented, and a reader who wrote it in
+    both places meant the one next to ``claim``.
+    """
+    if body:
+        merged = dict(body)
+        merged.update(attrs)
+        attrs = merged
     findings: list[Finding] = []
     cid = attrs.get("id", "")
     if not cid:
@@ -335,8 +350,8 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 body.append(lines[j])
                 j += 1
             closed = j < len(lines)
-            quote, claim_text = _split_body(body)
-            claim, more = _claim_from(attrs, quote, claim_text, path, start_line)
+            quote, claim_text, in_body = _split_body(body)
+            claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
             if not closed and claim is not None:
                 # Everything after this point was read as part of this block, so
                 # every later claim in the file is invisible. That is data loss,
@@ -451,8 +466,8 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     body.append(lines[j])
                     j += 1
                 closed = j < len(lines)
-            quote, claim_text = _split_body(body)
-            claim, more = _claim_from(attrs, quote, claim_text, path, start_line)
+            quote, claim_text, in_body = _split_body(body)
+            claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
             if not closed and claim is not None:
                 more.append(
                     _unclosed_finding(
@@ -486,8 +501,8 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
     return ParseResult(claims=claims, findings=findings, spans=spans)
 
 
-def _split_body(body: list[str]) -> tuple[str, str]:
-    """Split a claim body into (quote, claim).
+def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
+    """Split a claim body into (quote, claim, attributes written in the body).
 
     Accepts several shapes, tried in order of explicitness:
 
@@ -495,10 +510,20 @@ def _split_body(body: list[str]) -> tuple[str, str]:
     * a line beginning with ``>>`` for the quote and the rest for the claim;
     * the first paragraph as quote, the second as claim;
     * everything as the quote, with an empty claim (still verifiable).
+
+    The third return value holds ``id:``/``source:``/``ref:``/``page:`` lines,
+    which used to be appended to the quote.  A block written with its attributes
+    one per line under the fence is a YAML mapping, and it was read here as
+    quote text: the words were searched as if the author had quoted
+    "source: paper" out of their PDF, and the verdict was `quote-missing`
+    (high) - an accusation against a passage that is on the page.  Two
+    dialects had it (the fence and the HTML comment), and both were silent
+    about it, because the quote simply came back longer.
     """
+    attributes: dict[str, str] = {}
     if not body:
-        return "", ""
-    has_keys = any(_FIELD_KEY.match(raw) for raw in body)
+        return "", "", attributes
+    has_keys = any(_FIELD_KEY.match(raw) or _ATTRIBUTE_KEY.match(raw) for raw in body)
     if has_keys:
         fields: dict[str, list[str]] = {}
         current = ""
@@ -520,16 +545,24 @@ def _split_body(body: list[str]) -> tuple[str, str]:
                     # mark, in the one place nobody had looked.
                     fields[current].append(_unquote(rest))
                 continue
+            other = _ATTRIBUTE_KEY.match(raw)
+            if other:
+                # `source: paper` under the fence is the same statement as
+                # `source=paper` on it.  Reading it as quote text is how a
+                # correct passage came back as `quote-missing`.
+                attributes[other.group("key").lower()] = _unquote(other.group("rest").strip())
+                current = ""
+                continue
             if current:
                 fields.setdefault(current, []).append(raw)
         quote = _dedent(fields.get("quote", []))
         claim = _dedent(fields.get("claim", []))
-        return quote.strip(), claim.strip()
+        return quote.strip(), claim.strip(), attributes
 
     if any(raw.strip().startswith(">>") for raw in body):
         quote_lines = [raw.strip()[2:].strip() for raw in body if raw.strip().startswith(">>")]
         claim_lines = [raw for raw in body if not raw.strip().startswith(">>")]
-        return _dedent(quote_lines).strip(), _dedent(claim_lines).strip()
+        return _dedent(quote_lines).strip(), _dedent(claim_lines).strip(), attributes
 
     paragraphs: list[list[str]] = [[]]
     for raw in body:
@@ -539,9 +572,9 @@ def _split_body(body: list[str]) -> tuple[str, str]:
             paragraphs.append([])
     paragraphs = [p for p in paragraphs if p]
     if len(paragraphs) >= 2:
-        return _dedent(paragraphs[0]).strip(), _dedent(paragraphs[1]).strip()
+        return _dedent(paragraphs[0]).strip(), _dedent(paragraphs[1]).strip(), attributes
     only = _dedent(paragraphs[0] if paragraphs else []).strip()
-    return only, ""
+    return only, "", attributes
 
 
 def _dedent(lines: list[str]) -> str:

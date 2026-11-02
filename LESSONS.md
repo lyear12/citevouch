@@ -3486,3 +3486,40 @@ wrong one), which is the same failure mode as a test that asserts nothing. The
 test file compares `doctor` against `check` on the same projects rather than
 remembering both messages, so rewording either one cannot quietly break the
 agreement it is testing. Seen 1.
+
+## 141. A block whose values are attributes is not a block whose values are text
+
+**Rule.** When a reader supports several shapes of one input, every shape has to
+be checked against the field it lands in - not only against whether it parses.
+
+**Why this keeps happening.** `_split_body` knew about `quote:` and `claim:` and
+treated every other line as a continuation of the current field. Its own
+docstring said "everything as the quote, with an empty claim (still
+verifiable)", which is true and reads like a complete answer. What it did not
+say is that a line reading `source: paper` is a *statement*, and the function
+had no vocabulary for statements - so it fell through to the only branch it had.
+The header line ` id=c1 source=paper ` was parsed by a different function
+(`_attrs`) that does have that vocabulary, and the two sat forty lines apart,
+each correct on its own.
+
+**How to apply.** For each shape a reader accepts, write the input the shape is
+*for* and assert on the field, not on the parse succeeding. Here that meant
+`quote: |` followed by `ref: paper2026` and an assertion on `claim.quote`; the
+parse succeeded both before and after the fix, and only the quote length told
+them apart. And when a format has two surfaces that carry the same keys - the
+opening line and the body - one of them has to be declared to win, because a
+rule nobody wrote down is a coin toss the author loses silently.
+
+**The other direction.** The fix names six keys. Everything else still lands in
+the quote, on purpose: a quote that grew is visible in a verdict, and a quote
+that silently shrank is visible nowhere. A widening reader is a data-loss
+machine, and this one is deliberately narrow.
+
+**Evidence.** Before: `[high] quote-missing at m.md:3 (c1): We collected 40,688
+examples in the corpus. ref: paper2026 - quote not found in page.txt`, exit 1,
+on a page that holds that sentence and both dialects alike. After: `[info]
+quote-found`, exit 0. Five mutations - attributes quoted again, fence-only
+lookup, body-beats-fence, every key treated as an attribute, attribute line
+dropped - five red, `survivors: none`.
+
+Seen 1.

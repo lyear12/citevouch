@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A claim block written as a mapping - its attributes one per line under the
+  fence, `id:` / `source:` / `page:` / `ref:` - had those lines appended to the
+  quote.  The words were then searched as if the author had quoted
+  `source: paper` out of their PDF, and the verdict was `quote-missing`
+  (high): an accusation against a passage that is on the page.  Measured
+  before this, with the page reading "We collected 40,688 examples in the
+  corpus." and the block carrying one `ref: paper2026` line:
+  `[high] quote-missing at m.md:3 (c1): We collected 40,688 examples in the
+  corpus. ref: paper2026 - quote not found in page.txt`.  Both dialects had it
+  (the ` ```claim ` fence and the `<!-- claim ... -->` comment), because they
+  share one body reader, so a fix in one branch would have left the other
+  broken.  The six keys a claim may carry are now read from the body and
+  merged under the opening line, which wins when both name the same key: the
+  fence is where the format is documented.  Any other key is still quote text
+  - a quote that grew is visible in a verdict, and a quote that silently
+  shrank is visible nowhere.  Five mutations, five red, none survived.
 
 ## [0.19.57] — 2026-11-02
 ### Fixed
