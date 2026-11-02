@@ -904,6 +904,48 @@ not what changed, but what proves the change works.
   falling through to the next word, which is asserted for `\textcolor` but not
   enumerated across all ten names.
 
+- [x] **Seven file-inclusion commands pasted their path into the prose and
+  reported nothing.**
+
+  *What was wrong.* `\input` and `\include` were classified; `\subfile`,
+  `\import`, `\subimport`, `\includestandalone`, `\includepdf`,
+  `\lstinputlisting` and `\verbatiminput` were not, so they hit the same
+  fallthrough that produced `blueblue` for `\textcolor`. Measured:
+
+  ```
+  \subfile{sec/intro}          -> text 'sec/intro', included_files []
+  \import{chapters/}{one}      -> text 'chapters/one', included_files []
+  \includepdf{pages/p1.pdf}    -> text 'pages/p1.pdf', included_files []
+  \lstinputlisting{code/s1.py} -> text 'code/s1.py', included_files []
+  ```
+
+  *Who is blocked.* Anyone whose paper is split across files - which is what
+  `\subfile` and the `import` package are for. Two things broke at once: the
+  sentence `draft` builds a claim from carried a file path, and the note saying
+  which parts of the paper were not read was empty. A paper split across seven
+  files looked as if it had been read whole, and every citation in those seven
+  files was missing from the report without being named.
+
+  *Done when.* All seven keep their path out of the converted text, all seven
+  are reported by `included_files` in source order, `\import`'s two arguments
+  are joined into one name, and the older three forms keep working.
+
+  *Done - why it is now true.* `src/citevouch/latex.py` gained
+  `_INCLUDE_ARGUMENTS` (command to argument count, two for `import` and
+  `subimport`), a converter branch that drops those arguments whole, and
+  `_other_includes` which re-reads them from the comment-stripped text so
+  `\verb` and `%` stay invisible. `tests/test_latex_more_includes.py` (26 tests)
+  covers each command twice (text and report), optional arguments, the two
+  invisible forms, the older forms, source order, and one end-to-end `draft`
+  run asserting the note names `sec/intro` while the claim block does not. Four
+  mutations are red: leave the name in the prose (7 tests), never report the
+  file (14), report only the first argument of a two-argument command (5), drop
+  only the command name and keep its argument (7). Shipped in 0.19.75.
+
+  *Not covered*: a file name that itself contains a brace, which TeX cannot
+  express either; `\includegraphics` is still dropped without being reported,
+  because a picture cannot hold a citation.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
