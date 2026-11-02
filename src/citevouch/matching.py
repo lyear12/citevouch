@@ -1,36 +1,45 @@
-"""Locating a quote inside a source: exact, canonical, hyphen, squashed, numbers, fuzzy.
+"""Locating a quote inside a source: exact, canonical, hyphen, pasted, squashed, numbers, fuzzy.
 
-Six tiers, tried in order, each strictly weaker than the last:
+Seven tiers, tried in order, each strictly weaker than the last:
 
 1. **exact** — the normalised quote appears in the normalised page text *at
    word boundaries*: "in the paper" must not match inside "a bin the papers";
 2. **canonical** — the same comparison, after every number on both sides is
    rewritten in one spelling.  A page printing 40.688 and a quote saying
    40,688 hold one number and one sentence; without this tier the masker in
-   tier 5 finds the words, sees different digits, and reports the figure as
+   tier 6 finds the words, sees different digits, and reports the figure as
    absent - an accusation about a number the reader can see on the page;
-3. **hyphen** — the same comparison with every hyphen between two letters
-   removed on both sides.  A page that broke ``high-dimensional`` at the line
-   end extracts as ``high-\\ndimensional``; joining it gives
-   ``highdimensional``, while the author who reads the page quotes
-   ``high-dimensional``.  Which of those the page means is not in the bytes,
-   so this tier refuses to let the difference matter;
-4. **squashed** — the quote appears once *all* whitespace is removed, which
-   rescues text an extractor ran together or split across columns.  The
+3. **hyphen** — the page read the *other* way.  A page that broke
+   ``high-dimensional`` at the line end extracts as ``high-\ndimensional``;
+   ``normalize`` joins that to ``highdimensional``, while the author who reads
+   the page quotes ``high-dimensional``.  Which of the two the page means is
+   not in the bytes, so this tier compares the quote against the page with the
+   hyphen kept.  The hyphen stays on the page side: deleting it from the quote
+   as well certified ``re-cover`` against ``recover``, a claim the page never
+   supports;
+4. **pasted** — the same reading, one space further out.  A reader who
+   selects the region in Acrobat, Word or a browser gets the hyphen *and* a
+   space, because the viewer keeps the glyph it drew and turns the line break
+   into a space.  An author quoting that paste writes ``exam- ples``, which
+   tier 3 still misses by exactly one space.  Measured on 20 real PDFs quoted
+   in a reader's own shapes: 90 quotes, 12 not found, 11 of the 12 this one;
+5. **squashed** — the quote appears once *all* whitespace is removed,
+   which rescues text an extractor ran together or split across columns.  The
    boundary is gone at this tier by construction, so a minimum length keeps it
    from certifying a coincidence;
-5. **numbers** — every number in the quote is masked out on both sides and the
-   *words* still match at full length while the *values* still differ.  This
-   is the tier that separates "you typed the statistic wrong" from "the quote
-   is not in this document";
-6. **fuzzy** — a sliding token-window comparison, used only to say "the quote
-   looks like the source but is not present verbatim", which is reported as a
-   medium-severity finding rather than silently accepted.
+6. **numbers** — every number in the quote is masked out on both sides
+   and the *words* still match at full length while the *values* still differ.
+   This is the tier that separates "you typed the statistic wrong" from "the
+   quote is not in this document";
+7. **fuzzy** — a sliding token-window comparison, used only to say
+   "the quote looks like the source but is not present verbatim", which is
+   reported as a medium-severity finding rather than silently accepted.
 
-Tiers 2 and 3 count as found: the words match and so do the values, and the
-only difference is a separator or a hyphen that the page's own layout makes
-ambiguous.  Tiers 5 and 6 never upgrade a claim to verified - they turn a flat
-"not found" into an actionable "these digits differ" / "these words differ".
+Tiers 2, 3 and 4 count as found: the words match and so do the values, and the
+only difference is a separator, or a hyphen plus the break character that the
+page's own layout and the reader's clipboard make ambiguous.  Tiers 6 and 7
+never upgrade a claim to verified - they turn a flat "not found" into an
+actionable "these digits differ" / "these words differ".
 
 Every tier that may certify a quote also refuses a match whose span cuts a
 number in half (``_cuts_a_number``).  Tier 1's word-boundary rule alone does
@@ -51,6 +60,7 @@ from .textnorm import (
     canonical_number,
     fold,
     fold_keeping_hyphen,
+    fold_pasted,
     squash,
 )
 
@@ -114,7 +124,7 @@ def _is_word_char(ch: str) -> bool:
 
 @dataclass
 class Match:
-    tier: str  # "exact" | "canonical" | "hyphen" | "squashed" | "numbers" | "fuzzy" | "none"
+    tier: str  # "exact" | "canonical" | "hyphen" | "pasted" | "squashed" | "numbers" | "fuzzy" | "none"
     page: int | None = None
     similarity: float = 0.0
     context: str = ""
@@ -140,8 +150,12 @@ class Match:
         every number matches by value, so the only difference left is which
         character the locale prints between digit groups.  A tool that called
         that absent would be reporting a number the author can see on the page.
+
+        ``pasted`` belongs here too: the quote and the page hold the same
+        words, and the one difference is a space the clipboard put after a
+        hyphen the page also has.
         """
-        return self.tier in ("exact", "canonical", "hyphen", "squashed")
+        return self.tier in ("exact", "canonical", "hyphen", "pasted", "squashed")
 
 
 def mask_numbers(text: str) -> str:
@@ -482,6 +496,49 @@ def find_in_pages(
                 reason=(
                     "the quote is on this page; the page printed the hyphen and "
                     "the extraction joined it at a line break"
+                ),
+            )
+
+    # Pasted: the reader's clipboard kept the hyphen and dropped in a space.
+    #
+    #   page:  "... variety of exam-\nples ..."    (extracted)
+    #   quote: "... variety of exam- ples ..."     (pasted out of a viewer)
+    #
+    # Browsers, Acrobat and Word all draw a hyphen at the line end and then
+    # hand the selected text over with a space where the break was, because the
+    # break is a layout fact and the space is what a human expects.  The author
+    # quoting that page therefore writes the hyphen *and* the space, which is
+    # neither of the two readings the tiers above compare against: not
+    # ``examples`` (tier 1 sees the joined page) and not ``exam-ples`` (tier 3
+    # sees the page with a bare hyphen).  The result was a correct quote going
+    # to ``fuzzy`` and being reported at high severity - the tool saying words
+    # the author copied out of the page are not on it.
+    #
+    # Only the break character is relaxed here: ``fold_pasted`` turns the line
+    # break into a space on the page and the quote already carries whichever
+    # character the author's clipboard produced.  The hyphen itself is required
+    # on both sides, so ``re-cover`` cannot be certified against ``recover``.
+    for index in order:
+        page = pages[index]
+        pasted = fold_pasted(page.text)
+        if pasted == page.folded:
+            # This page has no line-break hyphen, so the paste reading is the
+            # join reading character for character and the exact tier above
+            # already tried this quote against it.  This skip is a speed guard,
+            # not a verdict: drop it and the tier gives the same answers.
+            continue
+        spans = _number_spans(pasted)
+        for hit in _bounded_in(pasted, quote_norm):
+            if _cuts_a_number(spans, hit, hit + len(quote_norm)):
+                continue
+            return Match(
+                tier="pasted",
+                page=page.number,
+                similarity=1.0,
+                context=_context(pasted, hit, len(quote_norm)),
+                reason=(
+                    "the quote is on this page; the reader's clipboard kept the "
+                    "hyphen at the line end and put a space where the break was"
                 ),
             )
 

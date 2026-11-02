@@ -2825,3 +2825,15 @@ The `numbers` tier finds a quote by blanking every number on both sides and comp
 
 **Evidence.** 2026-11-01. Measured before the fix: page `We collected 40,688 examples for training. The held-out set of 9,800 rolesets was annotated separately.`, quote `We collected 9,800 examples for training.` gave `[high] number-absent-in-quote ... the words match page 1 but the numbers do not; the quote records 9,800`, exit 1 - while `9,800` is printed on page 1. The tier had computed `page_numbers == ('40,688',)` and dropped it. Seven mutations, all red: record nothing, read the page's first N numbers instead of the ones under the blanks, name every number rather than the ones that differ, disable the new code, restore the old sentence, and soften the severity. Seen 1.
 
+
+## A mutation that survives is a claim about the code, not only about the tests
+
+The `pasted` tier began as two mechanisms: fold the page's line breaks to `- `, and then collapse the remaining hyphen-space pairs on both sides while carrying an offset map so the excerpt could still point at the printed page. Four of seven mutations survived - including "stop collapsing the space" and "ignore the offset map". The reflex reading is "the tests are too weak". The right reading was that the second mechanism was dead: because `fold_pasted` already rewrites the page's line breaks to the same `- ` shape the reader's clipboard produces, both sides of the comparison are character-identical, so there is no space left to collapse and no offset to remap.
+
+**Rule.** When a mutation survives, first ask whether the code it disabled does anything. Delete the mechanism and re-run the whole mutation set; if every mutation is now red, the survivor was never a missing test. Only write the missing test when the mechanism turns out to be load-bearing and merely unobserved.
+
+**Why this is not the usual "write more tests".** A surviving mutation has two possible causes with opposite remedies: an unobserved behaviour, or an unexercised mechanism. Writing tests for the second case cements the redundancy - the suite then fails if a later reader removes code that no input needs, which is exactly the wrong pressure. The second case is cheaper to settle than the first, too: delete, re-run, read the answers.
+
+**How to apply.** Keep the mutation list as one script so it can be re-run in one command. When a mutation survives, delete the mechanism it targets, run the full list again, and only then decide which of the two cases you are in. Record the outcome either way; here the deletion removed `_unspaced`, its `_PASTED_GAP` pattern and an offset remapping, and the seven mutations went from four survivors to none.
+
+**Evidence.** 2026-11-02. First run over `tests/test_pasted_tier.py`: 3 red, 4 green. After deleting the collapse-and-remap mechanism and simplifying the tier to compare `fold_pasted(page.text)` against the quote directly: 7 red, 0 green, `survivors: none`. The deletion also removed the only reason the excerpt needed an offset map, so a later reader cannot reintroduce half of it. Seen 1.
