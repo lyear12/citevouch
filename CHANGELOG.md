@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.62] — 2026-11-02
 ### Fixed
 
 - `doctor` re-rooted a relative `--manuscript` path that already worked, so it
@@ -23,7 +25,6 @@ tag and that file disagree.
   failure.  `doctor` now resolves paths through `scan._resolve`, the helper
   `scan`, `verify`, `check` and `draft` already share: a path that exists as
   typed is never re-rooted.  Seven tests, three mutations all red.
-
 ## [0.19.61] — 2026-11-02
 ### Fixed
 
@@ -1754,7 +1755,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.61...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.62...HEAD
+[0.19.62]: https://github.com/lyear12/citevouch/releases/tag/v0.19.62
 [0.19.61]: https://github.com/lyear12/citevouch/releases/tag/v0.19.61
 [0.19.60]: https://github.com/lyear12/citevouch/releases/tag/v0.19.60
 [0.19.59]: https://github.com/lyear12/citevouch/releases/tag/v0.19.59
