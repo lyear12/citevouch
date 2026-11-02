@@ -232,6 +232,33 @@ not what changed, but what proves the change works.
   truncation landing mid-number is a JSON parse error, which already exited 2 and
   has its own test.
 
+- [x] **A lockfile of balanced brackets still exited 1, because `json.loads` is recursive.**
+  *Found and fixed 2026-11-02, the same day as the entry above.*
+  `_read_ledger` guarded `json.loads` with `except (OSError, ValueError)` —
+  what malformed JSON raises. A file of twenty thousand nested arrays is not
+  malformed, and the same call raised `RecursionError: Stack overflow (used
+  2912 kB) while decoding a JSON array from a unicode string`. `RecursionError`
+  is a `RuntimeError`, so it left `main` untouched and the interpreter exited
+  **1**: the identical false verdict as the twenty damaged shapes above,
+  arriving through the parser instead of through a key.
+  *Who is blocked*: the same reader as the entry above, through a path the
+  shape guards cannot see — the guard enumerated damaged *values*, and this file
+  decodes to no value at all.
+  *Done when*: a nest the parser cannot survive is refused the way a syntax
+  error is, with a message that says why.
+  **Done — why it is now true:** `cli._read_ledger` catches `RecursionError`
+  and raises `UsageError` saying the file nests too deeply for the standard
+  library parser, which no citevouch ledger does. Measured before on one file:
+  `RC=1` with a stderr traceback ending at `json/decoder.py, line 361, in
+  raw_decode`; after: exit 2 at both 20000 and 200000 nesting. Five tests in
+  `tests/test_damaged_ledger.py::TestANestDeepEnoughToBreakTheParser`, one of
+  which subprocesses the real CLI so a traceback reaching stderr fails the test
+  directly, and one that brackets the depth (2000 decodes, 20000 does not)
+  instead of pinning a number that belongs to the platform's stack limit.
+  *Not covered*: no test at the exact depth where this interpreter gives up, for
+  the reason just given. Nothing measures what a slower machine's stack does
+  between 2000 and 20000.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
