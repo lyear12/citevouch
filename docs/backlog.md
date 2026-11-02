@@ -398,6 +398,33 @@ not what changed, but what proves the change works.
   a stub console script on PATH and asserts a clean project exits 0 and a
   drifted source exits 1 — the file is tested as behaviour, not as YAML.
 
+- [x] **`draft -o` could write proposals over a file the project is read from.**
+  The command refused `-o manuscript.md` and compared its output against nothing
+  else, so `-o sources.toml --force` reported success and left a project that had
+  just said `1 claim - 1 verified` unable to resolve any claim.
+  *Who is blocked*: anyone who follows the advice the tool prints. The command
+  ends by naming the file it wrote and telling the author to run `check` on it; a
+  tired reader who types the file they were just reading about - the manifest, the
+  bibliography they passed with `--bib`, the ledger - replaces the project's map
+  with proposals and has no way back.
+  *Done when*: every file the run reads is compared against the output, the
+  refusal exits 2 and names a path that works, and the protected files are
+  byte-identical afterwards. Reverse check: remove the guard and the new tests go
+  red.
+  **Done — why it is now true:** `cmd_draft` calls
+  `_refuse_an_output_that_is_an_input`, which resolves the output once and
+  compares it against both manifest names, each `--bib` path, each `--source`
+  path, and the ledger. Both manifest names, not just the one that exists:
+  `sources.json` beside a live `sources.toml` overwrites nothing and still breaks
+  the project, because two manifests are refused rather than guessed between.
+  `tests/test_draft_output_guard.py` (10 tests) asserts exit 2 and reads each
+  protected file back byte for byte, including the ledger after a real `scan`.
+  Three mutations, all red - the guard not called at all, only the existing
+  manifest protected, and the ledger dropped from the list.
+  *Not covered*: a `--bib` or `--source` path that does not exist yet is not
+  protected, because the command already refuses a missing input before the guard
+  runs, so the two never meet.
+
 - [x] **`pyproject.toml` declares an `xlsx` extra that no code uses.**
   `openpyxl` is offered as an optional dependency and nothing imports it. That
   is a promise to users and a false one.
