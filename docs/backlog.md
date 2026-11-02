@@ -102,6 +102,32 @@ not what changed, but what proves the change works.
   (`\\server\share`), where the OS reports a different errno than a missing
   file; `why_not_a_file` already distinguishes them, but no test exercises the
   doctor line that now surfaces it.
+
+- [x] **`doctor` called a directory "does not exist".**
+  The manuscript check was `if target.is_file(): ... else: "does not exist"`,
+  so every way a path can fail to be a file collapsed into the one sentence
+  that says nothing is there — including a directory the reader can see in
+  their file manager. `citevouch check` on the same path said `is a directory,
+  not a file`, so the tool argued with itself and the wrong side was the
+  command whose job is to explain the other.
+  *Who is blocked*: anyone who typed the directory instead of the file inside
+  it, which is the most natural way to get `--manuscript` wrong.
+  *Done when* `doctor` answers with the same sentence the rest of the tool
+  uses, and a directory gets a fix that names the manuscript inside it.
+  **Done — why it is now true:** `doctor._project` asks
+  `errors.why_not_a_file`, so a directory, an unreachable share and a missing
+  file are three sentences with three next steps, and the directory's fix line
+  names `<the directory passed>\manuscript.md` rather than the generic
+  `--root` advice that would send the reader back to the directory. Proved by
+  three tests, one of which runs `check` and `doctor` on one path and requires
+  what `doctor` says to be something `check` also said — written against
+  agreement rather than against a list of cases. Three mutations; the second,
+  "the directory gets the generic fix", survived the first run because that
+  advice also ends in `manuscript.md` and nothing asked which directory the
+  path came from. Red once the test asserted the path came from the argument.
+  *Not covered*: an unreachable Windows share as the manuscript path;
+  `why_not_a_file` has its own tests for the raw errno distinction, but
+  nothing drives the doctor line that surfaces that text.
   **Also fixed:** the `doctor` test fixture was itself a project that could not
   run — it wrote a `sources.toml` naming `a.txt` and never wrote `a.txt`, so
   three tests asserting an ok report were passing only because the check did
