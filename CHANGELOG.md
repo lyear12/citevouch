@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.47] — 2026-11-02
 ### Fixed
 
 - **`doctor` passed a manuscript that holds no claim blocks, which is the same silence it was written to explain.** A file with no blocks produces `0 claims - 0 verified, 0 moved, 0 missing` with `worst severity: info` and exit 0 - a green run of a check that never happened. `check` reports `no-claim-blocks` (high) and exits 1, and `verify` does the same for a ledger that recorded none; `doctor` printed `[ok  ] manuscript  manuscript.md (76 bytes)`, closed with `Everything this tool needs is on this machine.` and exited 0. This is the fourth version of one shape in this file: the manuscript line asked whether a path is a file, and "is a file" is not a question about whether the run will find anything. It now carries a seventh check, `claims`, that parses the manuscript and reports `5 claim blocks`, or `none that the parser could read; the next command names why` for a block the parser refused (that case already has its own finding naming the line), or fails with the `citevouch draft` step for a file with nothing to propose from. The condition itself is now `ParseResult.nothing_to_check` - one property, not the same expression typed out in three modules, which is exactly how the third reader came to be written without it. Six mutations, all red; two survived the first run and both were real gaps - a manuscript fixture with exactly one block cannot fail a test about counting, and my own mutation anchored on the wrong `ok=False` (there are two). One README example and the fixture's `# t` manuscript had to change with it, which is the same lesson as the last three rounds.
-
 ## [0.19.46] — 2026-11-02 — 2026-11-02
 ### Fixed
 
@@ -1582,7 +1583,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.46...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.47...HEAD
+[0.19.47]: https://github.com/lyear12/citevouch/releases/tag/v0.19.47
 [0.19.46]: https://github.com/lyear12/citevouch/releases/tag/v0.19.46
 [0.19.45]: https://github.com/lyear12/citevouch/releases/tag/v0.19.45
 [0.19.44]: https://github.com/lyear12/citevouch/releases/tag/v0.19.44
