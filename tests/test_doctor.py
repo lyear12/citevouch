@@ -556,3 +556,67 @@ class TestTheExampleInTheReadme:
         )
         for sentence in out.strip().splitlines()[-1:]:
             assert sentence in english, f"README does not contain: {sentence!r}"
+
+
+class TestTheCountIsWhatTheFileHolds:
+    """`claims` counts blocks the parser *saw*, not only the ones it accepted.
+
+    `parsed.claims` holds accepted blocks and `parsed.spans` holds seen ones.
+    The check reported `len(parsed.claims)`, so a manuscript with one good block
+    and one that forgot `id=` was described as "1 claim block" - a file with two
+    blocks called a file with one, in the check whose entire purpose is to stop
+    false statements.  `check` on the same file reports the second block as
+    `claim-uncheckable` and counts `1 claim - 1 verified`, so both numbers are
+    defensible; only one of them is a description of the file.
+    """
+
+    def _blocks(self, tmp_path: Path, *blocks: str) -> Path:
+        target = tmp_path / "manuscript.md"
+        target.write_text(chr(10).join(blocks) + chr(10), encoding="utf-8")
+        return target
+
+    def test_a_block_that_forgot_its_id_is_still_a_block(self, tmp_path: Path):
+        good = "```claim id=c1 source=a page=1\nquote: |\n  alpha beta gamma\n```"
+        anonymous = "```claim source=a page=1\nquote: |\n  delta epsilon zeta\n```"
+        report = doctor._claim_blocks(self._blocks(tmp_path, good, anonymous))
+        assert report.detail.startswith("2 claim blocks"), report.detail
+
+    def test_the_line_says_how_many_of_them_were_read(self, tmp_path: Path):
+        # Without this half the count is a riddle: "2 blocks" next to a run that
+        # checked one leaves the reader to work out which of the two is missing.
+        good = "```claim id=c1 source=a page=1\nquote: |\n  alpha beta gamma\n```"
+        anonymous = "```claim source=a page=1\nquote: |\n  delta epsilon zeta\n```"
+        report = doctor._claim_blocks(self._blocks(tmp_path, good, anonymous))
+        assert "1 of which the parser could read" in report.detail, report.detail
+        assert "names the rest" in report.detail, report.detail
+
+    def test_a_file_where_every_block_was_read_keeps_the_plain_count(self, tmp_path: Path):
+        # The terse form has to survive for the ordinary case, or every clean
+        # project gets a sentence about blocks that were read.
+        good = "```claim id=c1 source=a page=1\nquote: |\n  alpha beta gamma\n```"
+        second = "```claim id=c2 source=a page=1\nquote: |\n  delta epsilon zeta\n```"
+        report = doctor._claim_blocks(self._blocks(tmp_path, good, second))
+        assert report.detail == "2 claim blocks", report.detail
+
+    def test_a_file_whose_blocks_were_all_refused_does_not_say_zero(self, tmp_path: Path):
+        # The old `parsed.claims` branch could not be reached here at all, so
+        # this is the shape that proves the count is not simply `len(claims)+1`.
+        anonymous = "```claim source=a page=1\nquote: |\n  alpha beta gamma\n```"
+        report = doctor._claim_blocks(self._blocks(tmp_path, anonymous))
+        assert "names why" in report.detail, report.detail
+
+    def test_the_two_counts_disagree_only_by_what_was_refused(self, tmp_path: Path):
+        """A file with no refusals has one number, and it is the same number.
+
+        Written as a relation between the two shapes rather than as two strings:
+        adding a block the parser accepts must raise the count by exactly one.
+        """
+        good = "```claim id=c1 source=a page=1\nquote: |\n  alpha beta gamma\n```"
+        second = "```claim id=c2 source=a page=1\nquote: |\n  delta epsilon zeta\n```"
+        anonymous = "```claim source=a page=1\nquote: |\n  iota kappa lambda\n```"
+        one = doctor._claim_blocks(self._blocks(tmp_path, good))
+        two = doctor._claim_blocks(self._blocks(tmp_path, good, second))
+        refusals = doctor._claim_blocks(self._blocks(tmp_path, good, second, anonymous))
+        assert one.detail == "1 claim block"
+        assert two.detail == "2 claim blocks"
+        assert refusals.detail.startswith("3 claim blocks"), refusals.detail

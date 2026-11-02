@@ -248,9 +248,14 @@ def _claim_blocks(target: Path) -> Report:
     that starts with 'claim-'``.  Two readers already had that expression typed
     out separately; that is how this one came to be written without it.
 
-    A block the parser refused is *not* reported here.  It has its own finding
-    naming the line and the fault, and ``doctor`` exists to explain silence, not
-    to pre-empt a message the next command will print in more detail.
+    A block the parser refused is *not* reported as a problem here.  It has its
+    own finding naming the line and the fault, and ``doctor`` exists to explain
+    silence, not to pre-empt a message the next command will print in more
+    detail.  It is still *counted*, though: ``parsed.claims`` holds the blocks
+    the parser accepted while ``parsed.spans`` holds the ones it saw, and a file
+    with one good block and one that forgot ``id=`` contains two.  Reporting the
+    accepted count alone said "1 claim block" about that file - a false statement
+    in the one check whose job is to stop false statements.
     """
     try:
         parsed = parse_manuscript(read_text(target), path=target.name)
@@ -262,10 +267,20 @@ def _claim_blocks(target: Path) -> Report:
             fix="Check the file's permissions, or pass a manuscript this tool can open.",
         )
     if parsed.claims:
+        seen, read = len(parsed.spans), len(parsed.claims)
+        if read == seen:
+            return Report(
+                name="claims",
+                ok=True,
+                detail=count_of(read, "claim block"),
+            )
         return Report(
             name="claims",
             ok=True,
-            detail=count_of(len(parsed.claims), "claim block"),
+            detail=(
+                f"{count_of(seen, 'claim block')}, {read} of which the parser "
+                "could read; the next command names the rest"
+            ),
         )
     if not parsed.nothing_to_check:
         # The parser found something and refused it.  That is a finding, not a

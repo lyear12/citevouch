@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`doctor` described a file with two claim blocks as a file with one.** `_claim_blocks` counted `len(parsed.claims)`, which holds the blocks the parser *accepted*; a manuscript with one good block and one that forgot `id=` reported `[ok  ] claims      1 claim block`. The blocks the parser saw live in `parsed.spans` and there were two, so the check said something false about the file - in the one check whose whole purpose is to stop false statements, and in the module whose docstring explains that a refused block "has its own finding ... `doctor` exists to explain silence, not to pre-empt a message the next command will print". Both counts are defensible: `check` on that file prints `[high] claim-uncheckable` at the refused line and `1 claim - 1 verified`, and one of those numbers is a description of the file while the other is a description of the run. `doctor` now reports `2 claim blocks, 1 of which the parser could read; the next command names the rest`, and keeps the terse `2 claim blocks` for a file where nothing was refused, because a clean project should not be told about a split it does not have. Five tests, three mutations all red - one of them restoring exactly the shipped line, one dropping the "N of which" half (a count with no explanation of the gap is a riddle), and one that extends the long sentence to every file.
 
 ## [0.19.49] — 2026-11-02
 ### Fixed

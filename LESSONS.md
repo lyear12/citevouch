@@ -3168,3 +3168,33 @@ exit 2, at both 20000 and 200000. Five tests in `tests/test_damaged_ledger.py`
 (`TestANestDeepEnoughToBreakTheParser`), one of which subprocesses the real CLI to
 assert no traceback reaches stderr. Two mutations, both red once the harness stopped
 lying. Released as 0.19.49. Seen 1.
+
+## A count must count what the reader can see, not what the code happened to accept
+
+**Rule.** When a message reports *how many* of something are in a file, count the
+things the file holds - not the subset the current parser accepted. If those two
+numbers can differ, the message has to say so and explain the gap.
+
+**Why this keeps happening.** Two counts sit next to each other in `ParseResult`:
+`claims` (what parsed) and `spans` (what was seen). The whole tool is written from
+the first one, because everything downstream works on claims it can reason about,
+so `len(parsed.claims)` looks like *the* count of claim blocks. It is the count of
+claim blocks this run could use. For a report to the author those are different
+facts, and the difference is exactly the thing the author needs to know.
+
+**How to apply.** Before writing `count_of(len(...), noun)` into a message, ask what
+the reader will compare it against: the file they are looking at, or the run that
+just finished. If they will look at the file, count the file. And when the two
+numbers can differ, print both and name the reason - `2 claim blocks, 1 of which
+the parser could read; the next command names the rest` - because a bare count that
+disagrees with the next command's count is worse than either number alone.
+
+**Evidence.** 2026-11-02. A manuscript with one good block and one that forgot
+`id=` reported `[ok  ] claims      1 claim block` from `doctor`, while `check` on
+the same file reported `[high] claim-uncheckable` at the refused line and
+`1 claim - 1 verified`. Measured `parsed.claims=1, parsed.spans=2`. After the fix:
+`2 claim blocks, 1 of which the parser could read; the next command names the
+rest`, and a clean two-block file still says `2 claim blocks`. Five tests in
+`tests/test_doctor.py` (`TestTheCountIsWhatTheFileHolds`); three mutations, all red
+- the shipped line, the sentence without its explanatory half, and the sentence
+applied to files that do not need it. Released as 0.19.50. Seen 1.
