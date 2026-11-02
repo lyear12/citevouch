@@ -40,6 +40,34 @@ not what changed, but what proves the change works.
   `tests/test_readme_example.py` needed no change because no demo quote crosses
   a page break.
 
+- [x] **A number that is on the page, in another sentence, is reported as a
+  number the page does not contain.**
+  The `numbers` tier matches a quote with every number blanked out, so it knows
+  which of the page's numbers sit where the quote's numbers sit — and it threw
+  that away. The verifier then asked "is 9,800 anywhere on page 1?", which for a
+  quote that borrowed a number from the next sentence answers yes, so the run
+  fell back to the summary and printed `the words match page 1 but the numbers
+  do not; the quote records 9,800` — about a number printed four lines further
+  down the same page. The author who turns the page, sees it, and stops
+  trusting the tool is right to.
+  *Who is blocked*: any author who condenses two sentences of a source into one
+  quote, which is what a literature review does by default.
+  *Done when* the page's own numbers at the quote's own positions are what the
+  message reports, and the old sentence can no longer be produced.
+  **Done — why it is now true:** `Match.page_numbers` carries the numbers the
+  page prints under the quote's blank positions, in quote order;
+  `verify._number_where_checks` compares them to the quote's own and reports
+  `number-not-in-passage` (high) naming both sides. `number-absent-in-quote`
+  keeps only the case it is literally true of: the page has no such number at
+  all. Proved by `tests/test_number_elsewhere.py` (15), whose premise tests
+  check the tier records `('40,688',)` for a blind hit and `()` for an exact
+  one. Seven mutations, all red, including "read the page's first N numbers
+  instead of the ones under the blanks" and "soften the code to medium" — the
+  second matters because a default `--fail-on high` run has to fail on a
+  transcribed statistic.
+  *Not covered*: `verify.py` is not the only consumer that could have used the
+  slot mapping; nothing else does yet.
+
 - [x] **`docs/metrics.md` does not exist.**
   Nobody can tell whether any of this works.
   *Who is blocked*: the maintainer, i.e. me — without a written record every
