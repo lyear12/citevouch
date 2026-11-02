@@ -30,6 +30,7 @@ from . import draft as draft_module
 from . import latex as latex_module
 from .bibtex import parse_bib
 from .errors import CitevouchError, UsageError, why_not_a_file
+from .manuscript import parse_manuscript
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, scan
@@ -347,6 +348,22 @@ def _count(count: int, noun: str, plural: str = "") -> str:
     return count_of(count, noun, plural)
 
 
+def _existing_claim_ids(text: str) -> set[str]:
+    """The claim ids the manuscript already uses.
+
+    ``draft`` names each proposal after the citation key, and the author's
+    instruction is to paste those blocks into the manuscript they came from.
+    When the key is already in use there - a manuscript that has one claim block
+    and one sentence the author is about to prove - the pasted block collides
+    with the one already there, and `check` answers `claim-uncheckable ... the
+    second is ignored`: the newest block, the one the author just added, is the
+    one dropped.  Reading the ids the file already holds costs one parse and
+    turns that into a suffix.
+    """
+    parsed = parse_manuscript(text)
+    return {claim.id for claim in parsed.claims if claim.id}
+
+
 def cmd_draft(args: argparse.Namespace) -> int:
     """Propose claim blocks for a manuscript that has none.
 
@@ -421,6 +438,15 @@ def cmd_draft(args: argparse.Namespace) -> int:
         known=known,
         root=root,
         table=table,
+        # The ids the manuscript already uses.  A proposal is a block the author
+        # pastes next to the original, so an id the original already has is a
+        # collision the author has no way to see: `check` then reports
+        # `claim-uncheckable ... the second is ignored`, and the block they just
+        # added is the one being ignored.  Measured: a manuscript with
+        # `id=paper` got a proposal also named `paper`, and appending it - which
+        # is the only thing this command tells them to do - turned a working
+        # project into a high-severity one.
+        taken_ids=_existing_claim_ids(text),
     )
     text = draft_module.render(result, manuscript.name, converted=converted, included=included)
     _write_text_lf(output, text)

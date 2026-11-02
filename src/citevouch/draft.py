@@ -482,11 +482,24 @@ def draft(
     table: sources.SourceTable | None = None,
     page_cache: dict | None = None,
     max_terms: int = 0,
+    taken_ids: set[str] | None = None,
 ) -> Draft:
-    """Read `text` and write down what could be proposed for it."""
+    """Read `text` and write down what could be proposed for it.
+
+    ``taken_ids`` is the set of claim ids the manuscript already uses, and it is
+    not optional in spirit: `draft` proposes blocks for a file that is about to
+    be read next to the original, and a proposal whose id the manuscript already
+    has produces a file where `check` reports `claim-uncheckable` - "claim id
+    'paper' is used twice ... the second is ignored" - so the block the author
+    just pasted is silently not the one being checked.  Measured before this
+    parameter existed: a manuscript holding `id=paper` and one uncited-looking
+    sentence got a proposal also named `paper`, and appending it (the only thing
+    the tool tells you to do) turned a working project into a high-severity
+    one.  The author copies one block; the tool must not hand them a collision.
+    """
     pages_for: dict[str, list] = page_cache if page_cache is not None else {}
     result = Draft()
-    used_ids: set[str] = set()
+    used_ids: set[str] = set(taken_ids or ())
     seen: set[tuple[int, str]] = set()
     proposed_quotes: set[str] = set()
     sites = citation_sites(text)

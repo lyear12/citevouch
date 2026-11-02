@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`draft` proposed a block whose id the manuscript already used, so the block the author pasted was the one `check` ignored.** The command names each proposal after its citation key and tells the author to read the file and copy the blocks in. A manuscript that already holds `id=paper` and one more sentence citing `[@paper]` therefore got a proposal labelled `paper` too, and appending it - the only thing the tool tells you to do - produced `[high] claim-uncheckable at merged.md:12 (paper): claim id 'paper' is used twice (first at line 3); the ledger cannot track both, so the second is ignored`. The ignored one is the newest block in the file. `draft()` now takes `taken_ids`, and `cmd_draft` fills it from `parse_manuscript(text)` so the ids the file already holds seed the set `_claim_id` de-duplicates against; the second proposal for one key becomes `paper-2`, then `paper-3`, and a manuscript with no blocks still gets the plain key. Four mutations, all red - one ignoring `taken_ids`, one letting it *replace* the de-duplication (which would make two citations of one key collide with each other instead), one passing `None` from the command, and one reading only the first existing id, which a one-block fixture cannot see.
 
 ## [0.19.50] — 2026-11-02
 ### Fixed

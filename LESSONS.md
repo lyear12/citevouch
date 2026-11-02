@@ -3198,3 +3198,42 @@ rest`, and a clean two-block file still says `2 claim blocks`. Five tests in
 `tests/test_doctor.py` (`TestTheCountIsWhatTheFileHolds`); three mutations, all red
 - the shipped line, the sentence without its explanatory half, and the sentence
 applied to files that do not need it. Released as 0.19.50. Seen 1.
+
+## A block a tool tells you to paste must be pasteable
+
+**Rule.** When a command emits something the user is instructed to combine with
+an existing artifact, every name in the emitted piece has to be unique against
+the artifact it will be combined with. The tool knows the artifact - it just read
+it - so a collision it hands over is a collision it created.
+
+**Why this one is easy to miss.** `draft` reads the manuscript for citations and
+never looked at the manuscript's claim blocks, because a block is not a citation
+and the function that collects citations has no business collecting blocks. Each
+half is right on its own: `_claim_id(key, used)` de-duplicates against the ids
+*it* handed out, which is a complete set of its own output and an empty set
+against the file. The defect lives in the seam between two correct functions,
+and the instruction that crosses the seam - "read it, then `citevouch check
+proposals.md`" - is what makes the seam load-bearing.
+
+**How to apply.** For any command whose output is meant to be merged, ask what
+the merge target already contains and seed the generator with it. Then test the
+merge, not the pieces: the assertion that matters is placing the output into the
+target and running the command that judges the combination. A test that compares
+the emitted id against a literal cannot see this - it passes for the wrong id too.
+
+**The other direction.** Seeding a set is not the same as using it. `used_ids =
+set(taken_ids or ())` must still *grow* inside the loop, or two citations of one
+key start colliding with each other in a file that has no blocks at all - which
+is the case that used to work, so the regression would look like a new bug in a
+different command. One test seeds the set and asks for two proposals; a mutation
+that keeps the seed but drops the loop fails it.
+
+**Evidence.** 2026-11-02. A manuscript holding `id=paper` plus one more sentence
+citing `[@paper]` got a proposal labelled `paper`; appending it - the only thing
+`draft` tells you to do - produced `[high] claim-uncheckable ... claim id 'paper'
+is used twice (first at line 3); the ledger cannot track both, so the second is
+ignored`, and the ignored block was the one just added. After the fix the proposal
+is `paper-2` and `check` on the merged file exits 0. `tests/test_draft_claim_ids.py`
+(8 tests); four mutations, all red, including one that reads only the first
+existing id - invisible on a one-block fixture, which is why the fixture now holds
+two blocks and the colliding key is the second one. Seen 1.
