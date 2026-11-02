@@ -11,6 +11,27 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- Seven more file-inclusion commands pasted their path into the sentence and
+  reported nothing: `\subfile{sec/intro}` became `sec/intro` in the converted
+  text while `included_files` returned `[]`, and the same held for `\import`,
+  `\subimport`, `\includestandalone`, `\includepdf`, `\lstinputlisting` and
+  `\verbatiminput`. Each was in neither `_KEEP_ARGUMENT` nor `_DROP_ARGUMENT`,
+  so it fell through to "drop the command name, keep everything after it" - the
+  same fallthrough that produced `blueblue` for `\textcolor`. Two things went
+  wrong at once: the sentence `draft` proposes a claim for carried a file path,
+  and the note telling the author which parts of the paper were not read was
+  empty, so a paper split across seven files looked as if it had been read
+  whole. `_INCLUDE_ARGUMENTS` now records each command and how many arguments
+  name the file (`\import` and `\subimport` take two, and their names are
+  concatenated), the converter drops the arguments whole, and `included_files`
+  reports them in source order alongside the three forms it already knew.
+  `tests/test_latex_more_includes.py` covers all seven commands, optional
+  arguments, the verbatim and comment forms that must stay invisible, and one
+  end-to-end `draft` run; four mutations - leave the name in the prose, never
+  report the file, report only the first argument of a two-argument command,
+  drop only the command name - are all red.
 
 ## [0.19.74] — 2026-11-02
 ### Fixed

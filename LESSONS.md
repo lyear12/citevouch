@@ -4085,3 +4085,34 @@ converting it -> 1 red (the anchor needed widening, because the call appears
 twice in the file).
 
 Seen 1.
+
+## When the name of a file is prose, the file was not read
+
+**Rule.** A LaTeX command that names a file has to do two things at once: keep
+the name out of the prose, and put it in the list of files this module did not
+read. Doing neither is the worst combination, because the sentence looks
+complete and the warning list looks empty.
+
+**Why this keeps happening.** `to_text` and `included_files` are two functions
+over the same input, and each has its own idea of which commands matter.
+`to_text` classifies commands into "keep the argument" and "drop the argument",
+and anything in neither falls through to "keep whatever it wraps, drop the
+name". That fallback is correct for `\textbf` and wrong for every command whose
+first argument is a path or a colour. `included_files` has a hand-written list
+of three commands, so a command outside that list is invisible to it while it
+is visible to the converter. Measured on seven commands - `\subfile`,
+`\import`, `\subimport`, `\includestandalone`, `\includepdf`,
+`\lstinputlisting`, `\verbatiminput` - every one left its path in the sentence
+and reported nothing.
+
+**How to apply.** When a converter has a fallthrough, enumerate the commands
+that reach it and ask of each one: is its argument prose? The fallback is not a
+default, it is a claim that the wrapped text is the sentence. And when two
+functions read the same file, walk the same command list through both - a test
+that only checks the prose passes while the report stays silent.
+
+**Evidence.** `\subfile{sec/intro}` converted to `'sec/intro'` with
+`included_files` returning `[]`; after the fix, `'A B'` and
+`['sec/intro', 'chapters/one', 'two', ...]`. Four mutations (name in the prose,
+file never reported, only the first argument of `\import`, name dropped but
+argument kept) are all red. Seen 1.

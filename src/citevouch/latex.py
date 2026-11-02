@@ -122,6 +122,32 @@ _INCLUDE = re.compile(r"\\in(?:put|clude|cludeonly)\s*\{([^}]*)\}")
 #: ``included_files`` returning ``[]``.
 _BARE_INPUT = re.compile(r"\\input\s+(?P<name>[^\s{}%\\]+)")
 
+#: File-inclusion commands beyond ``\input``/``\include``/``\includeonly``, and
+#: how many braced arguments name the file: ``\import{dir/}{file}`` takes two and
+#: the name is their concatenation, everything else takes one.
+#:
+#: Each of these was in neither the keep-list nor the drop-list, so the same
+#: fallthrough that produced ``redsmall`` for ``\textcolor`` pasted the path into
+#: the prose - and ``included_files`` said nothing was included.  Measured:
+#: ``\subfile{sec/intro}`` became ``sec/intro`` in the text and ``[]`` from
+#: ``included_files``; ``\includepdf{pages/p1.pdf}`` became ``pages/p1.pdf``;
+#: ``\lstinputlisting{code/s1.py}`` became ``code/s1.py``.  The whole point of
+#: this list is that a paper split across files keeps its citations in the parts,
+#: and the parts were being read as if they were sentences.
+_INCLUDE_ARGUMENTS = {
+    "subfile": 1,
+    "import": 2,
+    "subimport": 2,
+    "includestandalone": 1,
+    "includepdf": 1,
+    "lstinputlisting": 1,
+    "verbatiminput": 1,
+}
+
+_INCLUDE_COMMAND = re.compile(
+    r"\\(?P<name>" + "|".join(sorted(_INCLUDE_ARGUMENTS, key=len, reverse=True)) + r")\s*"
+)
+
 # Commands whose argument is not prose.
 _DROP_ARGUMENT = frozenset(
     {
@@ -535,6 +561,17 @@ def _convert(text: str) -> str:
                         continue
                     index = cursor
                     continue
+                if name in _INCLUDE_ARGUMENTS:
+                    # The file name is not prose.  Drop the arguments whole;
+                    # `included_files` reports them separately.
+                    cursor = _skip_optional_args(text, end)
+                    for _ in range(_INCLUDE_ARGUMENTS[name]):
+                        group = _group_end(text, cursor)
+                        if group < 0:
+                            break
+                        cursor = _skip_optional_args(text, group)
+                    index = cursor
+                    continue
                 if name in _DROP_ARGUMENT:
                     cursor = _skip_optional_args(text, end)
                     group = _group_end(text, cursor)
@@ -636,9 +673,15 @@ def included_files(tex: str) -> list[str]:
     it was also left in the prose, so a paper split across files got a clean
     zero that mentioned neither the missing half nor the stray path.
 
-    The two patterns cannot overlap: ``_INCLUDE`` needs a ``{`` right after the
-    command, and ``_BARE_INPUT`` needs whitespace and then a name that excludes
-    ``{``.  Sorting by position therefore needs no de-duplication between them.
+    ``\\subfile``, ``\\import``, ``\\subimport``, ``\\includestandalone``,
+    ``\\includepdf``, ``\\lstinputlisting`` and ``\\verbatiminput`` count too,
+    through ``_INCLUDE_ARGUMENTS``: each of them names a file whose text was not
+    read, and each used to be pasted into the prose instead of reported.
+
+    The patterns do not overlap: ``_INCLUDE`` needs a ``{`` right after
+    ``\\in…``, ``_BARE_INPUT`` needs whitespace and then a name that excludes
+    ``{``, and ``_INCLUDE_COMMAND`` names seven other commands in full.
+    Sorting by position therefore needs no de-duplication between them.
     """
     stripped = _drop_inline_verbatim(strip_comments(tex))[0]
     found: list[tuple[int, str]] = [
@@ -647,12 +690,35 @@ def included_files(tex: str) -> list[str]:
     found.extend(
         (match.start(), match.group("name")) for match in _BARE_INPUT.finditer(stripped)
     )
+    found.extend(_other_includes(stripped))
     seen: list[str] = []
     for _, name in sorted(found):
         name = name.strip()
         if name and name not in seen:
             seen.append(name)
     return seen
+
+
+def _other_includes(text: str) -> list[tuple[int, str]]:
+    """The file names in ``_INCLUDE_ARGUMENTS``, with ``\\import`` joined up.
+
+    ``\\import{chapters/}{one}`` names one file, ``chapters/one``; every other
+    command in the table names its file in a single argument.
+    """
+    found: list[tuple[int, str]] = []
+    for match in _INCLUDE_COMMAND.finditer(text):
+        cursor = _skip_optional_args(text, match.end())
+        parts: list[str] = []
+        for _ in range(_INCLUDE_ARGUMENTS[match.group("name")]):
+            group = _group_end(text, cursor)
+            if group < 0:
+                break
+            parts.append(text[cursor + 1 : group - 1])
+            cursor = _skip_optional_args(text, group)
+        name = "".join(parts)
+        if name:
+            found.append((match.start(), name))
+    return found
 
 
 def to_text(tex: str) -> str:
