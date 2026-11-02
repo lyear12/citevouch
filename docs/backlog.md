@@ -760,6 +760,37 @@ not what changed, but what proves the change works.
   the last one silently, and no decision has been made about refusing it.
 
 
+- [x] **`Claim`'s docstring promised a check that does not exist: it said the
+  ledger stores the quote's fingerprint so a later run can tell "the quote is
+  gone" from "the quote moved".** *Done 2026-11-02.*
+  *Who is blocked*: anyone deciding whether to trust `--allow-stale`. The note
+  is the only place that claim is made, and a reader who believes it will run
+  `check --use-recorded --allow-stale` on a manuscript they have since edited
+  and read `quote-found` as confirmation that the recorded evidence still
+  covers the new text. It does not: the new text is checked against the page
+  for the first time, with no record of the old text anywhere in the decision.
+  *Done when*: the note says what the field is for, the property that actually
+  holds is written down, and a test fails if the mechanism it names ever stops
+  existing.
+  *Done - why it is now true*: `grep -rn "quote_fingerprint" src/` before the
+  fix returned six hits - five in `model.py` (definition, `to_json`,
+  `from_json`) and one in `manuscript.py:264`
+  (`quote_fingerprint=fingerprint(quote)`). `verify.py`, `report.py`,
+  `scan.py` and `cli.py` returned nothing, so no verdict ever consults it.
+  Measured: with the quote rewritten to `alpha beta` (not on the page, but
+  weaker than the original passage), `check --use-recorded --allow-stale`
+  printed `[info] quote-found ... 1 claim - 1 verified` and exited 0.
+  The note now reads "a record, not a decider", names what the digest is for
+  (keeping the passage out of two places), and states the property that does
+  hold: an edited quote is compared against the source like any other.
+  `tests/test_claim_docstring.py` holds three of those claims - the sentence,
+  the single producer, and a scan that fails if any module outside `model.py`
+  mentions the field without writing it. Three mutations of the new docstring
+  (restore the promise, drop the field's purpose, drop the property that
+  matters) each turned the tests red.
+  *Not covered*: nothing tests a reader that would consult the digest, because
+  there is none - that is the finding, not a gap in the tests.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*

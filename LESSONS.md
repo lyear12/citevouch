@@ -3931,3 +3931,40 @@ resolves it` for all four. After: `holds list`, `holds int`, `holds str`,
 "the root shape is named without its type", which survived the first round
 because the test asserted only the shape - all RED, survivors: none.
 
+## When a comment describes a safety property, the lie is load-bearing
+
+**Rule.** A docstring that says what protects the reader must name the code that
+protects them, or it must not say it protects them at all. `Claim`'s note said
+the ledger stores the quote's fingerprint "so a later verification run can tell
+'the quote is gone' from 'the quote moved'". No code reads that field back:
+`quote-moved` is decided from the page numbers the current run found.
+
+**Why this one is worse than the usual stale comment.** Every other entry in
+this family costs a reader some time. This one costs them their judgement about
+whether to trust `--allow-stale`. A reader who believes the fingerprint catches
+edits will run `check --use-recorded --allow-stale` on a manuscript they have
+since edited and read `quote-found` as "the evidence still supports this" -
+when what happened is that the new text was checked against the page for the
+first time, with no record of the old text anywhere in the decision.
+
+**How to apply.** When a comment names a mechanism, open the file that would
+have to contain the mechanism. If the only hits are the field's definition and
+its serialiser, the comment is describing a plan. Write down what the field is
+*for* (here: keeping the passage out of two places) and what the property
+actually is (here: an edited quote is compared like any other).
+
+**How to keep it true.** A docstring claim gets a test that reads the docstring
+and a test that reads the code it names. `tests/test_claim_docstring.py` has
+three: the sentence, the single producer, and a scan that fails if any module
+other than `model.py` mentions the field without writing it - which is what a
+comparison would look like.
+
+**Evidence.** `grep -rn "quote_fingerprint" src/` before the fix: six hits, all
+in `model.py` and one in `manuscript.py:264` (`quote_fingerprint=fingerprint(quote)`).
+`verify.py`, `report.py`, `scan.py` and `cli.py`: zero. Measured behaviour -
+editing a quote to `alpha beta` and running `check --use-recorded --allow-stale`
+gave `[info] quote-found ... 1 claim - 1 verified`, exit 0. Three mutations of
+the new docstring (restore the claim, drop the field's purpose, drop the
+property that matters) all turned the tests red.
+
+Seen 1.

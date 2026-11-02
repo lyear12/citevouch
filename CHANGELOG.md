@@ -12,6 +12,23 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `Claim`'s docstring said the ledger stores the quote's fingerprint "so a later
+  verification run can tell 'the quote is gone' from 'the quote moved'". No code
+  reads `quote_fingerprint` back: `quote-moved` is decided from the page numbers
+  the current run found, and the digest is a record that keeps the passage out
+  of two places. The note now says that, and names the property that actually
+  matters - `--allow-stale` lets a changed manuscript be checked, so an edited
+  quote has to be compared against the source like any other. Measured before
+  the change: editing a quote to something weaker under
+  `--use-recorded --allow-stale` gave `quote-found` for the new text, because
+  the check reads the manuscript, not the digest.
+- Three tests keep that sentence honest: one reads the docstring, one asserts
+  only the parser computes a fingerprint, and one fails if any module outside
+  `model.py` mentions the field without writing it - which is what a comparison
+  would look like.
+
 ## [0.19.70] — 2026-11-02
 ### Fixed
 

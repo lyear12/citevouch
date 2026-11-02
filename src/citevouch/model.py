@@ -336,8 +336,15 @@ class Claim:
     """A sentence in the manuscript plus the evidence that is supposed to back it.
 
     ``quote`` is the verbatim passage as it should appear in the source.  It is
-    the load-bearing field: the ledger stores its fingerprint, so a later
-    verification run can tell "the quote is gone" from "the quote moved".
+    the load-bearing field: it is what every matching tier compares the page
+    against, and what ``quote_fingerprint`` digests so the ledger can show that
+    a quote changed without storing the passage twice.
+
+    ``quote_fingerprint`` is a record, not a decider: no code reads it back to
+    reach a verdict.  ``quote-moved`` is decided from the page numbers this run
+    found, so an edited quote is compared to the source like any other, which
+    is the property that matters - ``--allow-stale`` lets a changed manuscript
+    be checked, and the check has to be of the text that is there now.
 
     ``source`` and ``ref`` are two different namespaces and are deliberately
     kept apart: ``source`` names a *local document* (a PDF on disk), ``ref``
