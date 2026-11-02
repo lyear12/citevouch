@@ -618,6 +618,36 @@ not what changed, but what proves the change works.
   same reason recorded in the `doctor` entry: it would mean changing
   `_resolve` for all seven callers.
 
+- [x] **`doctor` quoted the reader's errno as a second problem.** *Done 2026-11-02.*
+  *Who was blocked*: anyone whose `--manuscript` path was wrong, which is the
+  state `doctor` exists to diagnose.  With a missing file the report read
+
+      [FAIL] manuscript  p\manuscript.md does not exist
+      [ok  ] sources     could not be read to check them: [Errno 2] No such file or directory: 'p\manuscript.md'
+
+  and with a directory it read `[Errno 13] Permission denied` - a sentence that
+  sends the reader to look at permissions on a path whose actual problem is that
+  it is a directory at all.  One cause, two vocabularies, and the second one
+  invents a fault the first had already ruled out.
+
+  *Done when*: one cause is one line, and the line that stops says only that it
+  stopped.
+
+  **Done - why it is now true:** `_claim_sources` returns `not checked, because
+  the manuscript could not be read` and leaves the cause to the `manuscript`
+  line, which is the form the `manifest` check already used.  The summary count
+  stays at one because the `sources` line stays `ok=True` - a second failing
+  line would read as "2 of 7 checks failed" for one missing file.
+  `tests/test_doctor_states_its_reason.py` asserts the errno and the directory
+  name are absent, that the manuscript line still names the cause, that a
+  readable manuscript is still checked, and that the count is `1 of 7`.  Three
+  mutations, all red (put the errno back, drop the "not checked" reason, count
+  the line as a failure).
+
+  *Not covered*: a manuscript that exists and cannot be read for a reason other
+  than being a directory - `chmod` does not hold on Windows, so that branch is
+  covered by reading the code rather than by a test.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
