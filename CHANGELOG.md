@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`draft` proposed a quote for the sentence after the one the author cited.** When the marker is typed after the full stop - `usage. [@p]`, which Pandoc accepts and which is how a citation added at the end of a thought comes out - the splitter put the marker at the start of the next run of text, so the cited sentence came back as the *following* sentence, or as `[@p].` when there was nothing after it. `draft` then looked for a passage matching a sentence the author never cited and backed it with that paper's file: a wrong claim attributed to a real source, which is the one thing this tool exists to prevent. Measured over the 71 usable papers in the construction-grammar corpus, this shape produced a proposal for 0 of them before the fix and 46 of 46 after it. The rule now reads the text between a run's start and the marker: when that prefix holds no words the marker trails the sentence before it, and a paragraph containing nothing but markers looks back one paragraph.
 
 ## [0.19.39] — 2026-11-02
 ### Fixed

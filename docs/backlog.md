@@ -83,6 +83,12 @@ not what changed, but what proves the change works.
 
 ## P1 — nobody can start using it
 
+- [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
+  Who was blocked: anyone whose manuscript writes the marker after the full stop (`usage. [@p]`, the shape you get by adding a citation to a finished sentence). `sentence_at` returned the next run of text, so `draft` looked for a passage matching a sentence the author never cited and backed it with that paper's file. Not a crash: a confident proposal pointing at the wrong claim.
+  Done when: every accepted placement of a citation marker resolves to the sentence the author cited.
+  Done, why it is now true: the splitter reads the text between a run's start and the marker; when that prefix holds no words the marker trails the sentence before it, and a paragraph containing nothing but markers looks back one paragraph. Measured over the 71 usable papers in the construction-grammar corpus with the `sentence. [@p]` shape: 0 proposals before, 46 of 46 proposals accepted by `check` after, 0 rejected. Five mutations, all red.
+  Not covered: a marker in a footnote or a caption is not attributed to the sentence it annotates; nothing in the corpus exercised that shape.
+
 - [x] **`citevouch draft` does not exist.**
   A real manuscript needs 100+ hand-written `claim` blocks. Anyone who is not
   already obsessive quits at the second one.

@@ -51,6 +51,7 @@ _LATEX = re.compile(
 # A sentence ends at terminal punctuation followed by space, or at the end of a
 # paragraph.  `re.split` keeps the text; offsets are recomputed from a scan so
 # line numbers stay correct.
+_WORDS = re.compile(r"[^\W\d_]{2,}")
 _SENTENCE_END = re.compile(r"(?<=[.!?。！？])[\"'”’)\]]*(?:\s+|$)")
 
 # Words that carry no topic.  Deliberately short: a long stoplist would start
@@ -165,11 +166,29 @@ def sentence_at(text: str, start: int) -> tuple[str, int, int]:
     A citation is part of the sentence that cites it, so the claim text is that
     whole sentence with the marker cut out.  Splitting on paragraphs first keeps
     a heading from being glued onto the sentence under it.
+
+    A marker written after the full stop (``usage. [@p]``, which Pandoc accepts
+    and which is how a citation typed at the end of a thought comes out) lands
+    at the start of the following run of text.  Reading that literally gives
+    the *next* sentence, so a manuscript citing ``usage. [@p] They generalize``
+    had `draft` propose a quote for ``They generalize`` - the wrong claim, and a
+    wrong source behind it.  The test is the text between the run's start and
+    the marker: when it holds no words, the marker trails the sentence before
+    it, and that sentence is the one the author meant.
     """
     para_start = text.rfind("\n\n", 0, start)
     para_start = 0 if para_start < 0 else para_start + 2
+    # A marker can sit in the paragraph after the sentence it cites, so a
+    # paragraph holding nothing but the marker looks back one more time.
+    while para_start and not _WORDS.search(statement_of(text[para_start:start])):
+        previous = text.rfind("\n\n", 0, max(para_start - 2, 0))
+        # The document can open with the sentence this marker trails, in which
+        # case there is no earlier break to find and the whole text before the
+        # marker is the thing to read.
+        para_start = previous + 2 if previous >= 0 else 0
     para_end = text.find("\n\n", start)
     para_end = len(text) if para_end < 0 else para_end
+    runs: list[tuple[str, int, int]] = []
     cursor = para_start
     for sentence in _SENTENCE_END.split(text[para_start:para_end]):
         if not sentence:
@@ -179,8 +198,17 @@ def sentence_at(text: str, start: int) -> tuple[str, int, int]:
             begin = cursor
         end = begin + len(sentence)
         cursor = end
-        if begin <= start < end:
-            return sentence.strip(), begin, end
+        runs.append((sentence, begin, end))
+    for index, (sentence, begin, end) in enumerate(runs):
+        if not begin <= start < end:
+            continue
+        # A marker the author typed after the full stop opens the next run.  What
+        # decides it is the text between the run's start and the marker: if that
+        # prefix holds no words, the marker trails the sentence before it.
+        before = statement_of(text[begin:start])
+        if not _WORDS.search(before) and index > 0:
+            return runs[index - 1]
+        return sentence.strip(), begin, end
     return text[para_start:para_end].strip(), para_start, para_end
 
 
