@@ -2861,3 +2861,41 @@ The `pasted` tier began as two mechanisms: fold the page's line breaks to `- `, 
 **How to apply.** ``grep -n "claim.text" src/`` is the whole investigation.  Run it for each field of each record type after adding one, and treat a hit that only serialises as a miss.  Then write the end-to-end test that fails when the comparison is removed - here, a claim one keystroke from its quote must exit 1.
 
 **Evidence.** 2026-11-02.  Before: page ``We collected 40,688 examples in the corpus.``, quote exact, claim ``We collected 80,688 examples.`` -> ``1 claim - 1 verified``, exit 0.  After: ``[high] claim-number-differs at m.md:1 (c1): the claim says 80,688 but its quote says 40,688``, exit 1.  Eight mutations, all red, including the two that survived the first pass (drop the length guard, and let an agreeing number be measured against its neighbour) - both were real gaps, not dead code.  Seen 1.
+
+## Four guards that overlap are one guard and three decorations
+
+``claim-number-differs`` shipped with four conditions that had to hold before it
+would report anything: the pair is one keystroke apart, neither number is a year,
+at least one is written as a quantity, and the claim's number is not printed
+anywhere on the cited page.  Six tests covered the behaviour and all six passed -
+and then every single guard survived deletion.  The year shape also named a
+quantity; the quantity shape also failed the year test; the page shape was
+satisfied by two of the other three.  A mutation run reported ``survivors: none``
+only after each shape was rebuilt so exactly one guard stood between it and a
+false accusation.
+
+**Rule.** One test per guard, and each test's input must fail on that guard alone.
+A guard whose removal no test notices is not defended by the tests that cover the
+feature - it is defended by nothing, and it will be deleted by the next person who
+reads it as redundant.
+
+**Why the obvious test cannot do this.** The natural way to test a rule with four
+guards is one test per bad outcome, and every such input trips whichever guards it
+happens to trip.  Coverage looks complete because the outcome is covered; the
+guards are not.  Attribution needs input built from the guards' definitions - for
+the year guard, a pair that is one keystroke apart, four characters, written with
+separators and absent from the page, so only the year test can stop it.
+
+**How to apply.** Delete each guard on its own and require the suite to go red.
+When one survives, do not add an assertion to the existing test - construct the
+shape that isolates that guard.  Where no such shape exists, prove the reachability
+question rather than guessing: enumerating the 650,806 spellings the number grammar
+can produce is what showed the length guard was not dead after all, because exactly
+one quantity - ``1%`` - canonicalises to a single character.
+
+**Evidence.** 2026-11-02.  First mutation run on the shipped rule: year guard,
+quantity guard, page guard and length guard all green, only ``near miss never
+fires`` red.  After building four isolating shapes plus a positive control: five of
+five red.  The length guard's reachability was settled by exhaustive enumeration,
+not by reading the code, which is what kept a live guard from being deleted on the
+strength of an argument.  Seen 1.

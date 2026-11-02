@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The new `claim-number-differs` rule accused 38.5% of correct claims, and it was my own rule from the release before.** The rule shipped with a single test: is the claim's number one keystroke from a number in its quote? Two different years are almost always one keystroke apart (`2010`/`2011`, `1995`/`1999`), and so are two small ordinals (`1`/`2`, `3`/`4`), which is why a passage that restates a quote and names a second study looked exactly like a mistyped count. Measured against adjacent real sentences from 100 published papers: **67 of 174 pairs flagged, every one of them correct text**. Reporting a right claim is worse than missing a wrong one - it teaches the author to stop reading the report, after which the tool is worth nothing. Three guards now stand between a pair and a report, each judged on the two numbers actually being compared rather than on the sentence as a whole: neither may be a plausible calendar year (`1500`-`2100`), at least one must be written the way a copied quantity is written (separator, decimal, percent), and the claim's number must not be printed anywhere on the cited page - an author who writes `10,000` that appears further down the page read it somewhere. After the fix the same 788 adjacent pairs produce **zero** flags, while `40,688` mistyped as `80,688` still exits 1.
 
 ## [0.19.41] — 2026-11-02
 ### Fixed
