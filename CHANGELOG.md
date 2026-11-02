@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The Chinese LaTeX stacks no longer paste font names and point sizes into the
+  prose.  `\zihao`, `\CJKfamily`, `\CJK`, `\chinese`, `\fontsize`,
+  `\linespread`, `\setCJKmainfont` and the `\ctexset`/`\CTEXsetup` family all
+  name a font, a size or a registry code, and the converter's fallthrough - drop
+  the command, keep what it wraps - kept the argument.  On a `ctexart`
+  manuscript `{\zihao{5} 相关研究 ...}` became `5 相关研究 ...`, so `draft`
+  proposed a claim whose text opens with the point size; `\ctexset{...}` left
+  `section/format=` and `\CTEXsetup[format=...]{section}` left both the bracket
+  and the word.  Fifteen commands are now in the table that drops every argument.
 
 ## [0.19.81] — 2026-11-02
 ### Fixed

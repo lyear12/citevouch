@@ -4368,3 +4368,41 @@ stops only without the closing marks, keep every space, collapse all spaces)
 are red with 3 to 9 tests each.
 
 Seen 1.
+## A converter's fallthrough is a claim about every command it has never seen
+
+**Rule.** When the unknown-command branch says "drop the name, keep what it
+wraps", ask which commands a document in the tool's own target language uses
+that wrap nothing.  Those need names too, and the list is a claim about the
+ecosystem, not about LaTeX.
+
+**Why this keeps happening.** This file already had three tables - command
+names whose arguments are prose, names whose first argument is skipped, names
+whose arguments all go - and every entry in them came from a European paper.
+The Chinese LaTeX stacks (`ctex`, `xeCJK`, `CJKutf8`) name fonts, point sizes,
+line spreads and registry codes, and none of them appears in a mainland
+European document, so none of them was ever met.  `\zihao{5}` therefore fell
+through to "keep what it wraps" and `5` became the first word of the sentence.
+
+**How to apply.** For each language the project claims to support, take that
+language's standard LaTeX class and find the commands whose arguments are
+fonts, sizes, spacing and registry codes - for Chinese that is `ctexart` plus
+`xeCJK`, and the answer is fifteen names.  Test them where they appear: at the
+left margin, in the middle of a sentence, inside a group, and followed by a
+citation.  A command at the start of a paragraph is the shape that hurts most,
+because the argument lands immediately before the first word the author wrote.
+
+**What makes this one expensive.** The damage is not a crash and not a missing
+citation; it is a *plausible* claim text.  `5 相关研究指出...` reads like a
+sentence that begins with a number, so the author who pastes it into the
+manuscript gets a claim block that scans, quotes correctly and cites the right
+page - built on words nobody wrote.
+
+**Evidence.** `{\zihao{5} 我们展示该方法。}` converted to
+`5 我们展示该方法。` before and `我们展示该方法。` after; `\CTEXsetup[...]{section}`
+gave `[format=]section`, `\ctexset{...}` gave `section/format=`,
+`\setCJKmainfont{SimSun}` gave the font name; a `ctexart` draft went from
+`claim: 5 相关研究...` to `claim: 相关研究...`; 18 tests in
+`tests/test_latex_ctex_commands.py`; seven mutations, none surviving, 1 to 5
+tests red each.
+
+Seen 1.

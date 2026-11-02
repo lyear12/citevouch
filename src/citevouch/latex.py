@@ -425,6 +425,27 @@ _DROP_ALL_ARGUMENTS = {
     # to a note written elsewhere, and the fallthrough left the bracket in the
     # sentence as `[1]`.
     "footnotemark": 0,
+    # The Chinese LaTeX stacks - ctex, xeCJK, CJKutf8 - name fonts, sizes and
+    # registry codes, and none of those is a word of the thesis.  Measured on a
+    # ctexart manuscript before these lines existed: `{\zihao{5} 相关研究 ...}`
+    # converted to `5 相关研究 ...`, so `draft` wrote a claim whose text opens
+    # with the point size.  `\setCJKmainfont{SimSun}` left the font name,
+    # `\ctexset{section/format=...}` left `section/format=`, and
+    # `\CTEXsetup[format=...]{section}` left both the bracket and the word.
+    "zihao": 1,
+    "CJKfamily": 1,
+    "CJK": 1,
+    "chinese": 1,
+    "fontsize": 2,
+    "linespread": 1,
+    "setCJKmainfont": 1,
+    "setCJKsansfont": 1,
+    "setCJKmonofont": 1,
+    "xeCJKsetup": 1,
+    "xeCJKDeclareCharClass": 2,
+    "ctexset": 1,
+    "CTEXsetup": 1,
+    "CTEXoptions": 1,
 }
 
 #: Commands that keep their first braced argument (prose) and drop the rest.
