@@ -18,10 +18,16 @@ import pytest
 from citevouch import doctor
 from citevouch.cli import build_parser, main
 
+# A manuscript with one readable claim block.  'A file exists' was the
+# whole subject of the manuscript check until `doctor` gained the claims
+# line, so a fixture whose manuscript was `# t` passed for a long time
+# while holding nothing any run could check.
+GOOD = "# t\n\n```claim id=c1 source=a page=1\nquote: |\n  alpha beta gamma\n```\n"
+
 
 @pytest.fixture()
 def project(tmp_path: Path) -> Path:
-    (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+    (tmp_path / "manuscript.md").write_text(GOOD, encoding="utf-8")
     (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
     # a.txt has to exist: the manifest check reads the manifest now, and one
     # that names a file which is not there is a broken project. This fixture
@@ -44,6 +50,7 @@ class TestWhatItChecks:
             "pdftotext",
             "cache",
             "manuscript",
+            "claims",
             "manifest",
         ]
 
@@ -154,7 +161,8 @@ class TestWhatItChecks:
 
     def test_a_markdown_manuscript_is_not_mistaken_for_latex(self, tmp_path: Path):
         (tmp_path / "manuscript.md").write_text(
-            "# t\n\nA .tex file mentioned in prose is not this file.\n", encoding="utf-8"
+            "# t\n\nA .tex file mentioned in prose is not this file.\n" + GOOD,
+            encoding="utf-8",
         )
         assert doctor.problems(doctor.diagnose(root=tmp_path, manuscript="manuscript.md")) == []
 
@@ -168,6 +176,67 @@ class TestWhatItChecks:
         assert "LaTeX" in said.err
         broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="paper.tex"))
         assert "LaTeX" in broken[0].detail
+
+    def test_a_manuscript_with_no_claim_blocks_is_not_a_clean_bill_of_health(
+        self, tmp_path: Path
+    ):
+        """`check` reports `no-claim-blocks` and exits 1; `doctor` said nothing.
+
+        A manuscript with no claim blocks produces `0 claims - 0 verified, 0
+        moved, 0 missing` with `worst severity: info` and exit 0 - a clean run
+        of a check that never happened.  `doctor` printed `[ok  ] manuscript`
+        about it, so the one command a reader runs *because* the report looked
+        empty was the one telling them it was fine.
+        """
+        (tmp_path / "manuscript.md").write_text("Just prose here.\n", encoding="utf-8")
+        broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="manuscript.md"))
+        assert [report.name for report in broken] == ["claims"]
+        assert "no claim blocks" in broken[0].detail
+        assert "citevouch draft" in broken[0].fix
+
+    def test_a_manuscript_whose_block_the_parser_refused_is_left_to_check(self, tmp_path: Path):
+        """A refused block is a finding, not a silence.
+
+        The parser found a block and named the line - `claim-uncheckable` for a
+        missing `id=`, `claim-block-unclosed` for a fence.  `doctor` exists to
+        explain silence, so this line stays quiet and lets the next command
+        print the finding it already has in more detail.
+        """
+        text = "```claim\nquote: |\n  alpha beta\n```\n"
+        (tmp_path / "manuscript.md").write_text(text, encoding="utf-8")
+        report = doctor._claim_blocks(tmp_path / "manuscript.md")
+        assert report.ok
+        assert "names why" in report.detail
+
+    def test_a_manuscript_with_blocks_says_how_many(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text(GOOD, encoding="utf-8")
+        report = doctor._claim_blocks(tmp_path / "manuscript.md")
+        assert report.ok
+        assert report.detail == "1 claim block"
+
+    def test_two_blocks_are_two_blocks(self, tmp_path: Path):
+        """A count of one cannot fail a test about counting."""
+        two = GOOD + ("\n```claim id=c2 source=a page=1\nquote: |\n  delta epsilon zeta\n```\n")
+        (tmp_path / "manuscript.md").write_text(two, encoding="utf-8")
+        report = doctor._claim_blocks(tmp_path / "manuscript.md")
+        assert report.detail == "2 claim blocks"
+
+    def test_the_claims_failure_makes_the_command_exit_one(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text("prose only\n", encoding="utf-8")
+        assert main(["doctor", "--root", str(tmp_path)]) == 1
+
+    def test_check_and_doctor_agree_about_an_empty_manuscript(self, tmp_path: Path):
+        """One broken file, two commands, one story.
+
+        Written as agreement rather than as a list of expected sentences: a
+        test that asserts what `doctor` says records today's wording, while
+        this one fails whenever the two commands stop overlapping.
+        """
+        (tmp_path / "manuscript.md").write_text("prose only\n", encoding="utf-8")
+        assert main(["check", str(tmp_path / "manuscript.md")]) == 1
+        broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="manuscript.md"))
+        assert broken, "doctor found nothing wrong with a file check fails on"
+        assert "claim blocks" in broken[0].detail
 
     def test_a_project_without_a_manifest_is_still_fine(self, tmp_path: Path):
         (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
@@ -473,6 +542,7 @@ class TestTheExampleInTheReadme:
                 "pdftotext",
                 "cache",
                 "manuscript",
+                "claims",
                 "manifest",
             }
             assert expected <= shown, f"{name}: the example omits {expected - shown}"

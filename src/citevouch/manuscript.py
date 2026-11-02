@@ -86,6 +86,24 @@ class ParseResult:
     # use them to avoid re-reporting what the block already documents.
     spans: list[tuple[int, int]] = field(default_factory=list)
 
+    @property
+    def nothing_to_check(self) -> bool:
+        """Whether this parse means the run checked nothing at all.
+
+        A file with no blocks and a file whose only block the parser refused are
+        different mistakes, but they have the same consequence: zero claims were
+        checked.  The refused block already carries its own finding (a missing
+        ``id=``, an unclosed fence), so the reader is told why; a file with no
+        blocks at all carries none and needs the ``no-claim-blocks`` sentence
+        instead.
+
+        This condition lived as the same expression typed out in two modules -
+        ``scan.py`` and ``verify.py`` - which is how a third reader, ``doctor``,
+        came to be written without it and to report an empty manuscript as a
+        project with nothing wrong.
+        """
+        return not self.claims and not any(f.code.startswith("claim-") for f in self.findings)
+
 
 def _unquote(value: str) -> str:
     """Drop one pair of YAML quote marks, but only when they really are a pair.

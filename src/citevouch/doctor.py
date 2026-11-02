@@ -36,9 +36,10 @@ from shutil import which
 from . import __version__
 from .errors import why_not_a_file
 from .latex import looks_like_latex
+from .manuscript import parse_manuscript
 from .model import Finding
 from .sources import read_source_table
-from .textnorm import count_of
+from .textnorm import count_of, read_text
 
 # The versions this package claims to run on, kept next to the check that
 # enforces them rather than only in pyproject, so the two cannot drift apart
@@ -197,6 +198,7 @@ def _project(root: Path, manuscript: str) -> list[Report]:
                 name="manuscript", ok=True, detail=f"{target} ({target.stat().st_size} bytes)"
             )
         )
+        reports.append(_claim_blocks(target))
     else:
         # `does not exist` was the only thing this check could say, so a
         # directory the reader can see in their file manager was reported as
@@ -228,6 +230,65 @@ def _project(root: Path, manuscript: str) -> list[Report]:
 
     reports.append(_manifest(root))
     return reports
+
+
+def _claim_blocks(target: Path) -> Report:
+    """Does this manuscript hold anything the run could check?
+
+    A file with no claim blocks produces ``0 claims — 0 verified, 0 moved,
+    0 missing`` with ``worst severity: info`` and exit 0, which reads as a clean
+    run of a check that never happened.  ``check`` reports it as
+    ``no-claim-blocks`` (high) and exits 1, and ``verify`` does the same for a
+    ledger that recorded none.  ``doctor`` printed ``[ok  ] manuscript ...`` and
+    exited 0, so the command a reader runs *because* the report looked empty was
+    the one telling them nothing was wrong.
+
+    The condition is ``ParseResult.nothing_to_check`` - the same property both
+    other readers use - rather than a third copy of ``no claims and no finding
+    that starts with 'claim-'``.  Two readers already had that expression typed
+    out separately; that is how this one came to be written without it.
+
+    A block the parser refused is *not* reported here.  It has its own finding
+    naming the line and the fault, and ``doctor`` exists to explain silence, not
+    to pre-empt a message the next command will print in more detail.
+    """
+    try:
+        parsed = parse_manuscript(read_text(target), path=target.name)
+    except OSError as problem:
+        return Report(
+            name="claims",
+            ok=False,
+            detail=f"{target} could not be read ({problem.strerror})",
+            fix="Check the file's permissions, or pass a manuscript this tool can open.",
+        )
+    if parsed.claims:
+        return Report(
+            name="claims",
+            ok=True,
+            detail=count_of(len(parsed.claims), "claim block"),
+        )
+    if not parsed.nothing_to_check:
+        # The parser found something and refused it.  That is a finding, not a
+        # silence, and `check` will name the line.
+        return Report(
+            name="claims",
+            ok=True,
+            detail="none that the parser could read; the next command names why",
+        )
+    return Report(
+        name="claims",
+        ok=False,
+        detail=(
+            f"{target} holds no claim blocks, so every run will report "
+            "0 claims checked and exit 0"
+        ),
+        fix=(
+            "Write them by hand, or propose them from the citations already in "
+            "the file: `citevouch draft "
+            f"{target.name} -o claims.md`. A claim block opens with three "
+            "backticks, the word `claim`, then `id=` and `source=`."
+        ),
+    )
 
 
 def _manifest(root: Path) -> Report:

@@ -3031,3 +3031,38 @@ manuscript  _dt\paper.tex (69 bytes)` and exited 0, while `check _dt/paper.tex` 
 `manuscript ... is LaTeX, and citevouch reads claim blocks`. After: `[FAIL] manuscript ... is LaTeX,
 and this tool reads claim blocks, which live in Markdown, not in a .tex file`, exit 1, with a fix
 that names `citevouch draft paper.tex -o claims.md`. Four mutations, all red. Seen 1.
+
+## A diagnostic's list of checks is a claim about what can go wrong
+
+`doctor` printed six lines and closed with "Everything this tool needs is on this
+machine." A manuscript with no claim blocks passed all six, and the next command
+reported `no-claim-blocks` (high) with exit 1. The one file whose emptiness makes the
+whole run meaningless was the one thing the diagnostic never looked at.
+
+**Rule.** When a command exists to explain a silent failure, every way that failure
+can arrive silently belongs in its list. Not the ways that are hard to check - the
+ways that produce no output at all. And the list must be written by asking "what
+makes the next command find nothing?", not "what does the machine need?".
+
+**Why this kept happening.** Four rounds in a row fixed the same shape in this one
+file: is the file there, does the manifest name files that are there, is the file
+Markdown, does the file hold anything. Each time the check answered a narrower
+question than the sentence printed above it. `doctor` was written from the machine
+side - extractor, cache, interpreter - and the project side was bolted on later,
+so it inherited the machine side's optimism without its completeness.
+
+**How to apply.** Enumerate the silent failures from the work command's side: run it
+on every empty-ish input you can build and list what each one prints and returns.
+Then require `doctor` to say something about each. Import the predicate rather than
+restating the condition - the reason `doctor` missed this is that `scan` and
+`verify` both had the condition typed out separately, so a third reader could be
+written without ever meeting it. It is `ParseResult.nothing_to_check` now.
+
+**Evidence.** 2026-11-02. Before: `doctor --root _dn --manuscript manuscript.md`
+printed `[ok  ] manuscript  _dn\manuscript.md (76 bytes)` and the closing
+reassurance, exit 0, while `check _dn/manuscript.md --root _dn` printed `[high]
+no-claim-blocks` and exited 1. After: `[FAIL] claims  _dn\manuscript.md holds no
+claim blocks, so every run will report 0 claims checked and exit 0`, exit 1, with
+the `citevouch draft` fix. Six mutations, all red. The test fixture's own manuscript
+was `# t` - a file with no blocks - which is why this went unnoticed: the fixture
+was the bug. Seen 1.

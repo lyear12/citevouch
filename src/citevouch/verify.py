@@ -176,7 +176,7 @@ def verify(
                     path=str(manuscript_path),
                 )
             )
-        elif not any(f.code.startswith("claim-") for f in parsed.findings):
+        elif parsed.nothing_to_check:
             result.findings.append(
                 _no_claim_blocks_finding(
                     text,

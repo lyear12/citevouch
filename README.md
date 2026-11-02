@@ -181,6 +181,7 @@ $ citevouch doctor --root demo
 [ok  ] pdftotext   not on PATH (not needed; pypdf is installed)
 [ok  ] cache       demo/.citevouch/cache is writable
 [ok  ] manuscript  demo/manuscript.md (2154 bytes)
+[ok  ] claims      5 claim blocks
 [ok  ] manifest    demo/sources.toml (148 bytes), 2 sources, every one of them present on this machine
 
 Everything this tool needs is on this machine. If quotes are still reported missing, the source files are the place to look.

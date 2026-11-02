@@ -274,7 +274,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     # Markdown file with no blocks - or with blocks written in a dialect the
     # parser does not accept - is the same hole with a different name, so it
     # gets the same answer.
-    if not parsed.claims and not any(f.code.startswith("claim-") for f in parsed.findings):
+    if parsed.nothing_to_check:
         findings.append(
             _no_claim_blocks_finding(
                 text, manuscript_path.name, typed=options.manuscript, root=options.root
