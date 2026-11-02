@@ -89,6 +89,8 @@ _KEEP_ARGUMENT = frozenset(
         "underline",
         "mbox",
         "hbox",
+        "makebox",
+        "framebox",
         "caption",
         "footnote",
         "footnotetext",
@@ -167,6 +169,29 @@ _DROP_ENVIRONMENT = frozenset(
         "tikzpicture",
         "filecontents",
         "comment",
+    }
+)
+
+#: Commands with one argument that is not prose (a colour, a URL, a scale, a
+#: width) followed by one that is.  Neither ``_KEEP_ARGUMENT`` nor
+#: ``_DROP_ARGUMENT`` describes them, so they used to fall through to the
+#: unknown-command branch, which drops the name and keeps everything else: the
+#: colour was left glued in front of the word, and ``\href{https://x}{this
+#: paper}`` became ``https://xthis paper``.  Measured before this set existed:
+#: ``\textcolor{red}{small}`` -> ``redsmall``, ``\scalebox{2}{big}`` -> ``2big``,
+#: ``\parbox{3cm}{boxed}`` -> ``3cmboxed``, ``\href{http://x}{shown}`` ->
+#: ``http://xshown``.  That text is what ``draft`` proposes as the claim, so the
+#: proposal was built on a sentence the paper does not contain.
+_SKIP_FIRST_ARGUMENT = frozenset(
+    {
+        "textcolor",
+        "colorbox",
+        "fcolorbox",  # two non-prose arguments before the prose one
+        "scalebox",
+        "resizebox",
+        "parbox",
+        "hyperlink",
+        "href",
     }
 )
 
@@ -490,6 +515,25 @@ def _convert(text: str) -> str:
                         index = group
                         continue
                     index = end
+                    continue
+                if name in _SKIP_FIRST_ARGUMENT:
+                    # Skip the arguments that are not prose, keep the last one.
+                    # `fcolorbox` and `resizebox` take two, the rest take one;
+                    # both counts are handled by skipping until an argument is
+                    # followed by no further argument of its own.
+                    cursor = _skip_optional_args(text, end)
+                    skip = 2 if name in ("fcolorbox", "resizebox") else 1
+                    for _ in range(skip):
+                        group = _group_end(text, cursor)
+                        if group < 0:
+                            break
+                        cursor = _skip_optional_args(text, group)
+                    group = _group_end(text, cursor)
+                    if group > 0:
+                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        index = group
+                        continue
+                    index = cursor
                     continue
                 if name in _DROP_ARGUMENT:
                     cursor = _skip_optional_args(text, end)

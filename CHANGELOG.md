@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- Ten LaTeX commands that take a non-prose argument and then the text kept the
+  first argument in the output, because they were in neither `_KEEP_ARGUMENT`
+  nor `_DROP_ARGUMENT` and fell through to "keep whatever this wraps, drop the
+  name": `\textcolor{red}{small}` became `redsmall`,
+  `\href{https://x}{this paper}` became `https://xthis paper`,
+  `\scalebox{2}{big}` became `2big`, `\parbox{3cm}{boxed}` became `3cmboxed`,
+  `\hyperlink{target}{linked}` became `targetlinked`, and the same for
+  `\colorbox`, `\resizebox`, `\fcolorbox`, `\makebox` and `\framebox` (the last
+  two also kept their `[width]`). That text is what `draft` puts in the claim it
+  asks the author to paste, so the proposal was built on a sentence the paper
+  does not contain. A new `_SKIP_FIRST_ARGUMENT` set skips the non-prose
+  arguments - one for most, two for `\fcolorbox` and `\resizebox` - and converts
+  the last one as ordinary prose, so `\textcolor{blue}{\textbf{blue}}` still
+  yields `blue` rather than `\textbf{blue}`.
 
 ## [0.19.73] — 2026-11-02
 ### Fixed

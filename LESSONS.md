@@ -4043,3 +4043,45 @@ cannot find its anchor has verified nothing, and must be fixed before its
 verdict is read.
 
 Seen 1.
+
+## "Keep whatever it wraps" is only true when the first thing it wraps is prose
+
+**Rule.** A command that is in neither the keep-list nor the drop-list does not
+keep prose - it keeps *everything after the name*, which for a command whose
+first argument is a colour, a URL, a width or a scale factor means the argument
+is pasted against the sentence. Ten LaTeX commands were in that hole at once:
+`\textcolor`, `\colorbox`, `\fcolorbox`, `\scalebox`, `\resizebox`,
+`\parbox`, `\makebox`, `\framebox`, `\hyperlink`, `\href`.
+
+**Why the two sets did not catch it.** Both existing lists were accurate - every
+member was classified correctly. The bug lived in the *third* path, the
+fallthrough that names no set and therefore has no member to be wrong. A
+classification of the commands anyone thought of cannot cover the commands
+nobody did, and the fallthrough reads like a sensible default ("drop the
+command, keep the text").
+
+**How to apply.** For a converter, the fallthrough is a claim about the
+grammar, not about the text. Make it as narrow as the grammar allows: here, the
+safe default is "drop the name and keep the braced groups", which is a different
+block of code from "keep the raw slice". Then enumerate the argument shapes the
+tool cannot model (colour, URL, length, factor) and give each one its own
+handling, because a word glued to a colour is not a typo an author can spot -
+it is a word that was never on the page.
+
+**The count is part of the shape.** `\fcolorbox` and `\resizebox` take two
+non-prose arguments before the text; the other eight take one. A skip of
+"one" compiles and runs and is wrong for exactly two commands, so the number
+belongs in a table rather than in the loop's body, and each count needs a test.
+
+**Evidence.** Before: `\textcolor{blue}{blue}` -> `blueblue`,
+`\href{http://x}{shown}` -> `http://xshown`, `\scalebox{2}{big}` -> `2big`,
+`\parbox{3cm}{boxed}` -> `3cmboxed`, `\hyperlink{target}{linked}` ->
+`targetlinked`, `\resizebox{1cm}{!}{resized}` -> `1cm!resized`. After: each
+yields only the wrapped words. Four mutations: skip the new branch -> 13 tests
+red; say every command takes one argument -> 2 red; treat the optional argument
+as the first -> 2 red (only after a `\parbox[t]{3cm}{}` test existed - the first
+version of the suite could not see it); keep the last argument raw instead of
+converting it -> 1 red (the anchor needed widening, because the call appears
+twice in the file).
+
+Seen 1.
