@@ -4252,3 +4252,39 @@ Six mutations are red: a dead branch converted as prose, a live branch losing it
 body, the include reader not cutting dead branches, the `\else` inside a dead
 block staying dead, the `\ifthenelse` test pasted back, and an unclosed live
 conditional dropped. Seen 1.
+
+## A note is a sentence, and a sentence spliced in the middle is a word the paper never wrote
+
+**Rule.** `\footnote`, `\footnotetext` and `\marginpar` were inline
+commands - the converter kept their argument and joined it to the words on
+either side. `The method works\footnote{See \citep{fn} for the proof.}, and
+we ...` converted to `The method worksSee [@fn] for the proof., and we ...`. The
+string `worksSee` is in no paper, and `draft` proposed exactly that string as
+the claim text, so the proposal rested on a sentence nobody wrote. A command
+whose argument is a sentence of its own has to be separated, not inlined.
+
+**Why the first fix was wrong too.** Giving the note its own paragraph *where it
+was written* fixed `worksSee` and broke the sentence differently::
+
+    'The method works\n\nSee [@fn] for the proof.\n\n, and we show it.'
+
+The comma now starts a paragraph. A sentence that is interrupted has no single
+place to put the interruption back; the only position that keeps the main
+sentence whole is after it. So the bodies move to the end of the converted text,
+which is where a reader of a paper sees them anyway.
+
+**How to apply.** When a construct does not belong in the flow of a sentence,
+the question is not "where does it go" but "what must stay whole". Here it was
+the main sentence, and every in-place position fails at some punctuation. Then
+check that the move does not drop what the body carries: the body is still
+converted, so a citation inside a note is still a citation, and a note inside a
+dead conditional is still dead. Nine mutations are red, including two that
+survived the first pass - a body moved without being converted, and a
+conditional branch that forgot to pass the collector down. Both looked covered
+because the tests asserted the words survived, not that the body was read.
+
+**Evidence.** Before: `'The method worksSee [@fn] for the proof., and we show
+it on 40,688 examples.'`; the `draft` proposal carried `The method worksSee for
+the proof., and we show it on 40,688 examples.` as its `claim:` text. After:
+`'The method works, and we show it.\n\nSee [@fn] for the proof.\n'`. 26 tests in
+`tests/test_latex_notes.py`; seven mutations, none surviving. Seen 1.

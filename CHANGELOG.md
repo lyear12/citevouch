@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A footnote is no longer spliced into the sentence it hangs on.
+  `The method works\footnote{See \citep{fn} for the proof.}, and we ...`
+  converted to `The method worksSee [@fn] for the proof., and we ...`, so
+  `draft` proposed a claim whose text contains the word `worksSee` - a string
+  that appears in no paper.  `\footnotetext` and `\marginpar` did the same.
+  The bodies now move to the end of the converted text as their own block, so
+  the main sentence survives whole, the note keeps the author's words, and a
+  citation inside a note still counts as a citation.  Emitting the note as a
+  paragraph where it was written was tried first and rejected: it broke the
+  main sentence at whatever punctuation followed
+  (`'The method works\n\nSee [@fn] ...\n\n, and we show it.'`).
 ## [0.19.78] — 2026-11-02
 ### Fixed
 

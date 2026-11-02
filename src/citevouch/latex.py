@@ -73,6 +73,16 @@ _VERBATIM_ENVIRONMENT = re.compile(
 _VERBATIM_MARK = "\x00verbatim:"
 
 # Commands whose first brace argument is text a reader sees.
+#: Note commands whose argument is a sentence of its own.
+#:
+#: They used to be inline (``_KEEP_ARGUMENT``), which pasted the note's words
+#: into the words around it: ``The method works\footnote{See \citep{fn} for the proof.}, and we ...`` converted to ``The method worksSee
+#: [@fn] for the proof., and we ...``.  The word ``worksSee`` is in no paper, and
+#: `draft` proposed exactly that string as the claim text, so the proposal was
+#: built on a sentence nobody wrote.  A block of their own keeps the main
+#: sentence whole and leaves the note where a reader can see it is a note.
+_SEPARATE_ARGUMENT = frozenset({"footnote", "footnotetext", "marginpar"})
+
 _KEEP_ARGUMENT = frozenset(
     {
         "textbf",
@@ -92,9 +102,6 @@ _KEEP_ARGUMENT = frozenset(
         "makebox",
         "framebox",
         "caption",
-        "footnote",
-        "footnotetext",
-        "marginpar",
         "MakeUppercase",
         "MakeLowercase",
     }
@@ -836,8 +843,17 @@ def _without_false_branches(text: str) -> str:
     return "".join(out)
 
 
-def _convert(text: str) -> str:
-    """Convert one stretch of LaTeX (no comment stripping, no preamble)."""
+def _convert(text: str, notes: list[str] | None = None) -> str:
+    """Convert one stretch of LaTeX (no comment stripping, no preamble).
+
+    ``notes`` collects the bodies of note commands (``\footnote`` and friends)
+    instead of leaving them where they were written: a note's words are the
+    author's, but splicing them into the sentence the note hangs on produced
+    text no paper contains - ``The method works\footnote{See ...}`` became
+    ``The method worksSee ...``, and `draft` proposed that as the claim.  The
+    body is still converted, so its citations still count; it just stops
+    interrupting.
+    """
     out: list[str] = []
     index = 0
     length = len(text)
@@ -855,8 +871,19 @@ def _convert(text: str) -> str:
                     cursor = _skip_optional_args(text, end)
                     group = _group_end(text, cursor)
                     if group > 0:
-                        title = _convert(text[cursor + 1 : group - 1]).strip()
+                        title = _convert(text[cursor + 1 : group - 1], notes).strip()
                         out.append("\n\n" + title + "\n\n")
+                        index = group
+                        continue
+                    index = end
+                    continue
+                if name in _SEPARATE_ARGUMENT:
+                    cursor = _skip_optional_args(text, end)
+                    group = _group_end(text, cursor)
+                    if group > 0:
+                        body = _convert(text[cursor + 1 : group - 1], notes).strip()
+                        if notes is not None and body:
+                            notes.append(body)
                         index = group
                         continue
                     index = end
@@ -865,7 +892,7 @@ def _convert(text: str) -> str:
                     cursor = _skip_optional_args(text, end)
                     group = _group_end(text, cursor)
                     if group > 0:
-                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        out.append(_convert(text[cursor + 1 : group - 1], notes))
                         index = group
                         continue
                     index = end
@@ -884,7 +911,7 @@ def _convert(text: str) -> str:
                         cursor = _skip_optional_args(text, group)
                     group = _group_end(text, cursor)
                     if group > 0:
-                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        out.append(_convert(text[cursor + 1 : group - 1], notes))
                         index = group
                         continue
                     index = cursor
@@ -907,7 +934,7 @@ def _convert(text: str) -> str:
                     cursor = _skip_optional_args(text, end)
                     group = _group_end(text, cursor)
                     if group > 0:
-                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        out.append(_convert(text[cursor + 1 : group - 1], notes))
                         rest = _skip_optional_args(text, group)
                         second = _group_end(text, rest)
                         index = second if second > 0 else group
@@ -930,17 +957,17 @@ def _convert(text: str) -> str:
                         # one is converted to the end - the same rule, applied
                         # to whichever kind of body this is.
                         if name in _CONDITIONAL_TRUE:
-                            out.append(_convert(text[end:]))
+                            out.append(_convert(text[end:], notes))
                         index = length
                         continue
                     false_end, else_at, fi_end = span
                     if name in _CONDITIONAL_TRUE:
                         if else_at >= 0:
-                            out.append(_convert(text[end:else_at]))
+                            out.append(_convert(text[end:else_at], notes))
                         else:
-                            out.append(_convert(text[end:false_end]))
+                            out.append(_convert(text[end:false_end], notes))
                     elif else_at >= 0:
-                        out.append(_convert(text[else_at:fi_end]))
+                        out.append(_convert(text[else_at:fi_end], notes))
                     index = fi_end
                     continue
                 if name in _BRANCH_COMMAND:
@@ -954,7 +981,7 @@ def _convert(text: str) -> str:
                         group = _group_end(text, cursor)
                         if group < 0:
                             break
-                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        out.append(_convert(text[cursor + 1 : group - 1], notes))
                         cursor = group
                     index = cursor
                     continue
@@ -1135,9 +1162,16 @@ def to_text(tex: str) -> str:
     body = document_body(strip_comments(tex))
     body, verbatim = _drop_inline_verbatim(body)
     body = _CITE.sub(lambda match: _pandoc_marker(match.group(1)), body)
-    text = _restore_dropped(_convert(body), verbatim)
+    notes: list[str] = []
+    text = _restore_dropped(_convert(body, notes), verbatim)
     # Collapse the runs of blank lines the block environments produce.
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r" *\n *", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip() + "\n"
+    text = text.strip()
+    if notes:
+        # A note is one sentence, at the foot of a page that this tool does not
+        # model.  Keeping it in one block of its own means `draft` reads it as
+        # a phrase the author wrote rather than as words inside a claim.
+        text = text + "\n\n" + "\n\n".join(notes)
+    return text + "\n"
