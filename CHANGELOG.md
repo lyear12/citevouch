@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.49] — 2026-11-02
 ### Fixed
 
 - **A lockfile with balanced brackets could still crash the reader, because `json.loads` is a recursive-descent parser.** The guard added in 0.19.48 catches the damaged *shapes* a lockfile can hold, and `_read_ledger` already caught `ValueError` for malformed JSON - but a file of twenty thousand nested brackets is not malformed, it is too deep: the decoder burns interpreter stack until `RecursionError: Stack overflow (used 2912 kB) while decoding a JSON array from a unicode string`. `RecursionError` is not a `ValueError`, so it escaped `main` and the interpreter exited **1**, which in this tool means "findings reached the threshold" - the same false verdict as the twenty crashes before it, arriving through the parser instead of through a key. Nothing this tool writes nests more than four deep, so a nest the parser cannot survive gets the answer a syntax error gets: `UsageError`, exit 2, and a message saying the file nests too deeply. Five tests, including one that asks the *interpreter* whether it survived (2000 nested arrays decode, 20000 do not) rather than pinning one depth on every Python this runs on, and a subprocess test that asserts no traceback reaches stderr. Two mutations, both red - but only after the first run reported both red for the wrong reason: the mutant harness called `pytest` in a subprocess without an importable pytest, and read "no module named pytest" as a passing red. A guard is only verified by the run that was actually measuring it.
-
 ## [0.19.48] — 2026-11-02
 ### Fixed
 
@@ -1590,7 +1591,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.48...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.49...HEAD
+[0.19.49]: https://github.com/lyear12/citevouch/releases/tag/v0.19.49
 [0.19.48]: https://github.com/lyear12/citevouch/releases/tag/v0.19.48
 [0.19.47]: https://github.com/lyear12/citevouch/releases/tag/v0.19.47
 [0.19.46]: https://github.com/lyear12/citevouch/releases/tag/v0.19.46
