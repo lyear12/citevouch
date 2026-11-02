@@ -519,6 +519,69 @@ def _strip_markup(text: str) -> str:
 # Resolving a claim's source= to a file
 
 
+def _refuse_shapes_only_one_reader_follows(text: str) -> None:
+    """Refuse the two spellings the parsers would answer differently.
+
+    Both are legal TOML that tomllib reads one way and this line-based subset
+    reads another, and a manifest that binds on 3.12 while failing on 3.10 is
+    the same manifest judged by whichever interpreter happens to be installed:
+
+    * ``sources = { page = "a.txt" }`` - an inline table.  tomllib binds every
+      source in it; the subset can only see one flat name.
+    * ``pa.ge = "a.txt"`` - a dotted key.  tomllib reads a nested table and
+      binds nothing at ``pa.ge``; the subset would bind one source called
+      ``pa.ge``.
+    * ``[sources]`` written twice - tomllib refuses the file; the subset merged
+      the two halves into one table, so a project could pass on 3.10 with a
+      manifest no 3.12 would accept.
+    * ``page = "a.txt"`` written twice - tomllib refuses the file; the subset
+      kept the last value, so which file a claim resolved to depended on the
+      order of two lines a 3.11 interpreter would not have allowed at all.
+
+    Both readers refuse the file, with the same sentence, so no interpreter
+    reads it as something different.  Refusing here rather than in each parser
+    is what makes the sentence the same one: a check written inside the subset
+    can only ever speak for the subset.
+
+    The accepted spellings are already in the README: a ``[sources]`` table
+    with one `key = "path"` line per source, and the key quoted - ``"pa.ge"`` -
+    when it is meant as a flat name containing a dot.
+    """
+    section = ""
+    declared: set[str] = set()
+    seen: set[tuple[str, str]] = set()
+    for raw in text.splitlines():
+        line = _strip_toml_comment(raw).strip()
+        if not line:
+            continue
+        if line.startswith("["):
+            name = line.strip("[]").strip()
+            if name in declared:
+                raise ValueError(f"[{name}] is declared twice; each table may appear once")
+            declared.add(name)
+            section = name
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        name = key.strip()
+        if name == "sources" and value.strip().startswith("{"):
+            raise ValueError(
+                "the 'sources' table is written inline; write it as a [sources] "
+                'table with one `key = "path"` line per source'
+            )
+        plain = len(name) < 2 or name[0] not in "\"'" or name[-1] != name[0]
+        if "." in name and plain:
+            raise ValueError(
+                f"{name!r} is a dotted key, which names a nested table in TOML; "
+                f'quote it - "{name}" - to bind one source called {name!r}'
+            )
+        if (section, name) in seen:
+            where = f"[{section}]" if section else "the top level"
+            raise ValueError(f"'{name}' is given twice in {where}; each key may appear once")
+        seen.add((section, name))
+
+
 def _mini_toml(text: str, odd: list[str] | None = None) -> dict:
     """Parse the slice of TOML a sources manifest actually uses.
 
@@ -553,8 +616,11 @@ def _mini_toml(text: str, odd: list[str] | None = None) -> dict:
     needs dates, arrays, or nested tables, the answer is to require 3.11, not to
     add features here.
     """
+    _refuse_shapes_only_one_reader_follows(text)
     parsed: dict[str, dict[str, str]] = {}
     section = ""
+    declared: set[str] = set()
+    seen: set[tuple[str, str]] = set()
     for raw in text.splitlines():
         line = _strip_toml_comment(raw).strip()
         if not line:
@@ -563,6 +629,13 @@ def _mini_toml(text: str, odd: list[str] | None = None) -> dict:
             name = line[1:-1].strip()
             if not name or "." in name or name.startswith("["):
                 raise ValueError(f"unsupported table header {line!r}")
+            if name in declared:
+                # tomllib refuses this - ``Cannot declare ('sources',) twice`` -
+                # and merging the two halves here would bind a file that
+                # interpreter never saw.  A manifest read two ways is one
+                # manifest and one answer, so refuse the file this side too.
+                raise ValueError(f"{line} is declared twice; each table may appear once")
+            declared.add(name)
             section = name
             parsed.setdefault(section, {})
             continue
@@ -607,6 +680,14 @@ def _mini_toml(text: str, odd: list[str] | None = None) -> dict:
             if odd is not None and section == "sources":
                 odd.append(key)
             continue
+        if (section, key) in seen:
+            # tomllib: ``Cannot overwrite a value``.  Last-one-wins here would
+            # bind the key to a path the other reader refuses to name at all,
+            # so a project could be green on 3.10 and red on 3.12 for the same
+            # file - and the green one is the answer nobody re-examines.
+            where = f"[{section}]" if section else "the top level"
+            raise ValueError(f"'{key}' is given twice in {where}; each key may appear once")
+        seen.add((section, key))
         parsed.setdefault(section, {})[key] = text_value
     return parsed
 
@@ -668,6 +749,7 @@ def _load_toml(text: str, odd: list[str] | None = None) -> dict:
     and this branch says so by looking at the parsed table.  Without it the same
     manifest refused on 3.10 and silently misread on 3.11.
     """
+    _refuse_shapes_only_one_reader_follows(text)
     try:
         import tomllib  # 3.11+, absent on 3.10
     except ImportError:

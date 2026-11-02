@@ -3761,3 +3761,52 @@ table, read a non-table `sources` key as absent, silence the subset reader - all
 red, no survivors.
 
 Seen 1.
+
+## 147. When one file has two readers, the readers must refuse the same files
+
+**Rule.** A configuration format read by more than one parser - a real one
+where the interpreter has it and a fallback where it does not - is one format
+only if both parsers accept the same files and reject the same files with the
+same words. A check written inside one parser answers for that parser alone, so
+shared refusals belong before the split, not inside either branch.
+
+**Why this keeps happening.** The subset parser was written to get the manifest
+working on 3.10, and every guard it has was added in response to a 3.10
+symptom. Meanwhile `tomllib` was the reference, so the shapes the subset was
+*lenient* about never showed up as failures anywhere: `page = "a.txt"` twice is
+a hard error on 3.11 and a quiet last-one-wins on 3.10, and the only way to see
+it is to run both readers over the same bytes and compare. A project's colour
+therefore depended on which Python CI happened to install.
+
+**How to apply.**
+
+1. Enumerate the spellings that are legal in the format but not in the subset,
+   and the ones the subset tolerates but the format forbids. Compare the two
+   readers over that list rather than testing either alone.
+2. Put the refusals in one pre-scan that runs before the split, so the sentence
+   is written once. A refusal inside the subset cannot fire on the 3.11 path,
+   which is the path most contributors develop on.
+3. Have the test assert the two readers *agree* - same return value, or the same
+   message - not that each behaves correctly by its own standard. Two
+   independently-correct parsers can still disagree about one file.
+
+**The other direction.** Agreement does not mean identical dictionaries. A
+non-string value is dropped from one table and kept in the other, and that is
+fine because both then say the same thing about the key: it is not bound to a
+file. Pin the agreement at the level callers read (here `read_source_table`'s
+`found` / `unusable` / `manifest_problem`), not at the parser's internal shape.
+
+**Evidence.** Before: `sources = { page = "a.txt" }` bound `page` on `tomllib`
+and produced no table in the subset; `pa.ge = "a.txt"` bound nothing on
+`tomllib` and `pa.ge` in the subset; a repeated key was a hard error on one and
+last-one-wins on the other; `[sources]` twice was a hard error on one and a
+merge on the other. After the pre-scan: 11 manifest shapes produce identical
+`(found, unusable, manifest_problem)` from both readers, and the four refused
+shapes produce byte-identical messages. Six mutations - restore the inline
+table, restore the dotted key, stop refusing a repeated key, stop refusing a
+reopened table, skip the pre-scan on the `tomllib` path, skip it on the subset
+path - all red, no survivors. The `tomllib`-skip mutation first reported ANCHOR
+MISSING, which is the mutation tool failing rather than the guard holding; it
+was retargeted at the real call site and then went red.
+
+Seen 1.

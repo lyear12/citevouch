@@ -11,6 +11,27 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `sources.toml` has two readers: `tomllib` on 3.11+, and the line-based subset
+  on 3.10.  Four spellings were legal TOML that the two read differently, so
+  the same file bound one way on one interpreter and another way on the other,
+  and CI runs 3.10, 3.12 and 3.13:
+
+  | manifest | `tomllib` | subset |
+  |---|---|---|
+  | `sources = { page = "a.txt" }` | binds `page` | sees no table |
+  | `pa.ge = "a.txt"` | binds nothing at `pa.ge` | binds `pa.ge` |
+  | `page = "a"` twice | refuses the file | last one wins |
+  | `[sources]` twice | refuses the file | merges the halves |
+
+  Both readers now run one pre-scan and refuse those four with the same
+  sentence, so no interpreter reads a manifest as something the other does not.
+  The refusal lives before the split because a check written inside the subset
+  can only ever speak for the subset.  The spellings that do work are the ones
+  the README already describes, and the messages name them: `[sources]` with one
+  `key = "path"` line, and a quoted key - `"pa.ge"` - when the dot is part of
+  the name.
 
 ## [0.19.66] — 2026-11-02
 ### Fixed
