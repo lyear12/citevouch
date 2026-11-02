@@ -68,6 +68,45 @@ not what changed, but what proves the change works.
   *Not covered*: `verify.py` is not the only consumer that could have used the
   slot mapping; nothing else does yet.
 
+- [x] **`doctor` reported a `sources.toml` as ok without reading it.**
+  The check was `candidate = root / name; if candidate.is_file()`. A manifest
+  that would not parse, one whose every key pointed at a path that is not on
+  this disk, one that named a directory, and two manifests side by side all
+  printed `[ok  ] manifest    sources.toml (N bytes)` and closed with
+  "Everything this tool needs is on this machine." — and exited 0. The next
+  command then printed `[high] source-missing` on every claim, which is the
+  exact failure `doctor` exists to explain, arriving from the command whose
+  job was to rule it out. A file's size is not a fact about whether it points
+  anywhere.
+  *Who is blocked*: anyone whose first move is `doctor` after a run reported
+  every quote missing — the one reader who most needs the truth from it.
+  *Done when* the manifest check answers whether the files it names resolve,
+  not whether the file exists, and `doctor` and `check` tell one story about
+  one broken project.
+  **Done — why it is now true:** `doctor._manifest` reads the manifest through
+  `sources.read_source_table` — the same reader `check` uses — and reports
+  three different answers because they need different work: no manifest is ok
+  (passing `--source` is supported), an unparsable one is a syntax problem in
+  one file, and one naming absent files is a path problem with every missing
+  key named. The closing reassurance prints only when nothing is broken.
+  `demo/` still reports `2 sources, every one of them present on this machine`
+  and exits 0. Proved by `tests/test_doctor.py::TestTheManifestCheck` (10),
+  including one test that runs `doctor` and `check` on one broken project and
+  requires both to exit 1 mentioning the same missing file. Eight mutations;
+  two survived the first run and both were real gaps — truncating the list of
+  missing keys to its first element changed nothing because the only test with
+  an unusable entry had exactly one, and dropping the byte count changed
+  nothing because no test asserted the one fact the message can offer about a
+  file whose contents it could not read. Both are red now.
+  *Not covered*: nothing runs `doctor` against a Windows network path
+  (`\\server\share`), where the OS reports a different errno than a missing
+  file; `why_not_a_file` already distinguishes them, but no test exercises the
+  doctor line that now surfaces it.
+  **Also fixed:** the `doctor` test fixture was itself a project that could not
+  run — it wrote a `sources.toml` naming `a.txt` and never wrote `a.txt`, so
+  three tests asserting an ok report were passing only because the check did
+  not look.
+
 - [x] **`docs/metrics.md` does not exist.**
   Nobody can tell whether any of this works.
   *Who is blocked*: the maintainer, i.e. me — without a written record every
