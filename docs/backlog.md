@@ -200,6 +200,38 @@ not what changed, but what proves the change works.
   pre-committed readings of a month with no movement, each with a different
   next step so the decision is not made by whoever is most tired that day.
 
+- [x] **A damaged lockfile crashed every verb that reads one, and a crash exits 1.**
+  *Found and fixed 2026-11-02.*
+  `Ledger.from_json` trusted every field — `raw.get(...)` on each list element,
+  `int(...)` on each count — so a lockfile edited by hand or truncated by a bad
+  merge raised `AttributeError`/`TypeError`/`ValueError` out of `main`. An
+  uncaught exception exits **1**, which in this tool means "findings reached the
+  threshold": a crash was indistinguishable from a verdict against the manuscript.
+  *Who is blocked*: anyone who has resolved a `.lock.json` merge conflict by hand,
+  and anyone whose editor or script rewrote the file — the two things a lockfile
+  in version control invites.
+  *Done when*: every shape this code cannot read in full produces exit 2 with a
+  message naming the section, the key and the file.
+  **Done — why it is now true:** `_object`, `_section`, `_whole` and `_texts` in
+  `model.py` refuse non-objects, non-object sections, non-whole-number counts and
+  non-string lists; `cli._read_ledger` wraps the result so the message carries the
+  path. Twenty damaged shapes times three verbs was sixty crashes before and zero
+  after, each measured. `claims: null` is refused rather than read as an empty
+  ledger, and `fields: []` is refused rather than coerced to `{}` — a half-read
+  entry reports `bib-field-missing` about a title that is in the file. The other
+  side is proved too: `claims: []`, a missing `tool_version`, `page: "7"` and a
+  missing `fields` all still read, and one test round-trips a real `scan` output
+  through `from_json` and requires the two to be equal, because a guard that
+  refuses what the writer produces would be worse than the crash. Nine
+  mutations, eight red; the survivor is equivalent (the type guard makes the old
+  coercion unreachable), which is why that guard has its own parametrised case.
+  *Not covered*: nothing exercises a schema-1 ledger written by an older build
+  that carries a field this version no longer writes; `_read_ledger` has no
+  downgrade path and now says so rather than half-reading. The twenty shapes are
+  hand-written JSON rather than a real ledger corrupted at byte offsets — a
+  truncation landing mid-number is a JSON parse error, which already exited 2 and
+  has its own test.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
