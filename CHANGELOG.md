@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `doctor` re-rooted a relative `--manuscript` path that already worked, so it
+  disagreed with every other verb about which file it was reading.  From the
+  directory above the project, `citevouch check paper/m.md --root paper`
+  verified and exited 0 while `citevouch doctor --root paper --manuscript
+  paper/m.md` reported `paper\paper\m.md does not exist` and exited 1.  The fix
+  line printed with that failure recommends `paper/manuscript.md` — the exact
+  shape that had just been rejoined — so following the advice reproduced the
+  failure.  `doctor` now resolves paths through `scan._resolve`, the helper
+  `scan`, `verify`, `check` and `draft` already share: a path that exists as
+  typed is never re-rooted.  Seven tests, three mutations all red.
 
 ## [0.19.61] — 2026-11-02
 ### Fixed

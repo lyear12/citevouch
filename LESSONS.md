@@ -3564,3 +3564,45 @@ stdout — so the noise was invisible to anything reading stdout and unavoidable
 for a human. After: stderr is zero bytes for the same run. Reverse verification:
 5 mutations, 5 red, `survivors: none`. First draft: 6 tests green, 2 mutations
 survived. Seen 1.
+
+## A path rule that five verbs share must not be re-implemented by the sixth
+
+**Rule.** One path, one resolver.  If a command needs to turn a relative path
+into a file, it calls the helper the other commands call; it does not join
+`root` to the string itself and hope the results agree.
+
+**Why.** `scan`, `verify`, `check` and `draft` all go through
+`citevouch.scan._resolve`, whose rule is "a relative path that exists as typed
+is never re-rooted".  That rule exists for the reader: `--root demo` is for the
+manifest, the ledger and the sources, and `demo/manuscript.md` is what people
+type.  `doctor` joined unconditionally, which is a different function with the
+same name in the reader's head.  Measured from the directory above a project:
+
+    citevouch check paper/m.md --root paper                 -> 1 verified, exit 0
+    citevouch doctor --root paper --manuscript paper/m.md    -> exit 1,
+        "[FAIL] manuscript  paper\\paper\\m.md does not exist"
+
+The command that exists to explain a run that found nothing was reading a file
+that did not exist and saying so, in a report the reader had opened *because*
+the previous command found nothing.
+
+**How to apply.** When adding a verb, do not decide how a path becomes a file;
+look up the decision and call it.  Then write the test from the outside: run
+the new command and an old one on the same argument pair and assert they name
+one file (`Path(named).resolve()` sets, not string equality - commands print
+different amounts of the path).  A test that only runs one command cannot see
+this defect at all, no matter how many assertions it makes.
+
+**The piece that made it survive.** The fix line under the failure told the
+reader to pass `paper/manuscript.md`.  Following the advice reproduced the
+failure.  Advice printed next to an error is part of the error: it has to be
+executable in the same invocation shape that produced it.
+
+**Reverse verification.** Three mutations - rejoin the root, resolve
+unconditionally, hand the joined path back to the resolver - all red, six tests
+each.  The first draft of the test file failed for a different reason worth
+recording: it ran with the working directory inside the project, where the two
+readings agree by accident, so it proved nothing until the fixture chdir'd one
+level up.
+
+Seen 1.

@@ -38,6 +38,7 @@ from .errors import why_not_a_file
 from .latex import looks_like_latex
 from .manuscript import parse_manuscript
 from .model import Finding
+from .scan import _resolve
 from .sources import candidate_files, near_misses, read_source_table
 from .textnorm import count_of, read_text
 
@@ -162,10 +163,20 @@ def _cache(root: Path) -> Report:
 
 
 def _project(root: Path, manuscript: str) -> list[Report]:
-    """The things about *this* project, as opposed to about the machine."""
+    """The things about *this* project, as opposed to about the machine.
+
+    The path is resolved by :func:`citevouch.scan._resolve`, the same helper
+    ``scan``, ``verify``, ``check`` and ``draft`` use.  Joining ``root`` to a
+    relative path unconditionally made this the one command that read
+    ``paper/manuscript.md`` as ``paper/paper/manuscript.md``: with
+    ``citevouch check paper/m.md --root paper`` verified and
+    ``citevouch doctor --root paper --manuscript paper/m.md`` reporting
+    ``paper\\paper\\m.md does not exist``, the command that exists to explain
+    a failed run disagreed with the run.  Its own fix line tells the reader to
+    pass ``paper/manuscript.md``, so following the advice reproduced it.
+    """
     reports: list[Report] = []
-    path = Path(manuscript)
-    target = path if path.is_absolute() else root / path
+    target = _resolve(root, manuscript)
     if target.is_file():
         if looks_like_latex(target):
             # `check` refuses a .tex file with exit 2 and says why: claim blocks
