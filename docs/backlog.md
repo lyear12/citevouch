@@ -490,6 +490,45 @@ not what changed, but what proves the change works.
   - it reused `GOOD`, whose claim names `source=a`, so the new line was right to
   complain about a project that test had been calling sound.
 
+- [x] **`doctor` rejoined a manuscript path that already worked, so it read a
+  different file than `check` did.**
+
+  Four verbs resolve a relative manuscript path through `scan._resolve`, whose
+  rule is "a path that exists as typed is never re-rooted". `doctor` joined
+  `root` to the string unconditionally. From the directory above a project:
+
+      citevouch check paper/m.md --root paper                 -> 1 verified, exit 0
+      citevouch doctor --root paper --manuscript paper/m.md    -> exit 1,
+          [FAIL] manuscript  paper\paper\m.md does not exist
+
+  The command a reader runs *because* a report looked empty was the one command
+  that could not find the file the report was about.
+
+  *Who is blocked*: anyone who keeps the manuscript in a subdirectory and types
+  the path they can see - which is the path `doctor`'s own fix line recommends.
+  Following that advice reproduced the failure, because the advised shape was
+  the one that had just been rejoined.
+
+  *Done when*: the two commands read one file from one argument pair.
+
+  **Done - why it is now true:** `doctor._project` calls `scan._resolve`, the
+  same helper the other four verbs call. Measured after the fix, from the
+  directory above the project: `doctor --root paper --manuscript paper/m.md`
+  exits 0 printing `paper\m.md (99 bytes)`, the same file `check paper/m.md
+  --root paper` verifies; `--manuscript m.md` and an absolute path reach the
+  same `Path(...).resolve()`. Three mutations, all red, six tests each: rejoin
+  the root, resolve without consulting the file on disk, and hand the joined
+  path back to the resolver. `tests/test_doctor_resolves_paths.py` runs with
+  the working directory one level above the project, because from inside it the
+  two readings agree by accident - the first draft of the file did exactly that
+  and proved nothing until it chdir'd up.
+
+  *Not covered*: a Windows UNC `--root`. `_resolve` calls `Path.exists()`, which
+  is the same call that already reports an unreachable share as missing
+  everywhere else, so the new path cannot be better than the old one there.
+  Changing it means changing `_resolve` for all six verbs, which is a design
+  change rather than a fix.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
