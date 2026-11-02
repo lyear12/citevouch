@@ -991,6 +991,41 @@ not what changed, but what proves the change works.
   *Not covered*: macros are still not expanded at their call sites, so
   `\seecite{knuth}` is a missing citation rather than a found one -
   fixing that is a feature (a TeX expander), not a defect fix.
+- [x] **A command whose arguments are all metadata pasted them into the
+  sentence.** Twenty-eight LaTeX commands name a counter, a length, a style, a
+  registry key or a file, and the converter's fallthrough ("drop the name, keep
+  whatever it wraps") kept every one of them. The worst shape is a number at the
+  start of a sentence: `\setcounter{page}{3}We collected 40,688 examples.`
+  converted to `3We collected 40,688 examples.`, and that sentence is what
+  `draft` writes into a claim block, so the ledger then records a number the
+  author never typed.
+  *Who is blocked*: every LaTeX author whose preamble style puts a
+  `\setcounter`, `\pagestyle` or `\setlength` inside a
+  paragraph - which is how most templates that change the page style mid-document
+  do it. They get proposals with junk glued to the front and, worse, quotes that
+  no longer match the PDF.
+  *Done when*: the argument counts are data next to the names, the sentence
+  converts byte for byte, and a test fails if the handler drops the wrong number
+  of arguments.
+  **Done - why it is now true:** `_DROP_ALL_ARGUMENTS` maps each of the
+  twenty-eight names to how many arguments it takes and the converter skips them
+  whole; `\multicolumn` and `\foreignlanguage` are
+  skip-first commands with their text converted, `\texorpdfstring`
+  keeps only its first argument, and the xparse `\NewDocumentCommand` family is
+  now recognised as definitions. `tests/test_latex_non_prose_arguments.py`
+  asserts the **whole converted sentence** for all twenty-eight spellings rather
+  than a list of forbidden words, because a forbidden-word test passes when the
+  handler drops the wrong number of arguments.
+  `\multicolumn{2}{c}{wide text}` passed a "no `{2}` in the output"
+  assertion while producing `cwide text`. Five mutations are red: fall back to
+  the fallthrough, drop only the first argument, drop exactly one for every
+  command, keep both `\texorpdfstring` arguments, and stop
+  recognising the xparse definition spellings. 1663 tests pass and the demo
+  still reports 5 claims - 4 verified, 0 moved, 1 missing.
+  *Not covered*: a macro invocation is still not expanded at its call site, so
+  `\seecite{knuth}` remains a missed citation rather than a wrong
+  one. That is a feature request, not a defect in this entry.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
