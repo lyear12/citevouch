@@ -858,6 +858,52 @@ not what changed, but what proves the change works.
   either); case-insensitive suffix matching for `\input Foo.TEX`, which the
   braced form has never done either.
 
+- [x] **Ten LaTeX commands pasted their first argument into the prose.**
+
+  *What was wrong.* `\textcolor{red}{small}` takes a colour and then the text.
+  Ten such commands were in neither `_KEEP_ARGUMENT` nor `_DROP_ARGUMENT`, so
+  they fell through to the branch that drops the name and keeps everything
+  after it. Measured:
+
+  ```
+  \textcolor{blue}{blue}      -> 'blueblue'
+  \href{http://x}{shown}      -> 'http://xshown'
+  \scalebox{2}{big}           -> '2big'
+  \parbox{3cm}{boxed}         -> '3cmboxed'
+  \hyperlink{target}{linked}  -> 'targetlinked'
+  \resizebox{1cm}{!}{resized} -> '1cm!resized'
+  ```
+
+  That text is what `draft` writes into the `claim:` field it asks the author
+  to paste, so the proposal was built on a sentence the paper does not contain.
+
+  *Who is blocked.* Anyone whose paper uses colour, hyperlinks, or sized boxes -
+  i.e. most papers built from a template - who runs `citevouch draft` on the
+  `.tex`. The braced-argument commands that were classified correctly hid the
+  problem: `\raisebox{1pt}{lifted}` behaved, so the converter looked like it
+  understood two-argument commands.
+
+  *Done when.* Every one of the ten yields only the wrapped words, the two
+  commands that take two non-prose arguments skip both, and the kept argument is
+  still converted as prose (`\textcolor{blue}{\textbf{blue}}` -> `blue`, not
+  `\textbf{blue}`).
+
+  *Done - why it is now true.* `src/citevouch/latex.py` gained a
+  `_SKIP_FIRST_ARGUMENT` set with an explicit per-command argument count, and a
+  branch that skips `N` groups (passing over `[...]` as it goes) then converts
+  the last one. `\makebox`/`\framebox` moved into `_KEEP_ARGUMENT`, where they
+  belong - their `[width]` is optional and their text argument is prose.
+  `tests/test_latex_argument_commands.py` (19 tests) covers each command, the
+  two-argument pair, `\parbox[t]{3cm}{}`, `\textcolor[RGB]{}{}`, an argument-less
+  command, and one end-to-end `draft` run asserting the colour does not reach
+  the `claim:` text. Four mutations are red: skip the new branch (13 tests),
+  say every command takes one argument (2), treat the optional argument as the
+  first (2), keep the last argument raw (1). Shipped in 0.19.74.
+
+  *Not covered*: a command whose text argument is missing entirely is handled by
+  falling through to the next word, which is asserted for `\textcolor` but not
+  enumerated across all ten names.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
