@@ -40,6 +40,7 @@ SARIF_RULES = {
     "quote-moved": "A quoted passage is on a different page than recorded.",
     "quote-found": "A quoted passage is where the ledger says it is.",
     "number-absent-in-quote": "A number in a quote is not on the cited page.",
+    "number-not-in-passage": "A number in a quote is on the page but belongs to another passage.",
     "source-missing": "A source file is missing.",
     "source-changed": "A source file differs from the recorded copy.",
     "source-unreadable": "A source file could not be read.",

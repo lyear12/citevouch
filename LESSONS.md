@@ -2813,3 +2813,15 @@ The duplicate pass keys on `(code, claim_id, path, line)`. Six separate producer
 
 **Evidence.** 2026-11-01. `tests/test_one_finding_per_fact.py` builds one project carrying all six shapes and requires `len(set(keys)) == len(raw)`; eight mutations across the six sites are all red, including the two that had never been mutation-tested as a group. Seen 1.
 
+## A question the code can answer exactly must not be answered by a different question
+
+The `numbers` tier finds a quote by blanking every number on both sides and comparing the text. That comparison knows, at the moment it succeeds, which of the page's numbers fell into the positions the quote's numbers occupy. The verifier did not ask it. It re-read the page, collected every number on it into a set, and asked "is the quote's number anywhere here?" - a different question, with a different answer, and the one it answered was the forgiving one. A quote that borrowed a number from the very next sentence therefore reached the fallback and was told `the numbers do not` about a number four lines down the same page.
+
+**Rule.** When one stage computes a precise relation and a later stage needs it, carry the relation. Do not let the later stage re-derive a weaker one from the raw input. The weaker question is not a simplification - it is a different question, and it will be answered confidently in cases where the precise one would have said something else.
+
+**Why this is worth a lesson of its own.** Every check in this project is "does the artifact agree with the page", and the failure mode that matters is a *false accusation*: telling an author their quote is wrong when it is not. A weaker re-derivation does not fail loudly; it produces a sentence that is grammatically perfect, cites a real code, and is simply not true of the file the author is looking at. The author's only recourse is to stop believing the tool.
+
+**How to apply.** After a match succeeds, ask what the matching pass learned on the way that the caller is now guessing at. If the answer is a value - an offset, a page list, a slot mapping - put it on the result object even when only one caller needs it. Then write the test that would fail if the caller guessed instead: here, one page printing the quote's number in another sentence must not be reported as a page that lacks it.
+
+**Evidence.** 2026-11-01. Measured before the fix: page `We collected 40,688 examples for training. The held-out set of 9,800 rolesets was annotated separately.`, quote `We collected 9,800 examples for training.` gave `[high] number-absent-in-quote ... the words match page 1 but the numbers do not; the quote records 9,800`, exit 1 - while `9,800` is printed on page 1. The tier had computed `page_numbers == ('40,688',)` and dropped it. Seven mutations, all red: record nothing, read the page's first N numbers instead of the ones under the blanks, name every number rather than the ones that differ, disable the new code, restore the old sentence, and soften the severity. Seen 1.
+

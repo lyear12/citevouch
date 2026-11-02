@@ -394,19 +394,15 @@ def verify(
             specific = _number_checks(claim, pages, match.page)
             result.findings.extend(specific)
             if not specific:
-                result.findings.append(
-                    Finding(
-                        code="number-absent-in-quote",
-                        message=(
-                            f"claim {claim.id}: the words match page {match.page} but the "
-                            f"numbers do not; the quote records "
-                            f"{', '.join(claim.numbers) or 'no numbers'}"
-                        ),
-                        claim_id=claim.id,
-                        path=claim.path,
-                        line=claim.line,
-                    )
-                )
+                # Nothing is missing *from the page*, and the old sentence here
+                # said so anyway: "the words match page 1 but the numbers do
+                # not".  For a quote that swapped a number between two
+                # sentences the number is on page 1 - four lines down - so that
+                # sentence was false about a page the author can read, which is
+                # the one thing this tool must never be.  The tier knows the
+                # answer: it matched the text with every number blanked out, so
+                # the numbers that fell into those blanks are the page's own.
+                result.findings.extend(_number_where_checks(claim, match))
         else:
             result.missing += 1
             result.findings.append(
@@ -513,6 +509,64 @@ def _number_checks(
             )
         )
     return out
+
+
+def _number_where_checks(claim, match) -> list[Finding]:
+    """Numbers that are on the page, but not in the passage the quote names.
+
+    The ``numbers`` tier matched the quote with every number blanked out, so
+    the numbers that filled those blanks are the page's own numbers at exactly
+    the positions the quote fills with its own.  Comparing the two lists is a
+    fact the page states directly; asking "does 9,800 appear anywhere on page
+    1" is not, and answering it "yes" is what produced this function.
+
+    A quote that swaps a number between two sentences used to reach the summary
+    and be told "the words match page 1 but the numbers do not" - about a
+    number printed four lines further down the same page.  That sentence is
+    false about a page the author can read, which is the one thing this tool
+    must never be, so the two situations get two codes: ``number-absent-in-
+    quote`` when the page has no such number at all, and this one when it has
+    it somewhere else.
+    """
+    if not claim.numbers or not match.page_numbers:
+        return []
+    pairs = [
+        (mine, theirs)
+        # strict=False on purpose: `claim.numbers` comes from REPORT_PATTERN
+        # and `match.page_numbers` from MASK_PATTERN, and the two disagree
+        # about whether a bare space groups thousands.  When they do, the
+        # shorter list wins and the numbers past its end are simply not
+        # compared - the honest answer for a position the page's own text
+        # cannot be aligned to.
+        for mine, theirs in zip(claim.numbers, match.page_numbers, strict=False)
+        if canonical_number(mine) != canonical_number(theirs)
+    ]
+    if not pairs:
+        return []
+    said = " and ".join(mine for mine, _ in pairs)
+    printed = " and ".join(theirs for _, theirs in pairs)
+    if len(pairs) == 1:
+        # One number, one sentence: naming the passage is the whole message.
+        # The count is only worth printing when it is not one, which is why it
+        # lives inside this branch instead of trailing every message.
+        tail = "that number is on the page, but not in this passage"
+    else:
+        tail = (
+            f"those {len(pairs)} numbers are on the page, but not in this passage "
+            f"({count_of(len(pairs), 'number')} differ)"
+        )
+    return [
+        Finding(
+            code="number-not-in-passage",
+            message=(
+                f"claim {claim.id}: the quote says {said} where page {match.page} "
+                f"prints {printed}; {tail}"
+            ),
+            claim_id=claim.id,
+            path=claim.path,
+            line=claim.line,
+        )
+    ]
 
 
 def _numbers(text: str) -> tuple[str, ...]:

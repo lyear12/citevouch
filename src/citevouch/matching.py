@@ -120,6 +120,17 @@ class Match:
     context: str = ""
     reason: str = ""
     spans_to: int | None = None
+    #: For the ``numbers`` tier only: the numbers the page prints where the
+    #: quote's numbers would be, in quote order.  Empty for every other tier.
+    #:
+    #: Without this the caller could only ask "is 9,800 anywhere on page 1?",
+    #: and for a quote that swapped a number between sentences the answer is
+    #: yes - so the run had nothing true to say and printed "the numbers do
+    #: not", about a number sitting in the same page's next sentence.  The
+    #: tier already knows the answer: it found the quote by matching the text
+    #: with every number blanked out, so the page's numbers are exactly the
+    #: ones that fell into the quote's blank positions.
+    page_numbers: tuple[str, ...] = ()
 
     @property
     def found(self) -> bool:
@@ -149,6 +160,22 @@ def number_spans(text: str) -> list[tuple[str, int]]:
     masking too much is harmless and reporting a number nobody wrote is not.
     """
     return [(m.group(0), m.start()) for m in _NUMBER.finditer(text)]
+
+
+def _numbers_under(text: str, skip: int, want: int) -> tuple[str, ...]:
+    """The ``want`` numbers the page prints at a run of ``want`` blanked slots.
+
+    ``mask_numbers`` replaces every number with a one-character placeholder, so
+    a masked page holds the page's numbers in order and nothing else does.  The
+    slot the ``skip``-th placeholder sits in is the slot the ``want`` slots of
+    the matched quote occupied, so the numbers that belong there are the ones
+    at those positions.  Reading them out is what lets the report say which
+    number the quote put where the page prints a different one - the sentence
+    the author can act on, and the one that is true about a page whose other
+    sentences hold the number the quote used.
+    """
+    found = [token for token, _ in number_spans(text)]
+    return tuple(found[skip : skip + want]) if want else ()
 
 
 def _canonical_numbers(text: str) -> str:
@@ -521,6 +548,11 @@ def find_in_pages(
                         reason=(
                             "the words around the numbers match this page but the numbers "
                             "in the quote differ from the source"
+                        ),
+                        page_numbers=_numbers_under(
+                            page.text,
+                            flat.count(_NUMBER_PLACEHOLDER, 0, pos),
+                            masked_quote.count(_NUMBER_PLACEHOLDER),
                         ),
                     )
 

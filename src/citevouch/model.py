@@ -29,6 +29,15 @@ CODES = {
     # for the rule; a special case in the exit path is not.
     "quote-fuzzy": "high",
     "number-absent-in-quote": "high",
+    # High, like the code above, and for the same reason: the author writes a
+    # sentence whose words are the page's and whose number is another
+    # sentence's.  That is a transcribed number, not a formatting difference,
+    # and it is the exact error this tool exists to catch - a default
+    # `--fail-on high` run has to fail on it.  Splitting it from
+    # `number-absent-in-quote` is not a severity change: it is the difference
+    # between "that number is nowhere on this page" and "that number is four
+    # lines further down", and only one of those is true of a swapped number.
+    "number-not-in-passage": "high",
     "source-missing": "high",
     "source-changed": "medium",
     "source-unreadable": "high",
