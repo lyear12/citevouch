@@ -3066,3 +3066,57 @@ claim blocks, so every run will report 0 claims checked and exit 0`, exit 1, wit
 the `citevouch draft` fix. Six mutations, all red. The test fixture's own manuscript
 was `# t` - a file with no blocks - which is why this went unnoticed: the fixture
 was the bug. Seen 1.
+
+## A lockfile is an input, and an input is untrusted even when your own tool wrote it
+
+`Ledger.from_json` trusted every field. A lockfile edited by hand, truncated by a
+bad merge, or written against a shape this version no longer writes raised
+`AttributeError`, `TypeError` or `ValueError` straight out of `main`. Twenty
+damaged shapes were run through `report`, `verify` and `check --use-recorded`:
+sixty crashes, and every one exited **1** — which in this tool means "findings
+reached the threshold".
+
+**Rule.** A file the tool wrote is still a file the user can edit, version control
+can merge, and another build can write. Parse it the way you parse anything else
+you did not create in this process. The question is not "who produced this?" but
+"what is the worst a truthful reader can be handed?".
+
+**Why the reasoning was already in the file and still not applied.** `_read_ledger`
+had refused a too-new *schema number* since the first release, in words that fit
+the crash exactly: "Reading a future ledger with today's parser would half-parse
+it: fields the next version added or renamed would come back empty, and
+`source-missing` on a half-read claim is the false verdict this tool exists to
+avoid." The same sentence covers a null element in `claims` and a string where a
+count belongs. Schema versioning was seen as *the* compatibility question, so the
+shape of the file never came up — and the guard covered the one case that had a
+number attached to it.
+
+**How to apply.** Two questions, in this order. First: which exit code does this
+failure produce, and does that code already mean something else? A crash exits 1 for
+free, and 1 is the answer this tool gives to "should this manuscript be blocked", so
+a crash is a verdict the author did not earn. Second: enumerate the shapes, not the
+cause — write a table of hand-built damaged values (`null`, `"x"`, `5`, `[]`, a float
+where an int belongs, a string where a list belongs) and run every verb that reads
+the file over every one. Hand-writing the table found twenty shapes that reading the
+parser had not suggested.
+
+**Where refusing is wrong.** Two shapes needed a narrower rule than "must look like
+what we write". `claims: null` is refused rather than read as an empty ledger —
+"nothing to verify" is a clean run for a manuscript whose evidence was thrown away.
+But `claims: []`, a missing `tool_version`, a `page` written as `"7"` and a missing
+`fields` all still read: a guard that refuses a file the *writer* produces would be
+worse than the crash it replaced. So the suite round-trips a real `scan` output
+through `from_json` and asserts the two are equal. A guard is only correct if you
+have also measured that it lets the legitimate input through — the negative cases
+prove it fires, and only the round trip proves it does not fire at the wrong time.
+
+**Evidence.** 2026-11-02, before and after, measured on the same twenty shapes
+through the three verbs. Before: `claims: [null]` → `AttributeError: 'NoneType'
+object has no attribute 'get'`, exit 1; `entries: {"k": {"fields": 5}}` →
+`AttributeError: 'int' object has no attribute 'items'`, exit 1; `claims: [{"id":
+"c1", "numbers": 5}]` → `TypeError: 'int' object is not iterable`, exit 1. After:
+each one prints `citevouch: citevouch.lock.json: ledger claims[0] must be an
+object, not NoneType` and exits 2. Nine mutations, eight red; the survivor is
+equivalent — the type guard above it makes the old coercion unreachable, which is
+why that guard carries its own parametrised case. `tests/test_damaged_ledger.py`,
+126 tests, released as 0.19.48. Seen 1.
