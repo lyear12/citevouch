@@ -11,6 +11,29 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A macro definition's body was read as a sentence. `\newcommand`, `\renewcommand`, `\providecommand`,
+  `\DeclareRobustCommand`, `\def`, `\gdef`, `\edef`, `\xdef`, `\newenvironment`,
+  `\renewenvironment` and `\newtheorem` were handled as "drop one argument", so everything
+  after the name - the parameter count, the optional default, and the body -
+  stayed in the stream. Two consequences, in opposite directions. A body that
+  names a key put that key into the text: `\newcommand{\knuthcite}{\citep{knuth}}` turned
+  a paper that never cites Knuth into one that does, and `draft` proposed a
+  `sources.toml` line for it. A body that names a parameter lost a real
+  citation: `\newcommand{\seecite}[1]{see \citep{#1} for details}`
+  recorded a citation to the key `#1` while every `\seecite{knuth}` became a bare word,
+  so a paper that cites once per paragraph was told it cites nothing.
+  `included_files` had the same hole from the other side: a body holding
+  `\input{#1}` was reported as a file named `#1`.
+
+  The three shapes are read by `_definition_end`: a braced name followed by an
+  optional count, an optional default and a body; the low-level
+  `\def\name#1{body}` form whose name is not in braces; and
+  `\newtheorem{name}{Printed}[within]`, whose argument order matches neither of the others.
+  `_without_definitions` runs the same cut over the raw source, so a checker
+  that reads it without converting first gets the same answer. Measured before
+  the fix: 26 new tests, five mutations of the new code, all five red.
 
 ## [0.19.75] — 2026-11-02
 ### Fixed

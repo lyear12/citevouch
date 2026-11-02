@@ -169,10 +169,6 @@ _DROP_ARGUMENT = frozenset(
         "vspace",
         "setlength",
         "addtolength",
-        "newcommand",
-        "renewcommand",
-        "providecommand",
-        "def",
         "hypersetup",
         "setcounter",
         "cline",
@@ -197,6 +193,74 @@ _DROP_ENVIRONMENT = frozenset(
         "comment",
     }
 )
+
+#: Commands that define a macro or an environment.  Their bodies are templates,
+#: not sentences: ``\newcommand{\mycite}[1]{\citep{#1}}`` is a rule about how a
+#: later call gets rendered, and the ``#1`` in it is a hole.  They used to be
+#: handled as "drop one argument", so the parameter count and the body stayed in
+#: the stream and were read as prose.  Measured before this set existed:
+#: ``\newcommand{\knuthcite}{\citep{knuth}}`` put a ``[@knuth]`` into the text of
+#: a paper that never cites Knuth, and ``\newcommand{\seecite}[1]{see
+#: \citep{#1}}`` turned the real call ``\seecite{knuth}`` into a bare ``knuth``
+#: while recording a citation to the key ``#1`` - the one case where the tool
+#: invents evidence and loses the real citation in the same step.
+_DEFINITION = frozenset(
+    {
+        "newcommand",
+        "renewcommand",
+        "providecommand",
+        "DeclareRobustCommand",
+        "def",
+        "gdef",
+        "edef",
+        "xdef",
+        "newenvironment",
+        "renewenvironment",
+        "newtheorem",
+    }
+)
+
+#: Definitions written as ``\def\name#1#2{body}``: the name is not in braces and
+#: the parameter text may hold anything up to the body.
+_LOW_LEVEL_DEFINITION = frozenset({"def", "gdef", "edef", "xdef"})
+
+#: Definitions whose body is prose but whose name is not, in two parts.
+_ENVIRONMENT_DEFINITION = frozenset({"newenvironment", "renewenvironment"})
+
+#: ``\newtheorem{thm}{Theorem}[section]`` - an argument order that is neither of
+#: the other shapes.
+_THEOREM_DEFINITION = frozenset({"newtheorem"})
+
+
+def _without_definitions(text: str) -> str:
+    """`text` with every macro definition cut out, body included.
+
+    ``included_files`` reads the raw source, and a body like ``\\input{#1}``
+    names no file - but it was reported as one, under the name ``#1``, while the
+    definition was also still in the prose.  `to_text` cuts bodies out through
+    ``_definition_end``; this runs the same cut over the raw source so a reader
+    that does not convert first gives the same answer.
+    """
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        if text[index] != "\\":
+            out.append(text[index])
+            index += 1
+            continue
+        end = index + 1
+        while end < length and text[end].isalpha():
+            end += 1
+        name = text[index + 1 : end]
+        if name not in _DEFINITION:
+            out.append(text[index])
+            index += 1
+            continue
+        index = _definition_end(text, name, end)
+        out.append(" ")
+    return "".join(out)
+
 
 #: Commands with one argument that is not prose (a colour, a URL, a scale, a
 #: width) followed by one that is.  Neither ``_KEEP_ARGUMENT`` nor
@@ -508,6 +572,56 @@ def _skip_environment(text: str, start: int, name: str) -> int:
     return cursor
 
 
+def _skip_space(text: str, start: int) -> int:
+    """Index of the first non-blank character at or after `start`."""
+    index = start
+    while index < len(text) and text[index] in " \t\n\r":
+        index += 1
+    return index
+
+
+def _definition_end(text: str, name: str, start: int) -> int:
+    """Index just past the definition of `name` that follows `start`.
+
+    Three shapes, and each has to be read to its end: a definition whose body is
+    left in the stream is read as a sentence, so ``\\newcommand{\\see}[1]{see
+    \\citep{#1}}`` contributed a citation to the key ``#1`` and swallowed the
+    real call at every use site.
+    """
+    cursor = _skip_space(text, start)
+    if name in _LOW_LEVEL_DEFINITION:
+        # `\def\name#1#2{body}`: the name is not in braces, and the parameter
+        # text runs up to the body's opening brace.
+        opening = text.find("{", cursor)
+        if opening < 0:
+            return len(text)
+        group = _group_end(text, opening)
+        return group if group > 0 else len(text)
+    if name in _THEOREM_DEFINITION:
+        # `\newtheorem{name}[counter]{Printed Name}[within]`.
+        group = _group_end(text, cursor)
+        if group < 0:
+            return len(text)
+        cursor = _skip_optional_args(text, group)
+        group = _group_end(text, cursor)
+        if group < 0:
+            return cursor
+        return _skip_optional_args(text, group)
+    group = _group_end(text, cursor)
+    if group < 0:
+        return len(text)
+    cursor = _skip_optional_args(text, group)
+    if name in _ENVIRONMENT_DEFINITION:
+        for _ in range(2):
+            group = _group_end(text, cursor)
+            if group < 0:
+                return cursor
+            cursor = _skip_optional_args(text, group)
+        return cursor
+    group = _group_end(text, cursor)
+    return group if group > 0 else cursor
+
+
 def _convert(text: str) -> str:
     """Convert one stretch of LaTeX (no comment stripping, no preamble)."""
     out: list[str] = []
@@ -560,6 +674,12 @@ def _convert(text: str) -> str:
                         index = group
                         continue
                     index = cursor
+                    continue
+                if name in _DEFINITION:
+                    # A macro body is a template, not a sentence.  Leaving it in
+                    # invented citations that the paper never makes and turned
+                    # `\seecite{knuth}` into a bare word.
+                    index = _definition_end(text, name, end)
                     continue
                 if name in _INCLUDE_ARGUMENTS:
                     # The file name is not prose.  Drop the arguments whole;
@@ -683,7 +803,7 @@ def included_files(tex: str) -> list[str]:
     ``{``, and ``_INCLUDE_COMMAND`` names seven other commands in full.
     Sorting by position therefore needs no de-duplication between them.
     """
-    stripped = _drop_inline_verbatim(strip_comments(tex))[0]
+    stripped = _without_definitions(_drop_inline_verbatim(strip_comments(tex))[0])
     found: list[tuple[int, str]] = [
         (match.start(), match.group(1)) for match in _INCLUDE.finditer(stripped)
     ]

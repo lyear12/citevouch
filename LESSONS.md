@@ -4116,3 +4116,45 @@ that only checks the prose passes while the report stays silent.
 `['sec/intro', 'chapters/one', 'two', ...]`. Four mutations (name in the prose,
 file never reported, only the first argument of `\import`, name dropped but
 argument kept) are all red. Seen 1.
+
+## A macro body is a template, and a template is not a sentence
+
+**Rule.** When a converter decides what text to keep, a definition command's
+body has to go with the name. `\newcommand{\x}{\citep{knuth}}` does not
+cite Knuth; it says what a later call will become. Leaving the body in the
+stream makes the converter read a promise as evidence.
+
+**Why this was easy to miss.** `\newcommand` and friends were already in
+`_DROP_ARGUMENT`, which is a set of commands that take one non-prose
+argument. That is true of `\ref` and `\label` and false of a
+definition, which takes a name, an optional count, an optional default and a
+body. The command was in the right set for the wrong reason, so nothing
+looked wrong: only the first brace group was dropped and the rest fell
+through as prose.
+
+**Both directions at once.** A body naming a key invented a citation
+(`\knuthcite` put a `[@knuth]` into a paper that never cites Knuth, and
+`draft` offered a `sources.toml` line for it). A body naming a parameter
+lost one: `\seecite` recorded a citation to the key `#1` while every
+real call `\seecite{knuth}` became a bare word. So the two failure modes
+of this tool - a false accusation and a silent pass - came out of the same
+line of code, and fixing only the text would have left `included_files`
+reporting a file called `#1`.
+
+**How to apply.** For each command in a drop set, write down how many
+arguments it has and which of them are prose. A set whose name says
+`Argument` (singular) may not hold a command with four. When a definition's
+body can itself contain the commands being read (`\input`, `\citep`),
+cut the body before those commands are matched anywhere, not just in the
+converter - `_without_definitions` runs the same cut over the raw source for
+exactly that reason.
+
+**Evidence.** Before: `\newcommand{\knuthcite}{\citep{knuth}}` converted to
+`'[@knuth]'`, and `citation_sites` returned `['knuth']` for a document with
+no citation. `\newcommand{\inc}[1]{\input{#1}}` made
+`included_files` return `['#1']`. After: both return nothing, a real include
+beside a definition is still reported, and 26 new tests cover the eight
+definition spellings, the three argument shapes, environments and theorems.
+Five mutations (body back as prose, raw source not cut, environment keeps
+its second body, low-level definition stops at the name, theorem keeps its
+printed name) are all red. Seen 1.
