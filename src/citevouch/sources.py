@@ -14,9 +14,12 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import logging
 import os
 import re
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from shutil import which
@@ -196,6 +199,31 @@ def _store_cache(root: str | Path, sha: str, pages: list[PageText], extractor: s
         pass
 
 
+@contextmanager
+def _quiet_pypdf() -> Iterator[None]:
+    """Silence the log lines pypdf writes about a file we already handle.
+
+    pypdf reports a damaged file twice: once by logging
+    (``pypdf._reader`` warns "invalid pdf header: b'not a'" and "EOF marker not
+    found") and once by raising.  We catch the exception and turn it into a
+    finding that says the same thing with more detail, so the log lines are a
+    worse copy of a fact the author already gets - and they land on stderr,
+    next to a run that exits 1, where nobody looks for them.  Measured before
+    this: one unreadable source printed four lines of pypdf's warnings around
+    the single line citevouch wrote.
+
+    A context manager rather than a process-wide setting keeps the suppression
+    to the reads that expect trouble; anything else keeps pypdf's logging.
+    """
+    quiet = logging.getLogger("pypdf")
+    previous = quiet.level
+    quiet.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        quiet.setLevel(previous)
+
+
 def _pypdf_pages(path: str | Path) -> tuple[list[str], str] | None:
     """Pages from pypdf, named with the version whose behaviour they encode."""
     try:
@@ -204,16 +232,17 @@ def _pypdf_pages(path: str | Path) -> tuple[list[str], str] | None:
     except ImportError:
         return None
     name = f"pypdf-{getattr(pypdf, '__version__', 'unknown')}"
-    try:
-        reader = PdfReader(str(path))
-        if reader.is_encrypted:
-            try:
-                reader.decrypt("")
-            except Exception:  # noqa: BLE001 - any failure means "cannot read"
-                return None
-        return [(page.extract_text() or "") for page in reader.pages], name
-    except Exception:  # noqa: BLE001 - a corrupt PDF is a finding, not a crash
-        return None
+    with _quiet_pypdf():
+        try:
+            reader = PdfReader(str(path))
+            if reader.is_encrypted:
+                try:
+                    reader.decrypt("")
+                except Exception:  # noqa: BLE001 - any failure means "cannot read"
+                    return None
+            return [(page.extract_text() or "") for page in reader.pages], name
+        except Exception:  # noqa: BLE001 - a corrupt PDF is a finding, not a crash
+            return None
 
 
 def _pdftotext_pages(path: str | Path) -> tuple[list[str], str] | None:
@@ -259,12 +288,13 @@ def _why_both_refused(path: Path) -> list[str]:
     """
     said: list[str] = []
     if _pypdf_importable():
-        try:
-            from pypdf import PdfReader
+        with _quiet_pypdf():
+            try:
+                from pypdf import PdfReader
 
-            PdfReader(str(path))
-        except Exception as exc:  # noqa: BLE001 - the sentence is the whole point
-            said.append(f"{type(exc).__name__}: {exc}".rstrip(": "))
+                PdfReader(str(path))
+            except Exception as exc:  # noqa: BLE001 - the sentence is the whole point
+                said.append(f"{type(exc).__name__}: {exc}".rstrip(": "))
     if which("pdftotext") is not None:
         try:
             proc = subprocess.run(

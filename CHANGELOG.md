@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- pypdf reports a damaged file twice: it logs (`invalid pdf header`, `EOF
+  marker not found` through `pypdf._reader`) **and** it raises.  The raise was
+  already caught and turned into a `source-unreadable` finding that says the
+  same thing with more detail, so the log lines were a worse copy of a fact the
+  reader was about to get — printed on stderr, next to a run that exits 1,
+  where `--format json` consumers and CI logs have to filter them out by hand.
+  Measured: one unreadable source printed **four** lines of pypdf's warnings
+  around the single line this tool wrote.  A `_quiet_pypdf()` context manager
+  now lowers the `pypdf` logger for the two reads that expect trouble (the
+  extraction and the diagnosis) and restores it in `finally`.  Six tests, and
+  five mutations all red — the first draft of those tests counted stderr text
+  and **two mutations survived**, because pytest installs a log handler on the
+  root logger and `redirect_stderr` never sees a record at all.
+
 
 ## [0.19.59] — 2026-11-02
 ### Fixed

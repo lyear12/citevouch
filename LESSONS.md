@@ -3523,3 +3523,44 @@ lookup, body-beats-fence, every key treated as an attribute, attribute line
 dropped - five red, `survivors: none`.
 
 Seen 1.
+
+## A redirected stream is not where a log record goes
+
+**Rule.** When the thing you are testing is a *log record*, assert on log
+records. `redirect_stderr` only sees a stream; logging resolves its stream from
+a handler, and pytest installs one on the root logger before your test runs. A
+test that reads `sys.stderr` and expects to find a library's warning passes
+whether or not the code under test logs anything at all.
+
+**Why.** The fix was "stop pypdf printing warnings on stderr". The obvious test
+is a subprocess or a `redirect_stderr` around `main()`, and both look decisive:
+they show the console. But the console is exactly what a log handler takes away.
+The first draft had six tests including one that asserted `err == ""`, and **two
+of the five mutations survived** — "the pypdf read is not silenced" and "the
+reason reader is not silenced" both left every test green, because nothing in
+the file was counting records.
+
+The fix was to install a collecting handler on the `pypdf` logger, raise its
+level to `DEBUG` so the handler could see what a real caller would, and assert
+the record list was empty. All five mutations went red immediately.
+
+**How to apply.**
+1. Ask what the *observation* is. A stream is one way to observe a record; a
+   handler is the other, and it is the only one that works under pytest.
+2. Both failure directions need a test: the warning must be gone **and** an
+   unrelated warning must still arrive. The second is what catches
+   `logging.disable()` — a global mute passes the first test perfectly.
+3. A test that reads state it just set is not comparing anything. The
+   "level is restored" test first read the level it was about to restore, so
+   "restored to `ERROR`" and "never restored" were the same observation; it
+   had to set the level to a known value first.
+4. After the mutation run, read the survivors as *questions about the tests*,
+   not about the code. Both survivors here were correct code and blind tests.
+
+**Evidence.** Before: `check` on a project with one unreadable PDF wrote
+`invalid pdf header: b'not a'` / `EOF marker not found` twice to stderr around
+one `source-unreadable` finding, and `--format json` still emitted valid JSON to
+stdout — so the noise was invisible to anything reading stdout and unavoidable
+for a human. After: stderr is zero bytes for the same run. Reverse verification:
+5 mutations, 5 red, `survivors: none`. First draft: 6 tests green, 2 mutations
+survived. Seen 1.
