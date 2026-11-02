@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.68] — 2026-11-02
 ### Fixed
 
 - The pre-scan that makes both `sources.toml` readers refuse the same spellings
@@ -22,7 +24,6 @@ tag and that file disagree.
   scan now asks only about the places that can change what `sources` means: an
   inline table at the root, and a dotted key under `[sources]`.  An inline
   table inside another table is left alone for the same reason.
-
 ## [0.19.67] — 2026-11-02
 ### Fixed
 
@@ -1860,7 +1861,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.67...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.68...HEAD
+[0.19.68]: https://github.com/lyear12/citevouch/releases/tag/v0.19.68
 [0.19.67]: https://github.com/lyear12/citevouch/releases/tag/v0.19.67
 [0.19.66]: https://github.com/lyear12/citevouch/releases/tag/v0.19.66
 [0.19.65]: https://github.com/lyear12/citevouch/releases/tag/v0.19.65
