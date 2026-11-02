@@ -814,6 +814,50 @@ not what changed, but what proves the change works.
   scans cannot be made to straddle a second on purpose, so the old behaviour is
   established by reading the field, not by waiting for it.
 
+- [x] **`\input sec/intro` was left in the prose and reported as no include.**
+
+  *What was wrong.* `\input` has two spellings. LaTeX writes
+  `\input{sec/intro}`; plain TeX writes `\input sec/intro`. `latex.py` handled
+  the braced form on both sides - `to_text` dropped the argument, and
+  `included_files()` named the file - and handled the bare form on neither.
+  Measured on a two-line `.tex`: `to_text` returned
+
+  ```
+  We show this in sec_intro and continue the argument here.
+  ```
+
+  and `included_files()` returned `[]`. So one spelling produced two wrong
+  answers that each looked fine alone: the path became part of the sentence
+  `draft` proposes as the claim text, and the "this document pulls text in
+  from" note listed nothing, telling an author with a split paper that the tool
+  had read all of it.
+
+  *Who is blocked.* Anyone writing plain-TeX-style `\input` (common in older
+  linguistics and NLP papers, and the form people type by hand) who runs
+  `citevouch draft paper.tex`: the proposals are built on sentences the paper
+  does not contain, and the note that would have warned them is empty.
+
+  *Done when.* Both spellings drop the argument from the prose, both appear in
+  the include note in source order, and a path inside `\verb|...|` or a comment
+  counts in neither.
+
+  *Done - why it is now true.* `src/citevouch/latex.py` gained
+  `_BARE_INPUT = re.compile(r"\\input\s+(?P<name>[^\s{}%\\]+)")`, a branch in the
+  `_DROP_ARGUMENT` handling that consumes the bare argument, and an
+  `included_files()` that unions both patterns and sorts by position (they
+  cannot overlap: `_INCLUDE` requires `{` where `_BARE_INPUT` requires
+  whitespace). After: `to_text` returns `'We show this in and continue the
+  argument here.'` and `included_files()` returns `['sec/intro']`.
+  `tests/test_latex_bare_input.py` (12 tests) holds it, including the ordering
+  test, the `\verb` and comment exclusions, a bare `\input` with nothing after
+  it, and two end-to-end `draft` runs. Three mutations - leave the bare form in
+  the prose, skip it when reporting, make the bare pattern only match braces -
+  are all red. Shipped in 0.19.73.
+
+  *Not covered*: a file name containing a brace (TeX cannot express that
+  either); case-insensitive suffix matching for `\input Foo.TEX`, which the
+  braced form has never done either.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
