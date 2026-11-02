@@ -3810,3 +3810,50 @@ MISSING, which is the mutation tool failing rather than the guard holding; it
 was retargeted at the real call site and then went red.
 
 Seen 1.
+
+## 148. A guard written to fix a false answer can refuse a true one
+
+**Rule.** When a guard exists because two readers disagreed about one file, the
+guard must cover exactly the part of the file that disagreement was about. Scope
+it to the subject, not to the format: a pre-scan over a whole TOML document sees
+tables the tool never reads and refuses files that both readers answer the same
+way - which turns "these two disagree" into "nobody may use either".
+
+**Why this keeps happening.** The four spellings that started this were found by
+diffing two parsers over one file, so the natural next move is to walk the file
+and reject everything different. But the diff was about ``sources``: a dotted key
+under ``[other]`` is a nested table to both readers and binds no source to
+either, so it never appears in a diff of the answer. A guard that scans wider
+than the question cannot tell a real disagreement from a file that merely
+carries more than the tool needs - and manifests carry more, because people keep
+other tables in the same file.
+
+**How to apply.**
+
+1. Write down what the guard is *about*. Here it is "what does ``sources``
+   resolve to", not "is this legal TOML".
+2. For each rejected spelling, ask which of the two readers, if either, would
+   answer the question differently. If neither would, the spelling is not a
+   disagreement and refusing it is the guard's own false positive.
+3. Test the negative direction as hard as the positive one: a manifest with an
+   unrelated table must still read, and still bind the real source. A guard with
+   only "rejects the bad shapes" tests can grow without bound and stay green.
+
+**The other direction.** Narrowing is not the fix for a guard that misses a
+shape. The scope is the *file region* the question is about; the *set of
+refused spellings* inside that region is still every one the readers disagree
+about, and a new one belongs in the guard rather than in a reviewer's memory.
+
+**Evidence.** Before narrowing: ``[sources]\npage = "a.txt"\n[other]\npa.ge =
+"dir/x"`` produced ``found={}`` and ``manifest_problem`` naming a dotted key
+under ``[other]``, while ``tomllib`` read ``{'sources': {'page': 'a.txt'},
+'other': {'pa': {'ge': 'dir/x'}}}`` - the same bindings the subset produces.
+After: five unrelated-table shapes read cleanly and ``page`` still binds, while
+the root inline table and a dotted key under ``[sources]`` are still refused by
+both readers.  Six mutations - restore the inline table, restore the dotted key,
+stop refusing a repeated key, stop refusing a reopened table, widen the scan to
+the whole file again, refuse every inline table anywhere - all red, no
+survivors.  The widening mutation is caught by the new class alone, which is the
+point: the tests that predate it stayed green through the regression.
+
+Seen 1.

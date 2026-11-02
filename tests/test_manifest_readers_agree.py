@@ -26,6 +26,7 @@ README describes.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -108,6 +109,60 @@ class TestTheAcceptedSpellingsReadTheSame:
         assert sorted(real.found) == sorted(mini.found), name
         assert sorted(real.unusable) == sorted(mini.unusable), name
         assert bool(real.manifest_problem) == bool(mini.manifest_problem), name
+
+
+class TestTheScanOnlyAsksAboutTheSourcesTable:
+    """A manifest may carry tables nobody here reads, in any TOML they like.
+
+    The first version of the pre-scan walked the whole file, so
+    ``[other] pa.ge = "dir/x"`` - a nested table to both readers, binding no
+    source to either - made the manifest unreadable.  Measured: `found={}` with
+    `manifest_problem` naming a dotted key under a table this tool never reads.
+    Both readers answer ``sources`` the same way for that file, which is the
+    whole question, so the refusal would have been the regression.
+    """
+
+    UNRELATED: ClassVar[dict[str, str]] = {
+        "a dotted key under another table": (
+            '[sources]\npage = "a.txt"\n[other]\npa.ge = "dir/x"\n'
+        ),
+        "an inline table under another table": (
+            '[sources]\npage = "a.txt"\n[other]\nsources = { a = "b" }\n'
+        ),
+        "a dotted key under no [sources] at all": 'pa.ge = "dir/x"\n',
+        "a dotted key quoted under [sources]": '[sources]\n"pa.ge" = "a.txt"\n',
+    }
+
+    @pytest.mark.parametrize("name", sorted(UNRELATED))
+    def test_the_manifest_is_read(self, name: str, tmp_path: Path) -> None:
+        root = tmp_path / name.replace(" ", "-")
+        root.mkdir()
+        (root / "sources.toml").write_text(self.UNRELATED[name], encoding="utf-8", newline="\n")
+        (root / "a.txt").write_text("alpha\n", encoding="utf-8", newline="\n")
+        table = sources.read_source_table(root)
+        assert not table.manifest_problem, name
+
+    def test_the_source_it_does_bind_still_binds(self, tmp_path: Path) -> None:
+        root = tmp_path / "p"
+        root.mkdir()
+        (root / "sources.toml").write_text(
+            self.UNRELATED["a dotted key under another table"],
+            encoding="utf-8",
+            newline="\n",
+        )
+        (root / "a.txt").write_text("alpha\n", encoding="utf-8", newline="\n")
+        table = sources.read_source_table(root)
+        assert list(table.found) == ["page"]
+
+    def test_root_inline_table_is_still_refused(self) -> None:
+        left, right = both_readers(REFUSED["an inline table"])
+        assert left[0] == "refused"
+        assert right[0] == "refused"
+
+    def test_dotted_key_under_sources_is_still_refused(self) -> None:
+        left, right = both_readers(REFUSED["a dotted key"])
+        assert left[0] == "refused"
+        assert right[0] == "refused"
 
 
 class TestTheRefusedSpellingsAreRefusedTwice:

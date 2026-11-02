@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The pre-scan that makes both `sources.toml` readers refuse the same spellings
+  walked the whole file, so a dotted key under a table this tool never reads -
+  `[other]` then `pa.ge = "dir/x"` - made the manifest unreadable:
+  `found={}` with `manifest_problem` naming a key in an unrelated table.  Both
+  readers agree about that file, which is the whole question, so the refusal
+  was rejecting a manifest that answers the same question the same way.  The
+  scan now asks only about the places that can change what `sources` means: an
+  inline table at the root, and a dotted key under `[sources]`.  An inline
+  table inside another table is left alone for the same reason.
 
 ## [0.19.67] — 2026-11-02
 ### Fixed

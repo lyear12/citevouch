@@ -543,6 +543,13 @@ def _refuse_shapes_only_one_reader_follows(text: str) -> None:
     is what makes the sentence the same one: a check written inside the subset
     can only ever speak for the subset.
 
+    Only the places that can change what ``sources`` means are checked.  A
+    dotted key under ``[other]`` is read as a nested table by both readers and
+    binds no source either way, so refusing it would reject a manifest that
+    answers the same question the same way - and a manifest may carry other
+    tables nobody here reads.  The first version of this function checked the
+    whole file and refused exactly that manifest.
+
     The accepted spellings are already in the README: a ``[sources]`` table
     with one `key = "path"` line per source, and the key quoted - ``"pa.ge"`` -
     when it is meant as a flat name containing a dot.
@@ -565,13 +572,13 @@ def _refuse_shapes_only_one_reader_follows(text: str) -> None:
         if not sep:
             continue
         name = key.strip()
-        if name == "sources" and value.strip().startswith("{"):
+        if not section and name == "sources" and value.strip().startswith("{"):
             raise ValueError(
                 "the 'sources' table is written inline; write it as a [sources] "
                 'table with one `key = "path"` line per source'
             )
         plain = len(name) < 2 or name[0] not in "\"'" or name[-1] != name[0]
-        if "." in name and plain:
+        if section == "sources" and "." in name and plain:
             raise ValueError(
                 f"{name!r} is a dotted key, which names a nested table in TOML; "
                 f'quote it - "{name}" - to bind one source called {name!r}'
