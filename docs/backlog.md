@@ -259,6 +259,41 @@ not what changed, but what proves the change works.
   the reason just given. Nothing measures what a slower machine's stack does
   between 2000 and 20000.
 
+- [x] **`doctor` described a file with two claim blocks as a file with one.**
+  *Found and fixed 2026-11-02.*
+  `_claim_blocks` reported `count_of(len(parsed.claims), "claim block")`, and
+  `parsed.claims` holds the blocks the parser *accepted*. A manuscript with one
+  good block and one that forgot `id=` reported `[ok  ] claims      1 claim
+  block`; `parsed.spans` held two. The same file makes `check` print `[high]
+  claim-uncheckable` at the refused line and `1 claim - 1 verified`, so both
+  counts were already in the run — they describe different nouns, the file and
+  the run, and the check whose purpose is to stop false statements was printing
+  the second as if it were the first.
+
+  *Who is blocked*: an author whose manuscript has one block the parser refused
+  reads `1 claim block`, believes the file holds one, and never learns that a
+  second one is being skipped. The `check` run names the line, so this is not a
+  silent failure — it is a wrong count in the command the author runs *first*,
+  which is what makes them stop reading the second command's output.
+
+  *Done when*: the count matches the file, and a reader who sees a smaller
+  number from the next command is told why before they have to ask.
+
+  **Done — why it is now true:** `_claim_blocks` compares `len(parsed.spans)`
+  with `len(parsed.claims)` and reports `2 claim blocks, 1 of which the parser
+  could read; the next command names the rest` when they differ, keeping the
+  terse `2 claim blocks` when every block was read. Measured on four shapes: a
+  clean file says `1 claim block`, a file with one refused block says the split,
+  a file whose only block was refused keeps `none that the parser could read;
+  the next command names why`, and a file with no blocks still fails. Five tests
+  in `tests/test_doctor.py::TestTheCountIsWhatTheFileHolds`; three mutations all
+  red — the shipped line, the sentence without its "N of which" half, and the
+  long sentence applied to files that do not need it.
+
+  *Not covered*: nothing checks that `doctor` and `check` agree about how many
+  blocks a file holds; the two counts are deliberately different numbers, and
+  only the difference is asserted.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
