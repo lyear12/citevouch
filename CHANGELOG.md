@@ -11,6 +11,17 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A citation removed from Chinese prose no longer leaves a space inside the
+  sentence.  `statement_of` closes the gap a marker leaves before a closing
+  mark, and the first version of that line listed the five Latin marks only:
+  `相关研究指出词汇与构式之间存在互动关系 [@page]。` became
+  `相关研究指出词汇与构式之间存在互动关系 。`, which is not how the sentence
+  is written and not how it will be quoted back at the source.  The marks are
+  now one set, `_NO_SPACE_BEFORE`, covering the CJK stops, the small marks, the
+  ellipsis and the closing brackets as well as the Latin five, and the space
+  between two words is still left alone.
 
 ## [0.19.80] — 2026-11-02
 ### Fixed

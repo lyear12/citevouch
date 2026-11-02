@@ -4330,3 +4330,41 @@ count characters as words, restore the character window) are all red, 1 to 9
 tests each.
 
 Seen 1.
+## The second mark set is the one you forgot, and the first one still passes its own test
+
+**Rule.** When code names a set of punctuation marks - closing marks, stops,
+space-taking marks - that set is a claim about every writing system the input
+may arrive in.  Give it a name, test a mark from each script the tool claims to
+handle, and check whether the same set is written out a second time somewhere
+else.
+
+**Why this keeps happening.** `statement_of` closed the gap a removed citation
+leaves with `re.sub(r"\s+([.,;:!?])", r"\1", text)`.  The five Latin marks are
+correct and the test for them passed.  They are also not the only marks a
+citation can sit before, and the same file had already grown
+`_SENTENCE_END` a week earlier with a CJK branch precisely because the same
+assumption - that a sentence ends the way English ends one - had hidden a real
+defect.  Fixing the splitter did not fix the *other* copy of the assumption,
+because the two live forty lines apart and neither mentions the other.
+
+**How to apply.** Name the set (`_NO_SPACE_BEFORE`) so it reads as a claim, put
+it next to the other named sets in the file, and build the class from it with
+`re.escape` so a `]` in the set cannot end the class early.  Write the test as a
+loop over *every* member grouped by script, not one representative: the first
+version of this test would have passed with the four CJK stops alone and left
+the closing brackets broken.
+
+**The same question from the other side.** The gap is a leftover, not a mark's
+own spacing: `我们 [@p] 认为` must keep its space, because that space is between
+two words and closing it up would run them together.  A fix that removed
+"whitespace around punctuation" wholesale would pass the CJK test and corrupt
+the Chinese sentence it was written for.
+
+**Evidence.** `相关研究指出词汇与构式之间存在互动关系 [@page]。` gave
+`相关研究指出词汇与构式之间存在互动关系 。` before the fix and the closed-up
+sentence after; `他说：“好 [@p]。”` gave `他说：“好 。”` before; 12 tests in
+`tests/test_cjk_statement_space.py`; four mutations (five Latin marks again,
+stops only without the closing marks, keep every space, collapse all spaces)
+are red with 3 to 9 tests each.
+
+Seen 1.

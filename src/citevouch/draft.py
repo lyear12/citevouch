@@ -64,6 +64,13 @@ _CLOSING = "」』】》〉〕｝”’)]"
 # `re.escape` because the class holds a `]`: unescaped, it closes the class
 # early and the rest of the pattern means something else.
 _CLOSING_CLASS = re.escape(_CLOSING)
+
+# Marks that are written tight against the word before them.  `statement_of`
+# closes the gap a removed citation leaves, and the first version listed only
+# `.,;:!?`: `相关研究指出词汇与构式之间存在互动关系 [@page]。` came out as
+# `相关研究指出词汇与构式之间存在互动关系 。`, a space no Chinese writer types.
+_NO_SPACE_BEFORE = frozenset(".,;:!?。，、；：！？…" + _CLOSING)
+_NO_SPACE_BEFORE_CLASS = re.escape("".join(sorted(_NO_SPACE_BEFORE)))
 _WORDS = re.compile(r"[^\W\d_]{2,}")
 _SENTENCE_END = re.compile(
     r"(?<=[.!?])[\"'”’)\]]*(?:\s+|$)"
@@ -253,7 +260,7 @@ def statement_of(sentence: str) -> str:
     """The sentence without its citation markers, ready to be a `claim:` line."""
     text = _PANDOC.sub("", sentence)
     text = _LATEX.sub("", text)
-    text = re.sub(r"\s+([.,;:!?])", r"\1", text)
+    text = re.sub(rf"\s+(?=[{_NO_SPACE_BEFORE_CLASS}])", "", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
