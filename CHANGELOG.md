@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.80] — 2026-11-02
 ### Fixed
 
 - Chinese, Japanese and Korean prose is split into sentences, and a passage is
@@ -29,7 +31,6 @@ tag and that file disagree.
   on this repository's own prose, the old character window 40..400 kept 37% of
   Chinese sentences where the word window 7..70 keeps 86%, and keeps 84% of
   English sentences either way.
-
 ## [0.19.79] — 2026-11-02
 ### Fixed
 
@@ -2100,7 +2101,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.79...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.80...HEAD
+[0.19.80]: https://github.com/lyear12/citevouch/releases/tag/v0.19.80
 [0.19.79]: https://github.com/lyear12/citevouch/releases/tag/v0.19.79
 [0.19.78]: https://github.com/lyear12/citevouch/releases/tag/v0.19.78
 [0.19.77]: https://github.com/lyear12/citevouch/releases/tag/v0.19.77
