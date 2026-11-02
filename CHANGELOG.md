@@ -11,6 +11,19 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A control word followed directly by Chinese text no longer eats the
+  sentence.  `str.isalpha()` is true for CJK characters, and Chinese prose has
+  no spaces, so `\noindent构式语法认为...` was read as a single control word
+  named `noindent` plus the whole sentence - and the sentence was dropped with
+  the name.  Measured on a four-line `ctexart` document, every line of prose
+  disappeared and what survived was the closing punctuation.  The damage is
+  silent: `draft` proposes nothing for a manuscript full of sentences, and
+  `check` reports a clean run over text that was never read.  Control words are
+  now scanned as a backslash followed by ASCII letters, which is what TeX
+  itself does, in all five places that scan one - the converter, the
+  conditional reader, and the file-inclusion reader.
 
 ## [0.19.82] — 2026-11-02
 ### Fixed

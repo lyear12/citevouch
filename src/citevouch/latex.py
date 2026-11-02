@@ -118,6 +118,22 @@ _HEADING = frozenset(
 #: parts, and a silent zero is the failure this tool exists to prevent.
 _INCLUDE = re.compile(r"\\in(?:put|clude|cludeonly)\s*\{([^}]*)\}")
 
+#: A LaTeX control word is a backslash and then ASCII letters.  ``str.isalpha``
+#: is not that test: it is true for Chinese, Japanese and Korean characters too,
+#: and Chinese prose has no spaces, so ``\noindent构式语法认为...`` was read as
+#: one control word whose name was ``noindent`` plus the whole sentence.  The
+#: sentence vanished - measured on a four-line ``ctexart`` document, every line
+#: of prose disappeared and what survived was the closing punctuation.  The
+#: damage is silent: `draft` proposes nothing, and `check` reports a clean run
+#: over text that was never read.
+_LETTER = re.compile(r"[A-Za-z]")
+
+
+def _is_letter(char: str) -> bool:
+    """Whether `char` can be part of a control word's name."""
+    return _LETTER.match(char) is not None
+
+
 #: ``\input`` also takes its filename without braces - plain TeX's form, and the
 #: one people type by hand.  ``_INCLUDE`` above only sees the braced spelling,
 #: so ``\input sec/intro`` used to leave ``sec/intro`` in the prose *and* report
@@ -331,7 +347,7 @@ def _without_definitions(text: str) -> str:
             index += 1
             continue
         end = index + 1
-        while end < length and text[end].isalpha():
+        while end < length and _is_letter(text[end]):
             end += 1
         name = text[index + 1 : end]
         if name not in _DEFINITION:
@@ -808,7 +824,7 @@ def _conditional_span(text: str, start: int) -> tuple[int, int, int] | None:
             index += 1
             continue
         end = index + 1
-        while end < length and text[end].isalpha():
+        while end < length and _is_letter(text[end]):
             end += 1
         name = text[index + 1 : end]
         if not name:
@@ -844,7 +860,7 @@ def _without_false_branches(text: str) -> str:
             index += 1
             continue
         end = index + 1
-        while end < length and text[end].isalpha():
+        while end < length and _is_letter(text[end]):
             end += 1
         name = text[index + 1 : end]
         if name == "if" and end < length and text[end] in "01":
@@ -883,9 +899,9 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
 
         if char == "\\":
             nxt = text[index + 1] if index + 1 < length else ""
-            if nxt.isalpha():
+            if _is_letter(nxt):
                 end = index + 1
-                while end < length and text[end].isalpha():
+                while end < length and _is_letter(text[end]):
                     end += 1
                 name = text[index + 1 : end]
                 if name in _HEADING:

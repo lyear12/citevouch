@@ -4406,3 +4406,34 @@ gave `[format=]section`, `\ctexset{...}` gave `section/format=`,
 tests red each.
 
 Seen 1.
+## A character predicate is a claim about an alphabet
+
+**Rule.** When a scanner decides where a word ends, `str.isalpha()` is not a
+test for 'a letter of the language this file is written in' - it is a test
+for 'a letter in some script', and it is true for Chinese, Japanese, Korean,
+Cyrillic and Greek. In a language whose prose has no spaces, that turns the
+rest of the line into part of the word.
+
+**Why this keeps happening.** `\noindent` and `\par` are correct in a European
+manuscript and always look right in the tests that were written for one. The
+bug needs a document in the target language of this tool's *users* but not
+of its *tests*, and the symptom is the opposite of a crash: the prose is
+gone, so `draft` proposes nothing and `check` reports a clean run.
+
+**How to apply.** Ask of each scanner: what is the alphabet here, and where is
+it written down? TeX's own answer is ASCII letters, so this project writes
+`[A-Za-z]` instead of asking Python. Then find every place that scans the same
+thing - the converter, the conditional reader, the inclusion reader - because
+a scanner is usually copied, and the copy is the site you forgot. Test with a
+sentence in the target language glued to the command with no space, and test
+what a digit does too: `\item1.` must keep its `1`.
+
+**The tell.** If a converter has a test that passes a space between every
+command and its text, that test is measuring the test's own habit.
+
+**Evidence.** `\noindent我们展示该方法。` converted to `。` before and to the
+whole sentence after; a four-line `ctexart` document went from `'。\n。\n。\n\n。\n。\n'` to its own prose; 28 tests in
+`tests/test_latex_cjk_control_words.py`; three mutations, none surviving - the
+digit mutation only turned red after `\item1.` became a test.
+
+Seen 1.
