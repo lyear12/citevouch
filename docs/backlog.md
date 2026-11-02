@@ -381,6 +381,33 @@ not what changed, but what proves the change works.
 
   *Not covered:* a file that makes `pdftotext` hang; the 180-second timeout is checked by reading
   the call, not by driving it.
+- [x] **A damaged extraction cache exits 1, which is the code that means "a finding".**
+
+  `.citevouch/cache/<sha>.json` is scratch - it holds the text some reader produced for these exact
+  bytes, so it can always be recomputed. `_load_cache` trusted the shapes it read, so a file holding
+  `{"pages": 5}`, `{"pages": [null]}`, a page whose `number` was `"x"`, or a JSON root that was a
+  list reached the interpreter and exited **1** with a traceback - `TypeError: 'int' object is not
+  iterable`, `AttributeError: 'NoneType' object has no attribute 'get'`, `ValueError: invalid
+  literal for int()`.
+
+  **Who is blocked:** anybody whose cache directory survived a half-finished merge or a hand edit -
+  the one file in a project that most invites both, because it looks disposable. They get a crash
+  wearing the exit code that means "your manuscript failed".
+
+  **Done when:** a shape the cache does not recognise is a miss, and the run still answers.
+
+  **Done - why it is now true:** `_load_cache` checks the root, the `pages` list, each page, the page
+  number (`bool` is an `int` to `isinstance` and is not a page number; a number below 1 cannot have
+  come from this tool) and the page text, and returns `None` - "re-extract me" - for any of them.
+  Measured: thirteen damaged shapes now re-extract and still report `quote-found`, exit 0, and no
+  output line mentions the cache; a *recognised* shape is still used, which is why the fix is not
+  "stop caching" - three tests fail if the cache stops being read. Eight mutations red; the eighth
+  (removing `isinstance(blob, dict)`) survived until the fixtures stopped going through `_shape()`
+  and started writing raw JSON at the root.
+
+  *Not covered:* the `sha256` field inside a cache file is never re-checked against the file's
+  name, so valid-looking pages filed under the wrong hash are used as if they were right.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
