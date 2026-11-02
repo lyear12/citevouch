@@ -2964,3 +2964,38 @@ the list of missing keys to its first element -- survived the first run because 
 an unusable entry had exactly one of them, and a length-one list cannot fail a test about lists.
 A second survived because nothing asserted the byte count the message exists to offer about a file
 whose contents it could not read.  Both red after adding the two shapes.  Seen 1.
+
+## A sentence about the wrong noun is a false sentence
+
+`doctor` reported `[FAIL] manuscript  <path> does not exist` for a path that is a directory. The
+check was `if target.is_file(): ... else: "does not exist"`, so every way a path can fail to be a
+file collapsed into the one that says nothing is there. `citevouch check` on the same path said
+`is a directory, not a file`. Two commands, two stories about one path, and the false one came
+from the command that exists to explain the other.
+
+**Rule.** `not is_file()` is not a diagnosis. It is true of a directory, a broken symlink, a
+Windows share that is not mounted, and a file the process may not stat - four situations whose
+next steps share nothing. If the tool already has a function that turns a path into a sentence,
+that function is the answer; reaching for `exists()` beside it is how the tool ends up arguing
+with itself.
+
+**Why the tests missed it.** The manual test asked the question the check was written for: a
+missing manuscript is a file that is not there, and `does not exist` is true of it. Nothing ran
+the two commands on one path and compared the stories. That comparison is the only test that
+covers every failing shape at once, because it is written against agreement rather than against a
+list of cases - and every case this file has ever produced came from a shape nobody enumerated.
+
+**How to apply.** When a command explains another command's failure, write one test that breaks a
+project in one way and runs both, and require them to mention the same thing. Do not write it as
+"`doctor` says X"; write it as "what `doctor` says is in what `check` said". Then check the fix
+line, not just the detail: our first version branched to a directory-specific fix but the test
+passed without the branch, because the generic fix also ends in `manuscript.md` and nothing asked
+which directory the path belonged to. A fix that names a path the reader did not pass is only
+slightly better than no fix.
+
+**Evidence.** 2026-11-02.  Before: `doctor --root _dk --manuscript adir` printed `[FAIL] manuscript
+_dk\adir does not exist` and `check _dk/adir` printed `manuscript _dk\adir is a directory, not a
+file`. After: both say `is a directory, not a file`, the fix line names `_dk\adir\manuscript.md`,
+and exit is 1. Three mutations; the second - "the directory gets the generic fix" - survived the
+first run for exactly the reason above, and went red once the test asserted the path came from the
+argument. Seen 1.

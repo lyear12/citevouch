@@ -34,6 +34,7 @@ from pathlib import Path
 from shutil import which
 
 from . import __version__
+from .errors import why_not_a_file
 from .model import Finding
 from .sources import read_source_table
 from .textnorm import count_of
@@ -170,16 +171,31 @@ def _project(root: Path, manuscript: str) -> list[Report]:
             )
         )
     else:
+        # `does not exist` was the only thing this check could say, so a
+        # directory the reader can see in their file manager was reported as
+        # absent, while `check` on the same path said `is a directory, not a
+        # file`.  Two commands, two stories about one path.  why_not_a_file is
+        # the answer the rest of the tool already gives - a directory, an
+        # unreachable share and a missing file are three different mistakes
+        # with three different next steps.
+        what = why_not_a_file(target)
+        fix = (
+            "Pass the path you meant, e.g. "
+            "`citevouch doctor --manuscript paper/manuscript.md`. "
+            "`--root` is the project directory, not the manuscript."
+        )
+        if what == "is a directory, not a file":
+            fix = (
+                "That is a directory. Pass the manuscript inside it, e.g. "
+                "`citevouch doctor --manuscript "
+                f"{target / 'manuscript.md'}`."
+            )
         reports.append(
             Report(
                 name="manuscript",
                 ok=False,
-                detail=f"{target} does not exist",
-                fix=(
-                    "Pass the path you meant, e.g. "
-                    "`citevouch doctor --manuscript paper/manuscript.md`. "
-                    "`--root` is the project directory, not the manuscript."
-                ),
+                detail=f"{target} {what}",
+                fix=fix,
             )
         )
 

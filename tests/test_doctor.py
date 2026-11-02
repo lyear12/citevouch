@@ -81,6 +81,52 @@ class TestWhatItChecks:
             f"the documented command would not look where the fix says: {parsed.manuscript}"
         )
 
+    def test_a_directory_is_not_a_missing_manuscript(self, tmp_path: Path):
+        """`doctor` and `check` have to give one answer about one path.
+
+        The check was `if target.is_file(): ... else: "does not exist"`, so a
+        directory the reader can see in their file manager was reported as
+        absent - while `citevouch check` on the same path said `is a
+        directory, not a file`.  Two commands, two stories, and the one that
+        was wrong is the command that exists to explain the other.
+        """
+        (tmp_path / "adir").mkdir()
+        reports = doctor.diagnose(root=tmp_path, manuscript="adir")
+        broken = doctor.problems(reports)
+        assert [report.name for report in broken] == ["manuscript"]
+        assert "is a directory, not a file" in broken[0].detail
+        assert "does not exist" not in broken[0].detail
+
+    def test_the_directory_fix_names_the_manuscript_inside_it(self, tmp_path: Path):
+        (tmp_path / "adir").mkdir()
+        broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="adir"))
+        command = re.search(r"`(citevouch [^`]+)`", broken[0].fix)
+        assert command is not None, f"the fix names no command: {broken[0].fix!r}"
+        parsed = build_parser().parse_args(command.group(1).split()[1:])
+        assert parsed.command == "doctor"
+        assert parsed.manuscript.endswith("manuscript.md"), (
+            f"following the fix would look at {parsed.manuscript}, which is the directory again"
+        )
+        # It also has to be about the directory the reader actually passed. The
+        # generic fix ("--root is the project directory, not the manuscript")
+        # also ends in manuscript.md, so without this the two are
+        # interchangeable and the branch that picks between them is decoration.
+        assert "adir" in parsed.manuscript, (
+            "the fix names a generic path; following it would not look inside the "
+            f"directory that was passed: {parsed.manuscript}"
+        )
+
+    def test_check_and_doctor_agree_about_a_directory(self, tmp_path: Path, capsys):
+        """One broken path, two commands, one sentence."""
+        (tmp_path / "adir").mkdir()
+        code = main(["check", str(tmp_path / "adir")])
+        said = capsys.readouterr()
+        check_text = said.out + said.err
+        assert code != 0
+        reports = doctor.diagnose(root=tmp_path, manuscript="adir")
+        assert "is a directory, not a file" in check_text
+        assert "is a directory, not a file" in doctor.problems(reports)[0].detail
+
     def test_a_project_without_a_manifest_is_still_fine(self, tmp_path: Path):
         (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
         reports = doctor.diagnose(root=tmp_path, manuscript="manuscript.md")
