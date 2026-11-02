@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.72] — 2026-11-02
 ### Fixed
 
 - A test compared two ledgers byte for byte, and a ledger records when it was
@@ -22,7 +23,6 @@ tag and that file disagree.
   that honest - one proves the normaliser removes only the clock, one proves an
   unmodified `scan` still stamps a time. Mutating the normaliser and mutating
   `scan`'s timestamp both turn them red.
-
 ## [0.19.71] — 2026-11-02
 ### Fixed
 
@@ -1926,7 +1926,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.71...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.72...HEAD
+[0.19.72]: https://github.com/lyear12/citevouch/releases/tag/v0.19.72
 [0.19.71]: https://github.com/lyear12/citevouch/releases/tag/v0.19.71
 [0.19.70]: https://github.com/lyear12/citevouch/releases/tag/v0.19.70
 [0.19.69]: https://github.com/lyear12/citevouch/releases/tag/v0.19.69
