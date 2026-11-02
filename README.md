@@ -65,6 +65,7 @@ rots:
 | `quote-missing` | high | no passage close to this quote anywhere in the source |
 | `number-absent-in-quote` | high | a number inside the quote is not on that page |
 | `number-not-in-passage` | high | a number inside the quote is on that page, but in another sentence |
+| `claim-number-differs` | high | the claim restates its quote with a different number |
 | `source-changed` | medium | the PDF is byte-different from the one the ledger recorded |
 | `source-missing` | high | the PDF the claim names cannot be found |
 | `source-unreadable` | high | the PDF exists but no text could be extracted |

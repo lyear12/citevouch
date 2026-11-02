@@ -41,6 +41,7 @@ SARIF_RULES = {
     "quote-found": "A quoted passage is where the ledger says it is.",
     "number-absent-in-quote": "A number in a quote is not on the cited page.",
     "number-not-in-passage": "A number in a quote is on the page but belongs to another passage.",
+    "claim-number-differs": "A claim restates its quote with a different number.",
     "source-missing": "A source file is missing.",
     "source-changed": "A source file differs from the recorded copy.",
     "source-unreadable": "A source file could not be read.",

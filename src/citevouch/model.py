@@ -38,6 +38,14 @@ CODES = {
     # between "that number is nowhere on this page" and "that number is four
     # lines further down", and only one of those is true of a swapped number.
     "number-not-in-passage": "high",
+    # High for the same reason as the two above, and it is the same mistake in
+    # a different place: the quote is right, the sentence that restates it is
+    # not.  `claim.numbers` has always held the quote's numbers, so a claim
+    # could say 80,688 where its own quote says 40,688 and verify - measured,
+    # that was exit 0.  A mistyped statistic reads as correct for months, and
+    # it is the one error the author most wants a machine to find, so it
+    # cannot depend on the reader noticing.
+    "claim-number-differs": "high",
     "source-missing": "high",
     "source-changed": "medium",
     "source-unreadable": "high",

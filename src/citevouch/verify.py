@@ -34,7 +34,7 @@ from .sources import (
     resolve_source,
     sha256_file,
 )
-from .textnorm import canonical_number, count_of, is_are, read_text
+from .textnorm import canonical_number, count_of, is_are, numbers_in, read_text
 
 
 @dataclass
@@ -365,6 +365,10 @@ def verify(
                     )
                 )
             result.findings.extend(_number_checks(claim, pages, match.page, match.spans_to))
+            # The quote is confirmed to be the page's own text here, which is
+            # the only point where comparing the claim against it means
+            # something: everywhere else the quote itself is in doubt.
+            result.findings.extend(_claim_number_checks(claim))
         elif match.tier == "fuzzy":
             result.missing += 1
             result.findings.append(
@@ -509,6 +513,70 @@ def _number_checks(
             )
         )
     return out
+
+
+def _near_miss(a: str, b: str) -> bool:
+    """Are two numbers one keystroke apart?
+
+    Same length and exactly one character different, which is the shape of a
+    number typed from memory: 80,688 where the page says 40,688.  Anything
+    looser reports numbers that are merely different - a year the author
+    supplied, a total they derived - and this project does not accuse an
+    author of an error it cannot point at.
+    """
+    if len(a) != len(b):
+        return False
+    # strict=False is safe here because the lengths are equal one line above,
+    # and saying so keeps the linter reading the guard rather than guessing.
+    return sum(x != y for x, y in zip(a, b, strict=False)) == 1
+
+
+def _claim_number_checks(claim) -> list[Finding]:
+    """Numbers the claim states but the quote spells differently.
+
+    A claim restates its quote in the author's own words, and the commonest
+    way that goes wrong is a digit: the quote says 40,688 and the claim, typed
+    later, says 80,688.  Nothing compared the two - ``claim.numbers`` holds
+    the quote's numbers, because those are what the page has to contain, so a
+    claim could disagree with its own quote and still verify.
+
+    Only one-keystroke differences are reported.  A claim may legitimately
+    name a year, or a total it computed from the quote, and those numbers are
+    not in the source at all; failing them would teach the author to stop
+    reading the report.
+    """
+    quote_numbers = [(canonical_number(n), n) for n in claim.numbers]
+    if not quote_numbers:
+        return []
+    slips: list[tuple[str, str]] = []
+    for stated in numbers_in(claim.text):
+        mine = canonical_number(stated)
+        if any(mine == canon for canon, _ in quote_numbers):
+            continue
+        for canon, raw in quote_numbers:
+            if _near_miss(mine, canon):
+                # Report the quote's own spelling: the author is going to look
+                # the number up, and `40,688` is what the page prints while
+                # `40688` is only what the comparison uses.
+                slips.append((stated, raw))
+                break
+    if not slips:
+        return []
+    said = " and ".join(mine for mine, _ in slips)
+    printed = " and ".join(theirs for _, theirs in slips)
+    return [
+        Finding(
+            code="claim-number-differs",
+            message=(
+                f"claim {claim.id}: the claim says {said} but its quote says "
+                f"{printed}; a restatement with a different digit was typed from "
+                "memory, not copied"
+            ),
+            claim_id=claim.id,
+            path=claim.path,
+            line=claim.line,
+        )
+    ]
 
 
 def _number_where_checks(claim, match) -> list[Finding]:

@@ -62,6 +62,7 @@ worst severity: high
 | `quote-missing` | high | 全文找不到与引文接近的段落 |
 | `number-absent-in-quote` | high | 引文里的数字不在所引页面上 |
 | `number-not-in-passage` | high | 引文里的数字在这一页上，但属于另一句 |
+| `claim-number-differs` | high | 断言用不同的数字复述了它的引文 |
 | `source-changed` | medium | PDF 与账本记录的那份字节不同 |
 | `source-missing` | high | 账本要的那份 PDF 找不到了 |
 | `source-unreadable` | high | PDF 在，但抽不出文本 |

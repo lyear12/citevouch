@@ -2849,3 +2849,15 @@ The `pasted` tier began as two mechanisms: fold the page's line breaks to `- `, 
 **How to apply.** When a feature reads a syntax that has several accepted spellings, enumerate the spellings from the format's documentation and make each one a test case before adding a fourth. For this project the list is short and worth keeping written down: marker before the full stop, after it, alone on its line, in its own paragraph, at the start of the document, and the LaTeX forms.
 
 **Evidence.** 2026-11-02. Before: over 71 usable PDFs, `draft` proposed 0 claim blocks for the `sentence. [@p]` shape and reported `nothing on any page shares enough terms with the sentence (3 needed)` for all 47 that had a sentence. After: 46 proposals, 46 accepted by `check`, 0 rejected, 1 paper with no proposal. Five mutations, all red: the prefix rule never runs, the paragraph lookback never runs, the lookback always walks back, the prefix is measured from the paragraph, and a marker-only run counts as a sentence again. Seen 1.
+
+## A field that is populated is not a field that is compared
+
+``Claim`` has carried ``text`` since the first version, and ``verify`` has carried a number check since shortly after; the two never met.  ``claim.numbers`` is built from the quote, so every comparison used the quote against the page and nothing ever compared the claim against the quote.  A run whose claim said ``80,688`` and whose quote said ``40,688`` printed ``[info] quote-found``, ``worst severity: info`` and exited 0.
+
+**Rule.** For every field on a parsed record, name the code that reads it.  A field with no reader is either dead - delete it - or a comparison that was never written.  Adding the field is the half of the job that feels like work; wiring it into a decision is the half that produces the verdict.
+
+**Why reading the type is not enough.** ``Claim.text`` looks used: it is in the dataclass, it is on the ledger, it round-trips through json, and ``report`` prints the excerpt that contains it.  All of that is transport.  The defect is invisible to every question of the shape "is this field handled" and visible only to "what compares it", which is why it survived a mutation-tested verifier and 1053 tests.
+
+**How to apply.** ``grep -n "claim.text" src/`` is the whole investigation.  Run it for each field of each record type after adding one, and treat a hit that only serialises as a miss.  Then write the end-to-end test that fails when the comparison is removed - here, a claim one keystroke from its quote must exit 1.
+
+**Evidence.** 2026-11-02.  Before: page ``We collected 40,688 examples in the corpus.``, quote exact, claim ``We collected 80,688 examples.`` -> ``1 claim - 1 verified``, exit 0.  After: ``[high] claim-number-differs at m.md:1 (c1): the claim says 80,688 but its quote says 40,688``, exit 1.  Eight mutations, all red, including the two that survived the first pass (drop the length guard, and let an agreeing number be measured against its neighbour) - both were real gaps, not dead code.  Seen 1.
