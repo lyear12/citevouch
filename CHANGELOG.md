@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.41] — 2026-11-02
 ### Fixed
 
 - **A claim could restate its own quote with a different digit and verify.** `claim.numbers` holds the numbers inside the *quote*, because those are what the cited page has to contain; nothing in the run ever compared the claim's own sentence against them. Measured before this: a page reading `We collected 40,688 examples` quoted exactly, with the claim restating it as `80,688`, gave `[info] quote-found`, `worst severity: info` and **exit 0** - the one error the author most wants a machine to find, passing the gate built to find it. The new `claim-number-differs` (`high`) reports a claim number that is one keystroke from a number in its own quote, at the point where the quote has been confirmed to be the page's text; a number that is merely different is not reported, so a year the author supplied (`2020`) or a total they derived (`4,068` next to `40,688`) stays quiet. The message quotes the spelling the page prints, not the canonical form the comparison uses.
-
 ## [0.19.40] — 2026-11-02
 ### Fixed
 
@@ -1556,7 +1557,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.40...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.41...HEAD
+[0.19.41]: https://github.com/lyear12/citevouch/releases/tag/v0.19.41
 [0.19.40]: https://github.com/lyear12/citevouch/releases/tag/v0.19.40
 [0.19.39]: https://github.com/lyear12/citevouch/releases/tag/v0.19.39
 [0.19.38]: https://github.com/lyear12/citevouch/releases/tag/v0.19.38
