@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`draft` could not tell "you have no citations" from "none of your citations had a local PDF", and printed the same thing for both.** The two zeros are not the same zero: one is a fact about the machine, the other is a fact about the reading, and the second one is usually the tool's fault - a citation written `(Van Eecke 2026)` instead of `[@vaneecke2026]` is invisible to the parser. Measured before this: a manuscript with no markers and a manuscript whose one marker pointed at a missing file produced the same stderr summary (`0 claim block(s) proposed (0 verbatim), 0 citation(s) left as comments`), the same exit 0 and almost the same five-line file, and then the same advice - *read it, then* `citevouch check <file>` *to see what it got wrong* - about a file that held nothing to read. `draft` now records that it found no citations at all, says which two forms it reads (`[@key]` and `\cite{key}`), names an example of what it does not, and replaces the advice with a sentence about the real problem, in the summary, in the prose and in the file the author commits.
 
 ## [0.19.42] — 2026-11-02
 ### Fixed

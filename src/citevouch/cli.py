@@ -412,11 +412,23 @@ def cmd_draft(args: argparse.Namespace) -> int:
                 "sources.toml before this file can be scanned\n",
                 sys.stderr,
             )
-        _emit(
-            f"citevouch: wrote {output}; read it, then "
-            f"`citevouch check {output}` to see what it got wrong\n",
-            sys.stderr,
-        )
+        if result.no_citations:
+            # Do not send the author to read a file that holds nothing.  The
+            # advice below is correct for every other draft and wrong here.
+            _emit(
+                f"citevouch: wrote {output}, but it holds no proposals: no "
+                "citations were found to make them for. This command reads "
+                "Pandoc's `[@key]` and LaTeX's `\\cite{key}`; a citation written "
+                "any other way - `(Van Eecke 2026)`, a bare `@key`, a reference "
+                "typed by hand - is invisible to it\n",
+                sys.stderr,
+            )
+        else:
+            _emit(
+                f"citevouch: wrote {output}; read it, then "
+                f"`citevouch check {output}` to see what it got wrong\n",
+                sys.stderr,
+            )
     return 0
 
 

@@ -125,6 +125,18 @@ class Draft:
     # the proposal file unreadable until someone checked it.
     needed_sources: dict[str, str] = field(default_factory=dict)
     unreadable: list[Skipped] = field(default_factory=list)
+    # True when the text held no citation this command could find at all.
+    #
+    # The two zeros below this line are not the same zero.  "I read your
+    # citations and none of them had a local PDF" is a fact about the machine;
+    # "I found no citations" is a fact about the reading, and the second one is
+    # almost always the tool's fault rather than the author's - a citation
+    # written as a bare `(van eecke 2026)`, or in a file format this command
+    # does not parse.  Measured: a manuscript with no markers and a manuscript
+    # whose one marker pointed at a missing PDF produced the same stderr line,
+    # the same five-line file and the same exit 0, so the author whose markers
+    # were simply unrecognised was told to go read proposals that did not exist.
+    no_citations: bool = False
 
 
 def line_of(text: str, offset: int) -> int:
@@ -477,7 +489,9 @@ def draft(
     used_ids: set[str] = set()
     seen: set[tuple[int, str]] = set()
     proposed_quotes: set[str] = set()
-    for site in citation_sites(text):
+    sites = citation_sites(text)
+    result.no_citations = not sites
+    for site in sites:
         sentence, _, _ = sentence_at(text, site.start)
         if (site.start, site.key) in seen:
             continue
@@ -594,6 +608,17 @@ def render(
         "  copying any of them into the real manuscript.",
         "-->",
     ]
+    if result.no_citations:
+        # Nothing to propose and no way to tell the author why from the counts
+        # alone: zero proposals with zero skipped citations means this command
+        # never found a citation, not that it found unusable ones.
+        out.append(
+            "<!-- No citations were found in the text, so there was nothing to "
+            "propose. This command reads two forms: Pandoc's `[@key]` and "
+            "LaTeX's `\\cite{key}`. A citation written any other way - "
+            "`(Van Eecke 2026)`, a bare `@key` without brackets, a reference "
+            "typed by hand - is invisible to it. -->"
+        )
     if included:
         out.append(
             "<!-- This document pulls text in from "
@@ -637,6 +662,11 @@ def summarize(result: Draft) -> str:
     proposed = len(result.proposals)
     high = sum(1 for proposal in result.proposals if proposal.confidence == "high")
     missing = len(result.skipped) + len(result.unreadable)
+    if result.no_citations:
+        return (
+            "0 claim block(s) proposed: no citations were found to propose them "
+            "for (this command reads `[@key]` and `\\cite{key}`)"
+        )
     return (
         f"{proposed} claim block(s) proposed ({high} verbatim), "
         f"{missing} citation(s) left as comments"
