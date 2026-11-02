@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.66] — 2026-11-02
 ### Fixed
 
 - A `sources.toml` entry whose value was not a path was dropped in silence, and
@@ -25,7 +27,6 @@ tag and that file disagree.
   `manifest_problem`; the empty file keeps the old advice, because a file with
   no entries really does have no entry.  The 3.10 subset reader answers the same
   way as `tomllib`, so one manifest cannot bind on 3.12 and lie on 3.10.
-
 ## [0.19.65] — 2026-11-02
 ### Fixed
 
@@ -1826,7 +1827,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.65...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.66...HEAD
+[0.19.66]: https://github.com/lyear12/citevouch/releases/tag/v0.19.66
 [0.19.65]: https://github.com/lyear12/citevouch/releases/tag/v0.19.65
 [0.19.64]: https://github.com/lyear12/citevouch/releases/tag/v0.19.64
 [0.19.63]: https://github.com/lyear12/citevouch/releases/tag/v0.19.63
