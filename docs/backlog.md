@@ -128,6 +128,33 @@ not what changed, but what proves the change works.
   *Not covered*: an unreachable Windows share as the manuscript path;
   `why_not_a_file` has its own tests for the raw errno distinction, but
   nothing drives the doctor line that surfaces that text.
+
+- [x] **`doctor` passed a `.tex` manuscript, about the one file `check` refuses.**
+  `citevouch check paper.tex` exits 2 and says claim blocks live in Markdown,
+  not in a `.tex` file - scanning one records zero claims and reports a clean
+  run for a manuscript nothing checked. `doctor --manuscript paper.tex` printed
+  `[ok  ] manuscript  paper.tex (69 bytes)`, closed with `Everything this tool
+  needs is on this machine.` and exited 0. The reader who does the sensible
+  thing - run the diagnostic before trusting the report - was told the machine
+  was fine about an input the next command will not read at all.
+  *Who is blocked*: anyone writing LaTeX, which is most of this tool's audience,
+  on the one command that is supposed to explain a run that found nothing.
+  *Done when* `doctor` asks the predicate the scanner asks
+  (`latex.looks_like_latex`), says the same reason, and names the `draft` step
+  that does work on a `.tex` source.
+  **Done - why it is now true:** `doctor._project` checks
+  `latex.looks_like_latex(target)` before reporting the manuscript as fine, and
+  reports `not ok` with the scanner's own reason plus
+  `citevouch draft paper.tex -o claims.md` as the fix. Proved by four tests in
+  `tests/test_doctor.py::TestWhatItChecks`, one of which runs `check` and
+  `doctor` on one `.tex` path and requires both to say LaTeX; another requires
+  a Markdown file mentioning `.tex` in prose not to be mistaken for one. Four
+  mutations, all red - and the fourth ("every file is now called LaTeX") was
+  caught by `TestTheExampleInTheReadme` rather than by the new tests, which is
+  what a test that runs the documented command on the documented example is
+  for.
+  *Not covered*: `.ltx` and `.latex` are in `latex.SUFFIXES` and so covered by
+  the predicate, but no test drives `doctor` on either suffix.
   **Also fixed:** the `doctor` test fixture was itself a project that could not
   run — it wrote a `sources.toml` naming `a.txt` and never wrote `a.txt`, so
   three tests asserting an ok report were passing only because the check did
