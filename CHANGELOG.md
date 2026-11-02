@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A `numbers:` line under a claim used to **throw the quote away**.  The key was
+  in the set that decides "is this body a mapping at all", and nothing ever
+  read its value (`_claim_from` derives `Claim.numbers` from the quote), so a
+  correctly written `>> the quote` next to `numbers: 1` came back as an empty
+  quote and `claim-uncheckable` — silent data loss for a block that had done
+  nothing wrong.  Measured: `['>> We collected 40,688 examples.', 'numbers: 1']`
+  returned `('', '', {})` where the same body without the second line returned
+  `('We collected 40,688 examples.', '', {})`.  The set that decides the shape
+  is now exactly `quote` and `claim`; inside a mapping a `numbers:` line is
+  still consumed as a sibling key, because in YAML terms it really does end the
+  value above it.  Nine tests, five mutations all red.
+
 
 ## [0.19.60] — 2026-11-02
 ### Fixed

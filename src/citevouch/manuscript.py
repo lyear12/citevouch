@@ -71,7 +71,26 @@ _ATTR = re.compile(
 # almost right is the difference between "the tool is broken" and "look at line
 # 12".  Deliberately permissive - it is a hint generator, never a gate.
 _CLAIMISH = re.compile(r"^\s*(?:`{3,}|~{3,}|<!--)\s*[*_]*\s*claim\b", re.IGNORECASE)
-_FIELD_KEY = re.compile(r"^\s*(?P<key>quote|claim|numbers?)\s*:\s*(?P<rest>.*)$")
+# The two keys that make a body a mapping, and the only two the parser reads a
+# value out of.  `numbers:` used to be a third, listed here from the first
+# commit although `_claim_from` builds `Claim.numbers` with `numbers_in(quote)`
+# and never looked at a field.  Because membership of this set is also what
+# decides "is this body a mapping at all", the dead key cost more than itself:
+# a correctly written `>> the quote` followed by `numbers: 1` was read as a
+# mapping with no quote in it, and came back as `claim-uncheckable` - silent
+# data loss for a block that had done nothing wrong.  Measured before the fix:
+# `['>> We collected 40,688 examples.', 'numbers: 1']` -> `('', '', {})`, where
+# the same body without the second line gave `('We collected 40,688 examples.',
+# '', {})`.  So this set is now exactly `quote` and `claim`: what decides the
+# shape is what the shape is for.
+_FIELD_KEY = re.compile(r"^\s*(?P<key>quote|claim)\s*:\s*(?P<rest>.*)$")
+
+# Inside a mapping, a `numbers:` line is a sibling key in YAML terms - it really
+# does end the quote above it - so it must be consumed there rather than glued
+# onto the quote.  Its value is still dropped, because this tool derives the
+# numbers from the quote itself; honouring a hand-written list would mean
+# deciding what it means when the two disagree, which is a format change.
+_BODY_KEY = re.compile(r"^\s*(?P<key>quote|claim|numbers?)\s*:\s*(?P<rest>.*)$")
 
 # The keys a claim may name as attributes.  They are read from the opening line
 # (``​```claim id=c1 source=paper``) and, since the fix below, also from the body.
@@ -528,7 +547,7 @@ def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
         fields: dict[str, list[str]] = {}
         current = ""
         for raw in body:
-            m = _FIELD_KEY.match(raw)
+            m = _BODY_KEY.match(raw)
             if m:
                 current = m.group("key").lower()
                 fields.setdefault(current, [])
