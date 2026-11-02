@@ -35,6 +35,8 @@ from shutil import which
 
 from . import __version__
 from .model import Finding
+from .sources import read_source_table
+from .textnorm import count_of
 
 # The versions this package claims to run on, kept next to the check that
 # enforces them rather than only in pyproject, so the two cannot drift apart
@@ -181,27 +183,84 @@ def _project(root: Path, manuscript: str) -> list[Report]:
             )
         )
 
-    for name in ("sources.toml", "sources.json"):
-        candidate = root / name
-        if candidate.is_file():
-            reports.append(
-                Report(
-                    name="manifest",
-                    ok=True,
-                    detail=f"{candidate} ({candidate.stat().st_size} bytes)",
-                )
-            )
-            break
-    else:
-        # Not a failure: a project may pass every source on the command line.
-        reports.append(
-            Report(
-                name="manifest",
-                ok=True,
-                detail="no sources.toml (fine if every claim uses --source)",
-            )
-        )
+    reports.append(_manifest(root))
     return reports
+
+
+def _manifest(root: Path) -> Report:
+    """Does the manifest name files that are actually here?
+
+    This check used to stop at ``candidate.is_file()``: a ``sources.toml`` that
+    parses to nothing, or one that maps every key to a path that is not on this
+    disk, was reported as ``[ok] manifest sources.toml (148 bytes)`` and the
+    closing line said "Everything this tool needs is on this machine."  The
+    next command then printed, per claim, ``source-missing`` — which is the
+    exact failure ``doctor`` exists to explain, arriving from the command whose
+    job was to rule it out.  A file's size is not a fact about whether it
+    points anywhere.
+
+    The three answers are deliberately different, because they need different
+    work from the reader: no manifest at all is a supported way to work (pass
+    ``--source``), a manifest that will not parse is a syntax problem in one
+    file, and a manifest that names absent files is a path problem in this
+    project.  Only the last two are failures.
+    """
+    table = read_source_table(root)
+    if table.manifest_name is None:
+        # Not a failure: a project may pass every source on the command line.
+        return Report(
+            name="manifest",
+            ok=True,
+            detail="no sources.toml (fine if every claim uses --source)",
+        )
+
+    path = root / table.manifest_name
+    size = path.stat().st_size if path.is_file() else 0
+    named = len(table.found) + len(table.unusable)
+    if table.manifest_problem:
+        return Report(
+            name="manifest",
+            ok=False,
+            detail=f"{path} ({size} bytes) cannot be used: {table.manifest_problem}",
+            fix=(
+                "Fix that file, or delete it and pass each source with "
+                "`--source <file>`; until it parses, every claim that names a "
+                "key in it reports `source-missing`."
+            ),
+        )
+    if table.unusable:
+        listed = "; ".join(table.unusable[key] for key in sorted(table.unusable))
+        # "names 1 source, and 1 one of them is not here" was the first draft:
+        # count_of is for "N <noun>", not for a bare pronoun, and a number in
+        # front of "one" reads like a typo. Two whole sentences instead.
+        if len(table.unusable) == 1:
+            sentence = (
+                f"{path} ({size} bytes) names {count_of(named, 'source')}, and it is not here"
+            )
+        else:
+            sentence = (
+                f"{path} ({size} bytes) names {count_of(named, 'source')}, and "
+                f"{len(table.unusable)} of them are not here"
+            )
+        return Report(
+            name="manifest",
+            ok=False,
+            detail=f"{sentence}: {listed}",
+            fix=(
+                "Open that file and correct the paths, or move the missing files "
+                "back; the paths are relative to the project root, not to this "
+                "shell. Run `citevouch scan` afterwards, because the recorded "
+                "ledger still holds the old paths."
+            ),
+        )
+    return Report(
+        name="manifest",
+        ok=True,
+        detail=(
+            f"{path} ({size} bytes), {count_of(named, 'source')}, "
+            "every one of them present on this machine"
+        ),
+    )
 
 
 def diagnose(root: str | Path = ".", manuscript: str = "manuscript.md") -> list[Report]:

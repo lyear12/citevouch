@@ -2929,3 +2929,38 @@ marker pointed at ``hempel2020nowhere`` both printed ``0 claim block(s) proposed
 0 citation(s) left as comments`` and both exited 0.  After: the first prints ``no citations
 were found to propose them for (this command reads `[@key]` and `\cite{key}`)`` and replaces
 the advice; the second is unchanged.  Four mutations, all red.  Seen 1.
+
+## A check that asks whether the input exists has not asked whether the input is any good
+
+`doctor` reported `[ok  ] manifest    sources.toml (148 bytes)` and closed with "Everything this
+tool needs is on this machine."  The check was `candidate = root / name; if candidate.is_file()`.
+A manifest that would not parse, one whose every key pointed at a path that is not on this disk,
+one that named a directory, and two manifests sitting side by side all produced that same line and
+exit 0 -- and the next command printed `[high] source-missing` on every claim, which is the exact
+failure `doctor` exists to explain.  A file's size is not a fact about whether it points anywhere.
+
+**Rule.** When a check's subject is "can this project run?", the question is not whether the inputs
+exist but whether they resolve.  Existence is the cheapest possible stand-in for the real question
+and it is wrong in the one direction that matters: it goes green on exactly the inputs that look
+fine and are not.
+
+**Why the earlier version survived.** Nothing that ran agreed with the next command.  The check was
+tested against projects where the file was absent, which is the case the stand-in does get right;
+the failure modes all have the manifest present and its contents useless.  The strongest signal
+available was "run `doctor` on the same broken project the other tests run `check` on, and require
+the two commands to disagree about nothing" -- and that comparison did not exist until this round.
+
+**How to apply.** For every check that answers a question about a file, write down what the *next*
+command does with that file, then write one test that runs both on one broken project, and require
+the story to agree.  Then check the check's own fixture: ours named `a.txt` in `sources.toml` and
+never wrote `a.txt`, so three "everything is fine" tests were passing only because the check did
+not look.
+
+**Evidence.** 2026-11-02.  Before: four distinct broken projects each printed `[ok  ] manifest` and
+exited 0.  After: they print `[FAIL] manifest` with the reason (unparsable TOML, two manifests, a
+directory, or the missing keys named) and exit 1, while `--root demo` still reports `2 sources,
+every one of them present on this machine` and exits 0.  Eight mutations; one of them -- truncating
+the list of missing keys to its first element -- survived the first run because the only test with
+an unusable entry had exactly one of them, and a length-one list cannot fail a test about lists.
+A second survived because nothing asserted the byte count the message exists to offer about a file
+whose contents it could not read.  Both red after adding the two shapes.  Seen 1.

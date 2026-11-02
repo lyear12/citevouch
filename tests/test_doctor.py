@@ -23,6 +23,10 @@ from citevouch.cli import build_parser, main
 def project(tmp_path: Path) -> Path:
     (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
     (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
+    # a.txt has to exist: the manifest check reads the manifest now, and one
+    # that names a file which is not there is a broken project. This fixture
+    # passed while the check only asked whether sources.toml itself was a file.
+    (tmp_path / "a.txt").write_text("alpha beta gamma\n", encoding="utf-8")
     return tmp_path
 
 
@@ -123,6 +127,141 @@ class TestWhatItChecks:
         # slow-but-correct install "FAILED" sends people looking for a bug.
         assert report.ok
         assert "re-extract" in report.detail
+
+
+class TestTheManifestCheck:
+    """`[ok] manifest` has to mean the sources it names are here.
+
+    The check used to stop at `candidate.is_file()`: a `sources.toml` that would
+    not parse, or one that named files that are not on this disk, printed
+    `[ok  ] manifest sources.toml (148 bytes)` and the report closed with
+    "Everything this tool needs is on this machine." The next command then said
+    `source-missing` on every claim - the exact failure `doctor` exists to
+    explain, coming from the command whose job was to rule it out.
+    """
+
+    def test_a_manifest_naming_a_missing_file_is_not_ok(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text('[sources]\na = "gone.pdf"\n', encoding="utf-8")
+        report = doctor._manifest(tmp_path)
+        assert not report.ok
+        assert "gone.pdf" in report.detail
+        # The sentence the manifest reader itself would print, so the two
+        # commands agree instead of describing two different problems.
+        assert "does not exist" in report.detail
+        size = (tmp_path / "sources.toml").stat().st_size
+        assert f"({size} bytes)" in report.detail
+
+    def test_a_directory_is_not_a_source(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text('[sources]\na = "adir"\n', encoding="utf-8")
+        (tmp_path / "adir").mkdir()
+        report = doctor._manifest(tmp_path)
+        assert not report.ok
+        assert "is a directory" in report.detail
+
+    def test_a_manifest_that_does_not_parse_is_not_ok(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text('[sources\na = "a.txt"\n', encoding="utf-8")
+        (tmp_path / "a.txt").write_text("alpha\n", encoding="utf-8")
+        report = doctor._manifest(tmp_path)
+        assert not report.ok
+        assert "cannot be used" in report.detail
+        # The size is the only fact this line can offer about a file whose
+        # contents it could not read, and the author needs it to know they
+        # are looking at the file they think they are. Dropping it from the
+        # message changed no test until this assertion existed.
+        size = (tmp_path / "sources.toml").stat().st_size
+        assert f"({size} bytes)" in report.detail
+
+    def test_two_manifests_are_not_ok(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
+        (tmp_path / "sources.json").write_text('{"sources": {"a": "a.txt"}}', encoding="utf-8")
+        (tmp_path / "a.txt").write_text("alpha\n", encoding="utf-8")
+        report = doctor._manifest(tmp_path)
+        assert not report.ok
+        assert "both" in report.detail
+
+    def test_a_manifest_whose_files_are_all_there_is_ok(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text(
+            '[sources]\na = "a.txt"\nb = "sub/b.txt"\n', encoding="utf-8"
+        )
+        (tmp_path / "a.txt").write_text("alpha\n", encoding="utf-8")
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "b.txt").write_text("beta\n", encoding="utf-8")
+        report = doctor._manifest(tmp_path)
+        assert report.ok
+        assert "2 sources" in report.detail
+
+    def test_one_missing_source_does_not_hide_the_present_ones(self, tmp_path: Path):
+        """The count is of what the manifest names, not of what survived."""
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text(
+            '[sources]\na = "a.txt"\nb = "gone.pdf"\n', encoding="utf-8"
+        )
+        (tmp_path / "a.txt").write_text("alpha\n", encoding="utf-8")
+        report = doctor._manifest(tmp_path)
+        assert not report.ok
+        assert "2 sources" in report.detail
+        assert "gone.pdf" in report.detail
+
+    def test_every_missing_source_is_named_not_just_the_first(self, tmp_path: Path):
+        """One sentence per entry, or the author fixes one and runs again.
+
+        The first version joined the sorted keys but the only test with an
+        unusable entry had exactly one of them, so truncating the list to its
+        first element changed no output and no test noticed. A list of one
+        cannot fail a test about lists.
+        """
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text(
+            '[sources]\na = "gone.pdf"\nb = "also-gone.pdf"\n', encoding="utf-8"
+        )
+        report = doctor._manifest(tmp_path)
+        assert not report.ok
+        assert "gone.pdf" in report.detail
+        assert "also-gone.pdf" in report.detail
+        assert "2 of them" in report.detail
+
+    def test_the_manifest_failure_makes_the_command_exit_one(self, tmp_path: Path, capsys):
+        (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
+        (tmp_path / "sources.toml").write_text('[sources]\na = "gone.pdf"\n', encoding="utf-8")
+        assert main(["doctor", "--root", str(tmp_path)]) == 1
+        out = capsys.readouterr().out
+        assert "[FAIL] manifest" in out
+        assert "Everything this tool needs is on this machine" not in out
+
+    def test_the_same_broken_project_gets_one_story_from_both_commands(
+        self, tmp_path: Path, capsys
+    ):
+        """`doctor` and `check` must not describe this as two different bugs.
+
+        Before the manifest check read the manifest, `doctor` said everything
+        was fine and `check` said `source-missing`, so the two commands sent the
+        reader to two different places - and the one they reached for first
+        told them there was nothing to find.
+        """
+        body = chr(10).join(
+            [
+                "# P",
+                "",
+                "```claim id=c1 source=a page=1",
+                "quote: |",
+                "  alpha beta",
+                "claim: |",
+                "  one",
+                "```",
+                "",
+            ]
+        )
+        (tmp_path / "manuscript.md").write_text(body, encoding="utf-8")
+        (tmp_path / "sources.toml").write_text('[sources]\na = "gone.pdf"\n', encoding="utf-8")
+        assert main(["doctor", "--root", str(tmp_path)]) == 1
+        assert "gone.pdf" in capsys.readouterr().out
+        assert main(["check", str(tmp_path / "manuscript.md"), "--root", str(tmp_path)]) == 1
+        assert "gone.pdf" in capsys.readouterr().out
 
 
 class TestHowItReads:

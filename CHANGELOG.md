@@ -11,6 +11,10 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`doctor` checked that `sources.toml` exists and never that the files it names do, so it printed `[ok  ] manifest` and `Everything this tool needs is on this machine.` about projects where every claim was about to fail.** The check stopped at `candidate.is_file()`: a manifest that would not parse, one that mapped every key to a path that is not on this disk, one that named a directory, and two manifests side by side all printed the same `[ok  ] manifest sources.toml (N bytes)` and exited 0 - and the very next command printed, per claim, `[high] source-missing`, which is the exact failure `doctor` exists to explain. A file's size is not a fact about whether it points anywhere. `doctor` now reads the manifest through the same `read_source_table` the rest of the tool uses and reports three different answers, because they need different work from the reader: no manifest at all stays ok (passing `--source` is supported), a manifest that will not parse is a syntax problem in one file, and a manifest naming absent files is a path problem in this project, with the missing keys named and a fix that says to re-run `scan` because the recorded ledger still holds the old paths.
+- **The `doctor` test fixture was itself a project that could not run.** It wrote a `sources.toml` naming `a.txt` and never wrote `a.txt`, so three tests that assert an ok report were passing only because the check did not look at the manifest.
 
 ## [0.19.43] — 2026-11-02
 ### Fixed
