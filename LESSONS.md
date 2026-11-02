@@ -2899,3 +2899,33 @@ fires`` red.  After building four isolating shapes plus a positive control: five
 five red.  The length guard's reachability was settled by exhaustive enumeration,
 not by reading the code, which is what kept a live guard from being deleted on the
 strength of an argument.  Seen 1.
+
+## Two zeros are one zero until you write down which is which
+
+``draft`` summarised every run as ``N claim block(s) proposed (M verbatim), K citation(s)
+left as comments``.  A manuscript with no citations at all produced ``0 ... (0 verbatim), 0
+citation(s) left as comments``, and so did a manuscript whose single citation pointed at a
+file that was not on this machine.  The second zero is about the machine and is the author's
+problem to fix; the first is about the reading and is almost always ours, because a citation
+written ``(Van Eecke 2026)`` is invisible to a parser that only knows ``[@key]`` and
+``\cite{key}``.  Both runs then gave the same advice: open the file and see what it got wrong.
+
+**Rule.** When two different causes can collapse into the same count, the count is not a
+summary - it is a coincidence.  Carry the cause, not just the tally, and let every printed
+sentence that depends on it know which cause it is describing.
+
+**Why the arithmetic hides it.** ``0 + 0 == 0`` is true for both, so every downstream total,
+rate and ratio agrees with itself.  The defect is invisible to any check written against the
+numbers and visible only to a check written against the sentence the numbers produce.  That is
+why it survived the tests: they asserted ``proposed == 0``, which was correct in both worlds.
+
+**How to apply.** For each zero a command can print, name the two inputs that produce it and
+ask whether the next sentence the user reads would be true in both.  Then write the test as a
+difference between the two runs, not as a property of either - here, one test that the no-
+citation run does not print the advice, paired with one that the missing-file run still does.
+
+**Evidence.** 2026-11-02.  Before: ``draft`` on a marker-free draft and on a draft whose one
+marker pointed at ``hempel2020nowhere`` both printed ``0 claim block(s) proposed (0 verbatim),
+0 citation(s) left as comments`` and both exited 0.  After: the first prints ``no citations
+were found to propose them for (this command reads `[@key]` and `\cite{key}`)`` and replaces
+the advice; the second is unchanged.  Four mutations, all red.  Seen 1.
