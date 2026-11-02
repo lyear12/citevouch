@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.45] — 2026-11-02
 ### Fixed
 
 - **`doctor` called a directory `does not exist`, which is the one thing it is not.** The manuscript check was `if target.is_file(): ... else: "does not exist"`, so `--manuscript adir` on an existing directory reported a path the reader can see in their file manager as absent - and `citevouch check` on that same path said `is a directory, not a file`. Two commands, two stories about one path, and the wrong one came from the command whose job is to explain the other. `doctor` now asks `errors.why_not_a_file`, the same function the rest of the tool uses, so a directory, an unreachable share and a genuinely missing file are three different sentences with three different next steps; the directory gets its own fix line naming the manuscript inside it rather than the generic "`--root` is the project directory" advice.
-
 ## [0.19.44] — 2026-11-02
 ### Fixed
 
@@ -1574,7 +1575,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.44...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.45...HEAD
+[0.19.45]: https://github.com/lyear12/citevouch/releases/tag/v0.19.45
 [0.19.44]: https://github.com/lyear12/citevouch/releases/tag/v0.19.44
 [0.19.43]: https://github.com/lyear12/citevouch/releases/tag/v0.19.43
 [0.19.42]: https://github.com/lyear12/citevouch/releases/tag/v0.19.42
