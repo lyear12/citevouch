@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.55] — 2026-11-02
 ### Fixed
 
 - A damaged `.citevouch/cache/<sha>.json` is now a cache miss instead of a
@@ -26,7 +27,6 @@ tag and that file disagree.
   used, which is why the fix is not "stop caching" - there are tests that fail
   if the cache stops being read.  Eight mutations, all red, including one that
   only a raw-JSON root fixture could kill.
-
 ## [0.19.54] — 2026-11-02
 ### Fixed
 
@@ -1641,7 +1641,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.54...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.55...HEAD
+[0.19.55]: https://github.com/lyear12/citevouch/releases/tag/v0.19.55
 [0.19.54]: https://github.com/lyear12/citevouch/releases/tag/v0.19.54
 [0.19.53]: https://github.com/lyear12/citevouch/releases/tag/v0.19.53
 [0.19.52]: https://github.com/lyear12/citevouch/releases/tag/v0.19.52
