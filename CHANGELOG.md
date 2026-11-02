@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.75] — 2026-11-02
 ### Fixed
 
 - Seven more file-inclusion commands pasted their path into the sentence and
@@ -32,7 +34,6 @@ tag and that file disagree.
   end-to-end `draft` run; four mutations - leave the name in the prose, never
   report the file, report only the first argument of a two-argument command,
   drop only the command name - are all red.
-
 ## [0.19.74] — 2026-11-02
 ### Fixed
 
@@ -1980,7 +1981,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.74...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.75...HEAD
+[0.19.75]: https://github.com/lyear12/citevouch/releases/tag/v0.19.75
 [0.19.74]: https://github.com/lyear12/citevouch/releases/tag/v0.19.74
 [0.19.73]: https://github.com/lyear12/citevouch/releases/tag/v0.19.73
 [0.19.72]: https://github.com/lyear12/citevouch/releases/tag/v0.19.72
