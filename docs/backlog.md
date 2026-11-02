@@ -322,6 +322,42 @@ not what changed, but what proves the change works.
   surviving mutation above had to be found by the harness rather than by
   reading the tests.
 
+- [x] **A mistyped `--root` was accepted, and four verbs then answered about a
+  directory that is not the project.**
+  Every relative path on the command line is resolved against `--root`, and
+  nothing ever checked the root. In a project at `proj/`:
+  `scan proj/m.md --root nowhere` **created** `nowhere/` and wrote a ledger into
+  it (`citevouch: wrote nowhere\citevouch.lock.json (1 claim)`);
+  `doctor --manuscript proj/m.md --root nowhere` made
+  `nowhere/.citevouch/cache` in order to test it; `draft proj/m.md -o q.md
+  --root nowhere` exited 0 and wrote the proposals there; and `check proj/m.md
+  --root nowhere` resolved the manuscript (a path that exists as given is never
+  re-rooted), so the run looked like it had read the project, and then reported
+  `[high] source-missing ... no entry in sources.toml` — about the one thing the
+  author had already got right, with that manifest sitting next to the
+  manuscript the whole time.
+  *Who is blocked*: anyone who types a root that is one character off, which is
+  how roots are typed. Three of the four outcomes leave files behind in a
+  directory the author never asked for; the fourth is a false sentence about
+  their project, and it is the one that costs trust.
+  *Done when* a root that is not a directory is refused once, before any verb
+  runs, with exit 2 and a sentence the author can act on — and nothing is
+  created on the way to that answer.
+  **Done — why it is now true:** `main()` calls `cli._project_root(args.root)`
+  before dispatch, so the value is checked while it is still one value rather
+  than five times downstream. All six verbs that take a root now exit 2 with
+  `--root nowhere does not exist; it has to be the directory the project lives
+  in, because every relative path on this command line is resolved against it.
+  For a project in the working directory, drop --root: that is the default`, and
+  `find nowhere` afterwards returns nothing. A root that is a **file** says
+  `is a file, not a directory` and not `does not exist`; an unreachable share
+  keeps `why_not_a_file`'s own `cannot be reached (the network path is not
+  available from here)` sentence. Four mutations, all red: the guard never
+  called, a missing root allowed through, a file root reported as missing, and
+  the message dropping the default-root advice.
+  *Not covered*: a root that is a symlink to a directory is accepted, because
+  `is_dir()` follows links and so does every other path decision in this tool.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
