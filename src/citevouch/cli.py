@@ -165,6 +165,18 @@ def _read_ledger(path: Path) -> Ledger:
         blob = json.loads(read_text(path))
     except (OSError, ValueError) as exc:
         raise UsageError(f"ledger {path} is not readable JSON: {exc}") from exc
+    except RecursionError as exc:
+        # ``json.loads`` is a recursive-descent parser, so a file with a few
+        # thousand nested brackets raises RecursionError rather than
+        # ValueError - measured at 20000: "RecursionError: Stack overflow"
+        # straight out of ``main``, exit 1, which means "findings reached the
+        # threshold".  The stack the decoder consumes is proportional to
+        # nesting and nothing this tool writes nests more than four deep, so
+        # the honest answer is the same one a syntax error gets.
+        raise UsageError(
+            f"ledger {path} is not readable JSON: it nests too deeply for the "
+            "standard library parser, which no citevouch ledger does"
+        ) from exc
     if not isinstance(blob, dict) or "claims" not in blob:
         raise UsageError(f"ledger {path} is not a citevouch ledger")
     # The ledger is a lockfile, and a schema number is how it says so. Reading

@@ -3120,3 +3120,51 @@ object, not NoneType` and exits 2. Nine mutations, eight red; the survivor is
 equivalent — the type guard above it makes the old coercion unreachable, which is
 why that guard carries its own parametrised case. `tests/test_damaged_ledger.py`,
 126 tests, released as 0.19.48. Seen 1.
+
+## The handler catches the exception the author predicted, not the one the parser raises
+
+`_read_ledger` wrapped `json.loads` in `except (OSError, ValueError)` because that
+is what malformed JSON raises. A lockfile of twenty thousand nested brackets is not
+malformed — every bracket is balanced — and the same call raised
+`RecursionError: Stack overflow (used 2912 kB) while decoding a JSON array from a
+unicode string`. `RecursionError` is a `RuntimeError`, not a `ValueError`, so it
+left `main` untouched and the interpreter exited **1**: the identical false verdict
+as the twenty damaged shapes fixed one release earlier, arriving through the parser
+instead of through a key.
+
+**Rule.** When you guard a call into someone else's parser, ask what that call can
+raise — not what the input you have in mind makes it raise. `json.loads` has three
+distinguishable failure modes (syntax → `ValueError`, decoding → `UnicodeDecodeError`,
+depth → `RecursionError`) and the handler named one of them. A broad `except Exception`
+would have hidden the traceback the tool needs; naming the exceptions means the list
+has to be complete.
+
+**Why the shape guard did not prevent this.** The same round that added `_object`,
+`_section`, `_whole` and `_texts` made every *value* safe to read, and I checked that
+by enumerating damaged values. None of them was a file that decodes to a value at all.
+The two failures look unrelated — one is "an element is a string where an object
+belongs", the other is "the file is too deep to parse" — and they are the same bug in
+different layers: an input this code cannot read in full, reaching the interpreter as
+an uncaught exception instead of as a refusal.
+
+**How to apply.** For every third-party parse, mutate the *input bytes* one axis at a
+time (truncated, unbalanced, balanced-but-deep, wrong encoding, empty) and watch the
+exit code, not the traceback. Here the axis that mattered was "valid JSON, unusable
+depth" — invisible to a table of damaged Python values, obvious to a table of damaged
+files.
+
+**The false red.** The first mutation run reported both mutants red. They were not:
+the harness spawned `pytest` in a subprocess with a hand-built environment and got
+`No module named pytest`, which is a non-zero exit, which the harness called RED. A
+verification that cannot tell "the guard failed" from "the harness failed" verifies
+nothing — the same defect as a test that cannot fail, one level up. The harness now
+raises when its own run is broken instead of scoring it.
+
+**Evidence.** 2026-11-02. Before, on the same file: `RC=1`, stderr ending
+`File "C:\Python314\Lib\json\decoder.py", line 361, in raw_decode` /
+`RecursionError: Stack overflow`. After: `citevouch: ledger ... is not readable JSON:
+it nests too deeply for the standard library parser, which no citevouch ledger does`,
+exit 2, at both 20000 and 200000. Five tests in `tests/test_damaged_ledger.py`
+(`TestANestDeepEnoughToBreakTheParser`), one of which subprocesses the real CLI to
+assert no traceback reaches stderr. Two mutations, both red once the harness stopped
+lying. Released as 0.19.49. Seen 1.

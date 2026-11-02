@@ -294,3 +294,79 @@ def test_the_whole_shipped_round_trip_survives_a_move(project: Path) -> None:
     other = project.parent / (project.name + "-moved")
     shutil.copytree(project, other)
     assert main(["report", "--root", str(other)]) == 0
+
+
+#: Depth that makes ``json.loads`` give up.  Measured on CPython 3.14: 2000
+#: nested arrays decode, 20000 raise ``RecursionError: Stack overflow``.  The
+#: number is a property of the interpreter's stack, not of this project, so the
+#: test asks the file to be *deep enough to try*, not for one exact depth.
+DEEP = 20000
+
+
+class TestANestDeepEnoughToBreakTheParser:
+    """The same wrong exit code, arriving through the parser instead of a key.
+
+    ``_read_ledger`` caught ``ValueError`` around ``json.loads`` because that is
+    what malformed JSON raises -- and for a file of balanced brackets it raises
+    something else entirely.  ``json`` is a recursive-descent parser, so nesting
+    burns interpreter stack until ``RecursionError``, which is not a
+    ``ValueError``: it escaped ``main`` and the interpreter exited 1.  Measured
+    before the fix::
+
+        RecursionError: Stack overflow (used 2912 kB) while decoding a JSON
+        array from a unicode string
+
+    A lockfile is an input.  Balanced brackets it cannot survive are the same
+    problem as an unbalanced brace, and get the same answer.
+    """
+
+    @staticmethod
+    def _write(project: Path, depth: int) -> None:
+        (project / "citevouch.lock.json").write_text(
+            "[" * depth + "]" * depth, encoding="utf-8"
+        )
+
+    def test_a_deeply_nested_ledger_is_refused(self, project: Path) -> None:
+        self._write(project, DEEP)
+        assert main(["report", "--root", str(project)]) == 2
+
+    def test_the_message_says_what_the_parser_hit(self, project: Path) -> None:
+        # "is not readable JSON" alone would also be true of a typo, and the
+        # author would go looking for one.  This file is balanced.
+        self._write(project, DEEP)
+        with pytest.raises(UsageError) as caught:
+            from citevouch.cli import _read_ledger
+
+            _read_ledger(project / "citevouch.lock.json")
+        assert "nests too deeply" in str(caught.value)
+
+    def test_the_three_verbs_that_read_a_ledger_all_refuse(self, project: Path) -> None:
+        self._write(project, DEEP)
+        for argv in (
+            ["report", "--root", str(project)],
+            ["verify", "m.md", "--root", str(project)],
+            ["check", "m.md", "--use-recorded", "--root", str(project)],
+        ):
+            assert main(argv) == 2, " ".join(argv)
+
+    def test_no_traceback_is_printed(self, project: Path) -> None:
+        self._write(project, DEEP)
+        done = subprocess.run(
+            [sys.executable, "-m", "citevouch", "report", "--root", str(project)],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": str(Path(__file__).parents[1] / "src")},
+            check=False,
+        )
+        assert "Traceback (most recent call last)" not in done.stderr
+        assert done.returncode == 2, done.stderr
+
+    def test_a_nest_the_parser_survives_is_still_only_not_a_ledger(self, project: Path) -> None:
+        # The boundary of the fix: nesting that decodes is judged on what it
+        # decodes to, which is a list, not this tool's object.
+        self._write(project, 200)
+        with pytest.raises(UsageError) as caught:
+            from citevouch.cli import _read_ledger
+
+            _read_ledger(project / "citevouch.lock.json")
+        assert "not a citevouch ledger" in str(caught.value)
