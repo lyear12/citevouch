@@ -155,6 +155,33 @@ not what changed, but what proves the change works.
   for.
   *Not covered*: `.ltx` and `.latex` are in `latex.SUFFIXES` and so covered by
   the predicate, but no test drives `doctor` on either suffix.
+
+- [x] **`doctor` passed a manuscript holding no claim blocks.**
+  A file with no blocks produces `0 claims - 0 verified, 0 moved, 0 missing` with
+  `worst severity: info` and exit 0, which `check` reports as `no-claim-blocks`
+  (high) and exits 1 on. `doctor` printed `[ok  ] manuscript  manuscript.md
+  (76 bytes)`, closed with `Everything this tool needs is on this machine.` and
+  exited 0 - the command whose whole job is to explain a silent run was silent
+  about the file that makes the run meaningless.
+  *Who is blocked*: anyone who has written prose and not yet written claim
+  blocks, which is every new user on their first run.
+  *Done when* `doctor` asks whether the manuscript holds anything the run can
+  check, and says what to do about it.
+  **Done - why it is now true:** `doctor._claim_blocks` parses the manuscript
+  through `manuscript.parse_manuscript` and reports the count, or
+  `none that the parser could read; the next command names why` for a block the
+  parser refused, or fails with the `citevouch draft` step. The condition is
+  `ParseResult.nothing_to_check`, now one property rather than the same
+  expression typed out in `scan.py` and `verify.py` - the duplication is why a
+  third reader could be written without meeting it. Proved by six tests in
+  `tests/test_doctor.py::TestWhatItChecks`, one of which requires `check` and
+  `doctor` to overlap on one empty manuscript. Six mutations, all red; two
+  survived the first run and both were real - a fixture with exactly one claim
+  block cannot fail a test about counting, and the fixture manuscript itself was
+  `# t`, a file with no blocks, so the fixture had been the bug all along.
+  *Not covered*: nothing checks that `doctor` and `check` agree about a
+  manuscript whose blocks are all inside a fenced example (a file the parser
+  treats as having blocks but verifies as nothing).
   **Also fixed:** the `doctor` test fixture was itself a project that could not
   run — it wrote a `sources.toml` naming `a.txt` and never wrote `a.txt`, so
   three tests asserting an ok report were passing only because the check did
