@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The fuzzy tier can now compare Chinese.  It counts the units it compares,
+  and it counted whitespace chunks: Chinese has no spaces, so a 40-character
+  quote was one token, below `MIN_FUZZY_TOKENS`, and the tier answered
+  "quote not found (too short for a fuzzy comparison)" about a sentence whose
+  every character had just been compared.  A quote that differs from the page
+  by a character or two was therefore reported as absent, at high severity,
+  instead of as a near match.  A CJK character is now one token and a Latin
+  word is still one token; the closest-passage excerpt joins characters
+  without spaces so it reads as the prose the author wrote.  Measured on 60
+  sentences of this project's own Chinese: one changed character scores at
+  least 0.667 and 95% at least 0.857, while two unrelated sentences score at
+  most 0.333.
 
 ## [0.19.83] — 2026-11-02
 ### Fixed

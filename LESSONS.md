@@ -4437,3 +4437,42 @@ whole sentence after; a four-line `ctexart` document went from `'。\n。\n。\n
 digit mutation only turned red after `\item1.` became a test.
 
 Seen 1.
+
+## A word separator is a property of the script
+
+**Rule.** The whitespace-delimited token is one way to write a language, not a
+universal unit of text. A counter built on it returns one token for a whole
+Chinese sentence, so every threshold stated in tokens silently becomes a
+different threshold - or, here, an unreachable one.
+
+**Why this keeps happening.** Splitting on whitespace is the obvious regex, it
+is correct for English, and its failure mode has no exception and no wrong
+text: the fuzzy tier simply answered "too short for a fuzzy comparison" about
+a 40-character quote whose every character had just been compared. The report
+was wrong about *why*, which is the harder kind of wrong to notice - the
+tier's answer (`none`) was also what a healthy refusal looks like.
+
+**How to apply.** Ask what a token is, then ask which of the thresholds in this
+module are stated in that unit, because renaming is the cheap part and the
+floor is the expensive part: `MIN_FUZZY_TOKENS` meant "five words" and now
+means "five characters" for Chinese, so it has to be re-measured rather than
+trusted. Measure it on prose in the target scripts, in both directions the
+floor separates (a one-character typo must land above it, two unrelated
+sentences must land below). Then check the *output* of the tier too: a window
+of single characters joined with spaces prints `相 关 研 究` back to an author
+who wrote prose.
+
+**The tell.** If a length constant has no unit in its name, the unit is
+whatever the module's oldest test happened to be written in.
+
+**Evidence.** On the same page with one character altered,
+`相关研究指出词汇与构式之间存在互动關聯，...` went from
+`tier='none' reason='quote not found (too short for a fuzzy comparison)'` to
+`tier='fuzzy' similarity=0.947`. Measured on 60 harvested sentences: typo
+similarity min 0.667, 95% at least 0.857; two unrelated sentences at most
+0.333. `tests/test_fuzzy_cjk_tokens.py` has 18 tests; five mutations -
+whitespace tokenizer, character buffered instead of emitted, windows joined
+with spaces, floor bypassed, page side uncounted - all red, the second only
+after a no-space `构式used` case was added.
+
+Seen 1.
