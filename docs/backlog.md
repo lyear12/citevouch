@@ -736,6 +736,30 @@ not what changed, but what proves the change works.
   This scan's first version refused `[other] pa.ge = "dir/x"`, which is how
   that failure was found.
 
+- [x] **A `sources.json` whose root is not an object read as an empty manifest,
+  so every claim was told `no entry in sources.json` about a file it was
+  looking at.**
+  *Who is blocked*: anyone who hand-writes `sources.json` - the README offers
+  it as an alternative to `sources.toml` - and gets one character wrong
+  (`[` instead of `{`, or a bare `"page"`). The old branch read every non-object
+  root as `{}` and reported no problem, so the only feedback was
+  `add it to sources.json` about a key they had already written. `{"sources":
+  null}` was the same shape one level in.
+  *Done when*: a root that is not an object, and a `sources` key whose value is
+  null, are both named as problems, and the message says what the file actually
+  holds.
+  *Done - why it is now true:* the JSON branch of `read_source_table` now
+  checks `isinstance(blob, dict)` before reading, and checks `mapping is None`
+  after. Measured: `[]`, `5`, `"page"`, `true` give `holds list`, `holds int`,
+  `holds str`, `holds bool`; `{"sources": null}` gives its own sentence; `{}`
+  still reads as an empty manifest with no problem, because a project
+  mid-setup has one. Four mutations RED, including "the root shape is named
+  without its type", which survived the first round because the test asserted
+  only that a problem existed.
+  *Not covered*: a duplicated key inside a JSON manifest - `json.loads` keeps
+  the last one silently, and no decision has been made about refusing it.
+
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
