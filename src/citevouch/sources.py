@@ -873,7 +873,29 @@ def read_manifest(
             text = read_text(path)
             if name.endswith(".json"):
                 blob = json.loads(text)
-                mapping = blob.get("sources", blob) if isinstance(blob, dict) else {}
+                if not isinstance(blob, dict):
+                    # `5`, `[]`, `"x"`, `true` at the root.  The old code read
+                    # this as an empty manifest and reported no problem, so
+                    # every claim was told "no entry in sources.json" about a
+                    # file it was plainly looking at - the same wrong answer
+                    # 0.19.66 fixed for the TOML path.  Measured before: a list
+                    # root gave `found=[]` with `manifest_problem` empty.
+                    return (
+                        {},
+                        f"{name} holds {type(blob).__name__}, not an object "
+                        "mapping source keys to paths",
+                    )
+                mapping = blob.get("sources", blob)
+                if mapping is None:
+                    # `{"sources": null}`: the key is there and holds nothing.
+                    # Reporting nothing makes the file look absent, and the
+                    # advice every claim gets - "add it to sources.json" - is
+                    # followed by adding a second key beside the broken one.
+                    return (
+                        {},
+                        f"{name} has a 'sources' key whose value is null; "
+                        "write it as an object of source keys to paths",
+                    )
             elif name.endswith(".toml"):
                 blob = _load_toml(text, wrong)
                 mapping = blob.get("sources", {}) if isinstance(blob, dict) else {}

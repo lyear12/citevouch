@@ -3895,3 +3895,39 @@ inline-table exemption was added - all RED, survivors: none. The older test
 `test_a_key_this_reader_cannot_spell_is_dropped_and_the_rest_survives` pinned
 the divergence as the intended behaviour; it now asserts the shared refusal.
 
+## A guard on one reader is not a guard on the format
+
+**Rule:** when one file format has two parsers, fix the format's answer, not the
+parser's. Check the other parser before you call it done - not after someone
+reports it.
+
+**Why this keeps happening.** `sources.toml` and `sources.json` are read in the
+same loop of `read_source_table`, and the loop looks symmetric: both branches
+produce a `mapping`, both fall into the same `isinstance(mapping, dict)` test.
+But the TOML branch grew a set of guards across three releases - a non-table
+`sources` key, values that are not strings, five spellings only one reader could
+follow - while the JSON branch still carried the original one-liner
+`blob.get("sources", blob) if isinstance(blob, dict) else {}`. So `5`, `[]`,
+`"page"` and `true` at the root were read as *an empty manifest with no problem*,
+and every claim was told `no entry in sources.json` about a file it was looking
+at. That is precisely the wrong answer 0.19.66 fixed for TOML, still live one
+branch below it. The `{"sources": null}` case was the same shape: falling through
+produced the truthful "binds nothing", so nothing raised, and the advice - "add
+it to sources.json" - led the author to add a second key beside the broken one.
+
+**How to apply.** Grep the format's name, not the parser's: every place a
+manifest is read should be reachable by one search, and if a fix touches one
+branch of an `if` that has two, read the other branch in full. Then ask the
+mutation question of the *sentence* as well as the branch - a test that only
+asserts `manifest_problem is not None` passes for `holds nothing usable` and for
+`holds list`, and only one of those lets an author tell a typo from a file that
+is not a manifest.
+
+**Evidence.** Before: `sources.json` holding `["a.txt"]`, `5`, `"page"` or `true`
+gave `found=[]` with `manifest_problem` empty, and `check` printed
+`claim c1 names source='page' but no entry in sources.json and no --source path
+resolves it` for all four. After: `holds list`, `holds int`, `holds str`,
+`holds bool`, and the null key has its own sentence. Four mutations - including
+"the root shape is named without its type", which survived the first round
+because the test asserted only the shape - all RED, survivors: none.
+

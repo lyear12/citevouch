@@ -189,3 +189,44 @@ class TestTheJsonManifest:
         assert "page" in table.unusable
         assert "sources.json binds 'page'" in table.unusable["page"]
         assert "other" in table.found
+
+    def test_a_root_that_is_not_an_object_is_named(self, tmp_path: Path) -> None:
+        """A JSON manifest whose root is a list, a number, a string or a
+        boolean is not a manifest.  Reading it as an empty one made every claim
+        report `no entry in sources.json` about a file it was plainly looking
+        at - the same wrong answer the TOML path had until 0.19.66."""
+        shapes = {'["a.txt"]': "list", "5": "int", '"page"': "str", "true": "bool"}
+        for body, label in shapes.items():
+            root = tmp_path / label
+            root.mkdir()
+            (root / "sources.json").write_text(body, encoding="utf-8", newline="\n")
+            table = sources.read_source_table(root)
+            assert table.found == {}, body
+            assert table.manifest_problem is not None, body
+            assert "not an object mapping source keys to paths" in table.manifest_problem
+            # The type is the part of the sentence that says what the file
+            # holds; without it an author cannot tell a one-character typo from
+            # a file that is not a manifest at all.
+            assert label in table.manifest_problem
+
+    def test_a_null_sources_key_is_named(self, tmp_path: Path) -> None:
+        """`{"sources": null}` binds nothing and says nothing, so the advice
+        every claim gets is "add it to sources.json" - which the author does,
+        beside the key that is already wrong."""
+        root = tmp_path / "n"
+        root.mkdir()
+        (root / "sources.json").write_text('{"sources": null}', encoding="utf-8", newline="\n")
+        table = sources.read_source_table(root)
+        assert table.found == {}
+        assert table.manifest_problem is not None
+        assert "null" in table.manifest_problem
+
+    def test_an_empty_object_is_still_a_manifest(self, tmp_path: Path) -> None:
+        """`{}` binds no sources and is not broken: a project mid-setup has one,
+        and the message for a missing key is correct there."""
+        root = tmp_path / "e"
+        root.mkdir()
+        (root / "sources.json").write_text("{}", encoding="utf-8", newline="\n")
+        table = sources.read_source_table(root)
+        assert table.found == {}
+        assert table.manifest_problem is None

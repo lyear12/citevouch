@@ -12,6 +12,20 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A `sources.json` whose root is not an object - `[]`, `5`, `"page"`, `true` -
+  was read as an empty manifest with no problem reported, so every claim was
+  told `no entry in sources.json` about a file it was plainly looking at. That
+  is the same wrong answer 0.19.66 fixed for the TOML path, still live on the
+  JSON one; the message now names the type the file holds.
+- `{"sources": null}` was read the same way, and the advice every claim gets -
+  `add it to sources.json` - is followed by adding a second key beside the one
+  that is wrong. The null key is now named.
+- The message is asserted to carry the type (`holds list`, `holds int`), not
+  only the shape, because the type is the part an author can act on: without it
+  the sentence reads like a spelling rule rather than a diagnosis.
+
 ## [0.19.69] — 2026-11-02
 ### Fixed
 
