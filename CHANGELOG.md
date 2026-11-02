@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.54] — 2026-11-02
 ### Fixed
 
 - A `source-unreadable` finding no longer tells you to install a reader you
@@ -30,7 +31,6 @@ tag and that file disagree.
   the tests, because a message holding one true sentence is still not the old
   false one - the fix now has a test that drives `pdftotext` directly rather
   than relying on whatever this machine has installed.
-
 ## [0.19.53] — 2026-11-02
 ### Fixed
 
@@ -1626,7 +1626,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.53...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.54...HEAD
+[0.19.54]: https://github.com/lyear12/citevouch/releases/tag/v0.19.54
 [0.19.53]: https://github.com/lyear12/citevouch/releases/tag/v0.19.53
 [0.19.52]: https://github.com/lyear12/citevouch/releases/tag/v0.19.52
 [0.19.51]: https://github.com/lyear12/citevouch/releases/tag/v0.19.51
