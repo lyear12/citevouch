@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.64] — 2026-11-02
 ### Fixed
 
 - `--source` resolved its path by a different rule than the other six path
@@ -33,7 +34,6 @@ tag and that file disagree.
   `paper/paper/page.txt` - not a file - and wrote proposals over
   `paper/page.txt`, the source the run had just read a quote out of. The
   guard now names the same files the reader opens.
-
 ## [0.19.63] — 2026-11-02
 ### Fixed
 
@@ -1799,7 +1799,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.63...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.64...HEAD
+[0.19.64]: https://github.com/lyear12/citevouch/releases/tag/v0.19.64
 [0.19.63]: https://github.com/lyear12/citevouch/releases/tag/v0.19.63
 [0.19.62]: https://github.com/lyear12/citevouch/releases/tag/v0.19.62
 [0.19.61]: https://github.com/lyear12/citevouch/releases/tag/v0.19.61
