@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.70] — 2026-11-02
 ### Fixed
 
 - A `sources.json` whose root is not an object - `[]`, `5`, `"page"`, `true` -
@@ -25,7 +26,6 @@ tag and that file disagree.
 - The message is asserted to carry the type (`holds list`, `holds int`), not
   only the shape, because the type is the part an author can act on: without it
   the sentence reads like a spelling rule rather than a diagnosis.
-
 ## [0.19.69] — 2026-11-02
 ### Fixed
 
@@ -1898,7 +1898,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.69...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.70...HEAD
+[0.19.70]: https://github.com/lyear12/citevouch/releases/tag/v0.19.70
 [0.19.69]: https://github.com/lyear12/citevouch/releases/tag/v0.19.69
 [0.19.68]: https://github.com/lyear12/citevouch/releases/tag/v0.19.68
 [0.19.68]: https://github.com/lyear12/citevouch/releases/tag/v0.19.68
