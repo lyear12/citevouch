@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.69] — 2026-11-02
 ### Fixed
 
 - A `sources.toml` that the two manifest readers disagreed about is now refused
@@ -33,7 +34,6 @@ tag and that file disagree.
   `x = { y = 1 }` holds its second `=` inside a value this reader cannot
   follow, binds no source either way, and refusing it would reject a manifest
   both readers answer the same way.
-
 ## [0.19.68] — 2026-11-02
 ## [0.19.68] — 2026-11-02
 ### Fixed
@@ -1884,7 +1884,9 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.68...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.69...HEAD
+[0.19.69]: https://github.com/lyear12/citevouch/releases/tag/v0.19.69
+[0.19.68]: https://github.com/lyear12/citevouch/releases/tag/v0.19.68
 [0.19.68]: https://github.com/lyear12/citevouch/releases/tag/v0.19.68
 [0.19.67]: https://github.com/lyear12/citevouch/releases/tag/v0.19.67
 [0.19.66]: https://github.com/lyear12/citevouch/releases/tag/v0.19.66
