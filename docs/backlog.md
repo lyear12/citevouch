@@ -1150,6 +1150,38 @@ not what changed, but what proves the change works.
   real Chinese prose, so the bracket half rests on the construction rather than
   on a count.
 
+- [x] **The Chinese LaTeX stacks pasted font names and point sizes into the
+  prose.** `\zihao`, `\CJKfamily`, `\CJK`, `\chinese`, `\fontsize`,
+  `\linespread`, `\setCJKmainfont` and the `\ctexset`/`\CTEXsetup` family all
+  name a font, a size or a registry code, and the converter's fallthrough - drop
+  the command, keep what it wraps - kept the argument.  On a `ctexart`
+  manuscript `{\zihao{5} 相关研究 ...}` became `5 相关研究 ...`, so `draft`
+  proposed a claim whose text opens with the point size; `\ctexset{...}` left
+  `section/format=` and `\CTEXsetup[format=...]{section}` left both the bracket
+  and the word.
+  *Who is blocked*: every thesis written in the `ctex` class - which is the
+  standard Chinese class, so this is the default shape of a Chinese LaTeX
+  manuscript, not an unusual one.  The damage is not a crash or a lost citation:
+  `5 相关研究...` reads like a sentence that begins with a number, so the block
+  pasted into the manuscript scans, quotes the right page and cites the right
+  key, built on words nobody wrote.
+  *Done when*: those fifteen commands leave nothing in the prose, and what
+  follows them is untouched.
+  **Done - why it is now true:** fifteen names in `_DROP_ALL_ARGUMENTS` with
+  their argument counts, measured one at a time: `{\zihao{5} 我们展示该方法。}`
+  -> `我们展示该方法。`, `我们 \zihao{5} 展示该方法。` -> `我们 展示该方法。`,
+  `\CTEXsetup[format={\Large\bfseries}]{section}` -> nothing,
+  `\xeCJKDeclareCharClass{CJK}{4E00}` -> nothing.  A `ctexart` manuscript that
+  used to propose `claim: 5 相关研究...` now proposes the sentence the author
+  wrote, and still finds the citation inside it.  18 tests in
+  `tests/test_latex_ctex_commands.py`; seven mutations (each table entry removed
+  in turn) are red with 1 to 5 tests each. Shipped in 0.19.82.
+  *Not covered*: no real ctex thesis, so the argument counts come from the ctex
+  and xeCJK manuals plus what the converter does with each - a command whose
+  signature has an optional argument before the mandatory one would still leak;
+  `\zihao{-4}` is covered but `\newCJKfontfamily` is not, because its name
+  argument is unbraced and needs the definition machinery.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
