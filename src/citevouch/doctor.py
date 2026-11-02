@@ -38,7 +38,7 @@ from .errors import why_not_a_file
 from .latex import looks_like_latex
 from .manuscript import parse_manuscript
 from .model import Finding
-from .sources import read_source_table
+from .sources import candidate_files, near_misses, read_source_table
 from .textnorm import count_of, read_text
 
 # The versions this package claims to run on, kept next to the check that
@@ -192,6 +192,7 @@ def _project(root: Path, manuscript: str) -> list[Report]:
                 )
             )
             reports.append(_manifest(root))
+            reports.append(_claim_sources(target, root))
             return reports
         reports.append(
             Report(
@@ -229,7 +230,105 @@ def _project(root: Path, manuscript: str) -> list[Report]:
         )
 
     reports.append(_manifest(root))
+    reports.append(_claim_sources(target, root))
     return reports
+
+
+def _claim_sources(target: Path, root: Path) -> Report:
+    """Do the source keys this manuscript names actually bind to a file?
+
+    The four checks above answer "is there a manifest", "is it readable", "are
+    the files it names here", and "does the manuscript hold blocks".  All of
+    them can pass while every claim in the file names a key nobody binds, and
+    that is the one failure ``doctor`` exists to explain: ``check`` then prints
+    ``source-missing`` once per claim and exits 1, and the reader is told the
+    machine is fine and that "the source files are the place to look" — while
+    the file they would go and look at is already present, correctly spelled,
+    and simply filed under a different name in the manifest.
+
+    Measured before this check existed: a project whose ``sources.toml`` binds
+    ``other = "other.txt"`` and whose one claim names ``source=paper`` got
+    seven ``[ok  ]`` lines and exit 0 from ``doctor``, and ``[high]
+    source-missing ... claim c1 names source='paper' but no entry in
+    sources.toml`` from ``check``.
+
+    ``--source`` is deliberately not an input here: ``doctor`` does not accept
+    it, because it is the command you run when the project is suspect, and a
+    diagnosis that depended on repeating the flags you got wrong would be a
+    diagnosis of a different command.
+    """
+    try:
+        text = read_text(target)
+    except OSError as exc:
+        return Report(name="sources", ok=True, detail=f"could not be read to check them: {exc}")
+    parsed = parse_manuscript(text, target.name)
+    named = sorted({claim.source for claim in parsed.claims if claim.source})
+    if not named:
+        # The `claims` check owns "this file holds nothing"; saying it twice
+        # would make one problem look like two.
+        return Report(name="sources", ok=True, detail="no claim names a source")
+
+    table = read_source_table(root)
+    if table.manifest_problem:
+        # The `manifest` check owns this failure and already printed the parser
+        # message.  Repeating it here would make one problem look like two.
+        return Report(
+            name="sources",
+            ok=True,
+            detail="not checked, because the manifest could not be read",
+        )
+    unbound = [key for key in named if key not in table.found and key not in table.unusable]
+    if not unbound:
+        # Two ways to get here.  Either every key binds, or a key the manifest
+        # names cannot be used (the file moved, or it is a directory) - and the
+        # `manifest` check above already reported that with the value the author
+        # typed.  The first version of this check folded both into one line, so
+        # for the second kind it printed "1 source key, every one of them bound
+        # to a file" one line below the check that had just said the file is not
+        # there: a false sentence about the one project state this command
+        # exists to describe.  Naming the second kind without claiming health is
+        # the honest middle - the run still exits 1 on the manifest line, and
+        # this line does not pretend to a second, independent problem.
+        if table.unusable:
+            held = [key for key in named if key in table.unusable]
+            which = "it" if len(held) == 1 else "them"
+            return Report(
+                name="sources",
+                ok=True,
+                detail=(
+                    f"{count_of(len(named), 'source key')}, of which "
+                    f"{count_of(len(held), 'key')} cannot be used; the manifest "
+                    f"line above names {which}"
+                ),
+            )
+        return Report(
+            name="sources",
+            ok=True,
+            detail=f"{count_of(len(named), 'source key')}, every one of them bound to a file",
+        )
+
+    candidates = candidate_files(root)
+    parts: list[str] = []
+    for key in unbound:
+        offers = near_misses(key, candidates)
+        sentence = f"{key!r} is named by a claim, and no entry in the manifest binds it"
+        if offers:
+            sentence += f"; the files nearest it on disk are {', '.join(offers)}"
+        parts.append(sentence)
+    verb = "is" if len(unbound) == 1 else "are"
+    return Report(
+        name="sources",
+        ok=False,
+        detail=(
+            f"{count_of(len(unbound), 'source key')} named by a claim {verb} "
+            "bound to nothing: " + "; ".join(parts)
+        ),
+        fix=(
+            "Add each of those keys to sources.toml, or change the claim to the "
+            "key the manifest already uses, and run `citevouch scan` afterwards "
+            "so the ledger records the new paths."
+        ),
+    )
 
 
 def _claim_blocks(target: Path) -> Report:

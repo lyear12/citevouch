@@ -183,12 +183,19 @@ $ citevouch doctor --root demo
 [ok  ] manuscript  demo/manuscript.md (2154 bytes)
 [ok  ] claims      5 claim blocks
 [ok  ] manifest    demo/sources.toml (148 bytes), 2 sources, every one of them present on this machine
+[ok  ] sources     2 source keys, every one of them bound to a file
 
 Everything this tool needs is on this machine. If quotes are still reported missing, the source files are the place to look.
 ```
 
 (That is a machine with `pypdf` from pip and no poppler; with `pdftotext` installed the third line
 prints its path instead, shortened in the middle. Windows prints backslashes.)
+
+The last two lines are separate checks on purpose. `manifest` asks whether the file each key maps to
+is on this disk; `sources` asks whether the keys the manuscript actually names are bound at all. A
+project can pass the first and fail the second — every claim naming `paper` while the manifest lists
+`other` — and that project is the one where `check` prints `source-missing` once per claim while
+`doctor` used to close with "Everything this tool needs is on this machine."
 
 The failure that sends people away from this tool is not an error message. It is a run that
 finishes and reports every quote missing, because the PDF could not be read at all — and nothing in

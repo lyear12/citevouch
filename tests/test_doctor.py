@@ -52,6 +52,7 @@ class TestWhatItChecks:
             "manuscript",
             "claims",
             "manifest",
+            "sources",
         ]
 
     def test_every_check_says_something(self, project: Path):
@@ -164,6 +165,13 @@ class TestWhatItChecks:
             "# t\n\nA .tex file mentioned in prose is not this file.\n" + GOOD,
             encoding="utf-8",
         )
+        # GOOD's claim names `source=a`, so the project has to bind that key:
+        # the `sources` check asks whether the keys the manuscript names exist
+        # in the manifest, and it would be right to complain here if they did
+        # not. This test is about the LaTeX branch, so the rest of the project
+        # has to be sound for the assertion to mean anything.
+        (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
+        (tmp_path / "a.txt").write_text("alpha beta gamma\n", encoding="utf-8")
         assert doctor.problems(doctor.diagnose(root=tmp_path, manuscript="manuscript.md")) == []
 
     def test_check_and_doctor_agree_about_a_latex_file(self, tmp_path: Path, capsys):
@@ -544,6 +552,7 @@ class TestTheExampleInTheReadme:
                 "manuscript",
                 "claims",
                 "manifest",
+                "sources",
             }
             assert expected <= shown, f"{name}: the example omits {expected - shown}"
 

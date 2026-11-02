@@ -3441,3 +3441,48 @@ the message naming no command, and `check` without `--use-recorded` refusing as 
 `tests/test_bib_flag_refusal.py`.
 
 Seen 1.
+
+## A diagnostic that checks the manifest has not checked the manuscript
+
+`doctor` asked whether `sources.toml` names files that exist. It never asked
+whether the keys the *claims* name are bound at all. A project whose manifest
+binds `other` and whose only claim names `source=paper` got seven `[ok  ]`
+lines, exit **0**, and the closing sentence "Everything this tool needs is on
+this machine. If quotes are still reported missing, the source files are the
+place to look." — while `check` on the same project printed `[high]
+source-missing ... claim c1 names source='paper' but no entry in sources.toml`
+and exited 1. The reader is sent to look at source files that are all present,
+all correctly spelled, and simply filed under a different name.
+
+**Rule.** A check owns one noun, and the noun has to be the one a failing run
+actually complains about. `manifest` owns "the file each key maps to is on
+disk". `claims` owns "the manuscript holds blocks". Neither owns "the key this
+block names is bound", and that is the noun `check` prints once per claim.
+
+**Why this kept happening.** Five rounds fixed this same shape in one file: the
+manifest check asked whether the file existed but not whether it pointed
+anywhere (0.19.44), the manuscript check called a directory absent (0.19.45), a
+`.tex` file got a clean bill (0.19.46), a file with no claim blocks got a clean
+bill (0.19.47), and this one. Each check was written from the side of the part
+of the project the author had just been thinking about, and the decisive
+question was always one noun further along.
+
+**How to apply.** Enumerate the nouns `check` prints failures about, then ask
+for each one which `doctor` line answers it. Where there is no line, that is the
+check. When the new line overlaps an old one, decide which line owns the cause
+and make the other one defer — this check says "not checked, because the
+manifest could not be read" for a broken manifest, and "of which 1 key cannot be
+used; the manifest line above names it" for a key whose file is missing, rather
+than printing a second, independent-looking complaint about one cause.
+
+**Evidence.** 2026-11-02. Before: `doctor --root _ku --manuscript manuscript.md`
+printed seven `[ok  ]` lines and the reassurance, exit 0; `check
+_ku/manuscript.md --root _ku` printed `[high] source-missing at manuscript.md:3
+(c1)` and exited 1. After: `[FAIL] sources  1 source key named by a claim is
+bound to nothing: 'paper' is named by a claim, and no entry in the manifest binds
+it`, exit 1. Seven mutations, all red — one anchor was wrong on the first pass
+(`table.manifest_problem` appears twice in the file, and the mutation hit the
+wrong one), which is the same failure mode as a test that asserts nothing. The
+test file compares `doctor` against `check` on the same projects rather than
+remembering both messages, so rewording either one cannot quietly break the
+agreement it is testing. Seen 1.

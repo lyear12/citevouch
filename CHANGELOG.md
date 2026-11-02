@@ -11,6 +11,29 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `doctor` gained the check it was missing: whether the source keys the
+  *manuscript* names are bound at all.  The `manifest` check asks whether each
+  key in `sources.toml` maps to a file that is on disk; the `claims` check asks
+  whether the manuscript holds blocks.  Both can pass while every block names a
+  key nobody binds, and that is the one failure `doctor` exists to explain.
+  Measured before this: a project whose `sources.toml` binds `other =
+  "other.txt"` and whose only claim names `source=paper` got seven `[ok  ]`
+  lines, exit **0**, and the closing sentence "Everything this tool needs is on
+  this machine. If quotes are still reported missing, the source files are the
+  place to look." — while `check` on the same project printed `[high]
+  source-missing ... claim c1 names source='paper' but no entry in
+  sources.toml` and exited 1.  The reader is sent to look at source files that
+  are all present, correctly spelled, and simply filed under a different name.
+  The new line names each unbound key and the files nearest it on disk, and it
+  leaves three states to the lines that already own them: a manifest that will
+  not parse, a key whose file is missing, and a manuscript that names no keys at
+  all.  This is the fifth instance of one shape (0.19.44 through 0.19.47 were
+  the others), so the test file compares `doctor` against `check` on the same
+  projects instead of remembering what each one prints.  Seven mutations, all
+  red; one of them survived the first pass and was killed by a test built from
+  the shape it needed.
 
 ## [0.19.56] — 2026-11-02
 ### Fixed
