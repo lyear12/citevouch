@@ -257,6 +257,11 @@ citevouch draft paper.tex --bib refs.bib -o claims.md
 `no ledger at citevouch.lock.json; run \`citevouch scan\` first`。这是配置错误，不是对稿件的判决，
 所以 action 在这里停下，而不是对一次根本没跑过的检查报绿。
 
+action 不传 `--bib`，你也不该传：`--use-recorded` 核对的是**账本里记着的**文献库，所以它根本不会打开
+任何 `.bib`。在这种情况下传它现在是用法错误而不是静默忽略——以前它被接受并丢弃，于是一个写错的路径
+换来一个绿 job，而那个 job 存在的全部意义就是能够变红。要记录文献库就 `citevouch scan --bib refs.bib`；
+要扫描加核对一趟做完，就去掉 `--use-recorded`（`citevouch check --bib refs.bib`）。
+
 它会写出 SARIF 文件，并把路径作为 `sarif` 输出交出来，所以再加一步就能传给 code scanning：
 
 ```yaml

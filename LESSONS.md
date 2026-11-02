@@ -3398,3 +3398,46 @@ from zero accepted, the page text coerced, and the cache never read.
 `tests/test_damaged_cache.py`.
 
 Seen 1.
+
+## A flag a command cannot honour is a lie told in the help text
+
+`--bib` is declared by every verb because every verb shares `common()`. But only `scan` reads a
+bibliography: it parses the entries and writes them *into the ledger*, which is the whole reason
+`scan` is a separate command. `verify` and `check --use-recorded` check the manuscript's keys
+against `ledger.entries`; they never open a `.bib`.
+
+They accepted the flag anyway. Measured:
+
+    citevouch check m.md --root . --use-recorded --bib nowhere.bib   ->  0
+    citevouch verify  m.md --root . --bib nowhere.bib                ->  0
+
+Exit **0** for a path that does not exist. `action.yml` always passes `--use-recorded`, so on every
+pull request in every repository using the action, `--bib` was decoration whose entire purpose was
+to make the run able to fail.
+
+**Why validating the path is the weaker fix.** The obvious repair is to check that the file exists,
+which is what `--source` does on the same path. But a *correct* path is still not read, so the author
+who edits `refs.bib` and sees nothing happen is told nothing - and that is the same defect wearing a
+better error message. The flag cannot be honoured here at all, so it is refused, and the message
+names the two commands that can honour it.
+
+**How to apply.** A flag is a promise about what the command does with it. When options are shared
+through a helper, ask for each one: on *this* path, does the value reach anything? An option that
+changes no behaviour on a path is worse than an unsupported option, because a missing option is an
+error at the parser and an ignored one is a green run. Then check the defaults of the caller that
+matters - here, `action.yml`, where the broken path was the *only* path.
+
+**The test that had to state the general claim.** Refusing `nowhere.bib` would have been caught by a
+path-validation fix too, so the test that pins the design asserts the refusal happens for a
+bibliography that *is* present. The four controls on the other side - `scan --bib`,
+`check --bib`, `check --use-recorded` with no flag, `draft --bib` - are there because the cheapest
+wrong fix is a broad one.
+
+**Evidence.** Before: the two commands above exit 0 and print `quote-found`. After: both exit 2 with
+`--bib is not read by this command: it checks the bibliography recorded in citevouch.lock.json ...`
+and name `citevouch scan --bib` and "drop --use-recorded". Six mutations red: `verify` not refusing,
+the recorded path not refusing, an empty flag refused too, the path validated instead of the flag,
+the message naming no command, and `check` without `--use-recorded` refusing as well.
+`tests/test_bib_flag_refusal.py`.
+
+Seen 1.

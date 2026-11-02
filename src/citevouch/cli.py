@@ -271,8 +271,45 @@ def cmd_scan(args: argparse.Namespace) -> int:
     return _exit_code(findings, args.fail_on)
 
 
+def _refuse_a_bibliography(args: argparse.Namespace, ledger_path: Path) -> None:
+    """``--bib`` cannot mean anything on a path that does not scan.
+
+    ``scan`` reads each bibliography and records its entries *into the ledger*;
+    that recording is the whole point of ``scan`` being a separate command.
+    ``verify`` and ``check --use-recorded`` then check the manuscript's keys
+    against ``ledger.entries`` - they never open a ``.bib``, because re-reading
+    one would check a different set of entries than the ledger was built from.
+
+    The flag was accepted anyway, and silently ignored:
+
+        citevouch check m.md --root . --use-recorded --bib nowhere.bib   ->  0
+        citevouch verify  m.md --root . --bib nowhere.bib                ->  0
+
+    A green run for a path that does not exist. ``action.yml`` always passes
+    ``--use-recorded``, so on a pull request it was pure decoration: whoever
+    added ``--bib`` there got a job that could not fail for the reason they
+    added it.
+
+    Refusing is better than validating the path, which would only catch the
+    typos: a *correct* path is still not read, so an author who edits their
+    bibliography would be told nothing either. The two commands that can honour
+    the request are named instead.
+    """
+    if not args.bib:
+        return
+    raise UsageError(
+        f"--bib is not read by this command: it checks the bibliography recorded "
+        f"in {ledger_path}, and opening a .bib here would compare against a "
+        "different set of entries than the ledger was built from. To record the "
+        "bibliography, run `citevouch scan --bib <file>`; to scan and verify in "
+        "one pass, drop --use-recorded: `citevouch check --bib <file>`"
+    )
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
-    ledger = _read_ledger(_ledger_path(args))
+    ledger_path = _ledger_path(args)
+    _refuse_a_bibliography(args, ledger_path)
+    ledger = _read_ledger(ledger_path)
     result = verify(ledger, _options(args), check_manuscript_hash=not args.allow_stale)
     _emit(_render(result.findings, ledger, args, result))
     return _exit_code(result.findings, args.fail_on)
@@ -283,6 +320,7 @@ def cmd_check(args: argparse.Namespace) -> int:
     options = _options(args)
     ledger_path = _ledger_path(args)
     if args.use_recorded:
+        _refuse_a_bibliography(args, ledger_path)
         ledger = _read_ledger(ledger_path)
         result = verify(ledger, options, check_manuscript_hash=not args.allow_stale)
     else:

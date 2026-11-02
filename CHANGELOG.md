@@ -12,6 +12,20 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `--bib` is refused by the two commands that do not read a bibliography,
+  instead of being accepted and ignored.  `scan` parses each `.bib` and records
+  its entries into the ledger; `verify` and `check --use-recorded` check the
+  manuscript's keys against `ledger.entries` and never open a `.bib`.  Both
+  accepted the flag anyway, so `check m.md --use-recorded --bib nowhere.bib`
+  and `verify m.md --bib nowhere.bib` exited **0** for a path that does not
+  exist — and `action.yml` always passes `--use-recorded`, so on a pull request
+  the flag was pure decoration whose whole purpose was to make the run able to
+  fail.  Validating the path would only catch typos (a correct path is still
+  not read), so the command is refused and both working alternatives are named
+  in the message.  Six mutations, all red.
+
 ## [0.19.55] — 2026-11-02
 ### Fixed
 

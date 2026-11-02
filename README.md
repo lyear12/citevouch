@@ -293,6 +293,13 @@ citevouch.lock.json; run \`citevouch scan\` first`. That is a setup error, not a
 manuscript, which is why the action stops on it rather than reporting a green job for a check that
 never ran.
 
+The action passes no `--bib`, and neither should you: `--use-recorded` checks the bibliography
+**recorded in the ledger**, so it does not open a `.bib` at all. Passing one there is a usage error
+rather than a silent no-op — the flag used to be accepted and ignored, which meant a typo'd path
+produced a green job whose entire purpose was to be able to fail. Run `citevouch scan --bib
+refs.bib` to record it, or drop `--use-recorded` (`citevouch check --bib refs.bib`) to scan and
+verify in one pass.
+
 It writes a SARIF file and exposes its path as the `sarif` output, so adding a code-scanning upload
 is one more step:
 

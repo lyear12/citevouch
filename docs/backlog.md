@@ -408,6 +408,45 @@ not what changed, but what proves the change works.
   *Not covered:* the `sha256` field inside a cache file is never re-checked against the file's
   name, so valid-looking pages filed under the wrong hash are used as if they were right.
 
+- [x] **`--bib` was accepted and ignored by the two verbs that never read one.**
+
+  `scan` parses each `.bib` and records its entries into the ledger; that is why it is a separate
+  command. `verify` and `check --use-recorded` check the manuscript's keys against
+  `ledger.entries` and never open a `.bib`. Both verbs accepted `--bib` anyway, because the flag
+  comes from the shared option group:
+
+      citevouch check m.md --root . --use-recorded --bib nowhere.bib   ->  0
+      citevouch verify m.md --root . --bib nowhere.bib                ->  0
+
+  Exit **0** for a path that does not exist, and the same for a directory. `action.yml` always
+  passes `--use-recorded`, so on every pull request of every repository using the action the flag
+  was decoration whose entire purpose was to make the run able to fail.
+
+  *Who is blocked*: anyone who wires `--bib refs.bib` into their CI job, sees a green run, and
+  concludes their bibliography is being checked. Nothing they can add to `refs.bib` will ever change
+  that run's verdict.
+
+  *Done when*: the two verbs either read the flag or refuse it, and saying so is not something the
+  author has to work out from the source.
+
+  **Done - why it is now true:** the flag cannot be honoured here at all, so it is refused with
+  exit 2 rather than validated - a correct path is *still* not read, so checking existence would
+  only convert a silent no-op into a `file not found` for typos and leave the real case untouched.
+  The message names both working alternatives: `citevouch scan --bib <file>` to record the
+  bibliography, and "drop `--use-recorded`" for a single-pass `check --bib <file>`. Measured after
+  the fix: `check --use-recorded --bib nowhere.bib` and `verify --bib nowhere.bib` both exit 2 with
+  the same sentence, a directory gets that sentence rather than a complaint about the path, and the
+  four commands that *do* read a bibliography (`scan --bib`, `check --bib`, `scan`/`check` with no
+  flag, `draft --bib`) are unchanged. Six mutations, all red: `verify` not refusing, the recorded
+  path not refusing, an empty flag refused too, the path validated instead of the flag, the message
+  naming no command, and `check` without `--use-recorded` refusing as well. The test that pins the
+  design refuses a bibliography that **is** there, because a path-validation fix would pass a test
+  about a missing one.
+  `tests/test_bib_flag_refusal.py`, `README.md` and `README.zh-CN.md` under "Use it in CI".
+
+  *Not covered*: `draft` still accepts `--bib` and needs it, so nothing checks that the flag list of
+  one verb matches what that verb does; the guard is written per verb, by hand.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
