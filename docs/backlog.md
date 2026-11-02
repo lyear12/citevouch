@@ -1123,6 +1123,33 @@ not what changed, but what proves the change works.
   an abbreviation (`etc.`) splits a sentence where it should not, in every
   script, and that was true before this change.
 
+- [x] **A citation removed from Chinese prose left a space inside the
+  sentence.** `statement_of` closes the gap a marker leaves before a closing
+  mark, and the mark class was `.,;:!?`. `相关研究指出词汇与构式之间存在互动关系
+  [@page]。` came out as `相关研究指出词汇与构式之间存在互动关系 。`, so the
+  `claim:` text `draft` proposed held a space no Chinese writer types and no
+  source prints. This was the second copy of the assumption the splitter fix in
+  0.19.80 removed; the two lines are forty apart and neither names the other.
+  *Who is blocked*: the same authors the splitter fix was for - every Chinese
+  manuscript that cites at the end of a sentence, which is where a citation
+  normally goes.
+  *Done when*: a citation that sits before a CJK mark leaves no space behind, and
+  a space that sits between two words is not touched.
+  **Done - why it is now true:** the marks are one named set,
+  `_NO_SPACE_BEFORE` - the CJK stops, the small marks, the ellipsis and the
+  closing brackets plus the Latin five - escaped once into
+  `_NO_SPACE_BEFORE_CLASS` so a `]` in the set cannot end the class early.
+  `'相关研究指出词汇与构式之间存在互动关系 [@page]。'` gives the closed-up
+  sentence; `'我们 [@p] 认为构式承载意义。'` keeps its space; `'他说：“好
+  [@p]。”'` gives `他说：“好。”`; `'价格是 [@p] 3.5 万元。'` is unchanged.
+  12 tests in `tests/test_cjk_statement_space.py`; four mutations (the five Latin
+  marks again, the stops without the closing marks, keep every space, collapse
+  every space) are red with 3 to 9 tests each. Shipped in 0.19.81.
+  *Not covered*: no Japanese or Korean sample beyond the marks the three scripts
+  share; nothing measures how often a citation sits before a closing bracket in
+  real Chinese prose, so the bracket half rests on the construction rather than
+  on a count.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
