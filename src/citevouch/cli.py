@@ -34,7 +34,7 @@ from .manuscript import parse_manuscript
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, scan
-from .sources import read_source_table
+from .sources import MANIFEST_NAMES, read_source_table
 from .textnorm import count_of, read_text
 from .verify import VerifyResult, verify
 
@@ -364,6 +364,88 @@ def _existing_claim_ids(text: str) -> set[str]:
     return {claim.id for claim in parsed.claims if claim.id}
 
 
+def _refuse_an_output_that_is_an_input(
+    output: Path,
+    root: Path,
+    bib_paths: list[Path],
+    extra_sources: list[Path],
+    ledger: Path,
+) -> None:
+    """Refuse an ``-o`` that names a file this project already reads.
+
+    ``draft`` guarded its output against the manuscript and against nothing
+    else, so ``-o sources.toml --force`` wrote proposals over the manifest: the
+    command reported success, and from then on `check` answered
+    `[high] source-missing ... the manifest could not be read: sources.toml
+    could not be read as TOML` for every claim in the project, `doctor` failed
+    its manifest check, and ``scan`` could not rebuild the binding because the
+    key-to-file table was the file that had been replaced.  ``-o
+    citevouch.lock.json --force`` did the same to the ledger, and ``verify``
+    then said the ledger is not readable JSON - so the recorded evidence for
+    the whole manuscript was gone, which is the one thing this tool exists to
+    keep.
+
+    A name that does *not* exist yet is refused too, when it is the other
+    spelling of a manifest that is present.  Writing ``sources.json`` beside a
+    live ``sources.toml`` overwrote nothing at all, which is why it looked
+    harmless; a project holding both is refused rather than guessed between, so
+    every claim went from `verified` to `[high] source-missing ... both
+    sources.toml and sources.json exist, and only one of them is read`.
+
+    The comparison is by resolved path, and it protects the files this run
+    actually reads rather than the ones a docstring says it reads: a
+    bibliography named with ``--bib``, a source named with ``--source``, the
+    ledger, and both manifest names.  ``--force`` does not reach here because it
+    cannot: replacing one of these does not write a proposal, it deletes the
+    project's ability to check the proposals.
+    """
+    protected: list[tuple[Path, str]] = []
+    for name in MANIFEST_NAMES:
+        protected.append(
+            (
+                root / name,
+                f"{output} is a name citevouch reads as the sources manifest; choose "
+                "another -o (claims.md is the default). Proposals are Markdown, so this "
+                "file could never be a manifest, and a project holding both manifest "
+                "names is refused rather than guessed between - either way every claim "
+                "stops resolving, which --force cannot make safe",
+            )
+        )
+    for path in bib_paths:
+        protected.append(
+            (
+                path,
+                f"{output} is a bibliography this run is reading; choose another -o "
+                "(claims.md is the default). citevouch reads each claim's fields from "
+                "it, so writing proposals over it would leave the project unable to "
+                "check anything, which --force cannot make safe",
+            )
+        )
+    for path in extra_sources:
+        protected.append(
+            (
+                path,
+                f"{output} is a source this run was given; choose another -o "
+                "(claims.md is the default). citevouch reads quotes out of it, so "
+                "writing proposals over it would leave the project unable to check "
+                "anything, which --force cannot make safe",
+            )
+        )
+    protected.append(
+        (
+            ledger,
+            f"{output} is the ledger; choose another -o (claims.md is the default). "
+            "citevouch records what each quote was checked against in it, so writing "
+            "proposals over it would leave the project unable to check anything, "
+            "which --force cannot make safe",
+        )
+    )
+    target = output.resolve()
+    for path, message in protected:
+        if path.resolve() == target:
+            raise UsageError(message)
+
+
 def cmd_draft(args: argparse.Namespace) -> int:
     """Propose claim blocks for a manuscript that has none.
 
@@ -413,13 +495,26 @@ def cmd_draft(args: argparse.Namespace) -> int:
         )
 
     bib: dict[str, BibEntry] = {}
+    bib_paths: list[Path] = []
     for raw in args.bib:
         bib_path = _resolve(root, raw)
         if not bib_path.is_file():
             raise UsageError(f"bib file {bib_path} {why_not_a_file(bib_path)}")
+        bib_paths.append(bib_path)
 
         parsed = parse_bib(read_text(bib_path), str(bib_path))
         bib.update(parsed.entries)
+    extra_sources = [
+        path if path.is_absolute() else root / path
+        for path in (Path(raw) for raw in args.source)
+    ]
+    # ``draft`` has no ``--ledger`` flag, so the path worth protecting is the
+    # default one the other four commands read: a draft that replaced it left
+    # `verify` saying the ledger is not readable JSON, and the recorded evidence
+    # for the whole manuscript was gone.
+    _refuse_an_output_that_is_an_input(
+        output, root, bib_paths, extra_sources, root / DEFAULT_LEDGER
+    )
 
     text = read_text(manuscript)
     table = read_source_table(root, args.source)

@@ -3237,3 +3237,45 @@ is `paper-2` and `check` on the merged file exits 0. `tests/test_draft_claim_ids
 (8 tests); four mutations, all red, including one that reads only the first
 existing id - invisible on a one-block fixture, which is why the fixture now holds
 two blocks and the colliding key is the second one. Seen 1.
+
+---
+
+## A guard against overwriting your inputs protects every input, not the one you were thinking about
+
+**Rule.** When a command writes to a path the user names, the guard has to compare
+that path against every file the run reads - and against the names it would read
+if they existed. A guard that protects one of them is a guard against one mistake.
+
+**Why this keeps happening.** `draft` learned to refuse `-o manuscript.md` after an
+author's paper was replaced with proposals, and the fix was written as "is the
+output the manuscript". That sentence is about one file, and it reads as complete
+because the danger it describes is vivid. The other inputs - the manifest that
+says which file backs each key, the bibliography, the ledger that holds what every
+quote was checked against - are named inside the function that reads them, not in
+the argument list, so they are invisible from the place where outputs are
+approved.
+
+**How to apply.** Enumerate the inputs from the code that opens them, not from the
+command's help text: every path argument, every default path the other commands
+read, and every name that would change the meaning of the project if it appeared.
+Then assert on the file's bytes after the refusal - a guard that returns the right
+exit code after writing is not a guard. When a name does not exist yet, ask
+whether *creating* it changes what the project means: `sources.json` beside a live
+`sources.toml` overwrites nothing and makes every claim unresolvable, because two
+manifests are refused rather than guessed between.
+
+**The other direction.** Do not let the guard leak into the commands that must
+write those files. `scan` writes the ledger on purpose; a version of this rule
+that refused every writer would leave the tool unable to record anything at all.
+
+**Evidence.** Measured before the fix, in a project where `check` said `1 claim -
+1 verified`: `-o sources.toml --force` exited 0 and printed `wrote sources.toml`,
+then `check` said `[high] source-missing ... the manifest could not be read:
+sources.toml could not be read as TOML` and `doctor` said `2 of 6 checks failed`.
+`-o citevouch.lock.json --force` exited 0, then `verify` said `ledger
+citevouch.lock.json is not readable JSON`. `-o refs.bib --force` with `--bib
+refs.bib` and `-o papers/p2.txt --force` with `--source papers/p2.txt` both wrote
+through. Three mutations, all red - the guard not called at all, only the existing
+manifest protected, and the ledger dropped from the list.
+
+Seen 1.
