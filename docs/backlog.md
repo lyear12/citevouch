@@ -791,6 +791,29 @@ not what changed, but what proves the change works.
   *Not covered*: nothing tests a reader that would consult the digest, because
   there is none - that is the finding, not a gap in the tests.
 
+- [x] **A test compared two ledgers byte for byte, so a clock decided whether
+  the project was green.** *Done 2026-11-02.*
+  *Who is blocked*: anyone whose change is the one that lands on the wrong side
+  of a second boundary. The sdist job at 2026-11-02T14:54:18Z reported
+  `1 failed, 1529 passed, 7 skipped` and a diff of two `citevouch.lock.json`
+  files that looked identical - so the person reading it goes looking for a
+  path bug in a commit that has none, and the eleven green cells before that
+  taught them the suite was stable.
+  *Done when*: the comparison leaves the run's own clock out, and the way it
+  leaves it out is itself tested.
+  *Done - why it is now true*: `_without_the_clock` normalises `generated_at`
+  before the two ledgers are compared. Two new tests hold it: one fails if the
+  clock stays in the comparison (two ledgers written in different seconds must
+  normalise equal) and one fails if the normaliser hides anything but the clock
+  (a differing `tool_version` must not normalise away); a third asserts an
+  ordinary `scan` still stamps a time, so removing the field from the
+  comparison cannot silently become removing it from the file. Mutating the
+  normaliser both ways and mutating `scan.py`'s timestamp writer all turn the
+  file red. Shipped in 0.19.72.
+  *Not covered*: nothing reproduces the original failure by timing - the two
+  scans cannot be made to straddle a second on purpose, so the old behaviour is
+  established by reading the field, not by waiting for it.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
