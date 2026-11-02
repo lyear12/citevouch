@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.83] — 2026-11-02
 ### Fixed
 
 - A control word followed directly by Chinese text no longer eats the
@@ -24,7 +26,6 @@ tag and that file disagree.
   now scanned as a backslash followed by ASCII letters, which is what TeX
   itself does, in all five places that scan one - the converter, the
   conditional reader, and the file-inclusion reader.
-
 ## [0.19.82] — 2026-11-02
 ### Fixed
 
@@ -2138,7 +2139,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.82...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.83...HEAD
+[0.19.83]: https://github.com/lyear12/citevouch/releases/tag/v0.19.83
 [0.19.82]: https://github.com/lyear12/citevouch/releases/tag/v0.19.82
 [0.19.81]: https://github.com/lyear12/citevouch/releases/tag/v0.19.81
 [0.19.80]: https://github.com/lyear12/citevouch/releases/tag/v0.19.80
