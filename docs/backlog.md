@@ -946,6 +946,51 @@ not what changed, but what proves the change works.
   express either; `\includegraphics` is still dropped without being reported,
   because a picture cannot hold a citation.
 
+- [x] **A macro definition's body was read as a sentence, so the tool made up
+  one citation and lost another in the same step.**
+
+  *What was wrong.* `\newcommand`, `\renewcommand`,
+  `\providecommand`, `\DeclareRobustCommand`, `\def`,
+  `\gdef`, `\edef`, `\xdef`, `\newenvironment`,
+  `\renewenvironment` and `\newtheorem` were in
+  `_DROP_ARGUMENT`, which drops one argument. A definition takes a name, an
+  optional count, an optional default and a body, so everything after the
+  name was converted as prose. Measured before the fix:
+  `\newcommand{\knuthcite}{\citep{knuth}}` produced
+  `'[@knuth]'`, and `citation_sites` returned `['knuth']` for a document that
+  never cites Knuth, so `draft` offered a `sources.toml` line for the invented
+  key. `\newcommand{\seecite}[1]{see \citep{#1} for
+  details}` recorded a citation to the key `#1` while every real call
+  `\seecite{knuth}` became a bare word: a paper that cites once per
+  paragraph was told it cites nothing. `\newcommand{\inc}[1]{\input{#1}}` made
+  `included_files` return `['#1']`.
+
+  *Who is blocked.* Every author who defines a shorthand for a citation -
+  which is how a paper with twenty citations to one work stays readable - and
+  every author whose preamble defines environments or theorem styles with a
+  body.
+
+  *Done when.* The body is cut out of the converted text, and out of the raw
+  source for readers that do not convert first; a real include beside a
+  definition is still reported.
+
+  *Done - why it is now true.* `_definition_end` reads the three argument
+  shapes to their end (braced name with optional count and default; the
+  low-level `\def\name#1{body}` form whose name is not in
+  braces; `\newtheorem{name}{Printed}[within]`), and
+  `_without_definitions` runs the same cut over the raw source before
+  `included_files` matches anything. `tests/test_latex_definitions.py` has 26
+  tests covering the eight definition spellings, the three shapes, both
+  environment bodies, the theorem form, the parameter hole, and one end-to-end
+  `draft` run asserting no proposal is written for a key only the body names.
+  Five mutations are red: read the body as prose again (23 tests), stop cutting
+  the raw source (4), keep an environment's second body (1), stop a low-level
+  definition at its name (5), keep a theorem's printed name (1). Shipped in
+  0.19.76.
+
+  *Not covered*: macros are still not expanded at their call sites, so
+  `\seecite{knuth}` is a missing citation rather than a found one -
+  fixing that is a feature (a TeX expander), not a defect fix.
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
