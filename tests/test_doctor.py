@@ -127,6 +127,48 @@ class TestWhatItChecks:
         assert "is a directory, not a file" in check_text
         assert "is a directory, not a file" in doctor.problems(reports)[0].detail
 
+    def test_a_latex_manuscript_is_not_a_clean_bill_of_health(self, tmp_path: Path):
+        """`check` refuses a .tex with exit 2; `doctor` has to say why.
+
+        `doctor` used to answer `[ok] manuscript paper.tex (69 bytes)` and exit
+        0 about the one input that guarantees a run will find nothing, because
+        claim blocks live in Markdown.  A clean bill of health about a file the
+        scanner refuses is how a reader concludes the tool checked their paper.
+        """
+        (tmp_path / "paper.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\nHi.\n\\end{document}\n",
+            encoding="utf-8",
+        )
+        broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="paper.tex"))
+        assert [report.name for report in broken] == ["manuscript"]
+        assert "LaTeX" in broken[0].detail
+        assert "Markdown" in broken[0].detail
+
+    def test_the_latex_fix_names_the_draft_command_it_will_needs(self, tmp_path: Path):
+        (tmp_path / "paper.tex").write_text(
+            "\\begin{document}\nHi.\n\\end{document}\n", encoding="utf-8"
+        )
+        broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="paper.tex"))
+        assert "citevouch draft" in broken[0].fix
+        assert "claims.md" in broken[0].fix
+
+    def test_a_markdown_manuscript_is_not_mistaken_for_latex(self, tmp_path: Path):
+        (tmp_path / "manuscript.md").write_text(
+            "# t\n\nA .tex file mentioned in prose is not this file.\n", encoding="utf-8"
+        )
+        assert doctor.problems(doctor.diagnose(root=tmp_path, manuscript="manuscript.md")) == []
+
+    def test_check_and_doctor_agree_about_a_latex_file(self, tmp_path: Path, capsys):
+        (tmp_path / "paper.tex").write_text(
+            "\\begin{document}\nHi.\n\\end{document}\n", encoding="utf-8"
+        )
+        code = main(["check", str(tmp_path / "paper.tex")])
+        said = capsys.readouterr()
+        assert code == 2
+        assert "LaTeX" in said.err
+        broken = doctor.problems(doctor.diagnose(root=tmp_path, manuscript="paper.tex"))
+        assert "LaTeX" in broken[0].detail
+
     def test_a_project_without_a_manifest_is_still_fine(self, tmp_path: Path):
         (tmp_path / "manuscript.md").write_text("# t\n", encoding="utf-8")
         reports = doctor.diagnose(root=tmp_path, manuscript="manuscript.md")

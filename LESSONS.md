@@ -2999,3 +2999,35 @@ file`. After: both say `is a directory, not a file`, the fix line names `_dk\adi
 and exit is 1. Three mutations; the second - "the directory gets the generic fix" - survived the
 first run for exactly the reason above, and went red once the test asserted the path came from the
 argument. Seen 1.
+
+## `doctor` is not allowed to be more optimistic than the command it explains
+
+`check paper.tex` refused the file with exit 2 and said claim blocks live in Markdown, not in a `.tex`
+file. `doctor --manuscript paper.tex` printed `[ok  ] manuscript  paper.tex (69 bytes)`, closed with
+"Everything this tool needs is on this machine." and exited 0. The reader who does the sensible thing
+- run the diagnostic before trusting the report - was told the machine was fine about an input the
+next command will not read at all.
+
+**Rule.** A diagnostic may only be optimistic about things the work command agrees with. Every check
+in `doctor` either reports a fact that is true regardless of the manuscript (an extractor exists, the
+cache is writable, the interpreter is new enough) or a fact the next command also tests. When it
+answers a question the work command also answers, both must use the same predicate - not two
+implementations that happen to agree today.
+
+**Why this keeps happening.** `doctor` was written before the scanner learned to refuse `.tex`, and
+nothing connected them afterwards. The two checks were built months apart by the same agent and share
+no code, so the later refusal never reached the earlier report. Three rounds of this file have now
+ended the same way - manifest existence, directory-as-manuscript, `.tex`-as-manuscript - and every
+one was found by running both commands on one input rather than by reviewing either.
+
+**How to apply.** For each line `doctor` prints, ask "does the command it is explaining say something
+about this too?", and if so import that command's predicate instead of re-deciding. Then write the
+test as agreement: break one input, run both, require the words to overlap. A test that asserts what
+`doctor` says is a test of today's wording; a test that asserts what it says is among what `check`
+said covers the shapes nobody listed.
+
+**Evidence.** 2026-11-02.  Before: `doctor --root _dt --manuscript paper.tex` printed `[ok  ]
+manuscript  _dt\paper.tex (69 bytes)` and exited 0, while `check _dt/paper.tex` exited 2 with
+`manuscript ... is LaTeX, and citevouch reads claim blocks`. After: `[FAIL] manuscript ... is LaTeX,
+and this tool reads claim blocks, which live in Markdown, not in a .tex file`, exit 1, with a fix
+that names `citevouch draft paper.tex -o claims.md`. Four mutations, all red. Seen 1.

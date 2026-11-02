@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **`doctor` passed a `.tex` manuscript with a clean bill of health, about the one file `check` refuses outright.** `check paper.tex` exits 2 and says claim blocks live in Markdown, not in a `.tex` file - scanning one would record zero claims and report a clean run for a manuscript nothing checked. `doctor --manuscript paper.tex` printed `[ok  ] manuscript  paper.tex (69 bytes)`, closed with `Everything this tool needs is on this machine.` and exited 0. So the command that exists to explain "why did it find nothing" was silent about the one input that guarantees there is nothing to find, and a reader doing the sensible thing - check the machine before trusting the report - got an all-clear on a file the next command would not read. `doctor` now asks `latex.looks_like_latex`, the same predicate the scanner uses, and gives the same reason plus the `citevouch draft` step that does work on a `.tex` source. One of the four mutations for this - "every file is now called LaTeX" - was caught by the demo README test rather than by the new ones, which is what that test is for.
 
 ## [0.19.45] — 2026-11-02
 ### Fixed

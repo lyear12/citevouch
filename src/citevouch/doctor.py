@@ -35,6 +35,7 @@ from shutil import which
 
 from . import __version__
 from .errors import why_not_a_file
+from .latex import looks_like_latex
 from .model import Finding
 from .sources import read_source_table
 from .textnorm import count_of
@@ -165,6 +166,32 @@ def _project(root: Path, manuscript: str) -> list[Report]:
     path = Path(manuscript)
     target = path if path.is_absolute() else root / path
     if target.is_file():
+        if looks_like_latex(target):
+            # `check` refuses a .tex file with exit 2 and says why: claim blocks
+            # live in Markdown, and scanning the .tex would record zero claims
+            # and report a clean run for a manuscript nothing checked.  `doctor`
+            # said "[ok] manuscript paper.tex (69 bytes)" and exited 0, so the
+            # command that exists to explain a run that found nothing was quiet
+            # about the one thing that guarantees there is nothing to find.
+            bare = target.name
+            reports.append(
+                Report(
+                    name="manuscript",
+                    ok=False,
+                    detail=(
+                        f"{target} is LaTeX, and this tool reads claim blocks, "
+                        "which live in Markdown, not in a .tex file"
+                    ),
+                    fix=(
+                        "Propose them first: `citevouch draft "
+                        f"{bare} -o claims.md`, then check claims.md. Scanning "
+                        "the .tex itself would record zero claims and report a "
+                        "clean run for a manuscript nothing checked."
+                    ),
+                )
+            )
+            reports.append(_manifest(root))
+            return reports
         reports.append(
             Report(
                 name="manuscript", ok=True, detail=f"{target} ({target.stat().st_size} bytes)"
