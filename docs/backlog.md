@@ -1086,6 +1086,43 @@ not what changed, but what proves the change works.
   reads without them; nothing pins where each note lands when a document has
   several, only that each body is present exactly once.
 
+- [x] **Chinese prose was one sentence long, and a passage was measured in
+  characters.** CJK scripts put no space after a full stop and the splitter
+  required one, so `_sentences_of("第一句话。第二句话。第三句话。")` returned a
+  single run. Every consequence followed from that one number:
+  `_is_passage` refused the run for exceeding the ceiling, `draft` reported
+  `nothing on any page shares enough terms with the sentence (3 needed)` about a
+  paragraph sharing eighteen of them, and the whole paragraph became the
+  `claim:` text of anything proposed from it. The floor and ceiling were also
+  counted in characters, which is a letter in English and a syllable in Chinese.
+  *Who is blocked*: every author writing the tool's own headline case in a
+  language without spaces between sentences - which is the language half of this
+  project's readers write in, and the language this project's own README is
+  translated into.
+  *Done when*: a Chinese paragraph is split at its full stops, a Chinese
+  sentence of ordinary length counts as a passage, and `draft` proposes from
+  Chinese prose instead of telling the author no page shares enough terms.
+  **Done - why it is now true:** `_SENTENCE_END` has two zero-width branches
+  after `。！？`, one for a following character and one for a following closing
+  bracket, so nothing is consumed and `「好的。」` stays whole. The window is
+  `MIN_SENTENCE_WORDS = 7` / `MAX_SENTENCE_WORDS = 70`, counted by `_words` - a
+  run of letters, or one CJK character. Measured on this repository's own prose
+  in both scripts: the character window 40..400 kept 37% of Chinese sentences
+  (50/134) and 84% of English ones (1797/2140); the word window 7..70 keeps 86%
+  (115/134) and 84% (1797/2140), so English is untouched and Chinese stops being
+  systematically refused. End to end, a Chinese manuscript now gets one block
+  with 12 shared terms where it used to get `0 claim block(s) proposed`.
+  `tests/test_chinese_sentences.py` 20 tests; four mutations (latin-only
+  splitter, one CJK branch instead of two, count characters as words, restore
+  the character window) are red with 1 to 9 tests each. 1745 tests pass and the
+  demo still reports 5 claims - 4 verified, 0 moved, 1 missing. Shipped in
+  0.19.80.
+  *Not covered*: Japanese and Korean were checked with one sentence each, not
+  with a corpus - the CJK ranges are the four this repository already uses for
+  matching, so Hangul came along without its own measurement; a full stop inside
+  an abbreviation (`etc.`) splits a sentence where it should not, in every
+  script, and that was true before this change.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
