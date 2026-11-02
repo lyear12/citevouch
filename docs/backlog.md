@@ -673,6 +673,44 @@ not what changed, but what proves the change works.
   *Not covered*: `sources` holding an array of paths is refused as a non-table
   and nothing asserts that message specifically.
 
+- [x] **`sources.toml` was read two ways, depending on which interpreter ran
+  it.**
+
+  *What was wrong*: the manifest has two readers - `tomllib` on 3.11+, and
+  `_mini_toml`, the line-based subset, on 3.10.  Four spellings were legal TOML
+  that the two answered differently, so one file bound one way on one
+  interpreter and another way on the other, and the CI matrix runs 3.10, 3.12
+  and 3.13:
+
+  | manifest | `tomllib` | subset |
+  |---|---|---|
+  | `sources = { page = "a.txt" }` | binds `page` | sees no table |
+  | `pa.ge = "a.txt"` | binds nothing at `pa.ge` | binds `pa.ge` |
+  | `page = "a.txt"` twice | refuses the file | last one wins |
+  | `[sources]` twice | refuses the file | merges the halves |
+
+  *Who is blocked*: anyone on 3.10 whose manifest was written against a 3.11
+  reading - the run is red on a file nobody edited between the two.
+
+  *Done when*: both readers refuse the same files with the same sentence, and
+  the accepted spellings produce the same bindings from both.
+
+  *Done - why it is now true*: one `_refuse_shapes_only_one_reader_follows`
+  pre-scan runs before the split in `_load_toml` and `_mini_toml`, so the
+  sentences cannot drift apart and the 3.11 path is guarded too.  11 accepted
+  shapes produce identical `(found, unusable, manifest_problem)` from
+  `read_source_table` under both readers, and the four refused shapes produce
+  byte-identical messages.  Six mutations - restore the inline table, restore
+  the dotted key, stop refusing a repeated key, stop refusing a reopened table,
+  skip the pre-scan on the `tomllib` path, skip it on the subset path - are all
+  red.
+
+  *Not covered*: the comparison runs on one interpreter and swaps the reader by
+  calling `_mini_toml` directly, so 3.10 itself is only exercised by the CI
+  matrix.  `sources` holding an inline table at the root is refused by the
+  pre-scan, not by a TOML-aware check, so a deeply nested inline table is still
+  read as one flat value by the subset - and now refused for that reason.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
