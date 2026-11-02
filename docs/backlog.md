@@ -1060,6 +1060,32 @@ not what changed, but what proves the change works.
   reading the operand would drop live text. `TestTheConditionalsThatTakeOperands`
   asserts both halves of the current behaviour.
 
+- [x] **A footnote was spliced into the sentence it hangs on.** They were inline
+  commands, so the note's words were joined to the words on either side:
+  `The method works\footnote{See \citep{fn} for the proof.}, and we ...`
+  converted to `The method worksSee [@fn] for the proof., and we ...`. `worksSee`
+  is in no paper, and `draft` proposed exactly that string as the claim's text.
+  *Who is blocked*: every author who uses a footnote for the citation's proof -
+  which is how a footnote is normally used in this literature. The proposal is
+  built on a sentence nobody wrote, and the note's own citation is counted as if
+  it appeared in the middle of the main clause.
+  *Done when*: the main sentence survives whole, the note keeps the author's
+  words, and a citation inside a note is still a citation.
+  **Done - why it is now true:** the three note commands are their own set
+  (`_SEPARATE_ARGUMENT`) instead of being inline, and their bodies are collected
+  into a list that `to_text` appends after the prose, converted rather than
+  moved raw. `'The method works, and we show it.\n\nSee [@fn] for the proof.\n'`.
+  Giving the note its own paragraph *in place* was tried and rejected: it left
+  the following comma starting a paragraph (`\n\n, and we show it.`). 26
+  tests in `tests/test_latex_notes.py`; seven mutations, none surviving,
+  including two that survived the first pass - a body moved without being
+  converted, and a conditional branch that forgot to pass the collector down.
+  1725 tests pass and the demo still reports 5 claims - 4 verified, 0 moved, 1
+  missing. Shipped in 0.19.79.
+  *Not covered*: a note inside a heading keeps its words but the heading still
+  reads without them; nothing pins where each note lands when a document has
+  several, only that each body is present exactly once.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
