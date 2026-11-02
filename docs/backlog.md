@@ -1026,6 +1026,40 @@ not what changed, but what proves the change works.
   `\seecite{knuth}` remains a missed citation rather than a wrong
   one. That is a feature request, not a defect in this entry.
 
+- [x] **Text TeX never reads was being converted as prose.** `\iffalse` is
+  how a LaTeX author comments out a paragraph, and the converter read the body:
+  `\iffalse \citep{hidden} \input{ghost/sec} \fi` measured as
+  `[@hidden]` in the text and `ghost/sec` in the include list. Two more shapes of
+  the same family were wrong in the other direction: `\ifdefined\foo` pasted
+  its own name into the sentence, and `\ifthenelse{1=2}{...}{...}` left
+  `1=2` at the front of the first branch.
+  *Who is blocked*: every author who comments out a paragraph instead of deleting
+  it - which is what a draft looks like on the way to a published paper. They get
+  a proposal for a citation they turned off, a missing-file warning for a file the
+  paper never reads, and claim text with a fragment glued to the front.
+  *Done when*: dead text contributes no citations and no files; live text keeps
+  its body and loses its marker; and the limitation for the operand-taking
+  conditionals is written as a test rather than a comment.
+  **Done - why it is now true:** `_conditional_span` finds the matching
+  `\fi` by counting nesting, `\iffalse` and `\if0` bodies are cut,
+  a `\else` inside one is kept as live text, `\iftrue`/`\if1`/`\ifdefined`
+  keep the body and drop the marker, `\ifthenelse` drops only the test, and
+  `included_files` runs `_without_false_branches` over the raw source so the two
+  readers agree about which text is real. An unterminated conditional follows
+  TeX: a dead body takes the rest of the file, a live one is converted to the end.
+  `tests/test_latex_conditionals.py` has 36 tests; six mutations are red - a dead
+  branch converted as prose, a live branch losing its body, the include reader not
+  cutting dead branches, the `\else` inside a dead block staying dead, the
+  `\ifthenelse` test pasted back, and an unclosed live conditional dropped.
+  1699 tests pass and the demo still reports 5 claims - 4 verified, 0 moved, 1
+  missing. Shipped in 0.19.78.
+  *Not covered*: `\ifnum`, `\ifdim`, `\ifodd`, `\ifx`,
+  `\ifcat` and `\ifcase` take operands before their body, and those
+  operands are still words in the sentence. Finding where they end is a
+  token-level scan, not a table of names; a half fix that cut the body without
+  reading the operand would drop live text. `TestTheConditionalsThatTakeOperands`
+  asserts both halves of the current behaviour.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
