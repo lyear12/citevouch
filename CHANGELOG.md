@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.56] — 2026-11-02
 ### Fixed
 
 - `--bib` is refused by the two commands that do not read a bibliography,
@@ -25,7 +26,6 @@ tag and that file disagree.
   fail.  Validating the path would only catch typos (a correct path is still
   not read), so the command is refused and both working alternatives are named
   in the message.  Six mutations, all red.
-
 ## [0.19.55] — 2026-11-02
 ### Fixed
 
@@ -1655,7 +1655,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.55...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.56...HEAD
+[0.19.56]: https://github.com/lyear12/citevouch/releases/tag/v0.19.56
 [0.19.55]: https://github.com/lyear12/citevouch/releases/tag/v0.19.55
 [0.19.54]: https://github.com/lyear12/citevouch/releases/tag/v0.19.54
 [0.19.53]: https://github.com/lyear12/citevouch/releases/tag/v0.19.53
