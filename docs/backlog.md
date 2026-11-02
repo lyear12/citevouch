@@ -358,6 +358,29 @@ not what changed, but what proves the change works.
   *Not covered*: a root that is a symlink to a directory is accepted, because
   `is_dir()` follows links and so does every other path decision in this tool.
 
+- [x] **A source that cannot be read gives the same advice four times, and three of the four are wrong.**
+
+  `source-unreadable` said `could not extract text from {name}; install pypdf (pip install pypdf)
+  or pdftotext and try again` for every file that yielded nothing: a download that stopped half
+  way, a text file somebody saved as `.pdf`, an empty file, and a machine with no reader at all.
+  On a machine where `doctor` had just printed `[ok  ] pypdf 6.16.1 (reads PDFs in-process)`, that
+  advice is a correction the author has already made.
+
+  **Who is blocked:** anyone whose citation fails to verify because the PDF is damaged, which is
+  exactly the person who is already confused about why their quote is not being found.
+
+  **Done when:** the message names the reader that refused the file and quotes it.
+
+  **Done - why it is now true:** `_why_both_refused` re-opens the file with both readers on the
+  failure path and the message carries their words - `PdfStreamError: Stream has ended
+  unexpectedly`, `pdftotext: Syntax Error: Couldn't read xref table`. Measured: a real PDF cut to
+  40,000 bytes, a text file saved as `.pdf`, and a zero-byte `.pdf` now produce three distinct
+  sentences, where before they produced one identical false one. The no-reader case still names
+  both ways to get a reader, because that one *is* about the machine. The success path never asks:
+  a test counts the calls and asserts zero. Six mutations, all red.
+
+  *Not covered:* a file that makes `pdftotext` hang; the 180-second timeout is checked by reading
+  the call, not by driving it.
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
