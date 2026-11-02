@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.67] — 2026-11-02
 ### Fixed
 
 - `sources.toml` has two readers: `tomllib` on 3.11+, and the line-based subset
@@ -32,7 +34,6 @@ tag and that file disagree.
   the README already describes, and the messages name them: `[sources]` with one
   `key = "path"` line, and a quoted key - `"pa.ge"` - when the dot is part of
   the name.
-
 ## [0.19.66] — 2026-11-02
 ### Fixed
 
@@ -1848,7 +1849,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.66...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.67...HEAD
+[0.19.67]: https://github.com/lyear12/citevouch/releases/tag/v0.19.67
 [0.19.66]: https://github.com/lyear12/citevouch/releases/tag/v0.19.66
 [0.19.65]: https://github.com/lyear12/citevouch/releases/tag/v0.19.65
 [0.19.64]: https://github.com/lyear12/citevouch/releases/tag/v0.19.64
