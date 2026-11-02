@@ -294,6 +294,34 @@ not what changed, but what proves the change works.
   blocks a file holds; the two counts are deliberately different numbers, and
   only the difference is asserted.
 
+- [x] **`draft` proposed a block whose id the manuscript already used.**
+  The command names each proposal after its citation key and tells the
+  author to copy the blocks in. A manuscript that already held
+  `id=paper` and one more sentence citing `[@paper]` got a proposal also
+  labelled `paper`; appending it - the only thing the tool tells you to
+  do - produced `[high] claim-uncheckable ... the second is ignored`, and
+  the ignored block was the newest one in the file.
+  *Who is blocked*: anyone adding a second claim about a paper they have
+  already quoted, which is the normal shape of a literature review.
+  *Done when* `draft` names its proposals so that no id collides with the
+  manuscript it just read.
+  **Done - why it is now true:** `draft()` takes `taken_ids` and
+  `cmd_draft` fills it from `parse_manuscript(text)`, so the ids the
+  manuscript holds seed the set `_claim_id` de-duplicates against; the
+  second proposal for one key becomes `paper-2`. Proved by eight tests in
+  `tests/test_draft_claim_ids.py`, the load-bearing one appending the
+  proposal to the manuscript and asserting `check` exits 0 - a duplicate
+  id is only a problem through the verdict it produces. Four mutations,
+  all red: ignoring `taken_ids`, letting it replace the de-duplication,
+  passing `None` from the command, and reading only the first existing id.
+  *Not covered*: an id that collides only with an HTML-comment claim block
+  is untested here, because the parser is the thing under test in that
+  shape; `_existing_claim_ids` reads whatever the parser accepts.
+  **Also fixed:** the fixture that proved it. A one-block manuscript cannot
+  fail a test about a collision with the *second* id, which is why the
+  surviving mutation above had to be found by the harness rather than by
+  reading the tests.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
