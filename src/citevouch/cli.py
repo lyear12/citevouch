@@ -42,6 +42,45 @@ DEFAULT_LEDGER = "citevouch.lock.json"
 RANK = {name: i for i, name in enumerate(SEVERITIES)}
 
 
+def _project_root(raw: str) -> Path:
+    """The directory every relative path on the command line is resolved against.
+
+    A root that is not there used to be accepted, and every verb then answered
+    a question nobody asked:
+
+    * ``scan proj/m.md --root nowhere`` **created** ``nowhere/`` and wrote a
+      ledger into it, so a typo left a phantom project on disk holding "one
+      claim, every source missing".
+    * ``check proj/m.md --root nowhere`` found the manuscript (a path that
+      exists as given is never re-rooted) and then reported ``[high]
+      source-missing ... no entry in sources.toml`` - a sentence about the one
+      thing the author had already got right, because that manifest was next to
+      the manuscript, not under the typo.
+    * ``doctor --root nowhere`` made ``nowhere/.citevouch/cache`` to test it.
+    * ``draft ... --root nowhere`` wrote its proposals into the typo.
+
+    None of those can be repaired downstream: once a wrong root is allowed, the
+    tool is answering questions about a directory that is not the project.  The
+    check belongs where the root is still one value, so every verb gets the
+    same answer to "is this a project directory".
+    """
+    root = Path(raw)
+    if root.is_dir():
+        return root
+    if root.exists():
+        raise UsageError(
+            f"--root {root} is a file, not a directory; it has to be the directory "
+            "the project lives in, because every relative path on this command "
+            "line is resolved against it"
+        )
+    reason = why_not_a_file(root)  # "does not exist", or the unreachable sentence
+    raise UsageError(
+        f"--root {root} {reason}; it has to be the directory the project lives in, "
+        "because every relative path on this command line is resolved against it. "
+        "For a project in the working directory, drop --root: that is the default"
+    )
+
+
 def _options(args: argparse.Namespace) -> ScanOptions:
     return ScanOptions(
         manuscript=args.manuscript,
@@ -888,6 +927,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     _safe_console()
     try:
+        # Every verb resolves its paths against --root, so a root that is not a
+        # directory is refused once here rather than repaired five different
+        # ways downstream.  ``init-demo`` takes a directory to create and has no
+        # --root, which is why this is guarded rather than unconditional.
+        if hasattr(args, "root"):
+            _project_root(args.root)
         return int(args.func(args))
     except UsageError as exc:
         _emit(f"citevouch: {exc}\n", sys.stderr)

@@ -3279,3 +3279,39 @@ through. Three mutations, all red - the guard not called at all, only the existi
 manifest protected, and the ledger dropped from the list.
 
 Seen 1.
+
+## An argument every command resolves against is validated once, where it is still one value
+
+**Rule.** A flag that other paths are resolved against is an input like any other, and it is
+checked before the first command runs - not by each command, and not by whatever writes the
+first file. If the value is wrong, every verb's answer is about the wrong thing, and no verb can
+tell.
+
+**Why this keeps happening.** `--root` was read as a convenience default rather than as data:
+every verb did `Path(args.root) / something`, and a path that does not exist still joins happily.
+Nothing in the codebase *looked* at a root, so nothing was the place to check one - which is how
+one typo produced four different failures at once: `scan` created the directory and wrote into
+it, `doctor` created a cache in it, `draft` wrote proposals into it, and `check` reported the
+manifest missing while that manifest sat next to the manuscript. The first three are side
+effects; the fourth is a false sentence, which is the one this repository treats as the real
+defect. A guard inside `cmd_check` would have fixed exactly one of the four.
+
+**How to apply.** Ask which arguments are *prefixes* - roots, base directories, output
+directories - as opposed to leaf paths. Prefixes are validated once, in `main()`, before dispatch
+(`_project_root`), and the check is on the whole value, not on each later use. Then ask what the
+same mistake does to the verbs that write: if the answer is "creates something in the wrong
+place", the guard must be earlier than the write, not inside it. Note the exceptions honestly:
+`init-demo` takes a directory to create and has no `--root`, so the call is guarded by
+`hasattr(args, "root")` rather than being unconditional.
+
+**Evidence.** Before: `scan proj/m.md --root nowhere` → `citevouch: wrote
+nowhere\citevouch.lock.json (1 claim)`, and `nowhere/citevouch.lock.json` existed afterwards;
+`doctor --manuscript proj/m.md --root nowhere` → `nowhere/.citevouch/cache` created;
+`draft proj/m.md -o q.md --root nowhere` → RC=0 and `nowhere/q.md` written;
+`check proj/m.md --root nowhere` → `[high] source-missing ... no entry in sources.toml` in a
+project whose `sources.toml` was beside the manuscript. After: all six verbs exit 2 with
+`--root nowhere does not exist ...`, and `find nowhere` → nothing. Four mutations red: the guard
+never called, a missing root allowed through, a file root reported as missing, and the message
+dropping the default-root advice. `tests/test_root_guard.py`.
+
+Seen 1.

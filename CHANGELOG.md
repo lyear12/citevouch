@@ -11,6 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A mistyped `--root` was accepted, and every verb then answered a question about a directory that was not the project.** In a project at `proj/`, `scan proj/m.md --root nowhere` **created** `nowhere/` and wrote a ledger into it - `citevouch: wrote nowhere\citevouch.lock.json (1 claim)` - leaving a phantom project on disk that the next run would not even look at; `doctor --root nowhere` made `nowhere/.citevouch/cache` in order to test it; `draft ... --root nowhere` wrote its proposals there. The worst one is `check`, because it is wrong rather than merely untidy: the manuscript still resolved (a path that exists as given is never re-rooted) so the run looked like it had read the project, and then reported `[high] source-missing ... no entry in sources.toml` - a sentence about the one thing the author had already got right, with that manifest sitting next to the manuscript the whole time. None of it was repairable downstream: by the time a message is being written the run has already answered a question about the wrong directory. `main()` now calls `_project_root(args.root)` once, before any verb, which refuses a root that is not a directory with exit 2 and a sentence naming the usual fix ("drop `--root`: that is the default"). A root that is a **file** says "is a file, not a directory" and not "does not exist" - and a root that is an unreachable share keeps `why_not_a_file`'s unreachable sentence, which is the distinction that function exists for. `init-demo` has no `--root` and is untouched. Four mutations, all red: the guard never being called, a missing root being allowed through, a file root being reported as missing, and the message dropping the default-root advice.
 
 ## [0.19.52] — 2026-11-02
 ### Fixed
