@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.77] — 2026-11-02
 ### Fixed
 
 - A command that names a counter, a length, a style or a registry key no
@@ -2035,7 +2036,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.76...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.77...HEAD
+[0.19.77]: https://github.com/lyear12/citevouch/releases/tag/v0.19.77
 [0.19.76]: https://github.com/lyear12/citevouch/releases/tag/v0.19.76
 [0.19.75]: https://github.com/lyear12/citevouch/releases/tag/v0.19.75
 [0.19.74]: https://github.com/lyear12/citevouch/releases/tag/v0.19.74
