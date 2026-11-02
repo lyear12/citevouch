@@ -1211,6 +1211,64 @@ not what changed, but what proves the change works.
   plus the converter's own behaviour; the same fix changes Cyrillic and Greek
   prose too, which is right, but no test covers either.
 
+- [x] **A Chinese quote that was a near-miss was reported as absent.**
+
+  **What was wrong.** `src/citevouch/matching.py`'s fuzzy tier - the only tier
+  that can say "the source has a passage like this but not these words" -
+  counted its comparison units with `_TOKEN = re.compile(r"[^\s]+")`.
+  Whitespace is how Latin script separates words and is not how Chinese does,
+  so a 40-character Chinese quote was exactly one token, below
+  `MIN_FUZZY_TOKENS`, and the tier answered
+
+  ```
+  reason='quote not found (too short for a fuzzy comparison)'
+  ```
+
+  about a sentence whose every character had just been compared.  One character
+  changed in the quote, on a page that holds the passage:
+
+  ```
+  quote = 相关研究指出词汇与构式之间存在互动關聯，这种互动可以解释许多...
+  before: tier='none'   similarity=0.000
+  after:  tier='fuzzy'  similarity=0.947
+  ```
+
+  Every slightly-mistranscribed Chinese quote therefore came out as
+  `quote-missing` at high severity - the tool telling an author that words
+  they copied off the page are not on it.
+
+  **Who is blocked.** Anyone writing a Chinese manuscript, which is the
+  audience `draft` was just taught to split into sentences (0.19.80) and whose
+  LaTeX stacks were just taught not to leak font names (0.19.82).  The two
+  tiers below fuzzy kept working, so this only bit when the quote was not
+  verbatim - which is exactly the case the tier exists for, and the case where
+  a wrong answer is most expensive.
+
+  **Done when.** A Chinese quote one or two characters off reaches the fuzzy
+  tier, its reason says "similar passage" rather than "too short", and the
+  excerpt it quotes back is joined as prose.
+
+  **Done - why it is now true.** `_tokens()` counts a CJK character as one
+  token and a Latin run as one word; both the needle and the page go through
+  it.  `MIN_FUZZY_TOKENS` was re-measured rather than trusted, because its unit
+  changed for Chinese from words to characters: on 60 sentences of this
+  repository's own Chinese prose, one changed character scores at least 0.667
+  and 95% at least 0.857, two unrelated sentences at most 0.333, and at five
+  characters an unrelated pair peaks at 0.4 against a typo's 0.8.  The window
+  excerpt joins single characters with nothing and Latin tokens with a space.
+  18 tests in `tests/test_fuzzy_cjk_tokens.py`; five mutations all red -
+  whitespace tokenizer, character buffered into the Latin run instead of
+  emitted, windows joined with spaces, floor bypassed, page side counted the
+  old way.  Shipped in 0.19.84.
+
+  *Not covered*: no real Chinese manuscript end to end.  The sample is this
+  repository's own prose, which is technical writing and may share more
+  characters between unrelated sentences than a paper does.  Japanese and
+  Korean take the same code path and were not measured separately - the range
+  table covers them, which is a claim about coverage rather than about those
+  languages' tokenisation.  A quote mixing scripts with no space between them
+  is handled (`构式used` is three tokens) but no threshold was measured on it.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
