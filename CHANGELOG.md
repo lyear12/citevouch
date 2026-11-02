@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.60] — 2026-11-02
 ### Fixed
 
 - pypdf reports a damaged file twice: it logs (`invalid pdf header`, `EOF
@@ -26,8 +28,6 @@ tag and that file disagree.
   five mutations all red — the first draft of those tests counted stderr text
   and **two mutations survived**, because pytest installs a log handler on the
   root logger and `redirect_stderr` never sees a record at all.
-
-
 ## [0.19.59] — 2026-11-02
 ### Fixed
 
@@ -1728,7 +1728,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.59...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.60...HEAD
+[0.19.60]: https://github.com/lyear12/citevouch/releases/tag/v0.19.60
 [0.19.59]: https://github.com/lyear12/citevouch/releases/tag/v0.19.59
 [0.19.58]: https://github.com/lyear12/citevouch/releases/tag/v0.19.58
 [0.19.57]: https://github.com/lyear12/citevouch/releases/tag/v0.19.57
