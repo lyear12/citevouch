@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A `source-unreadable` finding no longer tells you to install a reader you
+  already have.  Four different problems - a truncated download, a file saved
+  with the wrong extension, an empty file, and a machine with no PDF reader -
+  all produced the same sentence, `install pypdf (pip install pypdf) or
+  pdftotext and try again`, on machines where `citevouch doctor` had just
+  reported `[ok  ] pypdf 6.16.1`.  The readers already knew: pypdf raises
+  `PdfStreamError: Stream has ended unexpectedly` or `EmptyFileError: Cannot
+  read an empty file`, and poppler prints `invalid pdf header` or `EOF marker
+  not found`.  Those sentences were discarded one frame above the message that
+  needed them, because the extractors have to return `None` and nothing else so
+  that a corrupt PDF stays a finding rather than a crash.  The message now asks
+  both readers once more, on the failure path only, and quotes them.  Six
+  mutations, all of them fatal; the sixth was survived by the first version of
+  the tests, because a message holding one true sentence is still not the old
+  false one - the fix now has a test that drives `pdftotext` directly rather
+  than relying on whatever this machine has installed.
+
 ## [0.19.53] — 2026-11-02
 ### Fixed
 

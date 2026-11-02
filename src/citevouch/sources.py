@@ -19,6 +19,7 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from shutil import which
 
 from ._version import __version__
 from .errors import UsageError, why_not_a_file
@@ -202,8 +203,52 @@ def _pdftotext_pages(path: str | Path) -> tuple[list[str], str] | None:
         if proc.returncode != 0 or not proc.stdout.strip():
             continue
         # pdftotext separates pages with a form feed.
-        return proc.stdout.split("\f"), "pdftotext"
+        return proc.stdout.split(""), "pdftotext"
     return None
+
+
+def _pypdf_importable() -> bool:
+    try:
+        import pypdf  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def _why_both_refused(path: Path) -> list[str]:
+    """What each reader said about this file, ignoring "not installed".
+
+    Two nested guards, each with one job: ``_pypdf_importable`` asks whether
+    pypdf is *installed*, which is a fact about the machine, and the ``try``
+    below asks whether it could open *this file*, which is a fact about the
+    file.  Collapsing them - as the original did - loses the second fact and
+    leaves "install pypdf" as the only sentence available.
+    """
+    said: list[str] = []
+    if _pypdf_importable():
+        try:
+            from pypdf import PdfReader
+
+            PdfReader(str(path))
+        except Exception as exc:  # noqa: BLE001 - the sentence is the whole point
+            said.append(f"{type(exc).__name__}: {exc}".rstrip(": "))
+    if which("pdftotext") is not None:
+        try:
+            proc = subprocess.run(
+                ["pdftotext", "-layout", str(path), "-"],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                check=False,
+                errors="replace",
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            said.append(f"pdftotext: {type(exc).__name__}: {exc}".rstrip(": "))
+        else:
+            lines = (proc.stderr or "").strip().splitlines()
+            if lines:
+                said.append(f"pdftotext: {lines[0]}")
+    return said
 
 
 def _plain_text_pages(path: str | Path) -> list[str] | None:
@@ -303,15 +348,59 @@ def extract_pages(
     if raw is None:
         return [], Finding(
             code="source-unreadable",
-            message=(
-                f"could not extract text from {path.name}; install pypdf "
-                "(pip install pypdf) or pdftotext and try again"
-            ),
+            message=_unreadable_message(path),
             path=str(path),
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
     _store_cache(root, sha, pages, used)
     return pages, _no_text_problem(pages, path)
+
+
+def _unreadable_message(path: Path) -> str:
+    """Why this file yielded nothing, in the words of whoever refused it.
+
+    Every file that reaches this point has one of four problems, and only one
+    of them is about the machine: the readers are missing.  The other three -
+    a truncated download, a file that is not a PDF at all, an empty file - are
+    about the file, and each is fixed by something the author does to the file
+    rather than to their Python.  Saying "install pypdf" for all four is the
+    same mistake ``source-no-text`` was added to fix: a verdict about the
+    author's evidence when the fact is about their toolchain.
+
+    The readers are the ones that know.  pypdf raises ``EmptyFileError`` or
+    ``PdfStreamError: Stream has ended unexpectedly``; poppler prints ``invalid
+    pdf header`` or ``EOF marker not found``.  Both sentences were thrown away
+    by the extractors above, which have to return ``None`` and nothing else so
+    that a corrupt PDF stays a finding instead of a crash.  Rather than thread
+    a reason out through every layer - mutable module state would leak one
+    file's reason into the next file's message - this asks the readers once
+    more, here, where the only thing wanted is the sentence.  It runs only on
+    the failure path, which is the one path where spending the extra read is
+    worth a true message.
+    """
+    installed: list[str] = []
+    if _pypdf_importable():
+        installed.append("pypdf")
+    if which("pdftotext") is not None:
+        installed.append("pdftotext")
+    if not installed:
+        return (
+            f"could not read {path.name}: no PDF reader is installed. Install "
+            "one with `pip install pypdf`, or put the `pdftotext` binary on "
+            "PATH, and try again"
+        )
+    said = _why_both_refused(path)
+    if not said:
+        return (
+            f"could not extract text from {path.name}, and neither reader said "
+            "why; `citevouch doctor` reports what this machine can read"
+        )
+    return (
+        f"could not read {path.name}: it is not a document this tool can open "
+        f"({'; '.join(said)}). A truncated download, a file saved with the "
+        "wrong extension, and an empty file all look like this; re-download it "
+        "and check the copy is complete"
+    )
 
 
 # Two things this has to get right.  `>` is legal inside a quoted attribute

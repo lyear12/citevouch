@@ -3315,3 +3315,46 @@ never called, a missing root allowed through, a file root reported as missing, a
 dropping the default-root advice. `tests/test_root_guard.py`.
 
 Seen 1.
+
+## An error message that lists cures is a diagnosis with the names filled in
+
+The four ways a source file can yield no text are one machine problem and three file problems, and
+the tool had one sentence for all four. `could not extract text from paper.pdf; install pypdf
+(pip install pypdf) or pdftotext and try again` - printed on a machine where `citevouch doctor` had,
+one command earlier, reported `[ok  ] pypdf 6.16.1 (reads PDFs in-process)`.
+
+The sentence is not wrong about the machine. It is wrong about *which problem this is*, and the
+correction it offers is one the author has already performed, so the only thing left to do with it
+is disbelieve the tool.
+
+**Why the facts were available and still lost.** Both readers had said the true sentence and both
+were told to throw it away. `_pypdf_pages` turns every exception into `None`; `_pdftotext_pages`
+does the same with any non-zero exit. That is the right contract for a *verdict* - a corrupt PDF is
+a finding, not a crash - and the wrong contract for a *message*, which is why the four causes
+collapsed into one. `except Exception: return None` is a correct policy that deletes the only
+evidence the caller needs.
+
+**How to apply.** When a function's failure return type carries no reason, ask who needs the reason
+and whether they can afford to ask again. Here the failure path can: `_why_both_refused` re-opens
+the file with both readers and quotes them (`PdfStreamError: Stream has ended unexpectedly`;
+`pdftotext: Syntax Error: Couldn't read xref table`), and the success path never calls it - there is
+a test that counts the calls on a successful read and asserts zero. Threading a reason *out*
+instead would have meant a return type change in five places or module-level mutable state, and
+mutable module state leaks one file's reason into the next file's message inside a single `check`
+run. Prefer re-deriving a fact over caching it in a place that outlives one call.
+
+**The near miss worth remembering.** The first version of the fix was right and the first version
+of its tests was too weak: a message carrying one true reader's sentence still differed from the
+old false one, so every end-to-end test passed while `pdftotext is not asked what it saw` survived
+the mutation run. The fix is a test that drives the second reader directly with a stubbed
+`subprocess.run`, rather than depending on which binaries the machine happens to have.
+
+**Evidence.** Before, four files - a real PDF cut to 40,000 bytes, a text file named `.pdf`, a
+zero-byte `.pdf`, and a 16-byte stub - all produced the identical `install pypdf ...` sentence and
+none of them differed from each other. After, three distinct messages naming the reader and its
+words, and the no-reader case names both ways to get one. Six mutations, all red after adding the
+direct-reader tests: the old one-sentence message, the readers never asked, the machine always
+blamed, the failure path asking even when it succeeds, pypdf not asked, pdftotext not asked.
+`tests/test_unreadable_reason.py`.
+
+Seen 1.
