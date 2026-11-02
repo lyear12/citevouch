@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A `sources.toml` that the two manifest readers disagreed about is now refused
+  by both, with one sentence. The pair was `_load_toml` (tomllib, 3.11+) and
+  `_mini_toml` (the line-based subset, 3.10), and five spellings fell between
+  them: a value written across lines (tomllib joins the body, the subset raises
+  on the first line and drops the whole manifest), a line ending in a comma
+  (tomllib refuses the file, the subset binds the key), a quoted key holding
+  `=`, `#`, a bracket or a quote (tomllib binds it, the subset silently dropped
+  the line), two assignments on one line (`a=b = "x.pdf"`, tomllib refuses,
+  the subset binds `a`), and an inline table or dotted key at the root, which
+  the previous release already refused. The CI matrix runs 3.10, 3.12 and 3.13,
+  so the same project could bind on one interpreter and report `source-missing`
+  on another. Measured after the fix: nine shapes checked at the
+  `read_source_table` level, zero differing answers.
+- The pre-scan asks only the questions that change what `sources` means. It
+  refuses an inline table at the root and a dotted key under `[sources]`, and
+  now an inline table is excluded from the two-assignment check as well -
+  `x = { y = 1 }` holds its second `=` inside a value this reader cannot
+  follow, binds no source either way, and refusing it would reject a manifest
+  both readers answer the same way.
+
+## [0.19.68] — 2026-11-02
 ## [0.19.68] — 2026-11-02
 ### Fixed
 

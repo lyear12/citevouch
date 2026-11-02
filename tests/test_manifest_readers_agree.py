@@ -67,6 +67,14 @@ REFUSED = {
     "a number at the root": "sources = 5\n",
     "an array at the root": 'sources = ["a.txt"]\n',
     "a line that is not an assignment": '[sources]\npage = "a.txt"\nbogus\n',
+    "a multiline value": '[sources]\npage = """a.txt"""\n',
+    "a multiline value with a body": '[sources]\npage = """\na.txt\n"""\n',
+    "a trailing comma": "[sources]\npage = 'a.txt',\n",
+    "a quoted key this reader cannot spell": '[sources]\n"pa#ge" = "a.txt"\n',
+    "a trailing comma under another table": '[sources]\npage = "a.txt"\n[other]\nx = 1,\n',
+    "two assignments on one line": '[sources]\na=b = "x.pdf"\n',
+    "two assignments under another table": '[sources]\npage = "a.txt"\n[other]\na=b = "x.pdf"\n',
+    "two assignments at the root": 'a=b = "x.pdf"\n',
 }
 
 
@@ -126,11 +134,17 @@ class TestTheScanOnlyAsksAboutTheSourcesTable:
         "a dotted key under another table": (
             '[sources]\npage = "a.txt"\n[other]\npa.ge = "dir/x"\n'
         ),
-        "an inline table under another table": (
+        "a sources key that is not at the root": (
             '[sources]\npage = "a.txt"\n[other]\nsources = { a = "b" }\n'
         ),
         "a dotted key under no [sources] at all": 'pa.ge = "dir/x"\n',
         "a dotted key quoted under [sources]": '[sources]\n"pa.ge" = "a.txt"\n',
+        "an inline table under another table": (
+            '[sources]\npage = "a.txt"\n[other]\nx = { y = 1 }\n'
+        ),
+        "an unspellable key under another table": (
+            '[sources]\npage = "a.txt"\n[other]\n"a#b" = "b.txt"\n'
+        ),
     }
 
     @pytest.mark.parametrize("name", sorted(UNRELATED))

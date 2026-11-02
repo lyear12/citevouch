@@ -519,6 +519,20 @@ def _strip_markup(text: str) -> str:
 # Resolving a claim's source= to a file
 
 
+def _unspellable(name: str) -> bool:
+    """Whether this line-based reader cannot name the key tomllib would see.
+
+    A quoted key is a name once the quotes come off - ``"knuth:2019"`` is how
+    TOML spells a key that carries a colon.  A name that still holds ``=``,
+    ``#``, brackets or its own quotes is one this reader splits on, so it can
+    only drop the line: tomllib binds the key, the subset binds nothing, and a
+    claim naming it resolves on 3.12 while reporting source-missing on 3.10.
+    """
+    quoted = len(name) >= 2 and name[0] in "\"'" and name[-1] == name[0]
+    inner = name[1:-1] if quoted else name
+    return not inner or any(char in inner for char in "=#[]\"'")
+
+
 def _refuse_shapes_only_one_reader_follows(text: str) -> None:
     """Refuse the two spellings the parsers would answer differently.
 
@@ -572,6 +586,39 @@ def _refuse_shapes_only_one_reader_follows(text: str) -> None:
         if not sep:
             continue
         name = key.strip()
+        stripped = value.strip()
+        if stripped[:1] != "{" and stripped[:1] not in ('"', "'") and "=" in stripped:
+            # `a=b = "x.pdf"` is two assignments on one line: tomllib refuses the
+            # file, this reader binds `a` to a value it cannot read as a path.
+            # One manifest, one interpreter accepts it and one does not.  An
+            # inline table - `x = { y = 1 }` - holds its second `=`, so it is
+            # excluded: this reader cannot follow the table either way, and a
+            # table it does not read binds no source.
+            raise ValueError("a line holds two '=' signs; write one `key = \"path\"` per line")
+        if section == "sources" and _unspellable(name):
+            raise ValueError(
+                f"{name} names a source this reader cannot spell; a key here "
+                "may not contain quotes, '=', '#', or brackets"
+            )
+        if stripped[:3] in ('"""', "'''"):
+            # A multi-line string.  tomllib joins the continuation lines into
+            # one value; this reader sees each of them as its own line and
+            # raises on the first, which kills the whole manifest.  Refusing the
+            # file with a sentence beats refusing it by accident.
+            raise ValueError(
+                "a value is written across lines; put it on one line - "
+                '`key = "path"` - because one of the two readers of this file '
+                "is line-based"
+            )
+        if stripped.endswith(","):
+            # tomllib reads a file with no trailing comma and refuses one with,
+            # so the whole manifest is legal or not on that character; the
+            # subset drops the comma and binds the key.  Same file: readable and
+            # unreadable.
+            raise ValueError(
+                "a line ends with a comma; TOML wants one `key = value` per "
+                "line and no separator between them"
+            )
         if not section and name == "sources" and value.strip().startswith("{"):
             raise ValueError(
                 "the 'sources' table is written inline; write it as a [sources] "

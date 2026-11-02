@@ -163,12 +163,18 @@ def test_a_quoted_key_binds_instead_of_vanishing(no_tomllib):
     }
 
 
-def test_a_key_this_reader_cannot_spell_is_dropped_and_the_rest_survives(no_tomllib):
+def test_a_key_this_reader_cannot_spell_refuses_the_manifest(no_tomllib):
     """A key carrying `=`, `#`, brackets or its own quotes cannot be read here
-    without guessing. Guessing would bind a key to a file the author did not
-    name, so the one line goes and the manifest still binds the rest."""
+    without guessing, and dropping the line was the guess that hurt: tomllib
+    binds `"c[d]"` and reports nothing, so the same manifest bound the key on
+    3.12 and silently lost it on 3.10.  Guessing differently on each interpreter
+    is worse than refusing both, so the file is refused with one sentence - the
+    same one the tomllib path raises, because both call the same pre-scan."""
     text = '[sources]\na[b] = "papers/x.pdf"\n"c[d]" = "papers/y.pdf"\nok = "papers/z.pdf"\n'
-    assert sources._mini_toml(text) == {"sources": {"ok": "papers/z.pdf"}}
+    with pytest.raises(ValueError, match="cannot spell"):
+        sources._mini_toml(text)
+    with pytest.raises(ValueError, match="cannot spell"):
+        sources._load_toml(text)
 
 
 def test_a_multiline_value_does_not_return_a_path_wearing_its_quotes():

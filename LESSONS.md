@@ -3857,3 +3857,41 @@ survivors.  The widening mutation is caught by the new class alone, which is the
 point: the tests that predate it stayed green through the regression.
 
 Seen 1.
+
+## A refusal is only shared if both readers reach it
+
+**Rule:** when one file has two readers, any check that decides what the file
+*means* has to live somewhere both of them run, and it has to talk only about
+the file's meaning - not about every line that happens to look strange.
+
+**Why this keeps happening.** `sources.toml` is read by `tomllib` on 3.11+ and by
+a line-based subset on 3.10. Each reader was written on its own terms, and each
+was individually defensible: the subset drops a key it cannot spell rather than
+binding a name tomllib would spell differently. That is a correct thing for the
+subset to do *on its own*. The bug is the pair - on 3.13 the key binds and the
+claim resolves, on 3.10 the line vanishes and the claim reports
+`source-missing` for a manifest the author wrote correctly. The CI matrix runs
+3.10, 3.12 and 3.13, so the same commit is green or red depending on which cell
+you look at. Five spellings sat in that gap at once: a multi-line value, a
+trailing comma, a quoted key holding `=#[]'"`, two assignments on a line, and
+(release before) a root inline table or dotted key.
+
+**How to apply.** Put the refusal in a pre-scan both readers call, and give it
+one sentence each - a check written inside the subset can only ever speak for
+the subset. Then ask what the check is *about*: only the spellings that change
+what `sources` means belong in it. A dotted key under `[other]` binds no source
+in either reader, so refusing it rejects a manifest both readers answer the same
+way; that was this pre-scan's first version, and it was the regression. Test
+both directions - the shapes that must be refused *twice*, and the shapes that
+must still be read *once*.
+
+**Evidence.** Before: `read_source_table` on `[sources] page = """a.txt"""`
+gave `found=['page']` on tomllib and `unusable=['page']` on the subset; the same
+for a trailing comma, a quoted `"pa#ge"`, and `a=b = "x.pdf"`. After: nine
+shapes compared at that level, `differing tables: 0 of 9`. Five mutations of the
+new guards - including one that survived at first because the guard it disabled
+was masked by a neighbouring one, and one that only became reachable once the
+inline-table exemption was added - all RED, survivors: none. The older test
+`test_a_key_this_reader_cannot_spell_is_dropped_and_the_rest_survives` pinned
+the divergence as the intended behaviour; it now asserts the shared refusal.
+
