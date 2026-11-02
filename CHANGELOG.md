@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.59] — 2026-11-02
 ### Fixed
 
 - The body-attribute fix above had a regression of its own, caught before it
@@ -24,8 +26,6 @@ tag and that file disagree.
   `claim:`, `number:`); attribute lines are read *inside* it.  Two tests hold
   the shapes that must not move, one per fallback, and both fail against the
   broken version.
-
-
 ## [0.19.58] — 2026-11-02
 ### Fixed
 
@@ -1712,7 +1712,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.58...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.59...HEAD
+[0.19.59]: https://github.com/lyear12/citevouch/releases/tag/v0.19.59
 [0.19.58]: https://github.com/lyear12/citevouch/releases/tag/v0.19.58
 [0.19.57]: https://github.com/lyear12/citevouch/releases/tag/v0.19.57
 [0.19.56]: https://github.com/lyear12/citevouch/releases/tag/v0.19.56
