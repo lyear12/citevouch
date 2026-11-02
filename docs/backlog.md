@@ -529,6 +529,46 @@ not what changed, but what proves the change works.
   Changing it means changing `_resolve` for all six verbs, which is a design
   change rather than a fix.
 
+- [x] **`draft` produced no proposals at all when run from one directory up.** *Done 2026-11-02.*
+  Who was blocked: anyone who runs the command from the directory containing
+  the project, which is where a terminal already is when the project is a
+  subdirectory. Same project, only the working directory differing:
+
+      cd paper && citevouch draft paper/m.md --root paper --bib paper/refs.bib
+          -> 1 claim block(s) proposed (1 verbatim)
+      cd ..    && citevouch draft paper/m.md --root paper --bib paper/refs.bib
+          -> 0 claim block(s) proposed (0 verbatim), 1 citation left as a comment
+             <!-- line 1: paper - source file page.txt does not exist -->
+
+  The file it said did not exist was `paper/page.txt`. `draft` resolved a key
+  to a root-relative path (correct - that is what goes into `sources.toml`) and
+  handed it to `extract_pages`, which opens what it is given against the process
+  directory. Both halves right, the joining line wrong.
+
+  The same call also produced a false reason. A `.bib` whose entry said
+  `file = {gone.txt}` was reported as `no `file` field in the bibliography`,
+  because `_why_no_file` only knew the two answers `sources.toml` can give. The
+  author can see the field; the report says it is not there.
+
+  *Done when*: the command writes the same proposals from either side, and the
+  reason it gives for a missing source comes from the file that holds the field.
+
+  **Done - why it is now true:** the call site opens `_resolve(root, path)` -
+  the rule the other five verbs already call - and still records the
+  root-relative path in the proposal, so `sources.toml` lines are unchanged.
+  `_why_no_file` gained the bibliography branch and unwraps Zotero's
+  `:path:mime` first. `tests/test_draft_from_above.py` runs one project from
+  both sides and compares the two proposals byte for byte after normalising the
+  output name, which is the assertion that would have failed here; four
+  mutations, all red (open the recorded path, skip the bibliography branch, drop
+  the path from the message, stop passing the bibliography at the call site).
+  `tests/test_why_no_file.py` covers the new branch, the two reasons that still
+  win over it, and the key that resolves.
+
+  *Not covered*: a Windows UNC `--root`, for the same reason recorded above.
+  Also `draft --source` is not exercised from one directory up, so the extra
+  binding path has the fix by construction rather than by test.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
