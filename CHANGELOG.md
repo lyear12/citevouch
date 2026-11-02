@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `doctor` printed the reader's errno as a second problem when the manuscript
+  could not be read.  A missing `manuscript.md` produced
+  `[ok  ] sources  could not be read to check them: [Errno 2] No such file or
+  directory: 'p\manuscript.md'` one line below the `manuscript` check that had
+  already said the file does not exist, and a directory produced `[Errno 13]
+  Permission denied` — a sentence that sends the reader to look at permissions
+  on a path whose actual problem is that it is a directory.  The `sources`
+  check now says `not checked, because the manuscript could not be read` and
+  leaves the cause to the check that owns it, the same way the `manifest` check
+  already hands its failure to the `manifest` line.
+
 ## [0.19.64] — 2026-11-02
 ### Fixed
 

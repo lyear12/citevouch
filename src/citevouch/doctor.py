@@ -270,8 +270,19 @@ def _claim_sources(target: Path, root: Path) -> Report:
     """
     try:
         text = read_text(target)
-    except OSError as exc:
-        return Report(name="sources", ok=True, detail=f"could not be read to check them: {exc}")
+    except OSError:
+        # The `manuscript` check above already failed and said why in the terms
+        # the author can act on ("does not exist", "is a directory").  Quoting
+        # the errno here reads as a second, independent problem: the reader who
+        # greps the report for `[FAIL]` lines sees one, and the reader who reads
+        # every line sees two symptoms of one cause with two different
+        # vocabularies.  This check owns "are the keys bound", which cannot be
+        # asked of a file that is not there.
+        return Report(
+            name="sources",
+            ok=True,
+            detail="not checked, because the manuscript could not be read",
+        )
     parsed = parse_manuscript(text, target.name)
     named = sorted({claim.source for claim in parsed.claims if claim.source})
     if not named:
