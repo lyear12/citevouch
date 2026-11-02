@@ -3968,3 +3968,33 @@ the new docstring (restore the claim, drop the field's purpose, drop the
 property that matters) all turned the tests red.
 
 Seen 1.
+
+## A test that compares two runs of a clocked artefact is a coin flip
+
+**Rule.** When a test compares two artefacts produced by separate runs, find
+out what each run writes about *itself* before comparing them. A ledger records
+`generated_at`; two ledgers written a second apart differ, and the test that
+compares them is not testing the path rule it was written for.
+
+**Why it was not caught.** The test ran on three operating systems, three
+Python versions and an unpacked sdist, and the whole matrix was green for days.
+Two `scan` calls on a small fixture finish in the same second... until the
+machine is loaded, and then one of the eleven jobs fails with a diff of two
+files that look identical. Flakiness hides in the one field nobody looks at
+because it is boring, and the failure names the test rather than the cause.
+
+**How to apply.** Ask what the artefact carries about the run: a timestamp, a
+hostname, a tool version, a duration. Then decide, explicitly, whether that
+field belongs in the comparison. Here it does not, and the normaliser that
+drops it gets its own tests - one showing it removes only the clock, one
+showing the real writer still stamps one - so the next field that starts
+varying fails a test that says so instead of making this one flaky again.
+
+**Evidence.** The sdist job at 2026-11-02T14:54:18Z: `1 failed, 1529 passed,
+7 skipped`, `assert '{\n  "schema...  }\n  ]\n}\n' == '{\n  "schema...
+}\n  ]\n}\n'`. Three mutations: keep the clock in the comparison -> red;
+make the normaliser drop everything -> red; make `scan` stop stamping a time ->
+red (the last one only after the mutation was aimed at `scan.py` rather than at
+the test's own assertion, which the first attempt got wrong).
+
+Seen 1.

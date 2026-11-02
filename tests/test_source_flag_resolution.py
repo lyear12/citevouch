@@ -26,6 +26,7 @@ page.txt --force` protected `paper/paper/page.txt`, wrote proposals over
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -54,6 +55,24 @@ def _project(tmp_path: Path) -> Path:
     (root / "m.md").write_text(MANUSCRIPT, encoding="utf-8", newline="\n")
     (root / "cites.md").write_text(CITING, encoding="utf-8", newline="\n")
     return root
+
+
+def _without_the_clock(path: Path) -> str:
+    """The ledger with the one field that depends on when it was written."""
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    assert "generated_at" in blob, "this test assumes a generated_at field"
+    blob["generated_at"] = ""
+    return json.dumps(blob, sort_keys=True, indent=2)
+
+
+def _normalised(blob: dict) -> str:
+    """A ledger with the one field that depends on when it was written."""
+    return json.dumps(dict(blob, generated_at=""), sort_keys=True, indent=2)
+
+
+def _without_the_clock(text: str) -> str:
+    """The same, straight from a ledger file."""
+    return _normalised(json.loads(text))
 
 
 def _run(argv: list[str], cwd: Path) -> int:
@@ -137,14 +156,63 @@ class TestTheFlagsAgreeWithEachOther:
         Comparing the ledger rather than each command's exit code is what makes
         this a test about the path rule instead of about two exit codes that
         happened to be 0.
+
+        The ledger records when it was written, so the comparison leaves that
+        one field out. This test used to compare the files byte for byte and
+        was green only while both runs landed inside the same second: the sdist
+        job failed on exactly that at 2026-11-02T14:54:18Z with
+        ``1 failed, 1529 passed, 7 skipped`` and a diff of two ledgers that
+        looked identical. Wall-clock equality is a property of the runner, and
+        asserting it here made a test about paths fail for a reason that has
+        nothing to do with paths.
         """
         project = _project(tmp_path)
-        _run(["scan", "paper/m.md", "--root", "paper", "--source", "paper/page.txt"], tmp_path)
-        typed = (project / "citevouch.lock.json").read_text(encoding="utf-8")
-        (project / "citevouch.lock.json").unlink()
-        _run(["scan", "paper/m.md", "--root", "paper", "--source", "page.txt"], tmp_path)
-        rooted = (project / "citevouch.lock.json").read_text(encoding="utf-8")
+        ledger = project / "citevouch.lock.json"
+        assert (
+            _run(
+                ["scan", "paper/m.md", "--root", "paper", "--source", "paper/page.txt"],
+                tmp_path,
+            )
+            == 0
+        )
+        typed = _without_the_clock(ledger.read_text(encoding="utf-8"))
+        ledger.unlink()
+        assert (
+            _run(
+                ["scan", "paper/m.md", "--root", "paper", "--source", "page.txt"],
+                tmp_path,
+            )
+            == 0
+        )
+        rooted = _without_the_clock(ledger.read_text(encoding="utf-8"))
         assert typed == rooted
+
+    def test_the_comparison_drops_only_the_clock(self, tmp_path: Path) -> None:
+        """`_without_the_clock` is what makes the test above deterministic, so
+        it gets tested rather than trusted: two ledgers that differ only in
+        their timestamps must normalise to the same thing, and a ledger that
+        differs in anything else must not."""
+        project = _project(tmp_path)
+        assert (
+            _run(["scan", "paper/m.md", "--root", "paper", "--source", "page.txt"], tmp_path)
+            == 0
+        )
+        blob = json.loads((project / "citevouch.lock.json").read_text(encoding="utf-8"))
+        earlier = dict(blob, generated_at="2026-01-01T00:00:00+00:00")
+        later = dict(blob, generated_at="2026-11-02T14:54:18+00:00")
+        assert _normalised(earlier) == _normalised(later)
+        changed = dict(later, tool_version="9.9.9")
+        assert _normalised(earlier) != _normalised(changed), (
+            "the normaliser hides a field that is not the clock"
+        )
+
+    def test_the_ledger_still_says_when_it_was_written(self, tmp_path: Path) -> None:
+        """Dropping the field from a comparison must not become dropping it
+        from the file: `report` prints it."""
+        project = _project(tmp_path)
+        _run(["scan", "paper/m.md", "--root", "paper", "--source", "page.txt"], tmp_path)
+        blob = json.loads((project / "citevouch.lock.json").read_text(encoding="utf-8"))
+        assert blob["generated_at"], "the ledger stopped recording its write time"
 
     def test_check_accepts_the_typed_spelling(self, tmp_path: Path) -> None:
         _project(tmp_path)

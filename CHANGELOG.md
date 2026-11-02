@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A test compared two ledgers byte for byte, and a ledger records when it was
+  written: the comparison was green only while both `scan` runs landed inside
+  the same second. The sdist job failed on it at 2026-11-02T14:54:18Z with
+  `1 failed, 1529 passed, 7 skipped` and a diff of two ledgers that looked
+  identical. The comparison now drops `generated_at`, and two new tests keep
+  that honest - one proves the normaliser removes only the clock, one proves an
+  unmodified `scan` still stamps a time. Mutating the normaliser and mutating
+  `scan`'s timestamp both turn them red.
+
 ## [0.19.71] — 2026-11-02
 ### Fixed
 
