@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.65] — 2026-11-02
 ### Fixed
 
 - `doctor` printed the reader's errno as a second problem when the manuscript
@@ -24,7 +25,6 @@ tag and that file disagree.
   check now says `not checked, because the manuscript could not be read` and
   leaves the cause to the check that owns it, the same way the `manifest` check
   already hands its failure to the `manifest` line.
-
 ## [0.19.64] — 2026-11-02
 ### Fixed
 
@@ -1812,7 +1812,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.64...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.65...HEAD
+[0.19.65]: https://github.com/lyear12/citevouch/releases/tag/v0.19.65
 [0.19.64]: https://github.com/lyear12/citevouch/releases/tag/v0.19.64
 [0.19.63]: https://github.com/lyear12/citevouch/releases/tag/v0.19.63
 [0.19.62]: https://github.com/lyear12/citevouch/releases/tag/v0.19.62
