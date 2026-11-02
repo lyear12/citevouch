@@ -648,6 +648,31 @@ not what changed, but what proves the change works.
   than being a directory - `chmod` does not hold on Windows, so that branch is
   covered by reading the code rather than by a test.
 
+- [x] **A `sources.toml` entry with a value that is not a path was called absent.** *Done 2026-11-02.*
+  *Who was blocked*: anyone who typed `page = 5` or left a value unquoted.  The
+  manifest named the key, and the claim that needed it was told
+
+      claim c1 names source='page' but no entry in sources.toml and no --source path resolves it; add it to sources.toml
+
+  about the line they were reading.  Eight shapes produced that one sentence: an
+  integer, a float, a boolean, an array, an inline table, `sources = 5`,
+  `sources = "page.txt"`, and an empty file.
+
+  *Done when*: every shape whose key is in the file is named with the reason,
+  and the empty file keeps the old advice.
+
+  *Done - why it is now true*: the first five reach `unusable` and their message
+  quotes the manifest that binds them; the two `sources = ...` shapes reach
+  `manifest_problem`, because a manifest whose root is not a table of keys to
+  paths is not a missing key but an unreadable file; the empty file still says
+  there is no entry, because there really is none.  The 3.10 subset parser now
+  reports the same keys as `tomllib`, so one manifest cannot bind on 3.12 and
+  lie on 3.10 - before, `sources = "page.txt"` reached it as
+  `{'': {'sources': 'page.txt'}}`.
+
+  *Not covered*: `sources` holding an array of paths is refused as a non-table
+  and nothing asserts that message specifically.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
