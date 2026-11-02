@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.38] — 2026-11-02
 ### Fixed
 
 - **A number that is on the page, in another sentence, was reported as a number the page does not contain.** The `numbers` tier finds a quote by matching the text with every number blanked out, so it already knows which of the page's numbers sit where the quote's numbers sit — and it threw that away. The verifier then asked a weaker question, "does 9,800 appear anywhere on page 1?", and for a quote that borrowed a number from the next sentence the answer is yes, so the run fell back to the summary and printed `the words match page 1 but the numbers do not; the quote records 9,800` — about a number printed four lines further down the same page. An author who turned the page, saw 9,800 and stopped trusting the tool would have been right to. `Match.page_numbers` now records the numbers the page actually prints under the quote's blank positions, and a quote whose numbers are the page's own but in the wrong places is reported under a new code, `number-not-in-passage`, at `high`: `the quote says 9,800 where page 1 prints 40,688; that number is on the page, but not in this passage`. `number-absent-in-quote` keeps its meaning, which is now the only thing it ever truthfully said: the page has no such number at all.
-
 ## [0.19.37] — 2026-11-01
 ### Fixed
 
@@ -1544,7 +1545,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.37...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.38...HEAD
+[0.19.38]: https://github.com/lyear12/citevouch/releases/tag/v0.19.38
 [0.19.37]: https://github.com/lyear12/citevouch/releases/tag/v0.19.37
 [0.19.36]: https://github.com/lyear12/citevouch/releases/tag/v0.19.36
 [0.19.35]: https://github.com/lyear12/citevouch/releases/tag/v0.19.35
