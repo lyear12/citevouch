@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.58] — 2026-11-02
 ### Fixed
 
 - A claim block written as a mapping - its attributes one per line under the
@@ -29,7 +31,6 @@ tag and that file disagree.
   fence is where the format is documented.  Any other key is still quote text
   - a quote that grew is visible in a verdict, and a quote that silently
   shrank is visible nowhere.  Five mutations, five red, none survived.
-
 ## [0.19.57] — 2026-11-02
 ### Fixed
 
@@ -1697,7 +1698,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.57...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.58...HEAD
+[0.19.58]: https://github.com/lyear12/citevouch/releases/tag/v0.19.58
 [0.19.57]: https://github.com/lyear12/citevouch/releases/tag/v0.19.57
 [0.19.56]: https://github.com/lyear12/citevouch/releases/tag/v0.19.56
 [0.19.55]: https://github.com/lyear12/citevouch/releases/tag/v0.19.55
