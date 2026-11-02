@@ -11,6 +11,20 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The body-attribute fix above had a regression of its own, caught before it
+  left the branch by running the new file's tests against the shipped code:
+  counting an `id:`/`source:` line as a "key" made a `>>` block (or any body
+  with no `quote:` key) look like a mapping, so the quote came back **empty**
+  and the attribute line became the claim text.  That is silent data loss, and
+  it is worse than the defect being fixed: a quote that grew shows up in a
+  verdict, and a quote that vanished shows up nowhere.  The mapping branch is
+  now entered only by the two keys a body is actually divided by (`quote:`,
+  `claim:`, `number:`); attribute lines are read *inside* it.  Two tests hold
+  the shapes that must not move, one per fallback, and both fail against the
+  broken version.
+
 
 ## [0.19.58] — 2026-11-02
 ### Fixed

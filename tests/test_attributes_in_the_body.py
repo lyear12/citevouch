@@ -101,6 +101,28 @@ class TestABlockCanCarryEveryAttributeInItsBody:
         assert [claim.text for claim in result.claims] == ["The corpus was large."]
 
 
+class TestTheShapesThatAreNotMappingsKeepTheirQuote:
+    """A body with no ``quote:`` key is all quote, by the documented fallback.
+
+    This is the regression the fix introduced and this file's own run caught:
+    counting an ``id:``/``source:`` line as a "key" made a ``>>`` block look
+    like a mapping, and the quote came back empty while the attribute line
+    became the claim text - a silent loss, which is worse than the defect being
+    fixed.  Both shapes below were quoted correctly before the fix and have to
+    stay that way.
+    """
+
+    def test_the_arrow_shape_keeps_its_quote(self) -> None:
+        body = f">> {QUOTE}\nsource: paper"
+        result = parse_manuscript(_fenced(body, attrs="id=c1 source=paper"))
+        assert [claim.quote for claim in result.claims] == [QUOTE]
+
+    def test_a_body_with_no_keys_is_all_quote(self) -> None:
+        body = f"{QUOTE}\npage: 1"
+        result = parse_manuscript(_fenced(body))
+        assert [claim.quote for claim in result.claims] == [f"{QUOTE}\npage: 1"]
+
+
 class TestTheVerdictOnARealProject:
     def test_the_quote_is_found_when_the_page_holds_it(self, tmp_path) -> None:
         from citevouch.cli import main

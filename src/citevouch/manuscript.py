@@ -523,7 +523,7 @@ def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
     attributes: dict[str, str] = {}
     if not body:
         return "", "", attributes
-    has_keys = any(_FIELD_KEY.match(raw) or _ATTRIBUTE_KEY.match(raw) for raw in body)
+    has_keys = any(_FIELD_KEY.match(raw) for raw in body)
     if has_keys:
         fields: dict[str, list[str]] = {}
         current = ""
