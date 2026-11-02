@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.76] — 2026-11-02
 ### Fixed
 
 - A macro definition's body was read as a sentence. `\newcommand`, `\renewcommand`, `\providecommand`,
@@ -34,7 +36,6 @@ tag and that file disagree.
   `_without_definitions` runs the same cut over the raw source, so a checker
   that reads it without converting first gets the same answer. Measured before
   the fix: 26 new tests, five mutations of the new code, all five red.
-
 ## [0.19.75] — 2026-11-02
 ### Fixed
 
@@ -2004,7 +2005,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.75...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.76...HEAD
+[0.19.76]: https://github.com/lyear12/citevouch/releases/tag/v0.19.76
 [0.19.75]: https://github.com/lyear12/citevouch/releases/tag/v0.19.75
 [0.19.74]: https://github.com/lyear12/citevouch/releases/tag/v0.19.74
 [0.19.73]: https://github.com/lyear12/citevouch/releases/tag/v0.19.73
