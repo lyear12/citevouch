@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- A command that names a counter, a length, a style or a registry key no
+  longer pastes that name into the sentence around it.  `\setcounter{page}{3}`
+  used to convert to `3`, glued to the next word: a paper whose section
+  began with that line had a sentence starting `3We collected 40,688
+  examples`, and `draft` proposed exactly that as the claim text - a number
+  the author never typed, in a block the ledger then records.  Twenty-eight
+  commands were falling through to "keep whatever it wraps" and now drop
+  their arguments whole: the counter and length commands
+  (`\setcounter`, `\addtocounter`, `\stepcounter`,
+  `\refstepcounter`, `\setlength`, `\addtolength`,
+  `\settowidth`, `\newcounter`), the page-style and running-head
+  commands (`\pagestyle`, `\thispagestyle`,
+  `\pagenumbering`, `\markboth`, `\markright`,
+  `\addcontentsline`), the silent-spacer `\phantom` family,
+  `\rule`, `\index`, `\glossary`, `\citeindextype`,
+  `\pdfbookmark`, `\definelabel`, `\usetikzlibrary`,
+  `\graphicspath`, `\selectlanguage`, `\footnotemark`,
+  and `\DeclareMathOperator`.
+- `\multicolumn{2}{c}{text}` kept only its span, so the alignment `c`
+  was glued to the cell: measured as `cwide text`.  Its text is the third
+  argument, and the two before it are dropped.
+- `\texorpdfstring{TeX text}{PDF text}` said the words twice, once in the
+  form no reader sees.  Only the first argument stays.
+- `\newcommandx`, `\renewcommandx`, `\providecommandx`
+  and the xparse `\NewDocumentCommand` family were not recognised as
+  definitions, so `\newcommandx{\x}[1]{Body #1}` measured as
+  `[1]Body #1` - the parameter count and the body back in the prose, which is
+  the defect 0.19.76 fixed for the older spellings.
 ## [0.19.76] — 2026-11-02
 ### Fixed
 

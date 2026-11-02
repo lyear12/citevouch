@@ -4158,3 +4158,49 @@ definition spellings, the three argument shapes, environments and theorems.
 Five mutations (body back as prose, raw source not cut, environment keeps
 its second body, low-level definition stops at the name, theorem keeps its
 printed name) are all red. Seen 1.
+
+## A command whose arguments are all metadata has no prose to keep
+
+**Rule.** The converter's fallthrough says "an unknown command: keep whatever
+text it wraps, drop the name". That sentence is a claim about the command's
+arguments, and it is only true when one of them is prose. Before adding a
+command to the keep-list by leaving it out, ask what each argument *is* - a
+counter name, a length, a style, a registry key and a file name are all not
+text, and every one of them becomes a word in the sentence if you keep it.
+
+**Why this keeps happening.** The fallthrough is the right default, because
+there are thousands of LaTeX commands and most of them wrap text: `\enquote`,
+`\textsl`, `\foreignblock`. So a new command does not look broken - it looks
+like the hundreds that work. What makes this one different is that the argument
+is *visible metadata*: `2em`, `fancy`, `arrows.meta`, `3`. A stray `2em` in a
+sentence is ugly; a stray `3` is a number, and a number is what `draft` proposes
+a claim for and what the verifier then compares against the page.
+
+**Both directions at once.** The same fallthrough both adds words that are not
+in the paper and, when the argument is the only copy of a real word, removes
+nothing but rearranges what the reader sees. `\setcounter{page}{3}We collected`
+becomes `3We collected` - the sentence is intact, its first character is not.
+A fix that only looks for missing or extra words cannot see this.
+
+**How to apply.** For every command you add a rule for, name the argument count
+as data (`_DROP_ALL_ARGUMENTS[command] = 2`) rather than writing an `if` for it,
+so the count is visible next to the name. Then write the test as the *whole*
+converted sentence, not as a list of forbidden tokens: a forbidden-token test
+passes when the handler drops the wrong number of arguments, because the token
+it looks for may be gone while a different argument is still glued on.
+`\multicolumn{2}{c}{wide text}` passed a "no `{2}` in the output" assertion
+while producing `cwide text`.
+
+**Evidence.** Measured before this fix: `\setcounter{page}{3}We collected 40,688
+examples.` converted to `3We collected 40,688 examples.`; `\pagestyle{fancy}
+This chapter argues so.` to `fancy This chapter argues so.`;
+`\setlength{\parindent}{2em} Indented.` to `2em Indented.`;
+`\usetikzlibrary{arrows.meta} Body.` to `arrows.meta Body.`;
+`\multicolumn{2}{c}{wide text} continues.` to `cwide text continues.`; and
+`\newcommandx{\x}[1]{Body #1} Body follows.` to `[1]Body #1 Body follows.`.
+An end-to-end `draft` run on
+`\setcounter{page}{3}We collected 40,688 examples in total, as \citep{page}
+reports.` wrote a claim block whose `claim:` line began `3We`. Five mutations are
+red: fall back to the fallthrough, drop only the first argument, drop one for
+every command, keep both `\texorpdfstring` arguments, and stop recognising the
+xparse definition spellings. Seen 1.

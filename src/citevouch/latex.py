@@ -172,8 +172,6 @@ _DROP_ARGUMENT = frozenset(
         "hypersetup",
         "setcounter",
         "cline",
-        "multicolumn",
-        "rule",
         "raisebox",
     }
 )
@@ -217,6 +215,17 @@ _DEFINITION = frozenset(
         "newenvironment",
         "renewenvironment",
         "newtheorem",
+        # The xparse and etoolbox spellings take the same shape: a name, an
+        # optional count, an optional default, a body.  They were falling
+        # through as unknown commands, so the body stayed in the prose and
+        # `\newcommandx{\x}[1]{Body #1}` measured as `[1]Body #1`.
+        "newcommandx",
+        "renewcommandx",
+        "providecommandx",
+        "DeclareDocumentCommand",
+        "NewDocumentCommand",
+        "RenewDocumentCommand",
+        "ProvideDocumentCommand",
     }
 )
 
@@ -276,14 +285,80 @@ _SKIP_FIRST_ARGUMENT = frozenset(
     {
         "textcolor",
         "colorbox",
-        "fcolorbox",  # two non-prose arguments before the prose one
+        "fcolorbox",
         "scalebox",
         "resizebox",
         "parbox",
         "hyperlink",
         "href",
+        "foreignlanguage",
+        "multicolumn",
     }
 )
+
+#: How many leading arguments of each `_SKIP_FIRST_ARGUMENT` command are not
+#: prose.  `\parbox[c][2cm]{3cm}{text}` and `\resizebox{2}{!}{text}` take one
+#: more than the rest, and `\multicolumn{2}{c}{text}` is a table cell whose text
+#: is the third argument - skipping only the span left the alignment `c` glued to
+#: the cell, which measured as ``cwide text``.
+_SKIP_ARGUMENT_COUNT = {"fcolorbox": 2, "resizebox": 2, "multicolumn": 2}
+
+#: Commands with no prose argument at all, and how many braced arguments each
+#: takes.  Every one of these fell through to "keep whatever it wraps", which
+#: is right for a wrapper around a sentence and wrong for a command that names a
+#: counter, a length, a style or a registry key: the name was pasted into the
+#: prose.  Measured before this set existed:
+#:
+#:   \setcounter{page}{3}We collected 40,688 examples.
+#:       -> ``3We collected 40,688 examples.``
+#:   \pagestyle{fancy} This chapter argues so.  -> ``fancy This chapter argues so.``
+#:   \setlength{\parindent}{2em} Indented.       -> ``2em Indented.``
+#:   \rule{3cm}{0.4pt} between words           -> ``0.4pt`` between the words
+#:   \usetikzlibrary{arrows.meta} Body.         -> ``arrows.meta Body.``
+#:
+#: The digit case is the one that costs an author something: the stray ``3``
+#: becomes the first character of the sentence `draft` proposes a claim for, so
+#: the claim block it writes reads ``3We collected 40,688 examples``.  A count is
+#: not decoration - it changes the sentence.
+_DROP_ALL_ARGUMENTS = {
+    "setcounter": 2,
+    "addtocounter": 2,
+    "stepcounter": 1,
+    "refstepcounter": 1,
+    "setlength": 2,
+    "addtolength": 2,
+    "settowidth": 2,
+    "pagestyle": 1,
+    "thispagestyle": 1,
+    "pagenumbering": 1,
+    "markboth": 2,
+    "markright": 1,
+    "addcontentsline": 3,
+    "usetikzlibrary": 1,
+    "graphicspath": 1,
+    "captionsetup": 1,
+    "selectlanguage": 1,
+    "newcounter": 1,
+    "phantom": 1,
+    "hphantom": 1,
+    "vphantom": 1,
+    "index": 1,
+    "glossary": 1,
+    "DeclareMathOperator": 2,
+    "rule": 2,
+    "citeindextype": 1,
+    "pdfbookmark": 2,
+    "definelabel": 2,
+    # `\footnotemark[1]` has no prose argument at all: the number is a pointer
+    # to a note written elsewhere, and the fallthrough left the bracket in the
+    # sentence as `[1]`.
+    "footnotemark": 0,
+}
+
+#: Commands that keep their first braced argument (prose) and drop the rest.
+#: ``\texorpdfstring{TeX text}{PDF text}`` carries the same words twice; keeping
+#: both said them twice, once in a form the reader never sees.
+_KEEP_FIRST_ARGUMENT = frozenset({"texorpdfstring"})
 
 # Environments that separate prose from prose.
 _BLOCK_ENVIRONMENT = frozenset(
@@ -662,7 +737,7 @@ def _convert(text: str) -> str:
                     # both counts are handled by skipping until an argument is
                     # followed by no further argument of its own.
                     cursor = _skip_optional_args(text, end)
-                    skip = 2 if name in ("fcolorbox", "resizebox") else 1
+                    skip = _SKIP_ARGUMENT_COUNT.get(name, 1)
                     for _ in range(skip):
                         group = _group_end(text, cursor)
                         if group < 0:
@@ -674,6 +749,31 @@ def _convert(text: str) -> str:
                         index = group
                         continue
                     index = cursor
+                    continue
+                if name in _DROP_ALL_ARGUMENTS:
+                    # No argument here is prose: the command names a counter, a
+                    # length, a style or a registry key.  Leaving any of them to
+                    # the fallthrough pasted the name into the sentence.
+                    cursor = _skip_optional_args(text, end)
+                    for _ in range(_DROP_ALL_ARGUMENTS[name]):
+                        group = _group_end(text, cursor)
+                        if group < 0:
+                            break
+                        cursor = _skip_optional_args(text, group)
+                    index = max(cursor, end)
+                    continue
+                if name in _KEEP_FIRST_ARGUMENT:
+                    # `\texorpdfstring{TeX text}{PDF text}` says the same words
+                    # twice; only the first is in the body.
+                    cursor = _skip_optional_args(text, end)
+                    group = _group_end(text, cursor)
+                    if group > 0:
+                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        rest = _skip_optional_args(text, group)
+                        second = _group_end(text, rest)
+                        index = second if second > 0 else group
+                        continue
+                    index = end
                     continue
                 if name in _DEFINITION:
                     # A macro body is a template, not a sentence.  Leaving it in
