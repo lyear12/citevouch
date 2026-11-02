@@ -3606,3 +3606,48 @@ readings agree by accident, so it proved nothing until the fixture chdir'd one
 level up.
 
 Seen 1.
+
+## A path that crosses two layers of resolution fails at the second one
+
+**Rule.** When a value is produced for one purpose and then used for another,
+write down which layer owns the interpretation.  A path relative to the project
+root is an *output* for a manifest and an *input* for an open call; passing it
+straight from one to the other assumes the two layers agree, and they only
+agree when the working directory happens to be the root.
+
+**Why this happens.** Both halves are correct on their own.  `draft.resolve`
+returns `page.txt` because that is what `sources.toml` must say, and the
+docstring says so.  `extract_pages` opens what it is handed because every other
+caller hands it a real path.  The defect lives in the line joining them, which
+belongs to neither file's author.  Measured, same project, only the working
+directory differing:
+
+    cd paper  && citevouch draft paper/m.md --root paper --bib paper/refs.bib
+        -> 1 claim block(s) proposed (1 verbatim)
+    cd ..     && citevouch draft paper/m.md --root paper --bib paper/refs.bib
+        -> 0 claim block(s) proposed (0 verbatim), 1 citation(s) left as comments
+           <!-- line 1: paper - source file page.txt does not exist -->
+
+The file it said did not exist was `paper/page.txt`, present the whole time.
+
+**How to apply.** For every value that crosses from "what we record" to "what we
+open", ask where the second layer resolves it.  Here the answer already existed:
+`scan._resolve` is the rule five commands share, and the sixth should call it
+rather than restate it.  Then test from the far side.  A test that runs inside
+the project cannot see this defect, because inside the project both readings
+name the same file by accident - the fixture has to `chdir` one level up, and
+the assertion has to compare two runs against each other, not each run against
+its own expectations.
+
+**The second half of the same fix.** The message that explained the failure was
+also generated at the wrong layer.  `_why_no_file` knew the two reasons
+`sources.toml` can give and summarised everything else as `no `file` field in
+the bibliography` - false in the one case the author is looking at, because the
+field is on the screen.  A summary that is correct only when it is not needed is
+not a summary.  The answer has to come from the file that holds the field.
+
+**Reverse verification.** Four mutations - open the recorded path instead of the
+resolved one, skip the bibliography branch, drop the path from its message, stop
+passing the bibliography at the call site - all red, 4 to 7 tests each.
+
+Seen 1.

@@ -35,6 +35,7 @@ from pathlib import Path
 
 from . import matching, sources
 from .model import BibEntry
+from .scan import _resolve
 from .textnorm import normalize, numbers_in
 
 # Pandoc's bracket form: `[@key]`, `[@a; @b]`, `[-@key]`.  This is what people
@@ -450,7 +451,11 @@ def _claim_id(key: str, used: set[str]) -> str:
     return candidate
 
 
-def _why_no_file(key: str, table: sources.SourceTable | None) -> str:
+def _why_no_file(
+    key: str,
+    table: sources.SourceTable | None,
+    bib: dict[str, BibEntry] | None = None,
+) -> str:
     """Say which of the three ways a key can have no local file actually happened.
 
     The sentence used to be one string for every case: "no local file: not in
@@ -462,11 +467,29 @@ def _why_no_file(key: str, table: sources.SourceTable | None) -> str:
 
     The table knows better for two of the cases, and both readers of the
     manifest should say the same thing about the same project.
+
+    The bibliography knows better for a third, and it was the same lie one file
+    over: a key whose `file` field names a path that has moved was reported as
+    having no `file` field at all.  Measured before this branch existed, with
+    `file={gone.txt}` in the entry and nothing else on disk::
+
+        line 1: paper - no local file: not in sources.toml, no `file` field in
+        the bibliography, and no file named after the key
+
+    The author opens the .bib, sees the field, and stops trusting the report.
     """
     if table is not None:
         reason = sources.explain_unresolved(key, table)
         if reason:
             return f"no local file: {reason}"
+    entry = (bib or {}).get(key)
+    if entry is not None:
+        named = _bib_file(entry)
+        if named:
+            return (
+                f"no local file: the `file` field for {key!r} in the bibliography "
+                f"names {named!r}, and that file is not there"
+            )
     return (
         "no local file: not in sources.toml, no `file` field in the "
         "bibliography, and no file named after the key"
@@ -515,23 +538,33 @@ def draft(
             result.skipped.append(
                 Skipped(
                     key=site.key,
-                    reason=_why_no_file(site.key, table),
+                    reason=_why_no_file(site.key, table, bib),
                     line=site.line,
                 )
             )
             continue
         if needs_line is not None:
             result.needed_sources[site.key] = path
-        if path not in pages_for:
-            pages, problem = sources.extract_pages(path, root)
+        # `path` is what the proposal will write into `sources.toml`, so it is
+        # relative to the project root: `page.txt` means `<root>/page.txt`.
+        # `extract_pages` opens what it is given against the process directory,
+        # so from one level above the project - `citevouch draft paper/m.md
+        # --root paper` - it looked for `./page.txt`, found nothing, and the
+        # proposal said `source file page.txt does not exist` about a file
+        # sitting right there.  Measured before this line existed, same project,
+        # only the working directory differing: 1 proposal from inside, 0 from
+        # outside.  `_resolve` is the one rule the other five commands use.
+        source = _resolve(Path(root), path)
+        if source not in pages_for:
+            pages, problem = sources.extract_pages(source, root)
             if problem is not None:
                 result.unreadable.append(
                     Skipped(key=site.key, reason=problem.message, line=site.line)
                 )
-                pages_for[path] = []
+                pages_for[source] = []
                 continue
-            pages_for[path] = pages
-        found = propose_quote(statement, pages_for[path])
+            pages_for[source] = pages
+        found = propose_quote(statement, pages_for[source])
         if found is None:
             result.skipped.append(
                 Skipped(

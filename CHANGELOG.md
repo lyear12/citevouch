@@ -11,6 +11,27 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `draft` opened a source with the path it was about to write into
+  `sources.toml`, which is relative to the project root, and `extract_pages`
+  reads what it is given against the process directory.  From one level above
+  the project the two differ, so a project that produced one proposal from
+  inside produced none from outside: `citevouch draft paper/m.md --root paper
+  --bib paper/refs.bib` wrote `0 claim block(s) proposed` and explained every
+  citation with `source file page.txt does not exist` about a file sitting in
+  `paper/page.txt`.  Nothing about the project differed between the two runs
+  except the working directory.  The call site now opens `_resolve(root, path)`,
+  the one rule the other five commands already share, and still records the
+  root-relative `path` in the proposal.
+- `draft` said `no `file` field in the bibliography` about a `.bib` whose entry
+  had a `file` field naming a file that was not there.  `_why_no_file` only
+  knew the two reasons `sources.toml` can give, so every other failure fell
+  through to a summary that is false in the one case an author can see at once:
+  the field is on the screen.  It now answers from the bibliography entry when
+  there is one, naming the path it points at, and keeps the old summary for the
+  three-way case that really has all three causes.  A Zotero `:path:mime`
+  wrapper is unwrapped first, because that is the form the field is stored in.
 
 ## [0.19.62] — 2026-11-02
 ### Fixed
