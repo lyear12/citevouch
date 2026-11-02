@@ -447,6 +447,49 @@ not what changed, but what proves the change works.
   *Not covered*: `draft` still accepts `--bib` and needs it, so nothing checks that the flag list of
   one verb matches what that verb does; the guard is written per verb, by hand.
 
+- [x] **`doctor` passed a project where every claim names a source key nobody binds.**
+  `doctor` asked whether `sources.toml` maps each key to a file that is on disk.
+  It never asked whether the keys the *claims* name are bound at all. A project
+  whose manifest binds `other` and whose only claim names `source=paper` got
+  seven `[ok  ]` lines, exit **0**, and the closing sentence `Everything this
+  tool needs is on this machine. If quotes are still reported missing, the
+  source files are the place to look.` - while `check` on the same project
+  printed `[high] source-missing ... claim c1 names source='paper' but no entry
+  in sources.toml` and exited 1. The reader is sent to look at source files that
+  are all present, correctly spelled, and filed under a different name.
+  *Who is blocked*: anyone who renamed a key in `sources.toml`, or wrote the
+  claim block from memory, and then ran `doctor` to find out why nothing
+  verifies. That is the exact moment the command exists for.
+  *Done when* `doctor` says whether the keys the manuscript names are bound,
+  names the ones that are not, and does not repeat a cause another line owns.
+  **Done - why it is now true:** `doctor._claim_sources` parses the manuscript
+  with the same `parse_manuscript` the other readers use, takes the keys from
+  `parsed.claims`, and asks `read_source_table` whether each one binds. Unbound
+  keys are reported with `near_misses` over `candidate_files`, so the author sees
+  the file that is probably the one they meant. Measured after the fix:
+  `[FAIL] sources  1 source key named by a claim is bound to nothing: 'paper' is
+  named by a claim, and no entry in the manifest binds it` and exit 1, while
+  `doctor --root demo` still exits 0 with `[ok  ] sources  2 source keys, every
+  one of them bound to a file`. Three states are deliberately left to the lines
+  that own them: a manifest that will not parse gives `not checked, because the
+  manifest could not be read`; a key whose file is missing gives `1 source key,
+  of which 1 key cannot be used; the manifest line above names it`; a manuscript
+  naming no keys gives `no claim names a source`. Seven mutations, all red - one
+  anchor was wrong on the first pass because `table.manifest_problem` appears
+  twice in the file, and a mutation that hits the other occurrence tests nothing,
+  which is the same failure mode as a test that asserts nothing.
+  `tests/test_claim_sources_check.py` compares `doctor` against `check` on the
+  same projects rather than remembering what each prints, so rewording either
+  message cannot quietly break the agreement it is testing.
+  `tests/test_claim_sources_check.py`, `README.md`, `README.zh-CN.md`.
+
+  *Not covered*: a project with two manifests, where the `manifest` line fails
+  and this line still reports the keys; no fixture for it, and the behaviour
+  reads correct rather than measured. And `test_a_markdown_manuscript_is_not_
+  mistaken_for_latex` in `tests/test_doctor.py` had to grow a manifest of its own
+  - it reused `GOOD`, whose claim names `source=a`, so the new line was right to
+  complain about a project that test had been calling sound.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
