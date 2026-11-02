@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- Text TeX never reads is no longer converted.  `\iffalse ... \fi`
+  is how a LaTeX author comments out a paragraph, and it was being read as
+  prose: `\iffalse \citep{hidden} \input{ghost/sec} \fi`
+  measured as `[@hidden]` in the converted text and `ghost/sec` in the
+  include list.  So `draft` proposed a claim for a citation the author had
+  turned off, and the author was told a file was missing that the paper
+  never reads.  A `\else` inside such a branch is live text and is kept;
+  `\if0` is treated as `\iffalse`; nesting is counted, so two dead
+  blocks in a row are two dead blocks.
+- A live conditional no longer leaves its own marker in the sentence.
+  `\iftrue \citep{shown} \fi` keeps the body, which the
+  unknown-command fallthrough already did, but the fallthrough also dropped
+  nothing else - `\ifdefined\foo \citep{shown} \fi` pasted
+  `ifdefined` into the words.  An unterminated conditional follows TeX: a
+  dead body takes the rest of the file, a live one is converted to the end.
+- `\ifthenelse{test}{yes}{no}` keeps both branches and drops the test.
+  The test used to be glued to the first branch
+  (`\ifthenelse{1=2}{\citep{no}}{\citep{yes}}` measured as
+  `1=2[@no][@yes]`), the same defect as the counter arguments fixed in
+  0.19.77 - a fragment no reader of the paper ever sees, at the front of a
+  sentence that `draft` then proposes as the claim text.
+
+  The conditionals that take operands before their body (`\ifnum`,
+  `\ifdim`, `\ifodd`, `\ifx`, `\ifcat`, `\ifcase`) are
+  counted for nesting and otherwise left alone, so their operand is still a
+  word in the sentence.  Dropping operands is a token-level scan rather than
+  a table of command names, and a half fix that cut the body without reading
+  the operand would drop real text.  `tests/test_latex_conditionals.py`
+  records that limitation as a test rather than leaving it to be discovered.
 ## [0.19.77] — 2026-11-02
 ### Fixed
 

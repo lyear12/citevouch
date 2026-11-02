@@ -177,6 +177,71 @@ _DROP_ARGUMENT = frozenset(
 )
 
 # Environment bodies that are not prose and are dropped whole.
+#: TeX conditionals that open a block and end at a matching ``\fi``.
+#: Every name here takes its test from the following tokens rather than from
+#: braces, so nesting one inside another is a matter of counting names.
+#: ``ifthenelse`` is deliberately absent: it is a macro from the ``ifthen``
+#: package that takes three braced arguments and no ``\fi``, and
+#: counting it here would leave every body unterminated.
+_TEX_CONDITIONAL = frozenset(
+    {
+        "if",
+        "if0",
+        "if1",
+        "ifcase",
+        "ifcat",
+        "ifcsname",
+        "ifdefined",
+        "ifdim",
+        "ifeof",
+        "iffalse",
+        "ifhbox",
+        "ifhmode",
+        "ifinner",
+        "ifmmode",
+        "ifnum",
+        "ifodd",
+        "iftrue",
+        "ifvbox",
+        "ifvmode",
+        "ifvoid",
+        "ifx",
+    }
+)
+
+#: Conditionals that take no operand before their body, so the converter can
+#: act on them without parsing TeX tokens.  ``\ifnum``, ``\ifdim``, ``\ifodd``,
+#: ``\ifx``, ``\ifcat`` and ``\ifcase`` all read operands first; acting on
+#: those without reading the operands pasted them into the sentence
+#: (``\ifnum1>0 \citep{x}\fi`` measured as ``1>0 [@x]``), so they stay in
+#: ``_TEX_CONDITIONAL`` - where they are counted for nesting - and out of both
+#: act-on sets.  That leaves them exactly as they were, and the operand problem
+#: is a token-level parser away rather than a half fix away.
+_NO_OPERAND_CONDITIONAL = frozenset({"iftrue", "iffalse", "if0", "if1", "ifdefined"})
+
+#: Conditionals whose body is dead text by construction.  Converting a body
+#: that TeX never reads turned a commented-out citation into a real one:
+#: ``\iffalse \citep{hidden} \input{ghost/sec} \fi`` measured as
+#: ``[@hidden]`` in the prose and ``ghost/sec`` in the include list, so
+#: `draft` proposed a claim for a citation the author had turned off and the
+#: author was told a file was missing that the paper never reads.  A \else
+#: inside one of these is live text and is kept.
+_CONDITIONAL_FALSE = frozenset({"iffalse", "if0"} & _NO_OPERAND_CONDITIONAL)
+
+#: The mirror image: body is live, the marker is not.  It used to leave its
+#: own name in the sentence (``\iftrue A \fi`` -> ``A`` was right, but
+#: ``\ifdefined\x`` pasted ``ifdefined``), because the fallthrough
+#: drops a command's name only when it has no body to keep.
+_CONDITIONAL_TRUE = frozenset({"iftrue", "if1"} & _NO_OPERAND_CONDITIONAL)
+
+#: ``\ifthenelse{test}{yes}{no}`` is not decidable here, and both branches
+#: are text the author wrote.  Only the test is metadata: it used to be glued
+#: to the first branch (``\ifthenelse{1=2}{\citep{no}}{\citep{yes}}``
+#: measured as ``1=2[@no][@yes]``), which is the same defect as the counter and
+#: length arguments fixed in 0.19.77 - a fragment no reader of the paper ever
+#: sees, sitting at the front of a sentence.
+_BRANCH_COMMAND = frozenset({"ifthenelse"})
+
 _DROP_ENVIRONMENT = frozenset(
     {
         "thebibliography",
@@ -697,6 +762,80 @@ def _definition_end(text: str, name: str, start: int) -> int:
     return group if group > 0 else cursor
 
 
+def _conditional_span(text: str, start: int) -> tuple[int, int, int] | None:
+    """Where the conditional opened before `start` ends.
+
+    Returns ``(false_end, else_at, fi_end)``: the body TeX skips runs from
+    `start` to ``false_end``, ``else_at`` is the position of the \\else that
+    turns the rest live (``-1`` when there is none), and ``fi_end`` is just
+    past the matching \fi.  ``None`` means the conditional never closes,
+    which TeX also treats as running to the end of the file.
+    """
+    depth = 0
+    index = start
+    length = len(text)
+    else_at = -1
+    while index < length:
+        if text[index] != "\\":
+            index += 1
+            continue
+        end = index + 1
+        while end < length and text[end].isalpha():
+            end += 1
+        name = text[index + 1 : end]
+        if not name:
+            index += 2
+            continue
+        if name == "fi":
+            if depth == 0:
+                return (else_at if else_at >= 0 else index), else_at, end
+            depth -= 1
+        elif name == "else":
+            if depth == 0 and else_at < 0:
+                else_at = index
+        elif name in _TEX_CONDITIONAL:
+            depth += 1
+        index = end
+    return None
+
+
+def _without_false_branches(text: str) -> str:
+    """`text` with every `\\iffalse ... \fi` body cut out.
+
+    `included_files` reads the raw source rather than the converted text, so
+    a `\\input` inside a dead branch was reported as a file the paper reads
+    while `to_text` never opened it.  The two readers have to agree about
+    which text is real, and the converted one already knows.
+    """
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        if text[index] != "\\":
+            out.append(text[index])
+            index += 1
+            continue
+        end = index + 1
+        while end < length and text[end].isalpha():
+            end += 1
+        name = text[index + 1 : end]
+        if name == "if" and end < length and text[end] in "01":
+            name = "if" + text[end]
+            end += 1
+        if name not in _CONDITIONAL_FALSE:
+            out.append(text[index])
+            index += 1
+            continue
+        span = _conditional_span(text, end)
+        if span is None:
+            break
+        _, else_at, fi_end = span
+        if else_at >= 0:
+            out.append(_without_false_branches(text[else_at:fi_end]))
+        index = fi_end
+    return "".join(out)
+
+
 def _convert(text: str) -> str:
     """Convert one stretch of LaTeX (no comment stripping, no preamble)."""
     out: list[str] = []
@@ -774,6 +913,50 @@ def _convert(text: str) -> str:
                         index = second if second > 0 else group
                         continue
                     index = end
+                    continue
+                if name == "if" and end < length and text[end] in "01":
+                    name = "if" + text[end]
+                    end += 1
+                if name in _CONDITIONAL_FALSE or name in _CONDITIONAL_TRUE:
+                    # Dead text is not text: a commented-out citation is not a
+                    # citation, and a file named inside one is not a file this
+                    # paper reads.  Live text keeps its body and loses the
+                    # marker, which is what the fallthrough failed to do for
+                    # the marker's name.
+                    span = _conditional_span(text, end)
+                    if span is None:
+                        # Unterminated.  TeX runs a conditional to the end of
+                        # the file, so a dead body swallows the rest and a live
+                        # one is converted to the end - the same rule, applied
+                        # to whichever kind of body this is.
+                        if name in _CONDITIONAL_TRUE:
+                            out.append(_convert(text[end:]))
+                        index = length
+                        continue
+                    false_end, else_at, fi_end = span
+                    if name in _CONDITIONAL_TRUE:
+                        if else_at >= 0:
+                            out.append(_convert(text[end:else_at]))
+                        else:
+                            out.append(_convert(text[end:false_end]))
+                    elif else_at >= 0:
+                        out.append(_convert(text[else_at:fi_end]))
+                    index = fi_end
+                    continue
+                if name in _BRANCH_COMMAND:
+                    # The test is metadata, the branches are the author's own
+                    # text.  Keeping the test glued it to the first branch.
+                    cursor = _skip_optional_args(text, end)
+                    group = _group_end(text, cursor)
+                    if group > 0:
+                        cursor = _skip_optional_args(text, group)
+                    for _ in range(2):
+                        group = _group_end(text, cursor)
+                        if group < 0:
+                            break
+                        out.append(_convert(text[cursor + 1 : group - 1]))
+                        cursor = group
+                    index = cursor
                     continue
                 if name in _DEFINITION:
                     # A macro body is a template, not a sentence.  Leaving it in
@@ -903,7 +1086,9 @@ def included_files(tex: str) -> list[str]:
     ``{``, and ``_INCLUDE_COMMAND`` names seven other commands in full.
     Sorting by position therefore needs no de-duplication between them.
     """
-    stripped = _without_definitions(_drop_inline_verbatim(strip_comments(tex))[0])
+    stripped = _without_false_branches(
+        _without_definitions(_drop_inline_verbatim(strip_comments(tex))[0])
+    )
     found: list[tuple[int, str]] = [
         (match.start(), match.group(1)) for match in _INCLUDE.finditer(stripped)
     ]

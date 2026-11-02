@@ -4204,3 +4204,51 @@ reports.` wrote a claim block whose `claim:` line began `3We`. Five mutations ar
 red: fall back to the fallthrough, drop only the first argument, drop one for
 every command, keep both `\texorpdfstring` arguments, and stop recognising the
 xparse definition spellings. Seen 1.
+
+## A conditional is syntax, and syntax the tool ignores becomes words
+
+**Rule.** Three LaTeX conditionals were handled as if they were ordinary
+commands, and each failed in a different direction: `\iffalse`, whose
+body TeX never reads, was converted as prose - so a commented-out citation became
+a real one; `\iftrue`, whose body *is* text, had its marker pasted into the
+sentence, because the unknown-command fallthrough keeps a body and drops only the
+name; and `\ifthenelse{test}{yes}{no}` kept the test, which is the same
+defect as the metadata arguments fixed one release earlier. The lesson is not
+"handle conditionals". It is that a converter has two kinds of input - what the
+author wrote, and what the compiler typesets - and any command that decides
+which parts of the file are typeset has to be decided, not passed through.
+
+**Why this keeps happening.** Every one of these commands is a *marker* in the
+author's source: short, unremarkable, and surrounded by words that are clearly
+prose, so the converted output reads fine to a human and fine to a diff. The
+damage is only visible in what the machine then says about the text: a citation
+that is not in the paper, a file that is not read, a sentence with `1=2` stapled
+to the front. The tool produces those sentences, so the bug surfaces in `draft`
+proposals and in `check` messages rather than in the converter's own output.
+
+**How to apply.** For any command that selects text, ask two questions in this
+order: does the selection change *which* text is real, and does the selection
+leave a token behind that a reader would not see? If the first answer is yes,
+the body must be cut or kept by the converter - the two readers (`to_text` and
+`included_files`) have to agree, so the cut belongs in a helper both call. If
+the second is yes, the marker is metadata and belongs with the counters and
+lengths. Then write the test as the whole converted sentence: `\ifnum1>0`
+passed a "the body was converted" assertion while still pasting `1>0`.
+
+**The half you cannot do is worth a test of its own.** The operand-taking
+conditionals (`\ifnum`, `\ifdim`, `\ifodd`, `\ifx`,
+`\ifcat`, `\ifcase`) need a token scan to find where their operands
+end; a table of names cannot do it. They are counted for nesting and otherwise
+left alone, and `TestTheConditionalsThatTakeOperands` asserts both halves of
+that: the body is still converted, and the operand is still a word. A limitation
+written as a passing test is a fact about the code; one written only in a
+comment is a plan.
+
+**Evidence.** Measured before the fix: `\iffalse \citep{hidden}
+\input{ghost/sec} \fi` -> `[@hidden]`, includes `['ghost/sec']`;
+`\ifdefined\foo \citep{shown} \fi` -> `ifdefined [@shown]`;
+`\ifthenelse{1=2}{\citep{no}}{\citep{yes}}` -> `1=2[@no][@yes]`.
+Six mutations are red: a dead branch converted as prose, a live branch losing its
+body, the include reader not cutting dead branches, the `\else` inside a dead
+block staying dead, the `\ifthenelse` test pasted back, and an unclosed live
+conditional dropped. Seen 1.
