@@ -569,6 +569,55 @@ not what changed, but what proves the change works.
   Also `draft --source` is not exercised from one directory up, so the extra
   binding path has the fix by construction rather than by test.
 
+- [x] **`--source` was the one path flag with its own spelling.** *Done 2026-11-02.*
+  Who was blocked: anyone who had just learned the path rule from any of
+  the other six flags. Project in `paper/`, command typed from one level
+  above:
+
+      --bib paper/refs.bib      resolves, the bibliography is read
+      --source paper/page.txt   exit 2: source paper\paper\page.txt does not exist
+      --source page.txt         resolves
+
+  Both paths point at files that are really there. `--source` joined
+  `--root` unconditionally while `--root`, the manuscript argument,
+  `--ledger`, `--bib`, `-o` and `doctor --manuscript` all accept a path that
+  already works. The error even shows the doubled segment, so the author can
+  read the rule and still not know it applies to one flag out of seven.
+
+  The rule existed, in `scan._resolve`, and six commands called it.
+  `--source` could not: `sources.py` is imported by `scan.py` and not the
+  other way round, so the one caller that needed it was the one place it
+  could not be reached from. That is how a shared rule becomes a private
+  copy.
+
+  The same split ran through `draft`'s `-o` guard. It names the inputs a
+  write must not overwrite, and computed those names with its own root join
+  while `read_source_table` used the shared one: `draft --source
+  paper/page.txt -o page.txt --force` protected `paper/paper/page.txt` - not
+  a file - and wrote proposals over `paper/page.txt`, the source the run had
+  just read a quote out of.
+
+  *Done when*: all seven path flags resolve by one rule, and the guard names
+  the same files the reader opens.
+
+  **Done - why it is now true:** the implementation moved to
+  `sources._resolve` and `scan._resolve` is now an assignment rather than a
+  wrapper - two functions that agree today are two functions that disagree
+  after the next fix, and `test_the_two_modules_export_one_behaviour`
+  asserts they are the same object, which is the only assertion that can see
+  a future fork. `tests/test_source_flag_resolution.py` runs one project
+  through `scan`, `check` and `draft` under both spellings and compares the
+  ledgers the two spellings record; the guard tests assert the protected
+  file's bytes are unchanged. Four mutations, all red (join the root
+  unconditionally in `--source` again, drop the already-works branch,
+  restore the guard's own root join, give `scan` its own copy of the rule).
+
+  *Not covered*: this closes the `draft --source` gap recorded in the entry
+  above - `test_draft_accepts_the_typed_spelling` drives it from one
+  directory up. A Windows UNC `--source` is still not exercised, for the
+  same reason recorded in the `doctor` entry: it would mean changing
+  `_resolve` for all seven callers.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
