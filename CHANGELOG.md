@@ -11,10 +11,11 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.39] — 2026-11-02
 ### Fixed
 
 - **A quote copied out of a reader was reported missing whenever the page broke a hyphenated word.** A PDF line that ends mid-word is extracted as `exam-` + newline + `ples`, and `normalize` has always joined that pair back into `examples`, which is why quoting the page as you read it worked. Copying the same passage out of Acrobat, Word or a browser produces a different string: the reader keeps the hyphen glyph and puts a space where the line break was, so `exam- ples` arrives with one space in the middle of each broken word. Nothing joined that shape, so a correct quote from a rendered page was run against `quote-missing` - measured over 20 real papers, 120 quotes and four reader readings, this shape accounted for 11 of the 12 misses. The new `pasted` tier folds line breaks to `- ` and compares that reading against the quote; it counts as found, and, like the `hyphen` tier, it only moves the line-break spelling, so `re-cover` on a page still does not satisfy a quote reading `recover`. After the fix the same corpus misses 8 of 160, and all eight are image-only PDFs with no text layer - a different defect.
-
 ## [0.19.38] — 2026-11-02
 ### Fixed
 
@@ -1548,7 +1549,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.38...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.39...HEAD
+[0.19.39]: https://github.com/lyear12/citevouch/releases/tag/v0.19.39
 [0.19.38]: https://github.com/lyear12/citevouch/releases/tag/v0.19.38
 [0.19.37]: https://github.com/lyear12/citevouch/releases/tag/v0.19.37
 [0.19.36]: https://github.com/lyear12/citevouch/releases/tag/v0.19.36
