@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.84] — 2026-11-02
 ### Fixed
 
 - The fuzzy tier can now compare Chinese.  It counts the units it compares,
@@ -25,7 +27,6 @@ tag and that file disagree.
   sentences of this project's own Chinese: one changed character scores at
   least 0.667 and 95% at least 0.857, while two unrelated sentences score at
   most 0.333.
-
 ## [0.19.83] — 2026-11-02
 ### Fixed
 
@@ -2153,7 +2154,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.83...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.84...HEAD
+[0.19.84]: https://github.com/lyear12/citevouch/releases/tag/v0.19.84
 [0.19.83]: https://github.com/lyear12/citevouch/releases/tag/v0.19.83
 [0.19.82]: https://github.com/lyear12/citevouch/releases/tag/v0.19.82
 [0.19.81]: https://github.com/lyear12/citevouch/releases/tag/v0.19.81
