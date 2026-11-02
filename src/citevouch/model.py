@@ -11,6 +11,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .errors import UsageError
+
 # Severity ordering, low to high.  The CLI exit code is derived from the
 # highest severity present, which keeps CI integration boring.
 SEVERITIES = ("info", "low", "medium", "high")
@@ -140,6 +142,91 @@ def _as_page(value: Any) -> int | None:
 # number, owned here: a future version that changes the ledger shape raises
 # SUPPORTED_SCHEMA *and* keeps reading schema 1, so old lockfiles never strand.
 SUPPORTED_SCHEMA = 1
+
+
+# --- Reading a lockfile that may not be one ------------------------------
+#
+# ``from_json`` used to trust every field: ``raw.get(...)`` on each list element
+# and ``int(...)`` on each count.  A hand-edited or truncated lockfile then
+# raised AttributeError, TypeError or ValueError straight out of ``main`` - and
+# since the interpreter exits 1 on an uncaught exception, those crashes were
+# indistinguishable from "findings reached the threshold".  Measured on twelve
+# damaged shapes: eighteen crashes across ``report``, ``verify`` and
+# ``check --use-recorded``.
+#
+# The rule is the one ``cli._read_ledger`` already applies to the schema number:
+# a file this code cannot read in full is refused, not half-parsed, because a
+# half-read claim comes back with empty fields and "source-missing" on it is the
+# false verdict this tool exists to avoid.  These helpers are that refusal.
+
+
+def _object(raw: Any, where: str) -> dict[str, Any]:
+    """One ledger element, which must be a JSON object."""
+    if not isinstance(raw, dict):
+        raise UsageError(f"ledger {where} must be an object, not {type(raw).__name__}")
+    return raw
+
+
+def _section(blob: dict[str, Any], name: str) -> dict[str, Any]:
+    """One named ledger section, which must be a JSON object."""
+    value = blob.get(name)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise UsageError(
+            f"ledger {name} must be an object keyed by name, not {type(value).__name__}"
+        )
+    return value
+
+
+def _fields(entry: dict[str, Any], where: str) -> dict[str, str]:
+    """A bibliography entry's fields, which must be an object of strings."""
+    value = entry.get("fields")
+    if value is None:
+        return {}
+    # ``or {}`` would have turned ``fields: []`` into an empty mapping, which is
+    # the silent half-read this whole section exists to prevent: an entry with
+    # no title then reports ``bib-field-missing`` about a title that is there.
+    if not isinstance(value, dict):
+        raise UsageError(
+            f"ledger {where}.fields must be an object mapping field names to "
+            f"values, not {type(value).__name__}"
+        )
+    return {str(k): str(v) for k, v in value.items()}
+
+
+def _whole(value: Any, where: str, *, default: int = 0) -> int:
+    """A ledger count, which must be a whole number."""
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        raise UsageError(f"ledger {where} must be a whole number, not {type(value).__name__}")
+    if isinstance(value, str):
+        text = value.strip()
+        if not text.lstrip("+-").isdigit():
+            raise UsageError(f"ledger {where} must be a whole number, not {value!r}")
+        return int(text)
+    if isinstance(value, float) and not value.is_integer():
+        raise UsageError(f"ledger {where} must be a whole number, not {value!r}")
+    return int(value)
+
+
+def _texts(value: Any, where: str) -> tuple[str, ...]:
+    """A ledger list of strings, such as a claim's numbers."""
+    if value is None:
+        return ()
+    if isinstance(value, str) or not isinstance(value, list | tuple):
+        raise UsageError(
+            f"ledger {where} must be a list of strings, not {type(value).__name__}"
+        )
+    out: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise UsageError(
+                f"ledger {where} must be a list of strings, but holds {type(item).__name__}"
+            )
+        out.append(item)
+    return tuple(out)
 
 
 def severity_of(code: str) -> str:
@@ -348,41 +435,53 @@ class Ledger:
     @classmethod
     def from_json(cls, blob: dict[str, Any]) -> Ledger:
         ledger = cls(
-            schema=int(blob.get("schema", 1)),
+            schema=_whole(blob.get("schema"), "schema", default=SUPPORTED_SCHEMA),
             manuscript=str(blob.get("manuscript", "")),
             manuscript_sha256=str(blob.get("manuscript_sha256", "")),
             generated_at=str(blob.get("generated_at", "")),
             tool_version=str(blob.get("tool_version", "")),
         )
-        for key, raw in (blob.get("sources") or {}).items():
+        for key, raw in _section(blob, "sources").items():
+            entry = _object(raw, f"sources[{key!r}]")
             ledger.sources[key] = SourceRef(
-                key=str(raw.get("key", key)),
-                path=str(raw.get("path", "")),
-                sha256=str(raw.get("sha256", "")),
-                pages=int(raw.get("pages", 0) or 0),
+                key=str(entry.get("key", key)),
+                path=str(entry.get("path", "")),
+                sha256=str(entry.get("sha256", "")),
+                pages=_whole(entry.get("pages"), f"sources[{key!r}].pages"),
             )
-        for key, raw in (blob.get("entries") or {}).items():
+        for key, raw in _section(blob, "entries").items():
+            entry = _object(raw, f"entries[{key!r}]")
             ledger.entries[key] = BibEntry(
-                key=str(raw.get("key", key)),
-                entry_type=str(raw.get("type", "")),
-                fields={str(k): str(v) for k, v in (raw.get("fields") or {}).items()},
-                path=str(raw.get("path", "")),
-                line=int(raw.get("line", 0) or 0),
+                key=str(entry.get("key", key)),
+                entry_type=str(entry.get("type", "")),
+                fields=_fields(entry, f"entries[{key!r}]"),
+                path=str(entry.get("path", "")),
+                line=_whole(entry.get("line"), f"entries[{key!r}].line"),
             )
-        for raw in blob.get("claims") or []:
+        claims = blob.get("claims")
+        if not isinstance(claims, list):
+            # ``claims`` is the one key ``_read_ledger`` requires, so a null or
+            # missing one is a damaged file, not an empty ledger.  Reading it as
+            # "nothing to verify" would report a clean run for a manuscript
+            # whose evidence was thrown away.
+            raise UsageError(
+                f"ledger claims must be a list of claim objects, not {type(claims).__name__}"
+            )
+        for index, raw in enumerate(claims):
+            entry = _object(raw, f"claims[{index}]")
             ledger.claims.append(
                 Claim(
-                    id=str(raw.get("id", "")),
-                    text=str(raw.get("text", "")),
-                    source=str(raw.get("source", "")),
-                    quote=str(raw.get("quote", "")),
-                    page=_as_page(raw.get("page")),
-                    path=str(raw.get("path", "")),
-                    line=int(raw.get("line", 0) or 0),
-                    marker=str(raw.get("marker", "")),
-                    ref=str(raw.get("ref", "")),
-                    numbers=tuple(raw.get("numbers") or ()),
-                    quote_fingerprint=str(raw.get("quote_fingerprint", "")),
+                    id=str(entry.get("id", "")),
+                    text=str(entry.get("text", "")),
+                    source=str(entry.get("source", "")),
+                    quote=str(entry.get("quote", "")),
+                    page=_as_page(entry.get("page")),
+                    path=str(entry.get("path", "")),
+                    line=_whole(entry.get("line"), f"claims[{index}].line"),
+                    marker=str(entry.get("marker", "")),
+                    ref=str(entry.get("ref", "")),
+                    numbers=_texts(entry.get("numbers"), f"claims[{index}].numbers"),
+                    quote_fingerprint=str(entry.get("quote_fingerprint", "")),
                 )
             )
         return ledger

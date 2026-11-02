@@ -191,7 +191,15 @@ def _read_ledger(path: Path) -> Ledger:
             f"ledger {path} has schema {schema}; schemas start at 1, so this file "
             "was not written by citevouch - re-record it with `citevouch scan`"
         )
-    return Ledger.from_json(blob)
+    try:
+        return Ledger.from_json(blob)
+    except UsageError as exc:
+        # The shape of the file is wrong, not the schema number. Same decision:
+        # refuse it and name the file. Reading half of it would report claims
+        # with empty fields as "source-missing", which is a verdict, not a
+        # reading error - and an uncaught AttributeError out of here would exit
+        # 1, which this tool reserves for "findings reached the threshold".
+        raise UsageError(f"{path}: {exc}") from exc
 
 
 def cmd_scan(args: argparse.Namespace) -> int:
