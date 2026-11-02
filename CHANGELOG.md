@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.81] — 2026-11-02
 ### Fixed
 
 - A citation removed from Chinese prose no longer leaves a space inside the
@@ -22,7 +24,6 @@ tag and that file disagree.
   now one set, `_NO_SPACE_BEFORE`, covering the CJK stops, the small marks, the
   ellipsis and the closing brackets as well as the Latin five, and the space
   between two words is still left alone.
-
 ## [0.19.80] — 2026-11-02
 ### Fixed
 
@@ -2112,7 +2113,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.80...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.81...HEAD
+[0.19.81]: https://github.com/lyear12/citevouch/releases/tag/v0.19.81
 [0.19.80]: https://github.com/lyear12/citevouch/releases/tag/v0.19.80
 [0.19.79]: https://github.com/lyear12/citevouch/releases/tag/v0.19.79
 [0.19.78]: https://github.com/lyear12/citevouch/releases/tag/v0.19.78
