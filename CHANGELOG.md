@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.63] — 2026-11-02
 ### Fixed
 
 - `draft` opened a source with the path it was about to write into
@@ -32,7 +34,6 @@ tag and that file disagree.
   there is one, naming the path it points at, and keeps the old summary for the
   three-way case that really has all three causes.  A Zotero `:path:mime`
   wrapper is unwrapped first, because that is the form the field is stored in.
-
 ## [0.19.62] — 2026-11-02
 ### Fixed
 
@@ -1776,7 +1777,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.62...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.63...HEAD
+[0.19.63]: https://github.com/lyear12/citevouch/releases/tag/v0.19.63
 [0.19.62]: https://github.com/lyear12/citevouch/releases/tag/v0.19.62
 [0.19.61]: https://github.com/lyear12/citevouch/releases/tag/v0.19.61
 [0.19.60]: https://github.com/lyear12/citevouch/releases/tag/v0.19.60
