@@ -109,6 +109,17 @@ _HEADING = frozenset(
 #: parts, and a silent zero is the failure this tool exists to prevent.
 _INCLUDE = re.compile(r"\\in(?:put|clude|cludeonly)\s*\{([^}]*)\}")
 
+#: ``\input`` also takes its filename without braces - plain TeX's form, and the
+#: one people type by hand.  ``_INCLUDE`` above only sees the braced spelling,
+#: so ``\input sec/intro`` used to leave ``sec/intro`` in the prose *and* report
+#: no included files: the path was glued into the sentence around a citation,
+#: which is the sentence `draft` proposes a claim for, and the author was told
+#: nothing was missing while a whole section of the paper - its citations
+#: included - was never opened.  Measured: ``We show this in \input sec_intro
+#: and continue`` converted to ``We show this in sec_intro and continue`` with
+#: ``included_files`` returning ``[]``.
+_BARE_INPUT = re.compile(r"\\input\s+(?P<name>[^\s{}%\\]+)")
+
 # Commands whose argument is not prose.
 _DROP_ARGUMENT = frozenset(
     {
@@ -483,7 +494,18 @@ def _convert(text: str) -> str:
                 if name in _DROP_ARGUMENT:
                     cursor = _skip_optional_args(text, end)
                     group = _group_end(text, cursor)
-                    index = group if group > 0 else end
+                    if group > 0:
+                        index = group
+                        continue
+                    if name == "input":
+                        # Plain TeX's brace-less form: the file name is the next
+                        # word, and it is not prose.  Leaving it in glued a path
+                        # into the sentence `draft` reads, so the statement it
+                        # proposed contained `sec_intro`.
+                        bare = _BARE_INPUT.match(text, index)
+                        index = bare.end() if bare else end
+                        continue
+                    index = end
                     continue
                 if name in ("begin", "end"):
                     cursor = _skip_optional_args(text, end)
@@ -563,10 +585,27 @@ def _plain_math(inner: str) -> str:
 
 
 def included_files(tex: str) -> list[str]:
-    """Name the files this document pulls in, in the order it pulls them."""
+    """Name the files this document pulls in, in the order it pulls them.
+
+    Both spellings of ``\\input`` count: ``\\input{sec/intro}`` and the plain
+    TeX ``\\input sec/intro``.  The second one used to be invisible here while
+    it was also left in the prose, so a paper split across files got a clean
+    zero that mentioned neither the missing half nor the stray path.
+
+    The two patterns cannot overlap: ``_INCLUDE`` needs a ``{`` right after the
+    command, and ``_BARE_INPUT`` needs whitespace and then a name that excludes
+    ``{``.  Sorting by position therefore needs no de-duplication between them.
+    """
+    stripped = _drop_inline_verbatim(strip_comments(tex))[0]
+    found: list[tuple[int, str]] = [
+        (match.start(), match.group(1)) for match in _INCLUDE.finditer(stripped)
+    ]
+    found.extend(
+        (match.start(), match.group("name")) for match in _BARE_INPUT.finditer(stripped)
+    )
     seen: list[str] = []
-    for match in _INCLUDE.finditer(_drop_inline_verbatim(strip_comments(tex))[0]):
-        name = match.group(1).strip()
+    for _, name in sorted(found):
+        name = name.strip()
         if name and name not in seen:
             seen.append(name)
     return seen

@@ -3998,3 +3998,48 @@ red (the last one only after the mutation was aimed at `scan.py` rather than at
 the test's own assertion, which the first attempt got wrong).
 
 Seen 1.
+
+## A command with two spellings, supported in one, fails twice at once
+
+**Rule.** When a command can be written more than one way, both spellings must
+reach the same handler for *every* consequence of that command - here: the
+argument must leave the prose, and the argument must be reported as a file this
+tool did not read. Implementing one spelling means the other is not "partly
+supported"; it is silently mis-supported, and it does damage in two directions
+at the same time.
+
+**Why this is worse than a missing feature.** `\input sec/intro` (plain TeX,
+no braces) was invisible in two places that each looked correct on their own:
+
+- `to_text` did not drop the argument, so the path stayed in the sentence -
+  `We show this in sec_intro and continue the argument here.` That sentence is
+  the "claim" text `draft` puts in front of the author, so the proposal was
+  built on a sentence the paper does not contain.
+- `included_files` did not see it, so the "this document pulls text in from"
+  note listed nothing. The author was told the tool had read the whole paper
+  while a section - its citations included - was never opened.
+
+Each half produces an output that is internally consistent: the prose reads
+like prose, and the note reads like a complete list. Nothing in the run says
+"one of these is wrong", which is why a single end-to-end check of the braced
+form would never have found it.
+
+**How to apply.** For any command the tool parses, list its spellings from the
+TeX (or TOML, or YAML) grammar rather than from memory: braces are optional
+here, `\include` and `\includeonly` are separate commands, `\verb` and
+comments must not count. Then check *both* consequences for each spelling.
+Where the two spellings differ in an edge case - a bare name runs to the next
+whitespace, so it swallows a trailing full stop - write that down in a test
+named after the difference rather than smoothing it over.
+
+**Evidence.** A two-line `.tex`. Before: `to_text` returned `'We show this in
+sec_intro and continue the argument here.\n'` and `included_files()` returned
+`[]`. After: `'We show this in and continue the argument here.\n'` and
+`['sec/intro']`. Three mutations: leave the bare form in the prose -> red; skip
+it when reporting -> red; make the bare pattern only match braces -> red. The
+first mutation reported `ANCHOR MISSING` on the first attempt because the
+quoted anchor started three lines into the branch; a mutation script that
+cannot find its anchor has verified nothing, and must be fixed before its
+verdict is read.
+
+Seen 1.

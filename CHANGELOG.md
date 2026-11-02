@@ -11,6 +11,21 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- `\input` has two spellings and the converter knew one. Plain TeX writes
+  `\input sec/intro`, LaTeX writes `\input{sec/intro}`; only the braced form was
+  dropped from the prose and named in the "this document pulls text in from"
+  note. The bare form did both wrong at once: the file name stayed glued into
+  the sentence (`We show this in sec_intro and continue the argument here.`),
+  which is the sentence `draft` proposes a claim for, *and*
+  `included_files()` returned `[]`, so a paper split across files got a clean
+  zero that named neither the missing half nor the stray word. Measured on a
+  two-line `.tex`: before, `to_text` returned `'We show this in sec_intro and
+  continue the argument here.'` with `included_files() == []`; after, the
+  sentence reads `'We show this in and continue the argument here.'` and the
+  note names `sec/intro`. A bare name runs to the next whitespace, as it does
+  in TeX, so `\input third/three.tex` keeps its extension.
 
 ## [0.19.72] — 2026-11-02
 ### Fixed
