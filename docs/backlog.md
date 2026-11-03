@@ -1322,6 +1322,46 @@ not what changed, but what proves the change works.
   page, and that is a decision rather than an omission - the page is evidence and
   it is read as written.
 
+- [x] **A manuscript citing three sources in one parenthesis was reported as
+  citing none.**
+
+  **What was wrong.** `\cites{a}{b}` and its siblings carry one brace group per
+  source.  The citation pattern in `src/citevouch/latex.py` looked for a name,
+  optional `[...]` arguments and one `{...}`: it stopped at `cite`, and the `s`
+  that follows is neither `*` nor `[` nor `{`.  The command then fell through to
+  the generic rule for a command nobody knows - drop the name, keep the
+  arguments - so every key was left in the prose as a bare word:
+
+  ```
+  \cites{a}{b}                -> 'ab'          sites=[]
+  \parencites{a}{b}           -> 'ab'          sites=[]
+  \cites[1][2]{a}[3][4]{b}    -> '[1][2]a...'  sites=[]
+  \citep{a}                   -> '[@a]'        sites=['a']
+  ```
+
+  **Who is blocked.** Authors using biblatex, which is most of the humanities
+  and most of `latexmk`-driven templates: `draft` reported "0 citation(s) found"
+  about a paper full of them and proposed nothing.  `\fullcite`, `\parencite`,
+  `\textcite`, `\autocite`, `\footcite`, `\smartcite` and `\supercite` were
+  missing from the same table outright, so those produced no proposal either.
+
+  **Done when.** Every plural command converts to a marker carrying all its
+  keys, `citation_sites` reports one site per key, and the singular names all
+  resolve.
+
+  **Done - why it is now true.** `_MULTI_CITE` consumes a run of
+  `([...])?{...}` groups and `_pandoc_multi` joins every key into one marker;
+  the singular table gained the seven biblatex names.  `draft` has its own
+  pattern for LaTeX citations in Markdown with the same gap, fixed the same way,
+  because a table of names retyped in a second place is a table that will be
+  incomplete in the second place.  44 tests over
+  `tests/test_latex_plural_citations.py` and `tests/test_draft_latex_citations.py`;
+  eleven mutations all red across the two files.  Shipped in 0.19.86.
+
+  *Not covered*: the two patterns are still two tables, so a citation command
+  added later has to be added to both.  No manuscript that mixes natbib and
+  biblatex plural forms inside one paragraph was tried.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
