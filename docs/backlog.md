@@ -1585,6 +1585,39 @@ not what changed, but what proves the change works.
   *Not covered*: no real Atom or JATS file from the author's own corpus; the
   fixtures are hand-written from the format specifications.
 
+- [x] **A claim block the parser refused vanished from the pull-request check.**
+  *Done 2026-11-03.*
+  *What was wrong*: the ledger records the claims the parser accepted, so a
+  block it refused - no `id=`, an id used twice, a fence never closed - has no
+  row in it.  `verify` and `check --use-recorded` walk the ledger, so on a
+  manuscript holding one good claim and a second block missing its `id=` they
+  printed `[info] quote-found` and `1 claim - 1 verified` and exited 0, while
+  `scan` on the same tree exited 1 with `[high] claim-uncheckable at
+  manuscript.md:9`.  Measured on all three shapes (no-id, duplicate, unclosed).
+  *Who is blocked*: every contributor.  `action.yml` runs
+  `check --use-recorded`, so the check a pull request shows is the recorded one.
+  Pasting a second claim block and forgetting its `id=` produced a green tick,
+  and the command that would have said otherwise is the one the job never runs.
+  *Done when*: the recorded verbs report what the parser refused, on the same
+  tree where `scan` reports it.
+  *Done - why it is now true*: `verify` re-parses the manuscript when the
+  ledger's digest proves it describes this exact text (`check_manuscript_hash`
+  and `ledger.manuscript_sha256`), and adds the parser's findings; the
+  empty-ledger branch reuses that parse instead of repeating it.  With
+  `--allow-stale` nothing is re-parsed, because a finding about a paragraph the
+  ledger never recorded would be a verdict about a document this run has not
+  read.  `tests/test_recorded_parse.py` (9 tests) covers the three refused
+  shapes, agreement between the two recorded verbs, two refusals named
+  individually, a clean project staying green, the live `check` not saying it
+  twice, and the `--allow-stale` silence.  Six mutations are red - findings
+  never added, parse only for an empty ledger, parse despite a stale ledger,
+  parse on the digest alone, only the first refusal reported, parser asked
+  about an empty text - `survivors: none`.  Shipped in v0.21.3.
+  *Not covered*: the `unclosed` shape changes its *reason* between paths -
+  `scan` says `claim-block-unclosed`, the recorded path says `quote-missing`
+  with the swallowed tail as the quote.  Both exit 1, so no green build hides
+  it, but the two messages name different problems.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
