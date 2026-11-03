@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.21.3] — 2026-11-03
 ### Fixed
 
 - **A claim block the parser refused no longer disappears from the CI path.**
@@ -27,7 +29,6 @@ tag and that file disagree.
   own findings; with `--allow-stale` it stays silent, because a finding about a
   paragraph the ledger never recorded would be a verdict about a document this
   run has not read.
-
 ## [0.21.2] — 2026-11-03
 ### Fixed
 
@@ -2323,7 +2324,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.3...HEAD
+[0.21.3]: https://github.com/lyear12/citevouch/releases/tag/v0.21.3
 [0.21.2]: https://github.com/lyear12/citevouch/releases/tag/v0.21.2
 [0.21.1]: https://github.com/lyear12/citevouch/releases/tag/v0.21.1
 [0.21.0]: https://github.com/lyear12/citevouch/releases/tag/v0.21.0
