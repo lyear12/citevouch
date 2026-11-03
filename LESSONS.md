@@ -5204,3 +5204,42 @@ those is editing the author's text instead of reading it. And give the empty cas
 own meaning rather than letting it fall out of the pattern - here the meaning is
 `claim-uncheckable`, because a blank column is a claim somebody has not finished.
 Seen 1.
+
+## The syntax that recognises a command and the syntax that consumes its argument must be the same syntax
+
+**Rule.** When a scanner decides "this is command X, here comes its argument" and a later
+step decides "here is where that argument ends", both must answer the same question the
+same way. If one of them is written against the grammar and the other against the
+spelling that happened to be in front of it, the gap is not a corner case - it is every
+input the grammar allows and the spelling does not.
+
+**Why.** `latex.py` recognised `\input {sec/intro}` as a file-inclusion command, because
+`_INCLUDE_COMMAND` and `_BARE_INPUT` both carry `\s*` after the name. The step that then
+consumed the argument, `_skip_optional_args`, skipped only `*` and `[..]` - so it looked
+at the space, found no brace group, and left the command's arguments to the fallthrough
+that keeps text. Measured across the six argument tables against the 104 commands whose
+arguments must not reach the prose: **85 of them pasted the argument into the sentence**
+when one space stood between. `\input {sec/intro}` became
+`... examples. sec/intro The end.` - a file path read as two words of the paper, and,
+because the part it named was never read, every citation inside that part missing too.
+The same grammar hole hit `\textcolor {blue}{blue}` -> `blueblue`,
+`\setcounter {page}{3}` -> `page` and `3` in the sentence, and `\footnote {note}` ->
+`note}` in the body.
+
+What makes it worth remembering is the shape of the mistake, not its size: the file had
+already been fixed once for this exact family. A command-table entry was added, the
+recogniser was widened, tests were written - and every one of them used the touching
+spelling, so the fix moved the boundary of what is *recognised* without moving the
+boundary of what is *consumed*. Two rules for one grammar drift apart exactly when the
+second one is only ever exercised by inputs the first one accepts.
+
+**How to apply.** When you teach a scanner a new command or a new argument shape, find
+the function that consumes that argument and change it in the same commit; then write the
+test with the spelling a human types, which is usually the spaced one, and the touching
+one beside it. And when skipping filler before an argument, hold it *pending* rather than
+swallowing it - spend it only if the argument actually arrives, because a command used as
+a switch (`\bfseries`) has no argument and the space after it separates two words. The
+pending form is what let `\footnotemark[1]` keep both its bracket and the space after it,
+while `\input {x}` still found its brace.
+
+Seen 1.

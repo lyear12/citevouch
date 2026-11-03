@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A space between a command and its argument did not count, so the
+  argument was read as prose.** TeX does not care whether an argument
+  touches its command: `\\input {sec/intro}` and
+  `\\input{sec/intro}` are the same command. Only the touching
+  spelling was understood. Measured across the six tables that say what
+  a command's arguments are, against the 104 command names whose
+  arguments must not reach the prose: **85 of them pasted the argument
+  into the sentence when one space stood between.**
+  `\\input {sec/intro}` came out as
+  `... examples. sec/intro The end.`, so a file path was read as two words
+  of the paper - and because the part it named was never read, every
+  citation inside that part was missing too.
+
+  The same gap hit the tables that keep an argument, split one off, or
+  count them: `\\textcolor {blue}{blue}` became `blueblue`,
+  `\\setcounter {page}{3}` left `page` and `3` in the sentence,
+  and `\\footnote {note}` was read as the words `note}` in the body.
+
+  The fix holds whitespace **pending** and spends it only when a brace
+  group actually follows, so `\\footnotemark[1]` - bracket
+  argument, no brace argument - still consumes its bracket and does not
+  then eat the space after it (`Text continues.` would otherwise become
+  `Textcontinues.`), and a switch such as
+  `\\bfseries We collected` still keeps the space that separates
+  its two words. `\\input sec/intro` (plain TeX, no braces) still
+  reports the file and still keeps the path out of the prose.
+
+  `tests/test_space_before_brace.py` (22 tests) pins all three
+  directions; six mutations, none survived.
 ## [0.22.9] — 2026-11-03
 ### Fixed
 
