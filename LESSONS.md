@@ -4719,3 +4719,26 @@ the opener, comments not being a region, an unterminated comment stopping at the
 opener, and `style` dropped from the region list.
 
 Seen 1.
+
+## Advice is derived from the input, not from the case the check was written for
+
+`source-no-text` was written for a scanned PDF and its one message ended with
+`ocrmypdf <file> out.pdf`.  The same function answered for every format, so an
+empty `empty.txt`, a whitespace-only `blank.md`, `<article/>` and
+`<html><body></body></html>` all received that sentence.  Measured before the
+fix: `found no text at all in empty.txt (1 page(s)); a scan has no text layer,
+and OCR is what turns one into a file that can be searched (for example
+\`ocrmypdf empty.txt out.pdf\`)`.  None of it can work - a text file has no text
+layer, and OCR does not untag a document.
+
+- Rule: when a message tells the reader what to do next, that advice has to be
+  chosen from the input the reader actually has.  A single sentence for a class
+  of inputs is advice written for one member of the class.
+- Why: the tool's answer was right (there is no text) and the next step was
+  wrong, so the reader runs a command that cannot help and concludes the tool is
+  confused.  A correct verdict with wrong advice costs the reader a round trip.
+- How to apply: pass the discriminating fact (here the suffix) all the way to
+  where the sentence is built, including on the cache-hit path, and assert per
+  input that each one reaches *its own* branch.  "No OCR" is not enough - the
+  markup sentence has no OCR either, so a text file that fell into the markup
+  branch passed the first version of the test.  Seen 1.

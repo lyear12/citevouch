@@ -12,6 +12,17 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **An empty `.txt` was told to run OCR on it.** `source-no-text` was written for
+  a scanned PDF, and its one message ended with `ocrmypdf <file> out.pdf`. The
+  same code answers for every format, so an empty or whitespace-only `.txt`,
+  `.md` or `.xml`, and markup whose words are all inside tags, all got that
+  sentence — advice that cannot work on any of them: a text file has no text
+  layer, and OCR does not untag a document. Each format now gets its own reason,
+  and the suffix travels from the extractor to the sentence on both the
+  extraction and the cache-hit path.
+
 ## [0.20.1] — 2026-11-03
 ### Fixed
 

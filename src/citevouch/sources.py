@@ -408,7 +408,7 @@ def _markup_pages(path: str | Path) -> list[str] | None:
     return [_strip_markup(text)]
 
 
-def _no_text_problem(pages: list[PageText], path: Path) -> Finding | None:
+def _no_text_problem(pages: list[PageText], path: Path, suffix: str = ".pdf") -> Finding | None:
     """A file that yielded no text at all, said in the words that fix it.
 
     Two very different files reach this point looking identical: a scan of a
@@ -418,16 +418,30 @@ def _no_text_problem(pages: list[PageText], path: Path) -> Finding | None:
     verdict about the author's quote when the fact is about their PDF, and the
     fix it suggests (install pypdf) is already done.  Naming the real problem
     costs one sentence and saves a user who assumes the tool is broken.
+
+    The advice depends on the format, though.  An empty ``.txt`` was told to
+    run ``ocrmypdf page.txt out.pdf``: there is no text layer in a text file,
+    and no OCR can put words in a file that has none - the author's problem is
+    the file, and the sentence sent them to install a tool for it.
     """
     if any(page.text.strip() for page in pages):
         return None
+    if suffix in (".html", ".htm", ".xml"):
+        advice = (
+            "the markup holds no visible text - every word is inside a tag, a "
+            "script, a style sheet or a comment"
+        )
+    elif suffix in (".txt", ".md", ".text"):
+        advice = "the file is empty, or holds nothing but whitespace"
+    else:
+        advice = (
+            "a scan has no text layer, and OCR is what turns one into a file "
+            "that can be searched (for example "
+            f"`ocrmypdf {path.name} out.pdf`)"
+        )
     return Finding(
         code="source-no-text",
-        message=(
-            f"found no text at all in {path.name} ({len(pages)} page(s)); a scan "
-            "has no text layer, and OCR is what turns one into a file that can be "
-            "searched (for example `ocrmypdf {0} out.pdf`)".format(path.name)
-        ),
+        message=f"found no text at all in {path.name} ({len(pages)} page(s)); {advice}",
         path=str(path),
     )
 
@@ -479,7 +493,7 @@ def extract_pages(
             # the first run reports source-no-text and every run after it,
             # reading the same empty pages out of the cache, reports
             # quote-missing instead.
-            return cached, _no_text_problem(cached, path)
+            return cached, _no_text_problem(cached, path, suffix)
 
     # Whichever reader answers is the one recorded. Naming it from the suffix
     # alone would claim pypdf for files only pdftotext could open, and then
@@ -512,7 +526,7 @@ def extract_pages(
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
     _store_cache(root, sha, pages, used)
-    return pages, _no_text_problem(pages, path)
+    return pages, _no_text_problem(pages, path, suffix)
 
 
 def _unreadable_message(path: Path) -> str:
