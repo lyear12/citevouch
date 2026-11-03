@@ -4518,3 +4518,39 @@ the whole suite rather than merely untested: when the bare text does not match
 either, the two readings agree, so no input separates them.
 
 Seen 1.
+
+## A table of names retyped in a second place is a table that will be
+incomplete in the second place
+
+**Rule.** When two readers have to recognise the same family of syntax, they
+must share one table. Writing the names out twice does not create a second
+opinion, it creates a second chance to forget one.
+
+**Why this keeps happening.** Each pattern was written by someone reading the
+format it parses, which is the right way to write it and the wrong way to keep
+it right. `latex.py` lists the citation commands it converts; `draft.py` lists
+the citation commands it can find in Markdown that has not been converted yet.
+They were written at different times for different readers, both correctly, and
+they diverged - `latex.py` gained `parencite` and `textcite` while `draft.py`
+never did, and neither had the plural forms, because a plural command's shape is
+different and neither author had met one.
+
+**How to apply.** Put the names in a module both readers import, next to the
+pattern that uses them, and test them **as a list**: one test per name, driven by
+the table, so a name dropped from the table is a failing test rather than a
+silently smaller table. If two tables cannot be merged yet, write a test that
+asserts they are equal - a comment saying "keep these in sync" is not a
+mechanism.
+
+**The tell.** A `re.compile` whose alternatives are a hand-written `|` list of
+domain names, in a file that has a sibling file with a similar list.
+
+**Evidence.** `\cites{a}{b}` came out as `'ab'` with no citation site at all:
+the pattern stopped at `cite`, and `s` is neither `*` nor `[` nor `{`, so the
+command fell to the generic rule that drops a name and keeps the arguments.
+`\fullcite`, `\parencite`, `\textcite`, `\autocite`, `\footcite`,
+`\smartcite` and `\supercite` were missing from the same table, and the same
+seven were missing from `draft.py`'s table. 44 tests now, one per name in each
+file, plus eleven mutations across the two. Shipped in 0.19.86.
+
+Seen 1.
