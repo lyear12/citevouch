@@ -2094,6 +2094,48 @@ not what changed, but what proves the change works.
   hand-written from the documented syntax. A leading space on the first
   branch is unobservable because `to_text` collapses runs of spaces,
   so that mutation is equivalent and was dropped rather than papered over.
+### Fixed: a starred definition deleted the rest of the document
+
+- [x] **A starred definition ate the file, and the xparse commands left their
+  macro body in the prose.**
+
+  *What was wrong.*
+
+  `_definition_end` translated "the group I expected was not here" into
+  `len(text)`. One character was enough to trigger it: `\newcommand*{...}` puts
+  a `*` where a brace was expected, `_group_end` answers `-1`, and the
+  definition consumed everything after it. Measured on
+  `A. \newcommand*{\x}{y} The grammar is large.` the converted text was `A.` — 32
+  characters gone, no finding. Six spellings take the star
+  (`newcommand`, `renewcommand`, `providecommand`, `DeclareRobustCommand`,
+  `newenvironment`, `renewenvironment`). Separately, the four xparse
+  `...DocumentCommand` names take three groups (name, argument
+  specification, body) and the generic path consumed two, so
+  `\NewDocumentCommand{\seecite}{m}{see \citep{#1}}` put `see [@#1]` into the prose and made `draft`
+  report a citation to the key `#1` — a source the paper never cites,
+  handed to the author to paste into a claim block.
+
+  *Who was blocked.* Any author whose preamble uses the starred spelling,
+  which is what `\newcommand*` exists for; and any xparse user, because the invented
+  `#1` citation is the one output that could be pasted into a paper.
+
+  *Done when.* The star is skipped, the four xparse names are a separate
+  shape, and a definition that cannot be read to its end stops where it
+  started reading.
+
+  *Done — why it is now true.* `tests/test_definition_star_and_xparse.py`
+  (38 tests) covers the six starred spellings, the four xparse names with
+  and without a body group, the etoolbox `...x` spellings staying on the
+  generic path (a trailing group after one is kept, after an xparse
+  definition it is the body), and four unreadable shapes asserting the
+  tail of the document survives. Six mutations, all red: star not skipped,
+  space after the star not skipped, xparse on the generic path, xparse body
+  left in the prose, etoolbox swept into the xparse set, unreadable
+  definition swallowing the rest.
+
+  *Not covered.* No real `.tex` file that defines commands through a
+  package; whether any xparse command takes more than three mandatory
+  groups.
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
