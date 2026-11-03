@@ -15,6 +15,37 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **The skipped-block finding covered one dialect and left the other two silent.**
+  *Done 2026-11-04.*
+  *What was wrong.* `claim-block-unread` (0.22.5) reported a claim fence that a
+  blockquote, a list item or an indent had put out of Markdown's reach. The format
+  has three openers - a fence, an `<!-- claim` comment and a table row - and the
+  detector matched only the first. Measured on a project holding one good fenced
+  block plus one wrapped block, with `sources.toml` mapping `paper = "page.txt"`:
+  `scan` and `check` each exited **0** with a ledger of `['c1']` for a wrapped
+  comment, a blockquoted comment, an indented table row and a blockquoted table
+  row, and the second block's id was in no finding and in no ledger row. `check`
+  called those runs a verification.
+  *Who was blocked.* Anyone who writes claim blocks as comments or table rows - the
+  two dialects the READMEs advertise equally - and wraps one in a list item, which
+  is where a claim about a single example naturally goes. They get a green run and
+  a verified count that is short by one.
+  *Done when.* Every wrapped block is named on the line the author wrote, whatever
+  dialect opened it, and the three findings say which construct was found.
+  *Done - why it is now true.* `_WRAPPED` is one table of `(dialect, pattern)` with
+  an entry per opener, the table opener is `_TABLE_CLAIM.pattern[1:]` rather than a
+  retyped copy of it, both call sites read it, and `_UNREAD_REASON` gives each
+  dialect its own sentence. `tests/test_skipped_claim_blocks.py` gained
+  `TestTheOtherTwoDialectsAreNotSilentEither`: the five shapes measured above are
+  parametrized, `scan` and `check --use-recorded` must each exit 1, the three
+  messages must be different sentences, a block at the left margin must still
+  parse, and a four-backtick sample that shows all three openers must stay quiet.
+  Nine tests were red before the patch, 32 pass after it; seven mutations against
+  `_WRAPPED`, `_CONTAINER`, `_UNREAD_REASON` and `_id_from_opener` all went red
+  with no survivors.
+  *Not covered.* The container grammar is the same one a Markdown renderer applies,
+  so a table row inside a blockquote has not been compared against a real renderer;
+  the fixtures are hand-written.
 - [x] **`doctor` counted a manuscript by the blocks it managed to read.**
   *Done 2026-11-04.*
   *What was wrong.* The `claims` line prints how many claim blocks a manuscript
