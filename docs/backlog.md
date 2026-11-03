@@ -1665,6 +1665,21 @@ would a person actually have on disk", not by reading the code.
   the first version did: that library is not installed on CI, so the tests
   skipped, and the lint job fails on any skip.
 
+- [x] **A word-processing document.** A `.docx` is a zip. Neither PDF reader
+  reads it, so the plain-text fallback did - and decoded the zip into 120
+  characters of valid-looking nonsense, which became page 1. The run then
+  reported `[high] quote-missing ... quote not found in paper.docx`: a verdict
+  about the author's quote when the fact was about the file format. *Done in
+  v0.20.0:* `source-not-text` (medium) reads the file's own first bytes and
+  names what the document is and how to convert it. The noise-ratio idea was
+  measured and rejected - a PNG is only 1.6% control characters, so no
+  threshold separates "prose with the odd NUL" from "image bytes". Two things
+  make this more than a message change: a suffix the author stated (`.txt`) is
+  still read as text even when it starts with `PK`, and the refusal sits above
+  the cache, because an entry written before the check existed holds the zip
+  spelled as characters and would answer for the file forever. Four mutations
+  are red.
+
 - [ ] **A right-to-left manuscript: two producers, two different defects.**
   *Measured 2026-11-01 on real RTL PDFs. Needs a design, so not done in one
   run.* The earlier note asked whether extraction *reorders* runs on an RTL
