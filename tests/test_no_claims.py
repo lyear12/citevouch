@@ -37,6 +37,8 @@ REAL = "# P\n\n```claim id=c1 source=a\nquote: |\n  The corpus has 100 utterance
 FOUR_TICKS = "# P\n\n````claim id=c1 source=a\nThe corpus has 100 utterances.\n````\n"
 CAPITAL = "# P\n\n```Claim id=c1 source=a\nThe corpus has 100 utterances.\n```\n"
 HTML = "# P\n\n<!-- claim: c1 source=a\n>> The corpus has 100 utterances.\n-->\n"
+NL = chr(10)
+
 TABLE = "# P\n\n| c1 | a | 1 | The corpus has 100 utterances. | The corpus is small. |\n"
 # A README that documents the syntax: one example, indented so Markdown
 # renders it as a code sample, and no real claim anywhere.
@@ -48,6 +50,41 @@ INDENTED = """A README line, then the syntax shown indented:
     ```
 
 Then the rest of the paper."""
+
+
+QUOTED = """# P
+
+> ```claim id=c2 source=a
+> quote: |
+>   The corpus has 100 utterances.
+> ```"""
+
+QUOTED_COMMENT = """# P
+
+> <!-- claim: c2 source=a
+> >> The corpus has 100 utterances.
+> -->"""
+
+QUOTED_TABLE = """# P
+
+> | c2 | a | 1 | The corpus has 100 utterances. | The corpus is small. |"""
+
+LISTED = """# P
+
+- ```claim id=c2 source=a
+  quote: |
+    The corpus has 100 utterances.
+  ```"""
+
+INDENTED_COMMENT = """# P
+
+  <!-- claim: c2 source=a
+  >> The corpus has 100 utterances.
+  -->"""
+
+INDENTED_TABLE = (
+    "# P\n\n  | c2 | a | 1 | The corpus has 100 utterances. | The corpus is small. |"
+)
 
 
 class TestWhatGetsReported:
@@ -455,3 +492,89 @@ class TestTheAdviceCanBeFollowed:
         findings = scan(ScanOptions(manuscript="paper/m.md", root=str(root)))[1]
         finding = next(f for f in findings if f.code == "no-claim-blocks")
         assert finding.path == "m.md"
+
+
+# A claim block inside a blockquote, a list item or an indent is not readable
+# as a claim - Markdown renders it as a code sample - but it is also not
+# absent, and a file holding only such blocks used to say "This file has none".
+# The parser's own `_WRAPPED` table knows these lines; the zero-claim path in
+# `scan._no_claim_blocks_finding` was written before that table existed.
+WRAPPED = {
+    "blockquoted fence": (QUOTED, "the fence is inside"),
+    "blockquoted comment": (QUOTED_COMMENT, "the `<!-- claim` opener is inside"),
+    "blockquoted table": (QUOTED_TABLE, "the table row is inside"),
+    "listed fence": (LISTED, "the fence is inside"),
+    # An indented comment is caught by `_CLAIMISH`, which allows the indent,
+    # so it takes the near-miss branch - which now names the dialect too.
+    "indented comment": (INDENTED_COMMENT, "indented comment"),
+    "indented table": (INDENTED_TABLE, "the table row is inside"),
+}
+
+
+def _findings(tmp_path: Path, manuscript: str):
+    root = _project(tmp_path, manuscript)
+    _ledger, findings = scan(ScanOptions(manuscript="m.md", root=str(root)))
+    return findings
+
+
+class TestAWrappedBlockIsStillABlockInTheFile:
+    @pytest.mark.parametrize("name", sorted(WRAPPED))
+    def test_the_message_does_not_say_the_file_has_none(self, tmp_path: Path, name: str):
+        """The line is right there. Saying it is not is a false sentence."""
+        manuscript, _expected = WRAPPED[name]
+        message = _findings(tmp_path, manuscript)[0].message
+        assert "This file has none" not in message, message
+        assert "line 3" in message, message
+
+    @pytest.mark.parametrize("name", sorted(WRAPPED))
+    def test_the_message_names_the_construct_that_was_written(self, tmp_path: Path, name: str):
+        """Three dialects, three fixes; one sentence cannot serve all three."""
+        manuscript, expected = WRAPPED[name]
+        assert expected in _findings(tmp_path, manuscript)[0].message
+
+    def test_several_wrapped_blocks_are_counted_not_merely_mentioned(self, tmp_path: Path):
+        body = QUOTED + NL + QUOTED_TABLE + NL + INDENTED_COMMENT + NL
+        message = _findings(tmp_path, body)[0].message
+        assert "3 claim blocks in this file are written this way" in message, message
+        # The near-miss branch names the first line it can see, which is the
+        # indented comment; the count covers all three wrapped blocks.
+        assert "line 12 reads like a claim block" in message, message
+
+    def test_two_blockquoted_blocks_are_counted_in_the_other_branch(self, tmp_path: Path):
+        """`_CLAIMISH` cannot see past a `>`, so this file reaches the other branch.
+
+        Mutating that branch's count to one survived every other test, because
+        the only multi-block case mixed in an indented block and took the
+        near-miss branch instead.
+        """
+        body = QUOTED + NL + QUOTED_TABLE + NL
+        message = _findings(tmp_path, body)[0].message
+        assert "2 claim blocks in the file" in message, message
+        assert "This file has none" not in message, message
+
+    def test_the_first_wrapped_line_is_the_one_named(self, tmp_path: Path):
+        body = QUOTED + NL + QUOTED_TABLE + NL
+        message = _findings(tmp_path, body)[0].message
+        assert "the first is on line 3" in message, message
+
+    def test_one_block_is_named_as_one(self, tmp_path: Path):
+        message = _findings(tmp_path, QUOTED + NL)[0].message
+        assert "1 claim block" in message, message
+        assert "line 3 opens one" in message, message
+
+    def test_the_finding_carries_the_line_the_reader_can_open(self, tmp_path: Path):
+        assert _findings(tmp_path, QUOTED + NL)[0].line == 3
+
+
+class TestTheIndentSentenceNamesTheDialectWritten:
+    def test_an_indented_comment_is_not_called_a_fence(self, tmp_path: Path):
+        """An indented fence and an indented comment reach the same branch."""
+        message = _findings(tmp_path, INDENTED_COMMENT + NL)[0].message
+        assert "indented comment" in message, message
+        assert "indented fence" not in message, message
+        assert "code sample" in message, message
+
+    def test_an_indented_fence_is_still_called_a_fence(self, tmp_path: Path):
+        message = _findings(tmp_path, INDENTED)[0].message
+        assert "indented fence" in message, message
+        assert "indented comment" not in message, message

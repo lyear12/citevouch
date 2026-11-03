@@ -5149,3 +5149,30 @@ when all three findings share one generic message is a test that will let the ne
 be added silently.
 
 *Seen 1.*
+
+## A sentence about where to look is not a sentence about what is there
+
+**Rule.** When a message explains *why nothing matched*, the matcher it uses has to be the one
+the parser uses. A second, hand-written "roughly like a claim block" pattern is a second answer
+to the same question, and it will be right about fewer files.
+
+**Why.** `scan._no_claim_blocks_finding` explains a zero-claim run with `_CLAIMISH`, whose
+`^\s*` prefix cannot cross a `>` or a `- `. A manuscript holding only blockquoted or listed
+claim blocks therefore matched nothing, and the tool printed
+
+> a claim block opens with three backticks, the word `claim`, then `id=` and `source=`. This
+> file has none.
+
+over a file whose first line was `> ```claim id=c2 source=paper page=1`. Measured: three files,
+one per dialect, all three said it, all three with `line 0`. The parser already had `_WRAPPED`,
+a table of exactly those shapes; the zero-claim path was written before it and never learned.
+
+**How to apply.** Route the explanation through the parser's own table (`_unread_opener`) rather
+than through a second regex, so a dialect added to the parser is a dialect the message knows
+about. When the message names a construct, take the noun from the table entry the line actually
+matched, not from the branch the code happens to be in - the indent branch called an indented
+comment a fence for exactly that reason. And when several lines share the defect, print the
+count: naming one line sends the author back for a second run.
+
+**Seen 1.**
+

@@ -17,7 +17,13 @@ from . import __version__
 from .bibtex import parse_bib
 from .errors import UsageError, why_not_a_file
 from .latex import looks_like_latex
-from .manuscript import _CLAIMISH, parse_manuscript, scan_unbound_markers
+from .manuscript import (
+    _CLAIMISH,
+    _UNREAD_REASON,
+    _unread_opener,
+    parse_manuscript,
+    scan_unbound_markers,
+)
 from .model import Finding, Ledger, SourceRef
 from .sources import (
     SourceTable,
@@ -30,7 +36,7 @@ from .sources import (
     sha256_file,
 )
 from .sources import _resolve as sources_resolve
-from .textnorm import read_text
+from .textnorm import count_of, read_text
 
 
 @dataclass
@@ -115,6 +121,38 @@ def _no_claim_blocks_finding(
         (number for number, line in enumerate(lines, start=1) if _CLAIMISH.match(line)),
         None,
     )
+    # A claim block inside a blockquote, a list item or an indent is not a near
+    # miss of the left margin - `_CLAIMISH` cannot see past the marker - but it
+    # is still a claim block in the file, and "this file has none" is a false
+    # sentence about a line the author is looking at.  `_WRAPPED` is the
+    # parser's own table, so this path and a run that does accept claims name
+    # the construct the same way.
+    wrapped = [
+        (number, hit[0])
+        for number, line in enumerate(lines, start=1)
+        if (hit := _unread_opener(line)) is not None
+    ]
+    if near is None:
+        if wrapped:
+            number, dialect = wrapped[0]
+            count = count_of(len(wrapped), "claim block")
+            opening = (
+                f"line {number} opens one"
+                if len(wrapped) == 1
+                else f"the first is on line {number}"
+            )
+            detail = (
+                f"{count} in the file, none of which the parser accepts - "
+                f"{opening}, and {_UNREAD_REASON[dialect]}. The line is:\n"
+                f"    {lines[number - 1].strip()[:100]}\n"
+                "Nothing in this file was checked."
+            )
+            return Finding(
+                code="no-claim-blocks",
+                message=f"{path} contains no claim blocks, so nothing was checked: {detail}",
+                path=path,
+                line=number,
+            )
     if near is None:
         detail = (
             "a claim block opens with three backticks, the word `claim`, then "
@@ -141,16 +179,31 @@ def _no_claim_blocks_finding(
         elif "claim" not in line:
             why = "the keyword is spelled in a case the parser does not accept"
         elif indent:
+            # The noun has to be the one the reader wrote.  An indented
+            # `<!-- claim` line and an indented fence both land here, and the
+            # sentence used to call both of them fences.
+            hit = _unread_opener(raw)
+            written = "comment" if hit is not None and hit[0] == "comment" else "fence"
             why = (
-                f"it is indented by {indent} space(s), and an indented fence is a "
-                "code sample in Markdown, not a claim: start it at the left margin"
+                f"it is indented by {indent} space(s), and an indented {written} is "
+                "a code sample in Markdown, not a claim: start it at the left margin"
             )
         else:
             why = "claim fences are three backticks followed by the word `claim`"
+        # One named line is not the whole answer when the file holds several
+        # blocks written the same way: the author fixes the line, runs again,
+        # and meets the next one.  `wrapped` is empty for the shapes only
+        # `_CLAIMISH` can see past, so this stays quiet when there is nothing
+        # more to say.
+        rest = (
+            f"{count_of(len(wrapped), 'claim block')} in this file are written this way. "
+            if len(wrapped) > 1
+            else ""
+        )
         detail = (
             f"line {near} reads like a claim block but is not one the parser "
             f"accepts ({why}). The line is:\n    {line[:100]}\n"
-            "Nothing in this file was checked."
+            f"{rest}Nothing in this file was checked."
         )
     return Finding(
         code="no-claim-blocks",

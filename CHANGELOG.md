@@ -11,6 +11,33 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A file whose only claim blocks were wrapped told its author that it had none.** With no
+  accepted claim, `scan` builds one `no-claim-blocks` finding to explain why nothing was
+  checked. That explanation looks for the nearest claim-shaped line using `_CLAIMISH`, whose
+  `^\s*` prefix stops dead at a `>` or a `- `, so a manuscript holding only blockquoted or
+  listed blocks matched nothing and the message ended, over a file whose first line was the
+  block, with:
+
+  > a claim block opens with three backticks, the word `claim`, then `id=` and `source=`. This
+  > file has none.
+
+  Measured on three files, one per dialect, each holding exactly one wrapped block and nothing
+  else: all three said "This file has none", with `line 0` - the code base's "no line at all".
+  The parser's own `_WRAPPED` table already knew those lines; the zero-claim path was written
+  before that table existed.
+
+  The same path also called every indented block a fence. `_CLAIMISH` *can* see an indent, so
+  an indented `<!-- claim` line reached the near-miss branch and was told that "an indented
+  fence is a code sample in Markdown" - about a line with no fence on it.
+
+  Both are fixed: the wrapped blocks are now found through `_unread_opener`, each dialect is
+  described with its own reason (the same `_UNREAD_REASON` sentences `claim-block-unread`
+  uses), the count is the number of wrapped blocks in the file, the finding carries the line
+  the reader can open, and the indent sentence names the construct that was actually written.
+  A file holding several blocks written the same way is now counted rather than described one
+  at a time.
 
 ## [0.22.7] — 2026-11-03
 ### Fixed
