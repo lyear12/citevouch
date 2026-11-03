@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- A quote the author wrapped in quotation marks is now recognised as the
+  quote it is.  The marks are how a manuscript introduces somebody else's
+  words, and they are not on the page unless the page quoted somebody too,
+  so a sentence copied out of the source and put in quotes matched no tier
+  and came back as `quote-fuzzy` at high severity - with a message that
+  contradicted itself: "the source has a similar passage but not these
+  words verbatim (closest passage, page 1, similarity 1.00)".  Measured on
+  a page holding the sentence bare: `tier='fuzzy' similarity=1.000` before,
+  `tier='exact'` after.  Eleven bracket pairs are peeled - `"` `'` and the
+  curly, corner, white-corner, book-title, angle, lenticular, tortoise and
+  halfwidth CJK forms - but only when the pair matches and there is
+  something between the marks.  The retry is only accepted when it finds
+  the quote: a weaker verdict about text the author did not write is not an
+  improvement on the verdict about the text they did.
 
 ## [0.19.84] — 2026-11-02
 ### Fixed

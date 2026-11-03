@@ -4476,3 +4476,45 @@ with spaces, floor bypassed, page side uncounted - all red, the second only
 after a no-space `构式used` case was added.
 
 Seen 1.
+
+## A character set says which characters are the same, not which ones belong
+
+**Rule.** Normalising a family of marks into one character answers "are these
+the same mark". It does not answer "is this mark part of the text". A quote in
+quotation marks and the same quote bare are the same words and different
+strings, and only the second question can tell you that.
+
+**Why this keeps happening.** The two questions live in one function because
+one function is where the marks already were. `_EQUIV` was written to make the
+curly and straight quotes compare equal, which is right, and it was the only
+place quotes appeared, so nobody asked the second question: the code was doing
+the whole job it had been given, and the job it had been given was half of the
+job that was needed. The failure is loud and self-contradicting - `[high]
+quote-fuzzy ... not these words verbatim (closest passage, page 1, similarity
+1.00)` - and it fires on the exact shape a humanities manuscript uses on every
+page to introduce a quotation.
+
+**How to apply.** When a normaliser maps a set of characters to one, ask of
+each member whether it is *equivalent* or *decorative*; equivalence goes in the
+normaliser, decoration needs a stripper of its own. Then make the stripper
+conservative in three ways, because a mark can also be text (a book title's
+`《》`): peel only on a matched pair, stop when what is left is empty, and
+accept the second reading only when it produces a *stronger* verdict - a weaker
+verdict about text the author did not write is not an improvement on the
+verdict about the text they did.
+
+**The tell.** A dictionary that maps eleven characters to one is a statement
+that those eleven are interchangeable; if any of them can also mean something
+in the text, that statement is only true for the comparison it was written for.
+
+**Evidence.** On a page holding the sentence bare, `bare` came back
+`tier='exact'`, and the same sentence in straight quotes, curly quotes, single
+quotes, `「」` and `《》` all came back `tier='fuzzy' similarity=1.000` at high
+severity. After the retry they are all `tier='exact'`. 25 tests in
+`tests/test_wrapped_quotes.py`; six mutations, five red - no retry, peel one
+layer only, peel an empty pair to nothing, drop the CJK pairs, peel the page
+instead of the quote - and the sixth recorded here because it is equivalent on
+the whole suite rather than merely untested: when the bare text does not match
+either, the two readings agree, so no input separates them.
+
+Seen 1.

@@ -137,6 +137,63 @@ def strip_format(text: str) -> str:
     return _FORMAT.sub("", text)
 
 
+# Characters people put *around* a quote without quoting them.  A source
+# sentence is the words inside; the marks are the author's way of saying "these
+# are somebody else's words", and they are not on the page unless the page
+# quoted somebody too.
+#
+# Every pair here was measured against a page holding the sentence bare, and
+# every one of them produced the same wrong verdict before this table existed:
+# `quote-fuzzy` at high severity, on a quote whose own text is verbatim, with
+# the message "the source has a similar passage but not these words verbatim
+# (similarity 1.00)".  A tool that says "not verbatim, similarity 1.00" is
+# contradicting itself in one sentence, and it is doing so about the shape a
+# humanities manuscript uses on every page.
+#
+# Straight marks survive `_EQUIV`, which maps the curly forms onto them, so
+# both spellings have to be listed: the pair is matched against the *raw* text
+# the author typed, before normalisation has decided what it means.
+_QUOTE_PAIRS = {
+    '"': '"',
+    "'": "'",
+    "\u201c": "\u201d",
+    "\u2018": "\u2019",
+    "\u300c": "\u300d",  # 「」
+    "\u300e": "\u300f",  # 『』
+    "\u300a": "\u300b",  # 《》
+    "\u3008": "\u3009",  # 〈〉
+    "\u3010": "\u3011",  # 【】
+    "\u3014": "\u3015",  # 〔〕
+    "\uff62": "\uff63",  # ｢｣
+}
+
+
+def strip_wrapping_quotes(text: str) -> str:
+    """``text`` with the quotation marks that wrap it removed.
+
+    Only a *matched* pair is removed, and only while the remainder still holds
+    something: ``\u201cabc\u201d`` loses both marks, ``\u201cabc`` loses
+    nothing, and ``\u201c\u201d`` is left alone rather than becoming empty.
+
+    This is not ``normalize``'s job.  Normalisation folds the *character* - it
+    turns ``\u201c`` into ``"`` so that two spellings of the same mark compare
+    equal - and that is the right decision for a comparison between two
+    documents.  Whether a mark belongs to the sentence at all is a different
+    question, and the answer is "no" when the author put it there to introduce
+    somebody else's words.
+    """
+    stripped = text
+    while len(stripped) >= 2:
+        closer = _QUOTE_PAIRS.get(stripped[0])
+        if closer is None or stripped[-1] != closer:
+            break
+        inner = stripped[1:-1]
+        if not inner.strip():
+            break
+        stripped = inner
+    return stripped
+
+
 def normalize(text: str) -> str:
     """Normalise for comparison; the result is single-spaced and lowercased-free.
 

@@ -62,6 +62,7 @@ from .textnorm import (
     fold_keeping_hyphen,
     fold_pasted,
     squash,
+    strip_wrapping_quotes,
 )
 
 # A quote must be at least this long before fuzzy matching is allowed to opine.
@@ -401,6 +402,39 @@ def find_in_pages(
     page_hint: int | None = None,
 ) -> Match:
     """Locate ``quote`` in ``pages``, preferring ``page_hint`` if it is given.
+
+    A quote the author wrapped in quotation marks is tried again without them.
+    The marks are the author's way of saying "these are somebody else's words";
+    they are not on the page unless the page quoted somebody too, so a verbatim
+    sentence in quotes matched no tier and came back ``quote-fuzzy`` at high
+    severity - "not these words verbatim (similarity 1.00)", which contradicts
+    itself.  Measured on the same page and quote, before this retry existed:
+
+        quote:  \u201cThe method works on every corpus we tried.\u201d
+        before: tier='fuzzy' similarity=1.000  -> [high] quote-fuzzy
+        after:  tier='exact' similarity=1.000  -> [info] quote-found
+
+    The retry is only *accepted* when it finds the quote: a weaker verdict from
+    a text the author did not write is not an improvement on a stronger one
+    about the text they did.  So a wrapped quote that is genuinely absent still
+    reports what the unwrapped search reported.
+    """
+    match = _find_in_pages(quote, pages, page_hint)
+    if match.found:
+        return match
+    bare = strip_wrapping_quotes(quote)
+    if bare == quote:
+        return match
+    retried = _find_in_pages(bare, pages, page_hint)
+    return retried if retried.found else match
+
+
+def _find_in_pages(
+    quote: str,
+    pages: list[PageText],
+    page_hint: int | None = None,
+) -> Match:
+    """The search itself, without the quotation-mark retry.
 
     The hint is a *preference*, not a filter: manuscripts routinely say "p. 214"
     when the PDF's internal numbering starts at the cover.  When the hinted page
