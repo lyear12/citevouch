@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.7] — 2026-11-03
 ### Fixed
 
 - **The skipped-block finding covered one dialect and left the other two silent.** The
@@ -36,7 +37,6 @@ tag and that file disagree.
   finding names the construct it actually found: a fence, a `<!-- claim` opener or a table
   row, because "move it to the left margin" is only the whole fix for one of the three.
   `doctor`'s `claims` count follows for free - it counts the fences this finding names.
-
 ## [0.22.6] — 2026-11-03
 ### Fixed
 
@@ -2515,7 +2515,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.6...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.7...HEAD
+[0.22.7]: https://github.com/lyear12/citevouch/releases/tag/v0.22.7
 [0.22.6]: https://github.com/lyear12/citevouch/releases/tag/v0.22.6
 [0.22.5]: https://github.com/lyear12/citevouch/releases/tag/v0.22.5
 [0.22.4]: https://github.com/lyear12/citevouch/releases/tag/v0.22.4
