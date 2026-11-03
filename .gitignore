@@ -21,3 +21,4 @@ demo/.citevouch/
 # deleted afterwards.  One got swept in by `git add -A` and shipped inside a
 # release commit, so the name is refused by the index from now on.
 _msg.txt
+_msg.tmp
