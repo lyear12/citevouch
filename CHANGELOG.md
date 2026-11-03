@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.5] — 2026-11-03
 ### Fixed
 
 - **A claim block inside a blockquote, a list item or an indent was skipped without a word.**
@@ -30,7 +31,6 @@ tag and that file disagree.
   checked until it is. A file with no claims at all still gets `no-claim-blocks` and not both, and
   a fence inside a code sample is still silent, because sample text is not a claim the parser
   failed to read.
-
 ## [0.22.4] — 2026-11-03
 ### Fixed
 
@@ -2474,7 +2474,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.4...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.5...HEAD
+[0.22.5]: https://github.com/lyear12/citevouch/releases/tag/v0.22.5
 [0.22.4]: https://github.com/lyear12/citevouch/releases/tag/v0.22.4
 [0.22.3]: https://github.com/lyear12/citevouch/releases/tag/v0.22.3
 [0.22.2]: https://github.com/lyear12/citevouch/releases/tag/v0.22.2
