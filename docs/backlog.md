@@ -1555,6 +1555,36 @@ not what changed, but what proves the change works.
   and nothing asserts it either way.  `<noscript>` and `<svg>` are asserted to
   stay, which is the opposite decision, not a gap.
 
+- [x] **A quote printed inside a CDATA section was reported missing.** *Done 2026-11-03.*
+  *What was wrong*: `<![CDATA[ ... ]]>` means "nothing in here is markup", and a
+  feed, a JATS article and an OAI-PMH record all deliver prose inside one.
+  `_TAG` matched the entire section as a single tag - `<` followed by `!` is
+  exactly what a doctype looks like - so the section was replaced with a space
+  and its delimiters took its place on the page.  Measured: a source reading
+  `We collected <![CDATA[9,800]]> rolesets.` extracted as
+  `We collected rolesets.`, and the claim quoting that sentence came back
+  `[high] quote-missing at manuscript.md:3 (c1): We collected 9,800 rolesets. —
+  quote not found (too short for a fuzzy comparison) in paper.xml`.
+  *Who is blocked*: anyone citing an XML source - a preprint server's JATS
+  deposit, an Atom feed, an institutional repository's OAI-PMH record.  They are
+  told their quote is not in a file that prints it, and the sentence names the
+  file, so the natural conclusion is that they copied it wrong.
+  *Done when*: the words inside a CDATA section reach the page text, and the
+  delimiters do not.
+  *Done — why it is now true*: `sources._without_cdata` unwraps every section
+  before tag removal, keeps the text of an unterminated one (a truncated save
+  should lose the delimiters, not the document), and `_strip_markup` strips the
+  unwrapped body again so an Atom `type="html"` fragment does not hand `<p>` to
+  the page.  `tests/test_cdata.py` (13 tests) asserts the helper and the
+  verdict: a quote inside CDATA verifies (exit 0), a quote not in the file is
+  still missing (exit 1), a number and several sections survive, `a < b` inside
+  CDATA stays text, and a document with no CDATA is untouched.  Six mutations
+  are red - the unwrapper not called, the body thrown away, an unterminated
+  section losing its words, the terminator not required, the delimiters kept,
+  only the first section unwrapped - `survivors: none`.  Shipped in v0.21.2.
+  *Not covered*: no real Atom or JATS file from the author's own corpus; the
+  fixtures are hand-written from the format specifications.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
