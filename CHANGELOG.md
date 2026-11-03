@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.87] — 2026-11-03
 ### Fixed
 
 - **`draft` read a Pandoc citation as a bare key or not at all.** The
@@ -31,7 +32,6 @@ tag and that file disagree.
   were never stripped by the other: a sentence ending `\cites{a}{b}`
   became `claim: | ... \cites{a}{b}.` - a sentence no human wrote, in
   the one field this command exists to propose.
-
 ## [0.19.86] — 2026-11-03
 ### Fixed
 
@@ -2208,7 +2208,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.86...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.87...HEAD
+[0.19.87]: https://github.com/lyear12/citevouch/releases/tag/v0.19.87
 [0.19.86]: https://github.com/lyear12/citevouch/releases/tag/v0.19.86
 [0.19.85]: https://github.com/lyear12/citevouch/releases/tag/v0.19.85
 [0.19.84]: https://github.com/lyear12/citevouch/releases/tag/v0.19.84
