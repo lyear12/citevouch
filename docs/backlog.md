@@ -2011,6 +2011,31 @@ not what changed, but what proves the change works.
   from the GFM spec. A blockquoted table row is still handled by the wrapped-block
   path, not by the table path.
 
+- [x] **A space between a command and its argument sent the argument into the prose.**
+  `\\input {sec/intro}` was recognised as an include (the name pattern
+  carries `\\s*`) but its argument was consumed by a function that
+  skipped only `*` and `[..]`, so the brace group fell through to the branch
+  that keeps text. Measured across the six argument tables against the 104
+  command names whose arguments must not reach the prose: **85 of them**
+  pasted the argument into the sentence when one space stood between.
+  `\\input {sec/intro}` became `... examples. sec/intro The end.`,
+  `\\textcolor {blue}{blue}` became `blueblue`,
+  `\\setcounter {page}{3}` left `page` and `3` in the sentence, and
+  `\\footnote {note}` put `note}` in the body.
+  *Who was blocked:* anyone writing LaTeX the way the manual writes it - the
+  spaced spelling is at least as common as the touching one, and a reader
+  whose citations live in `\\input {sec/method}` had them all
+  reported missing with a file path quoted as if it were prose.
+  *Done when:* every command in those tables consumes its argument under
+  either spelling, the switch form still keeps its separating space, and
+  `included_files` still names the files. *Done - why it is now true:*
+  `_skip_optional_args` holds whitespace pending and spends it only when a
+  brace group follows, so `*` and `[..]` (arguments in their own right) keep
+  priority. 22 tests in `tests/test_space_before_brace.py`, six mutations, none
+  survived. Released as 0.22.10.
+  *Not covered:* `\\begin{comment}` was not re-probed for the same
+  gap, and no test distinguishes a newline from a space before a brace group
+  (both are treated as whitespace, which is what TeX does).
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
