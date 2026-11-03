@@ -1779,6 +1779,51 @@ not what changed, but what proves the change works.
   blockquote is still silently skipped (no finding, no claim) - same family,
   different round.
 
+
+- [x] **Three citation commands nobody could see.**
+
+  **What was wrong.** Natbib's capitalised forms (`\Citet`, `\Citep`,
+  `\Citeauthor`, `\Citeyear`, `\Citealp`, `\Citealt`, `\Citeyearpar`) were on neither
+  reader's name list. They open a sentence, so they are the first
+  citation anyone reading the paper meets. `\Citet{knuth1984}` reached the
+  page as the bare word `knuth1984`, and `draft` printed `0 claim block(s)
+  proposed: no citations were found to propose them for`.
+  A space or a tab between the command and its brace is legal TeX and is
+  what a reflowed line produces; `\citep[p.~3] {knuth1984}` gave no site
+  either, and `to_text` left `[p. 3] knuth1984` as prose.
+  `draft.py` retyped the name list instead of importing it, and its copy
+  had already lost `citeyearpar`: `\citeyearpar{k}` became `[@k]` in the
+  text `draft` was reading and `draft` still said there were no
+  citations. `Prior work \citep{a} and \citeyearpar{b} agrees.` gave
+  `sites=['a']` and a proposed sentence still carrying raw LaTeX.
+
+  **Who was blocked.** Anybody whose draft arrived half-converted from
+  LaTeX and who cited with a capitalised command - which is what natbib
+  users write at the start of a sentence.
+
+  **Done when.** Both readers reach a site for every name on the table,
+  for a space and a tab before the brace, and agree with each other.
+
+  **Done - why it is now true.** `src/citevouch/latex.py` exports
+  `CITATION_NAMES`, `MULTI_CITATION_NAMES` and `_GAP`; `_CITE`,
+  `_MULTI_CITE`, `_MULTI_ARGUMENT` and `draft.py`'s `_LATEX`,
+  `_LATEX_MULTI`, `_LATEX_ARGUMENT` are all built from them, so a third
+  copy cannot drift. `tests/test_citation_names.py` pins each name
+  against both readers, the space/tab cases, the deliberate newline
+  exclusion, `\mycites{a}{b}` staying unrecognised, the two tables' contents, and two
+  end-to-end `draft` runs. Six mutations, all red: deleting the
+  capitalised entries, `_GAP` narrowed to nothing, `_GAP` widened to
+  include newlines, `_GAP` shrunk to one space, and each of `draft`'s
+  two patterns replaced by a hand-typed shorter list. One false red was
+  caught on the way: mutating by deleting the set literal left `| ,`
+  behind, so the suite failed on a `TypeError` instead of an assertion;
+  the mutant was rewritten to substitute a name nobody writes.
+
+  *Not covered*: a citation split across a line break inside the brace
+  group (`{knuth
+1984}`) is still not a citation, and nothing
+  here changes that.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
