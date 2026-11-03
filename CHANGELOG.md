@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.21.4] — 2026-11-03
 ### Fixed
 
 - **Two claim blocks that share one closing fence are no longer read as one.**
@@ -25,7 +26,6 @@ tag and that file disagree.
   at a nested opener, both blocks become claims, and the missing fence is
   reported as `claim-block-unclosed` naming the line where the second fence
   begins.
-
 ## [0.21.3] — 2026-11-03
 ### Fixed
 
@@ -2338,7 +2338,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.3...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.4...HEAD
+[0.21.4]: https://github.com/lyear12/citevouch/releases/tag/v0.21.4
 [0.21.3]: https://github.com/lyear12/citevouch/releases/tag/v0.21.3
 [0.21.2]: https://github.com/lyear12/citevouch/releases/tag/v0.21.2
 [0.21.1]: https://github.com/lyear12/citevouch/releases/tag/v0.21.1
