@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import matching, sources
+from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
 from .scan import _resolve
 from .textnorm import normalize, numbers_in
@@ -58,20 +59,40 @@ _PANDOC = re.compile(r"\[(?P<body>[^\[\]]*(?<![A-Za-z0-9_.:\-])-?@[A-Za-z0-9_.:\
 _AT_KEY = re.compile(r"(?<![A-Za-z0-9_.:\-])-?@(?P<key>[A-Za-z0-9_.:\-]+)")
 # LaTeX's forms, because much of the audience types Markdown in an editor that
 # still has `.tex` habits and half of a draft arrives already using these.
+#
+# The names come from `latex.py` rather than being typed again here.  When they
+# were typed again, this copy fell behind: `latex.py` knew `citeyearpar` and
+# this list did not, so `to_text` turned `\citeyearpar{k}` into `[@k]` and
+# `draft` then reported "no citations were found" while that marker sat in the
+# text it was reading.  A third copy also silently dropped the second source in
+# `"Prior work \citep{a} and \citeyearpar{b} agrees."`, and the proposal text a
+# reader was invited to paste still contained raw LaTeX.
+#
+# `_GAP` is imported for the same reason: a space between the command and its
+# brace is legal TeX, and the two readers have to agree about which
+# whitespace counts and which does not.
 _LATEX = re.compile(
-    r"\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|nocite"
-    r"|parencite|textcite|autocite|footcite|smartcite|supercite|fullcite)"
-    r"\*?(?:\[[^\]]*\])*\{([^}]*)\}"
+    r"\\(?:"
+    + "|".join(CITATION_NAMES)
+    + r")\*?(?:"
+    + _GAP
+    + r"\[[^\]]*\])*"
+    + _GAP
+    + r"\{([^}]*)\}"
 )
 # A plural citation command takes one brace group per source, so the pattern
 # above reads only the first and reports a manuscript citing three sources at
 # once as citing one.  The list is biblatex's own; `cites` is natbib's.
 _LATEX_MULTI = re.compile(
-    r"\\(?:cites|citeps|citets|citealps|citealts|parencites|textcites"
-    r"|autocites|footcites|smartcites|supercites|fullcites)"
-    r"\*?(?P<arguments>(?:(?:\s*\[[^\]]*\])*\s*\{[^{}]*\})+)"
+    r"\\(?:"
+    + "|".join(MULTI_CITATION_NAMES)
+    + r")\*?(?P<arguments>(?:(?:"
+    + _GAP
+    + r"\[[^\]]*\])*"
+    + _GAP
+    + r"\{[^{}]*\})+)"
 )
-_LATEX_ARGUMENT = re.compile(r"(?:\s*\[[^\]]*\])*\s*\{(?P<keys>[^{}]*)\}")
+_LATEX_ARGUMENT = re.compile(r"(?:" + _GAP + r"\[[^\]]*\])*" + _GAP + r"\{(?P<keys>[^{}]*)\}")
 
 # A sentence ends at terminal punctuation followed by space, or at the end of a
 # paragraph.  `re.split` keeps the text; offsets are recomputed from a scan so

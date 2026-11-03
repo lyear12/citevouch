@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Three citation commands nobody could see.** Natbib's capitalised forms
+  open a sentence, so they are the first citation a reader meets: `\Citet`,
+  `\Citep`, `\Citeauthor`, `\Citeyear`, `\Citealp`, `\Citealt` and
+  `\Citeyearpar` were on neither name list, so `\Citet{knuth1984}` reached the
+  page as the bare word `knuth1984` and `draft` reported that a manuscript
+  citing on its first sentence cited nothing. A space or a tab between the
+  command and its brace - legal TeX, and what a reflowed line produces - was
+  equally invisible: `\citep[p.~3] {knuth}` gave no site at all and `to_text`
+  kept `[p. 3] knuth` as prose. And `draft.py` typed the name list a second
+  time instead of reading `latex.py`'s, so it had already fallen behind:
+  `\citeyearpar{k}` became a `[@k]` marker in the text `draft` was reading and
+  `draft` still said there were no citations, with the marker in front of it.
+  Both readers now build their patterns from one exported table
+  (`CITATION_NAMES`, `MULTI_CITATION_NAMES`, and the shared `_GAP`), so a third
+  copy cannot drift again. A newline is deliberately *not* in the gap: between
+  a command and its mandatory argument a newline is where a missing brace finds
+  the next paragraph's brace group, and reading one paragraph's text as
+  another's citation is the silent wrong answer this module exists to avoid.
+
+## [0.22.2]
+
 ## [0.22.2] — 2026-11-03
 ### Fixed
 

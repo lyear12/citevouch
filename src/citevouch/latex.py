@@ -39,11 +39,100 @@ SUFFIXES = frozenset({".tex", ".ltx", ".latex"})
 
 _BEGIN_DOC = re.compile(r"\\begin\s*\{document\}")
 _END_DOC = re.compile(r"\\end\s*\{document\}")
+#: Every citation command this tool reads, in every spelling natbib and
+#: biblatex give it.  One table, because the copy `draft.py` kept had
+#: already fallen behind: it was missing `citeyearpar`, so a manuscript
+#: citing with it got a `[@key]` marker from `to_text` and no citation site
+#: from `draft` - `draft` then said "no citations were found" while the
+#: marker sat in the very text it was reading.
+#:
+#: The capitalised forms are natbib's, and they are not decoration: an
+#: author writes the capital one when the citation opens a sentence, which
+#: is the first citation anyone reading the paper sees.  Measured before
+#: they were listed, `\Citet{knuth}` reached the page as the bare word
+#: `knuth`, and `draft` proposed nothing at all.
+CITATION_NAMES = tuple(
+    sorted(
+        {
+            "cite",
+            "citep",
+            "citet",
+            "citealp",
+            "citealt",
+            "citeauthor",
+            "citeyear",
+            "citeyearpar",
+            "nocite",
+            "parencite",
+            "textcite",
+            "autocite",
+            "footcite",
+            "smartcite",
+            "supercite",
+            "fullcite",
+        }
+        # natbib's capitalised forms, spelled out rather than derived by
+        # upper-casing the first letter: `\Cite` is not a natbib command and
+        # `\Nocite` is not one either, so deriving them would claim two
+        # commands exist that no author has ever written.
+        | {
+            "Citet",
+            "Citep",
+            "Citealp",
+            "Citealt",
+            "Citeauthor",
+            "Citeyear",
+            "Citeyearpar",
+        },
+        key=len,
+        reverse=True,
+    )
+)
+
+#: The plural commands.  They take one brace group per source, so they need
+#: a pattern of their own; the names come from here for the same reason.
+MULTI_CITATION_NAMES = tuple(
+    sorted(
+        {
+            "cites",
+            "citeps",
+            "citets",
+            "citealps",
+            "citealts",
+            "parencites",
+            "textcites",
+            "autocites",
+            "footcites",
+            "smartcites",
+            "supercites",
+            "fullcites",
+        },
+        key=len,
+        reverse=True,
+    )
+)
+
+#: Whitespace between a citation command and its arguments.  TeX allows a
+#: space there and a reflowed line ends up with one, so `\citep[p.~3] {a}`
+#: is the same citation as `\citep[p.~3]{a}` and used to be invisible: the
+#: key was left as a bare word on the page and `draft` reported that the
+#: manuscript cited nothing.
+#:
+#: A newline is deliberately excluded.  Between a command and its mandatory
+#: argument a newline is where a *missing* brace would find the next
+#: paragraph's brace group, and reading one paragraph's text as another
+#: paragraph's citation is the kind of silent wrong answer this module
+#: exists to avoid.
+_GAP = r"[ \t]*"
+
 _CITE = re.compile(
-    r"\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|citeyearpar"
-    r"|nocite|parencite|textcite|autocite|footcite|smartcite|supercite"
-    r"|fullcite)"
-    r"\*?(?:\s*\[[^\]]*\])*\{([^}]*)\}"
+    r"\\(?:"
+    + "|".join(CITATION_NAMES)
+    + r")\*?(?:"
+    + _GAP
+    + r"\[[^\]]*\])*"
+    + _GAP
+    + r"\{([^}]*)\}"
 )
 
 #: The plural citation commands take one brace group per source, each with
@@ -59,11 +148,15 @@ _CITE = re.compile(
 #:     \parencites{a}{b}   -> 'ab'    sites=[]
 #:     \citep{a}           -> '[@a]'  sites=['a']
 _MULTI_CITE = re.compile(
-    r"\\(?P<name>cites|citeps|citets|citealps|citealts|parencites"
-    r"|textcites|autocites|footcites|smartcites|supercites|fullcites)"
-    r"\*?(?P<arguments>(?:(?:\s*\[[^\]]*\])*\s*\{[^{}]*\})+)"
+    r"\\(?P<name>"
+    + "|".join(MULTI_CITATION_NAMES)
+    + r")\*?(?P<arguments>(?:(?:"
+    + _GAP
+    + r"\[[^\]]*\])*"
+    + _GAP
+    + r"\{[^{}]*\})+)"
 )
-_MULTI_ARGUMENT = re.compile(r"(?:\s*\[[^\]]*\])*\s*\{(?P<keys>[^{}]*)\}")
+_MULTI_ARGUMENT = re.compile(r"(?:" + _GAP + r"\[[^\]]*\])*" + _GAP + r"\{(?P<keys>[^{}]*)\}")
 
 #: Inline commands whose argument TeX prints without interpreting it. The
 #: delimiter is any character the author picks, so there is no brace group to

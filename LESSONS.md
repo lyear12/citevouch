@@ -4976,3 +4976,32 @@ checked against the header before extraction, so its pages are not
 re-litigated afterwards.
 
 Seen 1.
+## A second table of names is a table that will be short
+
+`draft.py` needed to recognise LaTeX citation commands, and `latex.py`
+already knew them. Rather than import the names, `draft.py` typed its own
+copy — and the copy fell behind: `latex.py` listed `citeyearpar`, `draft.py`
+did not. The visible result was the worst of the three possible shapes.
+`to_text` converted `\citeyearpar{k}` into a `[@k]` marker, and `draft` then
+reported "no citations were found" while that marker sat in the very text it
+was reading. In a mixed sentence, `Prior work \citep{a} and
+\citeyearpar{b} agrees.`, `draft` found only `a`, dropped `b` without a word,
+and handed the author `Prior work and \citeyearpar{b} agrees.` as the
+sentence to paste into their manuscript.
+
+Two more names were missing for a different reason: natbib's capitalised
+forms. `\Citet` and friends are what an author writes when a citation opens a
+sentence, so they are the *first* citation any reader of the paper meets.
+Neither reader knew them at all: the key became a bare word on the page and
+the manuscript was reported as citing nothing.
+
+How to apply: when a module already owns a list of names, the second module
+imports it, even when the import is one line deeper than retyping. A copied
+list is wrong in the direction that is silent — it recognises *most* of the
+input, so nothing crashes and the missing name looks like a document that
+simply did not cite that source. Where two readers must agree about a
+pattern, export the table (and the whitespace rule with it) and build both
+patterns from it, then assert the two agree on a shared set of inputs rather
+than each agreeing with itself.
+
+Seen 1.
