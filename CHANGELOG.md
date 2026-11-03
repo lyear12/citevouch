@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Removed
+
+- **Four module-level functions nothing called, each with a docstring
+  describing a feature this tool does not have.** `verify.doi_index` was
+  documented as the map for "the optional Crossref cross-check" — there is no
+  Crossref cross-check, and `AGENTS.md` says one would belong in a separate
+  optional command rather than inside `scan`/`verify`/`check`. `verify.rebuild`
+  claimed to be the wrapper "so the CLI has one call per verb"; the CLI imports
+  `verify` directly. `verify.summarize` was a second copy of the sentence a run
+  prints, unreachable while `report.py` writes the real one.
+  `sources._odd_bindings` pluralised a manifest's bad keys into one sentence;
+  the live code writes that sentence per key. Measured with an AST scan of
+  `src/`, `tests/` and `tools/`: all four names appear nowhere. `verify.py` line
+  coverage went from 90% to 96%, and no test had to change — which is the point
+  and the problem: nothing was running them.
+
+### Added
+
+- `tests/test_no_dead_functions.py` resolves each package function against every
+  name the repository actually references, per module, so `draft.summarize` is
+  not mistaken for a use of `verify.summarize`. Six mutations are killed,
+  including re-adding each of the four functions under clean source.
+
 ## [0.21.5] — 2026-11-03
 ### Fixed
 

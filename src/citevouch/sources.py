@@ -1056,16 +1056,6 @@ def _load_toml(text: str, odd: list[str] | None = None) -> dict:
     return blob
 
 
-def _odd_bindings(name: str, keys: list[str]) -> str:
-    """The sentence for a manifest whose values are not paths."""
-    named = ", ".join(repr(key) for key in sorted(keys))
-    return (
-        f"{name} binds {named} to something that is not a path in quotes, and "
-        "every entry under [sources] has to be one; a number, a boolean, a list "
-        "and a nested table all bind nothing, so nothing was bound to that key"
-    )
-
-
 def read_manifest(
     root: str | Path, odd: dict[str, str] | None = None
 ) -> tuple[dict[str, str], str | None]:

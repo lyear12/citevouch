@@ -20,12 +20,12 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .bibtex import doi_of, field_findings
+from .bibtex import field_findings
 from .errors import why_not_a_file
 from .manuscript import parse_manuscript
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
-from .scan import ScanOptions, _no_claim_blocks_finding, _resolve, scan
+from .scan import ScanOptions, _no_claim_blocks_finding, _resolve
 from .sources import (
     SourceTable,
     explain_unresolved,
@@ -748,32 +748,3 @@ def _numbers(text: str) -> tuple[str, ...]:
     from .textnorm import numbers_in  # local import keeps the hot path honest
 
     return numbers_in(text)
-
-
-def rebuild(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
-    """Convenience wrapper so the CLI has one call per verb."""
-    return scan(options)
-
-
-def summarize(result: VerifyResult) -> str:
-    parts = [
-        f"checked {result.checked}",
-        f"verified {result.verified}",
-    ]
-    if result.moved:
-        parts.append(f"moved {result.moved}")
-    if result.missing:
-        parts.append(f"missing {result.missing}")
-    if result.skipped:
-        parts.append(f"skipped {result.skipped}")
-    return ", ".join(parts)
-
-
-def doi_index(ledger: Ledger) -> dict[str, str]:
-    """Map DOI to cite key, for the optional Crossref cross-check."""
-    out: dict[str, str] = {}
-    for key, entry in ledger.entries.items():
-        doi = doi_of(entry)
-        if doi and doi not in out:
-            out[doi] = key
-    return out
