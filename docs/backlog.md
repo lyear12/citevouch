@@ -1362,6 +1362,43 @@ not what changed, but what proves the change works.
   added later has to be added to both.  No manuscript that mixes natbib and
   biblatex plural forms inside one paragraph was tried.
 
+- [x] **A Pandoc citation that carries a page number was read as no citation.**
+  *What was wrong*: the bracket recogniser required the body to be keys
+  separated by semicolons, so every form carrying a prefix or a locator
+  matched nothing. Measured with `citation_sites`: `[@a, p. 3]` -> `[]`,
+  `[see @a]` -> `[]`, `[-@a, ch. 2]` -> `[]`, `[@a, p. 3; @b, p. 4]` -> `[]`,
+  while `[@a]` -> `['a']` and `[@a; @b]` -> `['a', 'b']` worked. Pandoc's
+  grammar is `[prefix @key suffix; @key2 suffix2]`: the bracket holds prose
+  and a locator, not only keys, and a page number is how a large share of
+  real Markdown citations are written.
+  *Who is blocked*: everyone who pastes citations out of a reference manager
+  or follows Pandoc's own examples. `draft` answered "no citations were
+  found" to a manuscript citing a source in every paragraph, and then
+  advised the author to write citations in a form the manuscript was
+  already using.
+  *Done when*: every production of the bracket grammar names its key, an
+  `@` inside a word is still not a key, and the second reader of the same
+  pattern deletes exactly what the first one found.
+  **Done - why it is now true:** `src/citevouch/draft.py:_PANDOC` reads
+  `[prefix @key suffix; ...]`, and both it and `_AT_KEY` carry a lookbehind,
+  so `[contact me at x@y.com]` names nothing and nothing is deleted from a
+  sentence that holds no citation. `statement_of` strips `_LATEX_MULTI`
+  before `_LATEX`: without that line a sentence ending
+  `{BS}cites{{a}}{{b}}` reached the proposal file as
+  `claim: | ... {BS}cites{{a}}{{b}}.` - a sentence no human wrote, in the one
+  field this command exists to propose. Proved by
+  `tests/test_pandoc_locators.py` (35 tests) and
+  `tests/test_pandoc_brackets.py` (15 tests), which put both readers on the
+  brackets that hold no citation. Five mutations, all red: the body must be
+  keys only; the key loses its lookbehind; the body loses its lookbehind;
+  `_LATEX_MULTI` is not stripped; the whole bracket is stripped instead of
+  the citation. Shipped in 0.19.87.
+
+  *Not covered*: no real manuscript exported from a reference manager was run
+  through this - the grammar is read from Pandoc's documentation and from the
+  forms the tests enumerate. Numeric styles (`[3]`) are still not citations
+  here; the tests only pin that they are not deleted.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
