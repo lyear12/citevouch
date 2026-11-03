@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Code is not prose: a quote that exists only inside a `<script>` was
+  verified.** The HTML reader removed a `<script>`/`<style>` body only when the
+  end tag was spelled exactly `</script>`; HTML also allows `</script >` and
+  `</script\n>`, so a formatter that writes either spelling left the whole body
+  in the page text and a sentence living only in JavaScript came back
+  `[info] quote-found` — the one outcome this tool cannot apologise for. The
+  same two ways of giving up also dropped nothing at all for a truncated
+  `<script>` or an unterminated `<!--`, so everything after the footnote a
+  writer never closed was read as prose. Unterminated now means "to the end of
+  the file", which is what a browser does with a raw-text element too.
+
 ## [0.20.0] — 2026-11-03
 ### Added
 

@@ -4678,3 +4678,44 @@ removed, the byte sniff removed, the zip magic changed, and the sniff moved
 below the cache.
 
 Seen 1.
+
+## A region nobody renders is not a region that is absent
+
+**Rule.** When a file format has places where nothing is shown to a reader -
+script bodies, style sheets, comments - the reader of that format must remove
+them by the format's rules, not by the one spelling the author happened to use.
+And "never closed" has to mean "to the end", because that is what the format
+says too.
+
+**Why.** The HTML reader removed `<script>...</script>` with a regex that
+required the end tag spelled exactly. HTML also allows `</script >` and
+`</script\n>`, and a truncated file has no end tag at all. In every one of
+those cases the body stayed in the page text. A sentence that exists only
+inside JavaScript then came back `[info] quote-found ... quote found on page 1`
+- a verified claim whose evidence is source code that nobody reading the
+document would ever see. Two holes, one direction: the strict spelling is a
+false negative that turns into a false positive once the leak is the quote
+itself.
+
+**How to apply.** The dangerous direction is not "we lost a page", it is "we
+found evidence where there is none". So for every kind of region the format
+marks as unrendered, ask both questions: which spellings does the format allow
+for the end marker, and what does the format say when it never appears? For
+raw-text elements the answer to the second is "it swallows the rest of the
+document", which makes the safe default the same as the correct one. Also worth
+noting where the tests go: a helper-level test on the stripper is not enough
+because the verdict is produced by the extractor, so the file asserts both.
+
+**Evidence.** Before, this project verified a quote that appears only in a
+`<script>` body:
+
+    <p>intro</p><script>var t='The method works on every corpus we tried.';</script >
+
+produced `1 claim - 1 verified, 0 moved, 0 missing`, exit 0. `</script >`,
+`</script\n>`, an unterminated `<script>` and an unterminated `<!--` all leaked
+the same way. After: `tests/test_unrendered_regions.py` (15 tests) goes red on
+five mutations - the exact-spelling end tag, an unterminated region stopping at
+the opener, comments not being a region, an unterminated comment stopping at the
+opener, and `style` dropped from the region list.
+
+Seen 1.

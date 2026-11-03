@@ -572,6 +572,52 @@ def _unreadable_message(path: Path) -> str:
 _TAG = re.compile(r"<(?:[a-zA-Z/!?](?:[^<>\"']|\"[^\"]*\"|'[^']*')*?)>")
 
 
+#: Where a region the browser never paints as words starts.
+#:
+#: ``(?is)`` is at the front because a global flag may not appear mid-pattern
+#: (`re.error: global flags not at the start of the expression`), and the
+#: comment alternative below it needs only the tag branch, not dot-matching.
+_NOTHING_RENDERED_HERE = re.compile(
+    r"(?is)<(script|style)\b(?:[^<>\"']|\"[^\"]*\"|'[^']*')*>|<!--"
+)
+_CLOSED = {tag: re.compile(rf"(?is)</{tag}\s*>") for tag in ("script", "style")}
+
+
+def _without_unrendered(text: str) -> str:
+    """Drop the regions of an HTML file no reader ever sees.
+
+    A `<script>` or `<style>` body is not prose, and neither is a comment.  The
+    old rule gave up in two places and the page text kept the code:
+
+    * the end tag had to be spelled `</script>`, but HTML allows `</script >`
+      and `</script\\n>`, so a formatter that writes either one left the whole
+      body on the page - and a sentence that exists only inside a script was
+      then certified as `quote-found`, the one failure this tool cannot
+      apologise for;
+    * an unterminated `<script>` (a truncated save) and an unterminated `<!--`
+      matched nothing at all, so everything after them was read as prose.
+
+    Unterminated means "to the end of the file", which is what a browser does
+    too: a raw-text element that never closes swallows the rest of the
+    document.
+    """
+    out: list[str] = []
+    index = 0
+    while True:
+        opener = _NOTHING_RENDERED_HERE.search(text, index)
+        if opener is None:
+            out.append(text[index:])
+            return "".join(out)
+        out.append(text[index : opener.start()])
+        out.append(" ")
+        if opener.group(1) is None:
+            close = text.find("-->", opener.end())
+            index = len(text) if close < 0 else close + 3
+        else:
+            end = _CLOSED[opener.group(1).lower()].search(text, opener.end())
+            index = len(text) if end is None else end.end()
+
+
 def _strip_markup(text: str) -> str:
     """Reduce a markup document to the text a reader would actually see.
 
@@ -580,7 +626,7 @@ def _strip_markup(text: str) -> str:
     the quote an author wrote would vanish from the page it is verified
     against.
     """
-    text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", text)
+    text = _without_unrendered(text)
     text = _TAG.sub(" ", text)
     text = html.unescape(text)
     text = re.sub(r"&nbsp;?", " ", text)
