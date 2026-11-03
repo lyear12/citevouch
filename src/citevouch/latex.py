@@ -124,6 +124,9 @@ MULTI_CITATION_NAMES = tuple(
 #: paragraph's citation is the kind of silent wrong answer this module
 #: exists to avoid.
 _GAP = r"[ \t]*"
+#: The character a TeX command name starts with, spelled once: as a literal it costs a quoting layer per use,
+#: and this file has already miscounted that layer twice.
+BACKSLASH = chr(92)
 
 _CITE = re.compile(
     r"\\(?:"
@@ -370,13 +373,62 @@ _CONDITIONAL_FALSE = frozenset({"iffalse", "if0"} & _NO_OPERAND_CONDITIONAL)
 #: drops a command's name only when it has no body to keep.
 _CONDITIONAL_TRUE = frozenset({"iftrue", "if1"} & _NO_OPERAND_CONDITIONAL)
 
-#: ``\ifthenelse{test}{yes}{no}`` is not decidable here, and both branches
-#: are text the author wrote.  Only the test is metadata: it used to be glued
-#: to the first branch (``\ifthenelse{1=2}{\citep{no}}{\citep{yes}}``
-#: measured as ``1=2[@no][@yes]``), which is the same defect as the counter and
-#: length arguments fixed in 0.19.77 - a fragment no reader of the paper ever
-#: sees, sitting at the front of a sentence.
-_BRANCH_COMMAND = frozenset({"ifthenelse"})
+#: ``\\ifthenelse{test}{yes}{no}`` is not decidable here, and both
+#: branches are text the author wrote.  Only the test is metadata.
+#: Command name -> how many leading brace groups are the test.  The two
+#: groups after those are branches, which are the author's prose.
+#: Measured one by one: every command below pasted its test into the
+#: sentence and glued its branches (``ifboolexpr{test}{Yes}{No}`` came out
+#: as ``testYesNo``), and none of them was in any table the converter
+#: consulted, so all of it reached the reader.
+_BRANCH_COMMAND: dict[str, int] = {
+    "ifthenelse": 1,
+    "ifboolexpr": 1,
+    "ifboolexpe": 1,
+    "iftoggle": 1,
+    "ifbool": 1,
+    "ifblank": 1,
+    "ifstrempty": 1,
+    "ifrmnum": 1,
+    "ifnumodd": 1,
+    "ifcsdef": 1,
+    "ifcsundef": 1,
+    "ifcsvoid": 1,
+    "ifcsempty": 1,
+    "ifdefstring": 1,
+    "IfFileExists": 1,
+    "InputIfFileExists": 1,
+    "ifstrequal": 2,
+    "ifnumequal": 2,
+    "ifnumgreater": 2,
+    "ifnumless": 2,
+    "ifinlist": 2,
+    "ifnumcomp": 3,
+    "ifdimcomp": 3,
+    "ifdef": 0,
+    "ifundef": 0,
+    "ifdefmacro": 0,
+    "ifdefparam": 0,
+    "ifdefempty": 0,
+    "ifdefvoid": 0,
+    "ifdefltxprotect": 0,
+}
+
+#: The subset whose test begins with a bare control sequence.  The
+#: fallthrough already drops that token, so this only has to say which
+#: names have one; without it the group count is applied to the token.
+_BRANCH_BARE_TEST: frozenset[str] = frozenset(
+    {
+        "ifdef",
+        "ifundef",
+        "ifdefmacro",
+        "ifdefparam",
+        "ifdefempty",
+        "ifdefvoid",
+        "ifdefltxprotect",
+        "ifdefstring",
+    }
+)
 
 _DROP_ENVIRONMENT = frozenset(
     {
@@ -1132,10 +1184,20 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
                     continue
                 if name in _BRANCH_COMMAND:
                     # The test is metadata, the branches are the author's own
-                    # text.  Keeping the test glued it to the first branch.
+                    # text.  Keeping the test glued it to the first branch,
+                    # and keeping the branches flush glued them to each other.
                     cursor = _skip_optional_args(text, end)
-                    group = _group_end(text, cursor)
-                    if group > 0:
+                    if name in _BRANCH_BARE_TEST:
+                        # ``\\ifdef\\foo{yes}{no}``: the test is a bare control sequence, so step
+                        # over the token before counting brace groups.
+                        while cursor < length and text[cursor] == BACKSLASH:
+                            cursor += 1
+                        while cursor < length and text[cursor].isalpha():
+                            cursor += 1
+                    for _ in range(_BRANCH_COMMAND[name]):
+                        group = _group_end(text, cursor)
+                        if group < 0:
+                            break
                         cursor = _skip_optional_args(text, group)
                     for number in range(2):
                         group = _group_end(text, cursor)

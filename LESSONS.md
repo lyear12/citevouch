@@ -5269,3 +5269,44 @@ survivor that means nothing. Test the observable: no token spans the join, and
 two citations stay two citations.
 
 **Seen 1.**
+
+## A table of names without their arity is a table of the one command you met
+
+**Rule.** When a table exists to say "this command's arguments are metadata, not
+prose", the unit of the table is not the command name — it is the command name
+*and how many of its arguments the metadata occupies*. Two facts were missing
+from `_BRANCH_COMMAND`, and both were needed before the table could be right:
+which commands keep two branches of author prose at all (29 of them, between
+`etoolbox` and LaTeX2e), and how many brace groups hold the test before those
+branches (`\ifnumcomp` three, `\ifstrequal` two, `\iftoggle` one, and
+`\ifdef\foo{yes}{no}` a bare control sequence instead of a group). A
+`frozenset` cannot say the second fact, which is why the table was a set of one
+name for two months: it answered "is this command special" and never
+"how much of it is metadata".
+
+**Why.** Measured before the fix (`B` = backslash):
+
+```
+to_text("X " + B + "ifboolexpr{test}{Yes words}{No words} Y")        -> 'X testYes wordsNo words Y'
+to_text("X " + B + "ifnumcomp{1}{=}{2}{Yes words}{No words} Y")      -> 'X 1=2Yes wordsNo words Y'
+to_text("X " + B + "ifdef" + B + "foo{Yes words}{No words} Y")       -> 'X Yes wordsNo words Y'
+to_text("X " + B + "IfFileExists{sec/intro}{Yes words}{No words} Y") -> 'X sec/introYes wordsNo words Y'
+```
+
+Three failures at once in each line: the test was pasted into the sentence, the
+two branches were glued into a word that is in neither of them, and `draft`
+would offer that sentence to the author inside a `claim:` block. The full suite
+did not change by a single test when the fix landed — 2300 passed before and
+after — which is the second half of this lesson: a table nobody tests does not
+announce the commands it forgot, it announces nothing at all. The count of
+names a table covers is not the count of names the format has.
+
+**How to apply.** Write the table as data whose value is the arity, then write
+the test that walks the table itself (one case per entry), so a name added
+without its count fails immediately. Add a second test that the table and the
+test file's own list name the same commands: a name in one and not the other is
+a name nobody checked. When a character has to be compared in more than one
+place, spell it once in a module constant (`BACKSLASH = chr(92)`) — this file
+mismatched that quoting layer twice while writing this very fix.
+
+**Seen 1.**

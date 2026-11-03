@@ -12,6 +12,40 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **29 conditional commands from `etoolbox` and LaTeX2e were not in any table, so
+  their test arguments were pasted into the sentence and their two branches were
+  glued into a word that is in neither.** Measured before the fix (`B` is a
+  backslash):
+
+  ```
+  to_text("X " + B + "ifboolexpr{test}{Yes words}{No words} Y")              -> 'X testYes wordsNo words Y'
+  to_text("X " + B + "ifnumcomp{1}{=}{2}{Yes words}{No words} Y")            -> 'X 1=2Yes wordsNo words Y'
+  to_text("X " + B + "ifdef" + B + "foo{Yes words}{No words} Y")             -> 'X Yes wordsNo words Y'
+  to_text("X " + B + "IfFileExists{sec/intro}{Yes words}{No words} Y")       -> 'X sec/introYes wordsNo words Y'
+  ```
+
+  `Yes wordsNo words` is a token in neither branch, and it is the sentence
+  `draft` offers the author to paste into a `claim:` block. All four now read
+  `'X Yes words No words Y'`.
+
+  The table changed shape, because the fact it was missing is a number: how many
+  brace groups hold the *test* before the two branches. `_BRANCH_COMMAND` is now
+  `dict[str, int]` (`\ifnumcomp` takes three test groups, `\ifstrequal` two,
+  `\iftoggle` one) instead of a `frozenset` of names, and `_BRANCH_BARE_TEST`
+  names the seven `\ifdef...` commands whose test is a bare control sequence
+  (`\ifdef\foo{yes}{no}`) rather than a group. A separate `BACKSLASH` constant
+  exists because that character had been spelled as a literal inside three
+  different comparisons and mismatched a quoting layer twice.
+
+  `tests/test_latex_branch_commands.py` walks the table (23 group tests, 8 bare
+  tests), and asserts the table and the test's own lists name the same commands —
+  a name added to one and not the other is a name nobody checked. Six mutations,
+  all red: table back to `ifthenelse` only, bare-test set emptied, every command
+  counted as one group, branches joined flush again, the bare token not stepped
+  over, and the test always consuming exactly one group.
+
 ## [0.22.11] — 2026-11-03
 ### Fixed
 
