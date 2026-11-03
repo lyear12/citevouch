@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.21.5] — 2026-11-03
 ### Fixed
 
 - **A `sources.toml` whose keys sit at the top level is now named as a
@@ -31,7 +32,6 @@ tag and that file disagree.
   bucket named `""` — a check written on the mapping would refuse on 3.11 and
   stay silent on 3.10.  A key literally called `sources` and a dotted name are
   excluded: both already have their own, more precise, sentence.
-
 ## [0.21.4] — 2026-11-03
 ### Fixed
 
@@ -2358,7 +2358,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.4...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.5...HEAD
+[0.21.5]: https://github.com/lyear12/citevouch/releases/tag/v0.21.5
 [0.21.4]: https://github.com/lyear12/citevouch/releases/tag/v0.21.4
 [0.21.3]: https://github.com/lyear12/citevouch/releases/tag/v0.21.3
 [0.21.2]: https://github.com/lyear12/citevouch/releases/tag/v0.21.2
