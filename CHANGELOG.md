@@ -12,6 +12,40 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A pipe written the only correct way inside a table cell was read as a cell boundary.**
+  GFM defines exactly one escape inside a table cell: a backslash before the pipe
+  separator. The table dialect matched each column with `[^|]+?`, which stops at any
+  pipe, so an author who escaped correctly had their quote cut at the backslash and the
+  remainder of it installed as the `text` column:
+
+  > | c1 | paper | 1 | a\|b | t |
+
+  parsed as quote `a\` and text `b`. Written the way Markdown says is wrong -
+  the pipe left bare - the same row parsed as quote `a` and text `b`, i.e. the correct
+  spelling was the one that lost data.
+
+  End to end on a project whose page carries a literal pipe in the sentence, the
+  correctly escaped row was reported `[high] quote-fuzzy ... similarity 1.00` and exited
+  1, and the same row unescaped verified and exited 0.
+
+  The columns are now matched with `_CELL = r"(?:[^|\\]|\\.)*?"`
+  and the cell text loses the escape through `_unescape_pipe`, which undoes `\|`
+  and nothing else - every other backslash stays as written, because a quote may hold
+  one (a Windows path, an escaped character in a borrowed sentence) and rewriting it
+  would be editing the author's text rather than reading it. `source`, `quote` and
+  `text` all go through it.
+
+- **A table row with a blank column was reported as a file with no claim blocks.**
+  The same cell pattern required at least one character, so `| c1 | paper | 1 | q | |`
+  and `| c1 | paper | 1 | | short |` matched no dialect at all, and a manuscript whose
+  only table row was one of those came back as `[high] no-claim-blocks ... This file has
+  none` - over a file that had one. An empty column is not a parse failure; it is a
+  claim the author has not finished, and the parser already has a finding for that, so
+  an empty quote or source now comes back as `[high] claim-uncheckable` naming the claim
+  and saying what is missing, while an empty `text` column simply verifies.
+
 ## [0.22.8] — 2026-11-03
 ### Fixed
 

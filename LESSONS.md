@@ -5176,3 +5176,31 @@ count: naming one line sends the author back for a second run.
 
 **Seen 1.**
 
+## An escape is the author being correct, and correct is the case that must not lose
+
+**Rule.** When a format defines an escape, the reader must un-escape it before anything
+else looks at the text. A delimiter scan that does not know the escape reports a
+boundary that is not there.
+
+**Why.** GFM's only escape inside a table cell is a backslash before the pipe. The table
+dialect matched each column with `[^|]+?`, which stops at any pipe, so the row
+`| c1 | paper | 1 | a\|b | t |` came back as quote `a\` and text `b`: the
+quote was cut at the backslash and the rest of it was installed as the next column.
+Written the way Markdown says is wrong, with a bare pipe, the same row gave quote `a`
+and text `b` - so the spelling that obeyed the spec was the one that lost data, and the
+spelling that broke it kept more. End to end the correctly escaped quote came back
+`[high] quote-fuzzy ... similarity 1.00` and exited 1.
+
+The same pattern also required one character per cell, so a row with a blank column
+matched no dialect and was reported as `no-claim-blocks ... This file has none`. That
+is the second half of the lesson: refusing a shape is a decision about what a file
+means, and the safe refusal is the one that still names the thing it refused.
+
+**How to apply.** Build the cell (or the token, or the field) as a pair - "one ordinary
+character, or one backslash plus anything" - rather than as "anything but the
+delimiter", then remove exactly the escape the format defines. Do not strip backslashes
+in general: a quote may hold a Windows path or a LaTeX-ish sequence, and rewriting
+those is editing the author's text instead of reading it. And give the empty case its
+own meaning rather than letting it fall out of the pattern - here the meaning is
+`claim-uncheckable`, because a blank column is a claim somebody has not finished.
+Seen 1.

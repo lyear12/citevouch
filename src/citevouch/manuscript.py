@@ -43,10 +43,40 @@ _FENCE_CLOSE = re.compile(r"^```\s*$")
 _ANY_FENCE = re.compile(r"^(?P<ticks>`{3,}|~{3,})(?P<info>.*)$")
 _HTML_OPEN = re.compile(r"^<!--\s*claim\s*:?\s*(?P<attrs>.*)$")
 _HTML_CLOSE = re.compile(r"^\s*-->\s*$")
+# A cell ends at an unescaped `|`.  `\|` is the only way GFM lets a pipe sit
+# inside a cell, so it has to be one token here; `[^|]+?` read it as a cell
+# break and an author who escaped correctly got their quote cut at the
+# backslash, with the remainder installed as the `text` column:
+#
+#     | c1 | paper | 1 | a\|b | t |   ->  quote 'a\', text 'b'
+#
+# A cell may be empty.  `+?` refused a row whose `text` or `claim` column was
+# left blank, and a manuscript holding one such row reported
+# `no-claim-blocks ... This file has none` - over a file that had one.  An
+# empty quote or an empty source is not a parse failure either: it is a claim
+# the author has not finished, and `claim-uncheckable` names it.
+# The unescaping is `_unescape_pipe`, applied where the columns are read.
+_CELL = r"(?:[^|\\]|\\.)*?"
 _TABLE_CLAIM = re.compile(
-    r"^\|\s*(?P<id>[A-Za-z0-9_.:-]+)\s*\|\s*(?P<source>[^|]+?)\s*\|"
-    r"\s*(?P<page>\d+|-)\s*\|\s*(?P<quote>[^|]+?)\s*\|\s*(?P<text>[^|]+?)\s*\|"
+    r"^\|\s*(?P<id>[A-Za-z0-9_.:-]+)\s*\|\s*(?P<source>" + _CELL + r")\s*\|"
+    r"\s*(?P<page>\d+|-)\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"
+    r"\s*(?P<text>" + _CELL + r")\s*\|"
 )
+# What a cell's text is once the cell boundary has been found: the only escape
+# GFM defines inside a table is the pipe, and it means the pipe.
+
+
+def _unescape_pipe(cell: str) -> str:
+    """A cell's text once its boundaries are found: `\\|` is the pipe.
+
+    The only escape GFM defines inside a table cell is the pipe, and it means
+    the pipe.  Every other backslash stays as written, because a quote may well
+    contain one (a Windows path, a LaTeX-ish escape) and rewriting it would be
+    editing the author's text rather than reading it.
+    """
+    return cell.replace("\\|", "|")
+
+
 # ``value`` comes in two forms, and the difference is the space after ``=``.
 #
 #   * ``key=value``  - no space, so the token is the value outright, even when
@@ -580,11 +610,15 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
         if m:
             attrs = {
                 "id": m.group("id"),
-                "source": m.group("source"),
+                "source": _unescape_pipe(m.group("source")),
                 "page": m.group("page"),
             }
             claim, more = _claim_from(
-                attrs, m.group("quote"), m.group("text"), path, start_line
+                attrs,
+                _unescape_pipe(m.group("quote")),
+                _unescape_pipe(m.group("text")),
+                path,
+                start_line,
             )
             accept(claim, more, start_line, start_line)
             i += 1
