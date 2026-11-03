@@ -1269,6 +1269,59 @@ not what changed, but what proves the change works.
   languages' tokenisation.  A quote mixing scripts with no space between them
   is handled (`构式used` is three tokens) but no threshold was measured on it.
 
+- [x] **A quote in quotation marks was reported as not verbatim - at
+  similarity 1.00.**
+
+  **What was wrong.** A manuscript introduces somebody else's words with
+  quotation marks.  The marks are not on the page unless the page quoted
+  somebody too, so a sentence copied out of the source and put in quotes
+  matched no tier.  It came back as `quote-fuzzy` at high severity with a
+  message that contradicted itself in one line:
+
+  ```
+  [high] quote-fuzzy: the source has a similar passage but not these words
+  verbatim (closest passage, page 1, similarity 1.00)
+  ```
+
+  Similarity 1.00 is verbatim.  Measured on a page holding the sentence bare:
+
+  ```
+  bare         tier='exact'
+  "bare"       tier='fuzzy' similarity=1.000   rc=1
+  “bare”       tier='fuzzy' similarity=1.000   rc=1
+  「bare」       tier='fuzzy' similarity=1.000   rc=1
+  《bare》       tier='fuzzy' similarity=1.000   rc=1
+  ```
+
+  **Who is blocked.** Any author in the humanities, where quoting with marks is
+  how the work is written, and any Chinese author, whose manuscripts use
+  `「」` and `《》` for the same purpose.  A correct quote
+  produced a failing gate - the worst shape a gate can have, because the fix an
+  author reaches for is to stop running it.
+
+  **Done when.** A quote wrapped in a matched pair of marks reaches the tier
+  that would have found it bare, and a quote that is genuinely absent still
+  fails.
+
+  **Done - why it is now true.** `matching.find_in_pages` retries with
+  `textnorm.strip_wrapping_quotes(quote)` when the first read finds nothing, and
+  accepts the retry **only** when it finds the quote - a weaker verdict about
+  text the author did not write is not an improvement on the verdict about the
+  text they did.  The stripper peels eleven matched pairs (straight, curly,
+  corner, white corner, book title, angle, lenticular, tortoise, halfwidth), and
+  never peels down to nothing, because `《》` can be a book title that is
+  part of the page.  All five shapes above are `tier='exact'` now, and a wrapped
+  absence still exits 1 with `quote-missing`.  25 tests in
+  `tests/test_wrapped_quotes.py`; six mutations, five red - no retry, peel one
+  layer only, peel an empty pair to nothing, drop the CJK pairs, peel the page
+  instead of the quote.  Shipped in 0.19.85.
+
+  *Not covered*: a manuscript that wraps quotes in a pair no table lists (some
+  journals use `„ “`) is still reported as a near miss.
+  `strip_wrapping_quotes` is only ever applied to the **quote**, never to the
+  page, and that is a decision rather than an omission - the page is evidence and
+  it is read as written.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
