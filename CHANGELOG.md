@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.3] — 2026-11-03
 ### Fixed
 
 - **Three citation commands nobody could see.** Natbib's capitalised forms
@@ -32,7 +33,6 @@ tag and that file disagree.
   a command and its mandatory argument a newline is where a missing brace finds
   the next paragraph's brace group, and reading one paragraph's text as
   another's citation is the silent wrong answer this module exists to avoid.
-
 ## [0.22.2]
 
 ## [0.22.2] — 2026-11-03
@@ -2446,7 +2446,9 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.3...HEAD
+[0.22.3]: https://github.com/lyear12/citevouch/releases/tag/v0.22.3
+[0.22.2]: https://github.com/lyear12/citevouch/releases/tag/v0.22.2
 [0.22.2]: https://github.com/lyear12/citevouch/releases/tag/v0.22.2
 [0.22.1]: https://github.com/lyear12/citevouch/releases/tag/v0.22.1
 [0.22.0]: https://github.com/lyear12/citevouch/releases/tag/v0.22.0
