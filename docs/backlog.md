@@ -15,6 +15,46 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **A `sources.toml` whose keys sit at the top level was read as an empty
+  manifest.** *Done 2026-11-03.*
+  *What was wrong.* The JSON reader takes its mapping at the top level, so
+  ``paper = "page.txt"`` written straight into `sources.toml` with no
+  `[sources]` header looks like a manifest to one format and like nothing at all
+  to the other. Measured on `/tmp/p155` (one claim naming `paper`, `page.txt`
+  holding its sentence): `check` printed `[high] source-missing at
+  manuscript.md:3 (c1): claim c1 names source='paper' but no entry in
+  sources.toml and no --source path resolves it; add it to sources.toml` - about
+  a key that was in the file, three lines above the header the message asked
+  for - and `doctor` printed `[ok  ] manifest sources.toml (19 bytes), 0
+  sources, every one of them present on this machine` and exited 0. The same
+  keys in `sources.json` (`{"paper": "page.txt"}`) bind and exit 0.
+  *Who was blocked.* Anyone who switched format, or copied a JSON example into a
+  TOML file, and was then told to add the key they had already written.
+  *Done when.* Both readers refuse that file, with the same sentence, naming
+  the keys and the two ways to fix it.
+  *Done - why it is now true.* `_refuse_shapes_only_one_reader_follows` (the
+  text pre-scan both readers call first) raises when keys sit at the top level
+  and no table header declares them. It is on the text, not on the parsed dict,
+  because `_mini_toml` - the 3.10 fallback - files pre-header keys under a
+  bucket named `""`: written against the dict the check would refuse on 3.11
+  and stay silent on 3.10, which is the interpreter-dependent answer that
+  function exists to prevent. A key literally called `sources` (which has the
+  reader's own, more precise, `there is a key called "sources" but it holds an
+  integer` message) and a dotted name (`pa.ge`, which both readers agree binds
+  nothing and which `tests/test_manifest_readers_agree.py` pins as readable) are
+  excluded. Both exclusions were forced by real failures, not chosen in advance:
+  the first shadowed three assertions in `tests/test_manifest_value_shapes.py`,
+  the second broke `test_the_manifest_is_read[a dotted key under no [sources] at
+  all]`.
+  `tests/test_manifest_top_level.py` (15 tests) drives both readers by name and
+  asserts they agree; six mutations are killed (`survivors: none`), two of them
+  only after the tests were tightened - `FLAT` had every key stray, so a count
+  over `seen` matched a count over `stray`, and `"[sources]" in message` also
+  matched the sentence's own "no [sources] table" clause.
+  *Not covered.* A manifest that mixes the two spellings (`paper = "a.txt"` at
+  the top AND inside `[sources]`) is still refused with the single sentence; the
+  message does not say which of the two entries the author probably meant. No
+  real third-party `sources.toml` was tried - every fixture is hand-written.
 - [x] **A quote that runs across a page break is reported as `quote-missing` (high).**
   A real sentence split between page 6 and page 7 returns `tier=none` from
   `matching.find_in_pages`, because every page is searched alone. An author
