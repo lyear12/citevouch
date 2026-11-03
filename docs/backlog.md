@@ -1456,6 +1456,37 @@ not what changed, but what proves the change works.
   when scripting is off and `<textarea>` content is editable text — so nothing
   asserts them either way.
 
+- [x] **An empty `.txt` was told to run OCR on it.**
+  *What was wrong*: `source-no-text` was written for a scanned PDF and its one
+  message ended with `ocrmypdf <file> out.pdf`.  The same function answers for
+  every format, so an empty `empty.txt`, a whitespace-only `blank.md`,
+  `<article/>` and `<html><body></body></html>` all received that sentence:
+  `found no text at all in empty.txt (1 page(s)); a scan has no text layer, and
+  OCR is what turns one into a file that can be searched (for example
+  `ocrmypdf empty.txt out.pdf`)`.  None of that advice can work — a text file
+  has no text layer, and OCR does not untag a document.
+  *Who is blocked*: anyone who points a claim at a source that happens to be
+  empty or marker-only.  The verdict is right (there is no text) and the next
+  step is wrong, so they run a command that cannot help and conclude the tool is
+  confused.
+  *Done when*: the advice is chosen from the input the reader actually has, and
+  each format reaches its own reason on both the extraction and the cache-hit
+  path.
+  *Done — why it is now true*: `sources._no_text_problem` takes the suffix and
+  builds three sentences — markup whose words are all inside tags, a text file
+  that is empty or whitespace-only, and the original OCR sentence for a PDF.
+  Both call sites pass it.  `tests/test_no_text_advice.py` (9 tests) asserts per
+  format that it reaches *its own* branch: asserting only "not OCR" was not
+  enough, because the markup sentence has no OCR either, and the first mutation
+  draft survived on exactly that.  Five mutations are red — everything OCR,
+  suffix dropped from the cache-hit path, suffix dropped from the extraction
+  path, a text file given the markup sentence, and the file name removed from
+  the OCR advice.  Shipped in v0.20.2.
+  *Not covered*: the markup branch says "inside a tag, a script, a style sheet
+  or a comment" without naming which one it found, so a reader with a
+  JavaScript-only page still has to look.  Naming it would mean the walker
+  returning a reason rather than a string, which is a wider change than this.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
