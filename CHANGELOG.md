@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A claim block the parser refused no longer disappears from the CI path.**
+  The ledger records the claims the parser *accepted*, because a refused block
+  has no evidence to record - so the verification pass, which walks the ledger,
+  never learned the block existed.  `action.yml` runs `check --use-recorded` on
+  every pull request, which is that pass and nothing else.  Measured on a
+  manuscript holding one accepted claim and a second block missing its `id=`:
+  `scan` exited 1 with `[high] claim-uncheckable at manuscript.md:9`, while
+  `check --use-recorded` and `verify` both exited 0 with a green
+  `[info] quote-found`.  A contributor who pastes a second claim block and
+  forgets its `id=` got a tick.  `verify` now re-parses the manuscript when the
+  ledger's digest proves it describes this exact text, and reports the parser's
+  own findings; with `--allow-stale` it stays silent, because a finding about a
+  paragraph the ledger never recorded would be a verdict about a document this
+  run has not read.
 
 ## [0.21.2] — 2026-11-03
 ### Fixed

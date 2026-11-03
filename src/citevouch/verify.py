@@ -144,6 +144,39 @@ def verify(
             result.skipped = len(ledger.claims)
             return result
 
+    # The ledger records the claims the parser *accepted*.  A block it refused -
+    # no `id=`, an id used twice, a fence that is never closed - has no evidence
+    # to record, so it is absent from the ledger, and the verification pass
+    # below walks the ledger and therefore never learns the block existed.
+    #
+    # `scan` reports those refusals and exits 1.  `action.yml` runs
+    # `check --use-recorded` on every pull request, which is this pass and
+    # nothing else.  Measured on a manuscript holding one accepted claim and a
+    # second block missing its `id=`:
+    #
+    #     scan                  -> 1, [high] claim-uncheckable at manuscript.md:9
+    #     check --use-recorded  -> 0, [info] quote-found at manuscript.md:3
+    #     verify                -> 0
+    #
+    # A contributor who pastes a second claim block and forgets its `id=` gets a
+    # green tick, and the only command that would say otherwise is one the job
+    # does not run.
+    #
+    # Re-deriving the refusals here is sound only when the ledger is known to
+    # describe this exact text, which is what the hash comparison above
+    # established: the text is byte-identical to the text `scan` parsed, so
+    # these are the same findings `scan` produced.  With `--allow-stale` the
+    # ledger may be about a different draft, and a finding about a paragraph it
+    # never recorded would be a verdict about a document this run has not read.
+    parsed = None
+    if check_manuscript_hash and ledger.manuscript_sha256:
+        try:
+            text = read_text(manuscript_path)
+        except OSError:
+            text = ""
+        parsed = parse_manuscript(text, manuscript_path.name)
+        result.findings.extend(parsed.findings)
+
     # A ledger that recorded no claims is the recording of a run that checked
     # nothing, and reading it back produces the same shape as the manuscript
     # with no claim blocks: `0 claims - 0 verified`, worst `info`, exit 0.  The
@@ -151,10 +184,12 @@ def verify(
     # reached disk first.  An empty ledger can also arrive from an older
     # version of this tool, so the guard belongs here and not only in `scan`.
     if not ledger.claims:
-        try:
-            text = read_text(manuscript_path)
-        except OSError:
-            text = ""
+        if parsed is None:
+            try:
+                text = read_text(manuscript_path)
+            except OSError:
+                text = ""
+            parsed = parse_manuscript(text, manuscript_path.name)
         # The near-miss sentence in `_no_claim_blocks_finding` says a line
         # "reads like a claim block but is not one the parser accepts", which is
         # the right thing to tell someone who is looking at a manuscript with no
@@ -185,7 +220,7 @@ def verify(
                     root=options.root,
                 )
             )
-        else:
+        elif parsed is not None and parsed.findings and not result.findings:
             # A block the parser found and refused is not the same thing as a
             # file with no blocks, and `scan` has said so since the emptiness
             # guard was written.  This branch asked the parser only whether it
@@ -193,6 +228,10 @@ def verify(
             # and was then described as "no claim blocks", which is false: the
             # parser's own finding, one screen up, names the block.  Report the
             # reasons the parser gave rather than a summary of the outcome.
+            #
+            # The findings above are already in `result` when the hash guard
+            # could run; the condition keeps this branch for the case where the
+            # ledger carried no digest and the parse happened just now.
             result.findings.extend(parsed.findings)
         return result
 

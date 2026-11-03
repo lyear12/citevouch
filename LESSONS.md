@@ -4807,3 +4807,26 @@ fragment a feed will render - one must survive tag removal, the other must not, 
 rule already tells them apart.
 
 Seen 1.
+
+## A recording holds what the writer understood, not what the reader lost
+
+Rule: when a command reads a record instead of the source, ask what the record has no room
+for, and make that command recover it - or say it did not. The record is a summary of a
+particular reader's understanding; everything that reader rejected is absent by construction.
+
+Why: `scan` writes a ledger of the claim blocks it accepted. A block with no `id=`, an id used
+twice, or a fence that is never closed has no evidence to record, so it has no row. `verify`
+and `check --use-recorded` walk the ledger, so on a manuscript holding one good claim and one
+block missing its `id=` they reported `[info] quote-found`, `1 claim - 1 verified`, exit 0 -
+while `scan` on the same tree exited 1 naming `manuscript.md:9`. `action.yml` runs
+`check --use-recorded`, so the CI job a contributor actually sees was the green one.
+
+How to apply: a verb that reads a record may re-read the source only when the record proves it
+describes that exact text. Here that proof is the manuscript digest the ledger already stores,
+which is why the recovery lives behind the hash comparison and `--allow-stale` turns it off: a
+finding about a paragraph the ledger never recorded would be a verdict about a document this
+run has not read. And recover *everything* the record dropped, not the first example of it -
+reporting one refused block out of two leaves the second block exactly as invisible as both
+were before.
+
+Seen 1.
