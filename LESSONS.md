@@ -5037,3 +5037,22 @@ the count is a two-character change; writing it down instead was a decision to
 keep the mismatch.
 
 Seen 1.
+
+## A scratch file that is deleted after the commit is already in the commit
+
+Rule: write the commit message to a path the index already refuses, or remove
+it before `git add`. The order is `git add -A`, then commit, then delete - and
+the delete is what makes it safe to write again, not what makes it safe to add.
+
+Why: `cat > _msg.tmp` then `git add -A && git commit -F _msg.tmp && rm -f
+_msg.tmp` is the shape used hundreds of times in this repository. When the
+`rm` is the last command instead of the second, the file is inside the commit
+that quotes it, so the tree carries a copy of the text describing it. That
+happened three times with `.txt`, and `.gitignore` grew a line each time; the
+third time was `.tmp`, which the ignore file had never heard of.
+
+How to apply: ignore the family, not the instance - a pattern like `_msg.*`
+covers the next extension somebody reaches for - and prefer a message file
+outside the work tree (`/tmp/msg.txt`) when the shell allows it.
+
+Seen 3.

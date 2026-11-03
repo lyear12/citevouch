@@ -143,3 +143,8 @@ thinks to look it up.
 - If something was not checked, say which part. An untested claim in a commit message is worse than
   none, because the next agent believes it.
 - Do not amend a pushed commit to hide an intermediate failure. The failure is the useful part.
+- A scratch file that is deleted after the commit is already in the commit. The order is
+  `git add -A`, commit, delete - so write the message to a path the index refuses (`/tmp`, or a
+  name under `.gitignore`'s scratch rule) and never rely on the trailing `rm`. `_msg.txt` was
+  ignored, then `_msg.tmp` shipped inside a commit that quoted it. Ignore the family, not the
+  one extension somebody already hit.
