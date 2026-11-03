@@ -15,6 +15,36 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **Four functions with docstrings describing features this tool does not
+  have.** *Done 2026-11-03.*
+  *What was wrong.* An AST scan of `src/`, `tests/` and `tools/` found these four
+  names referenced nowhere: `verify.doi_index`, documented as the map "for the
+  optional Crossref cross-check" - and there is no Crossref cross-check, because
+  `AGENTS.md` says one belongs in a separate optional command rather than inside
+  `scan`/`verify`/`check`; `verify.rebuild`, documented as the wrapper "so the CLI
+  has one call per verb" while the CLI imports `verify` directly;
+  `verify.summarize`, a second copy of the sentence a run prints, unreachable
+  while `report.py` writes the real one; and `sources._odd_bindings`, which
+  pluralised a manifest's bad keys into one sentence while the live code
+  (`sources.py:1271`) writes that sentence per key.
+  *Who was blocked.* Anyone reading the source to find the Crossref option, and
+  anyone trusting the 90% line coverage of `verify.py` to mean the file was
+  exercised.  Deleting the four took it to 96% and changed no test, which is the
+  defect stated plainly: nothing was running them.
+  *Done when.* The four are gone and a check fails when a package-level function
+  is named nowhere.
+  *Done - why it is now true.* `tests/test_no_dead_functions.py` resolves each
+  package function against every name the repository references, **per module**,
+  because the per-name version is the version that misses: `draft.summarize` is a
+  real call and `verify.summarize` is not, and a scan collecting attribute names
+  alone counts them as one use.  Six mutations are killed (`survivors: none`):
+  re-adding each of the four functions, making the resolver stop qualifying
+  anything, and making the corpus scan reach nothing.  The last two matter because
+  a resolver that returns empty sets makes the guard green and meaningless, so the
+  guard file carries its own liveness assertion.
+  *Not covered.* Reachability is decided by reading source text, so a function
+  reached only through `getattr` would be reported as dead.  None of the four was,
+  and the package has no `getattr` dispatch.
 - [x] **A `sources.toml` whose keys sit at the top level was read as an empty
   manifest.** *Done 2026-11-03.*
   *What was wrong.* The JSON reader takes its mapping at the top level, so
