@@ -1618,6 +1618,32 @@ not what changed, but what proves the change works.
   with the swallowed tail as the quote.  Both exit 1, so no green build hides
   it, but the two messages name different problems.
 
+- [x] **Two claim blocks that share one closing fence are read as one block.**
+  With the first block's closer missing, the body scan ran from the first
+  opener to the *second* block's closer, so the second opener and its quote
+  became the first block's quote.
+  *Who is blocked*: anyone who pastes a second claim block above an existing
+  one and forgets the first closer. The second claim stops existing - and it
+  is absent from the report *and* from the ledger, so no later command can
+  find it again.
+  *Done when*: both blocks are claims, the missing fence is reported at the
+  line where the second fence begins, and `scan` no longer exits 0 on the
+  shape below.
+  **Done — why it is now true:** measured on a two-block manuscript whose
+  sentences are both on page 1, before the fix: `scan` exited **0** and wrote
+  a ledger holding `['c1']`, while `check` exited 1 with
+  `[high] quote-missing at manuscript.md:3 (c1): "…sentences ```claim id=c2
+  sourc… — quote not in paper.txt"` - a quote the author never wrote. After:
+  the scan stops at a nested opener, both ids reach the ledger, the first
+  block is reported as `claim-block-unclosed` naming `line 4`, and the quote
+  carries no fence line. Proved by `tests/test_nested_fence.py` (8); five
+  mutations, all red: nested opener treated as body text, the nested opener
+  not reported, the resume line not moved, the split block marked closed, the
+  nested line number dropped from the message.
+  *Not covered*: a claim block indented inside a markdown list item or a
+  blockquote is still silently skipped (no finding, no claim) - same family,
+  different round.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
