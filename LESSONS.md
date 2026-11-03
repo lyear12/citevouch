@@ -5310,3 +5310,37 @@ place, spell it once in a module constant (`BACKSLASH = chr(92)`) — this file
 mismatched that quoting layer twice while writing this very fix.
 
 **Seen 1.**
+## A reader that cannot follow the syntax must not consume it
+
+**Rule.** When a parser hits a construct it cannot read to the end, it stops where
+it started reading. It never answers "end of input", and it never silently
+deletes the text it did not understand. Leaking the source into the output is
+recoverable, because an author can see it. Deleting the source is not.
+
+**Why.** `latex._definition_end` answered `len(text)` whenever the group it
+expected was missing. A star was enough to trigger it: `\newcommand*{\x}{y}` puts
+a `*` where the code expected a brace, `_group_end` answered `-1`, and the
+definition ate the rest of the file. Measured on
+`A. \newcommand*{\x}{y} The grammar is large.`: the converted text was `A.`, 32
+characters gone, and no finding mentioned it. Six spellings take the star, and
+three different "no group" paths (`\newcommand`, `\newtheorem`, `\def`) took the
+same exit. The one failure mode a converter can produce which its user cannot
+detect is a *short* output. A wrong word is visible on the page; a missing
+paragraph is visible only to whoever remembers writing it.
+
+It is the same shape as an earlier lesson in this file: `_balanced` returning
+`len(text)` for an unbalanced expression. Two functions, two files, one answer.
+The answer is wrong both times because "I cannot parse this" and "there is
+nothing after this" are different facts, and only one of them is about the input.
+
+**How to apply.** Separate the two facts. When a lookahead fails, return the
+position the reader was at, not the length of the text, and give the helper its
+own name (`_unreadable`) so the next reader sees the decision instead of a bare
+`len(text)`. Then test the malformed spellings, not just the well-formed ones:
+the well-formed ones were already covered, and that is why the deletion survived
+for two releases. The tests that catch this are the ones that assert the *tail*
+of the document is still there — `assert TAIL in converted` — because an
+assertion about the beginning passes whether or not everything after it vanished.
+
+**Seen 2.** The two sightings were an unclosed expression in
+`textnorm._balanced` and a missing brace group in `latex._definition_end`.

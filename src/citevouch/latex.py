@@ -484,6 +484,18 @@ _DEFINITION = frozenset(
 
 #: Definitions written as ``\def\name#1#2{body}``: the name is not in braces and
 #: the parameter text may hold anything up to the body.
+#: The xparse spellings that take three groups: the name, the argument
+#: specification and the body.  The etoolbox ``...x`` spellings do not: they take
+#: a name, an optional count, an optional default and then the body.
+_DOCUMENT_COMMAND = frozenset(
+    {
+        "DeclareDocumentCommand",
+        "NewDocumentCommand",
+        "RenewDocumentCommand",
+        "ProvideDocumentCommand",
+    }
+)
+
 _LOW_LEVEL_DEFINITION = frozenset({"def", "gdef", "edef", "xdef"})
 
 #: Definitions whose body is prose but whose name is not, in two parts.
@@ -939,6 +951,18 @@ def _skip_space(text: str, start: int) -> int:
     return index
 
 
+def _unreadable(cursor: int) -> int:
+    """Where reading stops when a definition cannot be read to its end.
+
+    Answering ``len(text)`` here deleted the rest of the document: measured on
+    ``A. \\newcommand The grammar is large.`` the sentence came out as ``A.``.
+    A definition this reader cannot follow is a definition it should leave
+    alone - the source then shows up in the prose, which an author can see,
+    instead of vanishing, which they cannot.
+    """
+    return cursor
+
+
 def _definition_end(text: str, name: str, start: int) -> int:
     """Index just past the definition of `name` that follows `start`.
 
@@ -948,19 +972,29 @@ def _definition_end(text: str, name: str, start: int) -> int:
     real call at every use site.
     """
     cursor = _skip_space(text, start)
+    if cursor < len(text) and text[cursor] == "*":
+        # ``\newcommand*{\x}{body}`` is the same command as ``\newcommand``:
+        # the star only says the definition must not be \long.  Without this
+        # line the next character is not a brace, ``_group_end`` answers -1,
+        # and the fallthrough below returns ``len(text)`` - the whole rest of
+        # the document became part of a macro that was never called.  Measured
+        # on ``A. \newcommand*{\x}{y} The grammar is large.``: the sentence
+        # came out as ``A.`` and the 32 characters after the definition were
+        # gone, with no finding to say so.
+        cursor = _skip_space(text, cursor + 1)
     if name in _LOW_LEVEL_DEFINITION:
         # `\def\name#1#2{body}`: the name is not in braces, and the parameter
         # text runs up to the body's opening brace.
         opening = text.find("{", cursor)
         if opening < 0:
-            return len(text)
+            return _unreadable(cursor)
         group = _group_end(text, opening)
-        return group if group > 0 else len(text)
+        return group if group > 0 else _unreadable(cursor)
     if name in _THEOREM_DEFINITION:
         # `\newtheorem{name}[counter]{Printed Name}[within]`.
         group = _group_end(text, cursor)
         if group < 0:
-            return len(text)
+            return _unreadable(cursor)
         cursor = _skip_optional_args(text, group)
         group = _group_end(text, cursor)
         if group < 0:
@@ -968,8 +1002,21 @@ def _definition_end(text: str, name: str, start: int) -> int:
         return _skip_optional_args(text, group)
     group = _group_end(text, cursor)
     if group < 0:
-        return len(text)
+        return _unreadable(cursor)
     cursor = _skip_optional_args(text, group)
+    if name in _DOCUMENT_COMMAND:
+        # ``\\NewDocumentCommand{\\x}{m}{Body #1}``: name, argument
+        # specification, body.  Reading only the first two left the body in the
+        # prose, so ``\\NewDocumentCommand{\\seecite}{m}{see \\citep{#1}}``
+        # contributed the words ``see [@#1]`` to the text and `draft` reported a
+        # citation to the key ``#1`` -- a source the paper never cites, offered
+        # to the author to paste.
+        for _ in range(2):
+            group = _group_end(text, cursor)
+            if group < 0:
+                return cursor
+            cursor = _skip_optional_args(text, group)
+        return cursor
     if name in _ENVIRONMENT_DEFINITION:
         for _ in range(2):
             group = _group_end(text, cursor)

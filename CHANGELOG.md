@@ -12,6 +12,43 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A starred definition deleted the rest of the document, and the xparse commands
+  left their macro body in the prose.** Three defects in one function,
+  `latex._definition_end`, each measured before the fix (`B` is a backslash):
+
+  1. A definition written with a star — `B + "newcommand*{..."` — put a `*`
+     where the code expected an opening brace. `_group_end` answered `-1`, and
+     the fallthrough translated that into `len(text)`, so the definition
+     consumed the whole rest of the file. Measured on `"A. " + B +
+     "newcommand*{" + B + "x}{y} The grammar is large."`: the converted text was
+     `'A.'` — 32 characters gone, and no finding said so. Six spellings take the
+     star this way: `newcommand`, `renewcommand`, `providecommand`,
+     `DeclareRobustCommand`, `newenvironment`, `renewenvironment`. Deleting
+     prose is the one failure an author cannot see, which is why the star is now
+     skipped and, more generally, why a definition that cannot be read to its
+     end now stops where it started reading instead of running to the end of the
+     file.
+  2. The xparse commands `DeclareDocumentCommand`, `NewDocumentCommand`,
+     `RenewDocumentCommand` and `ProvideDocumentCommand` take **three** groups:
+     the name, the argument specification and the body. The generic path
+     consumed two, so the body stayed in the prose. Measured:
+     `B + "NewDocumentCommand{B + "seecite}{m}{see B + "citep{#1}}` contributed
+     the words `see [@#1]` to the text, and `draft.citation_sites` reported a
+     citation to the key `#1` — a source the paper never cites, offered to the
+     author to paste into a claim block.
+  3. A definition with no readable group at all — `B + "newcommand The grammar
+     is large."`, `B + "newtheorem ..."`, `B + "def ..."` — took the same
+     `len(text)` exit and deleted what followed.
+
+  The etoolbox `...x` spellings (`newcommandx`, `renewcommandx`,
+  `providecommandx`) are **not** the xparse shape: they take a name, an optional
+  count, an optional default and then the body, so they stay on the generic
+  path. A group that follows an etoolbox definition belongs to the page and is
+  kept; the same group after an xparse definition is the body and is dropped.
+  Both directions are pinned by tests.
+
 ## [0.22.12] — 2026-11-03
 ### Fixed
 
