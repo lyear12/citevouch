@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.20.2] — 2026-11-03
 ### Fixed
 
 - **An empty `.txt` was told to run OCR on it.** `source-no-text` was written for
@@ -22,7 +23,6 @@ tag and that file disagree.
   layer, and OCR does not untag a document. Each format now gets its own reason,
   and the suffix travels from the extractor to the sentence on both the
   extraction and the cache-hit path.
-
 ## [0.20.1] — 2026-11-03
 ### Fixed
 
@@ -2266,7 +2266,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/lyear12/citevouch/releases/tag/v0.20.2
 [0.20.1]: https://github.com/lyear12/citevouch/releases/tag/v0.20.1
 [0.20.0]: https://github.com/lyear12/citevouch/releases/tag/v0.20.0
 [0.19.88]: https://github.com/lyear12/citevouch/releases/tag/v0.19.88
