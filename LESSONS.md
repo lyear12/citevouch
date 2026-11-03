@@ -5056,3 +5056,32 @@ covers the next extension somebody reaches for - and prefer a message file
 outside the work tree (`/tmp/msg.txt`) when the shell allows it.
 
 Seen 3.
+
+## A file with one readable block is not a file that was read
+
+Rule: any parser that skips a construct is silent only about the constructs it
+understands to be skipped. When a file produces *some* results, every other
+construct in it has to be accounted for - the "nothing found" path does not run.
+
+Why: `citevouch` skipped claim fences that sat inside a blockquote, a list item
+or an indent, which is correct (Markdown renders those as code samples), and it
+had a good near-miss sentence for that shape. But `scan` printed that sentence
+only when the manuscript yielded zero claims. One properly fenced block anywhere
+else switched the whole accounting off: `scan` wrote `citevouch.lock.json
+(1 claim)` and exited 0, `check` printed `1 claim — 1 verified, 0 moved,
+0 missing`, and the second block's id was in no finding and in no ledger row.
+Measured on a project whose `page.txt` held the sentence both blocks quoted.
+
+The lesson generalises past this parser. A "did I find anything at all" branch
+and a "did I account for everything" branch look like the same check and are
+not: the first only runs on total failure, so the worse case - partial success -
+falls through the gap the first one leaves open. Partial recognition reads like
+a total, because the report says a number and never says what it is not
+counting.
+
+How to apply: after the parse loop, walk the input again for constructs that
+match the shape of what you accept but were not accepted, and report them
+per line - unless they are inside a region you deliberately skipped, which is
+why the check has to know the spans you consumed rather than re-deriving them
+from the text. Then keep the two branches from firing together: a file with no
+claims at all gets the "nothing here" finding, not both.

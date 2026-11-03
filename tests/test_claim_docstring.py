@@ -63,7 +63,12 @@ class TestNothingReadsTheFingerprintBack:
                     continue
                 if "=fingerprint(" in stripped:
                     producers.append(f"{path.name}:{number}")
-        assert producers == ["manuscript.py:264"], (
+        # The *file* is the claim; the line number is not.  Pinning the number
+        # made this test fail every time an unrelated edit moved the parser's
+        # fingerprint call down the file, which is a red that says nothing about
+        # whether a second writer appeared.  The listing in the message stays,
+        # so a real change still names the place that changed.
+        assert [place.split(":")[0] for place in producers] == ["manuscript.py"], (
             "the set of places that compute a quote fingerprint changed: "
             + ", ".join(producers)
         )

@@ -62,6 +62,9 @@ SARIF_RULES = {
     "claim-uncheckable": (
         "A claim block cannot be looked up at all, so its quote was never compared to anything."
     ),
+    "claim-block-unread": (
+        "A claim fence sits where Markdown renders a code sample, so nothing in it was checked."
+    ),
     "page-unreadable": "A page hint is not a number and is being ignored.",
     "claim-without-evidence": "A claim carries no verifiable evidence.",
     "ledger-stale": "The ledger predates the manuscript.",

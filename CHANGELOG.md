@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A claim block inside a blockquote, a list item or an indent was skipped without a word.**
+  Markdown renders such a fence as a code sample, so the parser is right not to read it - but it
+  is wrong to say nothing, because a manuscript holding one good block and one wrapped block
+  reported `1 claim — 1 verified, 0 moved, 0 missing` and exited 0. Measured before the fix, on a
+  project whose `page.txt` holds the sentence both blocks quote: `scan` wrote
+  `citevouch.lock.json (1 claim)` and exited 0, `check` printed `1 claim — 1 verified, 0 moved,
+  0 missing` with `worst severity: info`, `doctor` showed two green ticks, and the second block's
+  id appeared in no finding and in no ledger row. The same held for a bullet (`- ```claim`), an
+  ordinal (`1. ```claim`) and a bare two-space indent. The near-miss sentence `scan` already had
+  names the indented shape correctly, but it only runs for a file that produced *zero* claims, so
+  one good block anywhere in the manuscript switched it off - partial recognition, which is the
+  shape that reads like a total. There is a new code, `claim-block-unread` (high), reported per
+  line with the claim id on it, saying the fence is not at the left margin and will not be
+  checked until it is. A file with no claims at all still gets `no-claim-blocks` and not both, and
+  a fence inside a code sample is still silent, because sample text is not a claim the parser
+  failed to read.
+
 ## [0.22.4] — 2026-11-03
 ### Fixed
 

@@ -87,6 +87,7 @@ rots:
 | `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block |
 | `claim-block-unclosed` | high | a `` ```claim `` block never closes, so every claim after it was read as part of it |
 | `claim-uncheckable` | high | a claim block cannot be looked up at all - no `source=`, no quote, no id, or an id used twice so the second block is dropped |
+| `claim-block-unread` | high | a claim fence sits inside a blockquote, a list item or an indent, where Markdown renders it as a code sample - nothing in it was checked |
 | `page-unreadable` | medium | a `page=` hint is not a number, so it is ignored and the quote is located by search |
 | `no-claim-blocks` | high | the manuscript holds no claim blocks at all, so nothing in it was checked |
 

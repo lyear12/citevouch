@@ -76,6 +76,15 @@ CODES = {
     # green pipeline over an unchecked claim is the exact failure this tool
     # exists to prevent.
     "claim-uncheckable": "high",
+    # A claim fence inside a blockquote, a list item or an indent.  Markdown
+    # renders that as a code sample, so the parser is right not to read it -
+    # but the run must not be silent about it either.  High, and not `low`,
+    # because the two readings of this line have opposite consequences for the
+    # author: as a sample it is fine, and as a claim it was never checked while
+    # the run reported a number of claims that reads like a total.  A finding
+    # that says "check whether you meant this" is cheap; a green run over a
+    # claim nobody read is the failure this tool exists to prevent.
+    "claim-block-unread": "high",
     # A page hint that is not a number.  The claim is still located by search,
     # so this is a note about an instruction being ignored, not a rejection.
     "page-unreadable": "medium",

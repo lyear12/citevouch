@@ -71,6 +71,25 @@ _ATTR = re.compile(
 # almost right is the difference between "the tool is broken" and "look at line
 # 12".  Deliberately permissive - it is a hint generator, never a gate.
 _CLAIMISH = re.compile(r"^\s*(?:`{3,}|~{3,}|<!--)\s*[*_]*\s*claim\b", re.IGNORECASE)
+# What a line can put in front of a fence without being a comment: a blockquote
+# marker, a bullet, a number, an indent, and any mix of them.
+_CONTAINER = r"(?:(?:[ \t]*>[ \t]*)|(?:[ \t]*[-*+][ \t]+)|(?:[ \t]*\d+[.)][ \t]+)|(?:[ \t]+))*"
+# The fence itself, with no opinion about what precedes it.
+_BARE_CLAIM = re.compile(r"(?:`{3,}|~{3,})\s*[*_]*\s*claim\b", re.IGNORECASE)
+# A claim fence a container or an indent put out of reach of `_FENCE_OPEN`,
+# which only matches at the left margin.  Such a block is not a claim - Markdown
+# renders the fence as a code sample wherever it sits - but it is also not
+# prose, and staying quiet about it is the one answer that is definitely wrong.
+#
+# Measured before `claim-block-unread` existed: a manuscript holding one good
+# block and one blockquoted block gave `scan` exit 0 with "wrote
+# citevouch.lock.json (1 claim)", `check` "1 claim - 1 verified, 0 moved, 0
+# missing" and exit 0, and `doctor` two green ticks.  The second block's id
+# appeared in no finding and in no ledger row.  The near-miss sentence in
+# `scan._no_claim_blocks_finding` names the indented shape correctly, but only
+# for a file that produced *zero* claims, so one good block anywhere switched
+# it off.
+_WRAPPED_CLAIM = re.compile(_CONTAINER + _BARE_CLAIM.pattern, re.IGNORECASE)
 # The two keys that make a body a mapping, and the only two the parser reads a
 # value out of.  `numbers:` used to be a third, listed here from the first
 # commit although `_claim_from` builds `Claim.numbers` with `numbers_in(quote)`
@@ -559,7 +578,62 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             continue
 
         i += 1
+
+    if claims:
+        findings.extend(_unread_findings(lines, spans, path))
     return ParseResult(claims=claims, findings=findings, spans=spans)
+
+
+def _unread_findings(
+    lines: list[str], spans: list[tuple[int, int]], path: str
+) -> list[Finding]:
+    """Name every claim fence the parser walked past without reading.
+
+    ``claims`` being non-empty is the condition, not a detail.  A file that
+    produced no claims at all is already refused loudly - ``scan`` names the
+    nearest near miss and says what a claim fence looks like - so a second
+    finding would be the same fact in a second vocabulary.  The silence only
+    exists where a run *succeeded*: one good block is enough to make every
+    other block invisible, and the author is told the run verified their
+    claims when it verified some of them.
+
+    A line inside a span is not a skipped block.  Spans cover accepted blocks
+    (whose quotes may legitimately mention a fence) and code samples (where a
+    ``claim`` line is sample text on purpose), and neither is a claim the
+    parser failed to read.
+    """
+    covered = [False] * (len(lines) + 1)
+    for first, last in spans:
+        for number in range(max(1, first), min(len(lines), last) + 1):
+            covered[number] = True
+    found: list[Finding] = []
+    for number, line in enumerate(lines, start=1):
+        if covered[number]:
+            continue
+        m = _WRAPPED_CLAIM.match(line)
+        if not m:
+            continue
+        # The id is on the line the author wrote, so name it.  A finding that
+        # says "line 8" makes the reader count; one that says "claim c2 at
+        # line 8" matches the block they are looking for.
+        claim_id = _attrs(line[m.end() :]).get("id", "")
+        who = f"claim {claim_id}: " if claim_id else ""
+        found.append(
+            Finding(
+                code="claim-block-unread",
+                message=(
+                    f"{who}line {number} opens a claim block that was not read: the "
+                    "fence is inside a blockquote, a list item or an indent, and a "
+                    "fence that is not at the left margin is a code sample in "
+                    "Markdown, not a claim - move it to the left margin to have it "
+                    "checked"
+                ),
+                claim_id=claim_id,
+                path=path,
+                line=number,
+            )
+        )
+    return found
 
 
 def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
