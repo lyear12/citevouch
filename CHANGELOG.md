@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The plural citation commands are read, in both the converter and the
+  bibliography scan.  `\cites{a}{b}`, `\parencites`, `\textcites`,
+  `\autocites`, `\footcites`, `\smartcites`, `\supercites` and
+  `\fullcites` take one brace group per source, which the citation pattern
+  could not match: it stopped at `cite`, and the `s` that follows is neither
+  `*` nor `[` nor `{`.  The command then fell through to the generic rule
+  for an unknown command - drop the name, keep the arguments - so every key
+  was left in the prose as a bare word and `citation_sites` reported a
+  manuscript that cites three sources at once as citing none.
+  `\fullcite`, `\parencite`, `\textcite`, `\autocite`, `\footcite`,
+  `\smartcite` and `\supercite` were missing from the same pattern
+  altogether, so a biblatex manuscript produced no proposals at all.
+  Measured: `\cites{a}{b}` went from `'ab'` with no site to `[@a; @b]`
+  with two; the seven singular names went from no site each to one.
 
 ## [0.19.85] — 2026-11-03
 ### Fixed

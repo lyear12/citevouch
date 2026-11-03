@@ -41,9 +41,29 @@ _BEGIN_DOC = re.compile(r"\\begin\s*\{document\}")
 _END_DOC = re.compile(r"\\end\s*\{document\}")
 _CITE = re.compile(
     r"\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|citeyearpar"
-    r"|nocite|parencite|textcite|autocite|footcite|smartcite|supercite)"
+    r"|nocite|parencite|textcite|autocite|footcite|smartcite|supercite"
+    r"|fullcite)"
     r"\*?(?:\s*\[[^\]]*\])*\{([^}]*)\}"
 )
+
+#: The plural citation commands take one brace group per source, each with
+#: its own optional arguments: `\cites[see][p.~3]{a}[p.~4]{b}`.  `_CITE`
+#: cannot match them - its name ends at `cite`, and `s` is neither `*` nor
+#: `[` nor `{` - so they fell through to the generic rule that drops a
+#: command's name and keeps its arguments, which left every key in the prose
+#: as a bare word and made `citation_sites` report that a manuscript citing
+#: three sources at once cited none of them.  Measured before this pattern
+#: existed:
+#:
+#:     \cites{a}{b}        -> 'ab'    sites=[]
+#:     \parencites{a}{b}   -> 'ab'    sites=[]
+#:     \citep{a}           -> '[@a]'  sites=['a']
+_MULTI_CITE = re.compile(
+    r"\\(?P<name>cites|citeps|citets|citealps|citealts|parencites"
+    r"|textcites|autocites|footcites|smartcites|supercites|fullcites)"
+    r"\*?(?P<arguments>(?:(?:\s*\[[^\]]*\])*\s*\{[^{}]*\})+)"
+)
+_MULTI_ARGUMENT = re.compile(r"(?:\s*\[[^\]]*\])*\s*\{(?P<keys>[^{}]*)\}")
 
 #: Inline commands whose argument TeX prints without interpreting it. The
 #: delimiter is any character the author picks, so there is no brace group to
@@ -703,6 +723,16 @@ def _pandoc_marker(keys: str) -> str:
     return "[" + "; ".join("@" + name for name in names) + "]"
 
 
+def _pandoc_multi(arguments: str) -> str:
+    """The same marker, for a command that takes one group per source."""
+    names: list[str] = []
+    for match in _MULTI_ARGUMENT.finditer(arguments):
+        names.extend(name.strip() for name in match.group("keys").split(",") if name.strip())
+    if not names:
+        return ""
+    return "[" + "; ".join("@" + name for name in names) + "]"
+
+
 def _group_end(text: str, start: int, opener: str = "{", closer: str = "}") -> int:
     """Index just past the balanced group starting at `start`, or -1."""
     if start >= len(text) or text[start] != opener:
@@ -1198,6 +1228,7 @@ def to_text(tex: str) -> str:
     """
     body = document_body(strip_comments(tex))
     body, verbatim = _drop_inline_verbatim(body)
+    body = _MULTI_CITE.sub(lambda match: _pandoc_multi(match.group("arguments")), body)
     body = _CITE.sub(lambda match: _pandoc_marker(match.group(1)), body)
     notes: list[str] = []
     text = _restore_dropped(_convert(body, notes), verbatim)

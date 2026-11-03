@@ -45,9 +45,19 @@ _AT_KEY = re.compile(r"-?@(?P<key>[A-Za-z0-9_.:\-]+)")
 # LaTeX's forms, because much of the audience types Markdown in an editor that
 # still has `.tex` habits and half of a draft arrives already using these.
 _LATEX = re.compile(
-    r"\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|nocite)"
+    r"\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|nocite"
+    r"|parencite|textcite|autocite|footcite|smartcite|supercite|fullcite)"
     r"\*?(?:\[[^\]]*\])*\{([^}]*)\}"
 )
+# A plural citation command takes one brace group per source, so the pattern
+# above reads only the first and reports a manuscript citing three sources at
+# once as citing one.  The list is biblatex's own; `cites` is natbib's.
+_LATEX_MULTI = re.compile(
+    r"\\(?:cites|citeps|citets|citealps|citealts|parencites|textcites"
+    r"|autocites|footcites|smartcites|supercites|fullcites)"
+    r"\*?(?P<arguments>(?:(?:\s*\[[^\]]*\])*\s*\{[^{}]*\})+)"
+)
+_LATEX_ARGUMENT = re.compile(r"(?:\s*\[[^\]]*\])*\s*\{(?P<keys>[^{}]*)\}")
 
 # A sentence ends at terminal punctuation followed by space, or at the end of a
 # paragraph.  `re.split` keeps the text; offsets are recomputed from a scan so
@@ -200,6 +210,19 @@ def citation_sites(text: str) -> list[Site]:
                         line=line_of(text, match.start()),
                     )
                 )
+    for multi in _LATEX_MULTI.finditer(text):
+        for argument in _LATEX_ARGUMENT.finditer(multi.group("arguments")):
+            for raw in argument.group("keys").split(","):
+                key = raw.strip()
+                if key:
+                    sites.append(
+                        Site(
+                            key=key,
+                            start=multi.start(),
+                            end=multi.end(),
+                            line=line_of(text, multi.start()),
+                        )
+                    )
     sites.sort(key=lambda site: site.start)
     return sites
 
