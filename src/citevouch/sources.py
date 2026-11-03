@@ -27,7 +27,7 @@ from shutil import which
 from ._version import __version__
 from .errors import UsageError, why_not_a_file
 from .model import Finding, SourceRef
-from .textnorm import fold, read_text
+from .textnorm import count_of, fold, read_text
 
 CACHE_DIRNAME = ".citevouch"
 CACHE_SUBDIR = "cache"
@@ -724,7 +724,7 @@ def _unspellable(name: str) -> bool:
 
 
 def _refuse_shapes_only_one_reader_follows(text: str) -> None:
-    """Refuse the two spellings the parsers would answer differently.
+    """Refuse the spellings the parsers would answer differently.
 
     Both are legal TOML that tomllib reads one way and this line-based subset
     reads another, and a manifest that binds on 3.12 while failing on 3.10 is
@@ -741,6 +741,10 @@ def _refuse_shapes_only_one_reader_follows(text: str) -> None:
     * ``page = "a.txt"`` written twice - tomllib refuses the file; the subset
       kept the last value, so which file a claim resolved to depended on the
       order of two lines a 3.11 interpreter would not have allowed at all.
+    * ``paper = "a.txt"`` with no table header at all - tomllib binds nothing,
+      the subset files it under a bucket named ``""``, and the JSON reader
+      accepts exactly that shape as its normal form.  Both readers must refuse
+      it, or the same manifest binds through one format and not the other.
 
     Both readers refuse the file, with the same sentence, so no interpreter
     reads it as something different.  Refusing here rather than in each parser
@@ -824,6 +828,48 @@ def _refuse_shapes_only_one_reader_follows(text: str) -> None:
             where = f"[{section}]" if section else "the top level"
             raise ValueError(f"'{name}' is given twice in {where}; each key may appear once")
         seen.add((section, name))
+    # A dotted name is nested-table syntax to both readers and binds no
+    # source either way, so it is not evidence of a flat manifest.
+    stray = sorted(name for _, name in seen if name != "sources" and "." not in name)
+    if not declared and stray:
+        # Keys at the top level and no table header at all.  The JSON reader
+        # accepts exactly this shape - ``{"page": "a.txt"}`` is the form the
+        # docstring documents - so the same keys bind in ``sources.json`` and
+        # bind nothing in ``sources.toml``, and nothing said so.
+        #
+        # Measured on a project whose only claim names ``paper``, with
+        # ``paper = "page.txt"`` at the top of sources.toml:
+        #
+        #   check  -> [high] source-missing ... "no entry in sources.toml"
+        #             about a key that is in that file, three lines above the
+        #             manifest header the message asks for
+        #   doctor -> [ok  ] manifest sources.toml (19 bytes), 0 sources, every
+        #             one of them present on this machine
+        #
+        # "0 sources, ok" is the shape this module exists to stop: a file with
+        # content reported as a file with none.  This check lives here rather
+        # than in the caller because a check inside one reader speaks for one
+        # reader - the subset files those keys under a bucket named ``""``, so
+        # a check written against the parsed dict would refuse on 3.11 and stay
+        # silent on 3.10.  Written on the text, both readers reach it.
+        #
+        # A file with no keys at all is not refused: an empty manifest is a
+        # supported way to start, and `seen` is what tells the two apart.
+        #
+        # A key literally called `sources` is excluded too, and that exclusion
+        # is not decoration: `sources = 5` and `sources = "page.txt"` are
+        # already refused by the reader's own check, which names the key and
+        # what it holds - a better sentence than this one.  Measured: without
+        # the exclusion this rule fired first and replaced three of
+        # `tests/test_manifest_value_shapes.py`'s assertions with a message
+        # about a `[sources]` table the author does not want to add.
+        raise ValueError(
+            f"{count_of(len(stray), 'key')} at the top level and no [sources] "
+            f"table ({', '.join(repr(k) for k in stray)}); a TOML manifest "
+            "maps source keys to paths inside [sources] - add the header above "
+            "them, or move them to sources.json, where the top level is the "
+            "table"
+        )
 
 
 def _mini_toml(text: str, odd: list[str] | None = None) -> dict:

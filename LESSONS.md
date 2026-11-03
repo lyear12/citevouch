@@ -4854,3 +4854,29 @@ visible, then say out loud which mark is missing - an absorbed block is invisibl
 report and the record, so no later command can recover it.
 
 Seen 1.
+
+## Two formats that document one shape must refuse the same files
+
+Rule: when two file formats share one contract, write the checks against the contract
+and run them where both readers reach them.  A check inside one reader speaks for that
+reader alone, and the project then answers differently depending on which format and
+which interpreter the user happened to pick.
+
+Why: `sources.json` takes its mapping at the top level, so `sources.toml` with
+`paper = "page.txt"` and no `[sources]` header looks like a manifest to one format and
+like nothing at all to the other.  Measured: `check` told the author `no entry in
+sources.toml ... add it to sources.toml` about a key three lines above the header it
+asked for, and `doctor` said `[ok] sources.toml (19 bytes), 0 sources` and exited 0.
+The first version of the fix lived in `read_manifest`, reading the parsed dict - which
+on 3.11 is tomllib's and on 3.10 is the subset's, and the subset files those keys under
+a bucket named `""`.  The same flat file was refused on one interpreter and silent on
+the other, which is the defect the pre-scan exists to prevent.
+
+How to apply: put the refusal in `_refuse_shapes_only_one_reader_follows`, on the text,
+so both parsers reach it, and make the sentence the same one.  Then check the narrow
+side: a key literally called `sources` and a dotted name each already have a more
+precise sentence, and the first draft of this rule shadowed three assertions in
+`tests/test_manifest_value_shapes.py` by firing before them.  A refusal that hides a
+better refusal is a worse message with the same exit code.
+
+Seen 1.

@@ -12,6 +12,26 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `sources.toml` whose keys sit at the top level is now named as a
+  problem instead of read as an empty manifest.** The JSON reader takes its
+  mapping at the top level (`{"page": "a.txt"}` is the documented form), so
+  ``paper = "page.txt"`` written straight into `sources.toml` with no
+  `[sources]` header looks like a manifest to the one format and like nothing
+  at all to the other.  Measured on that project: `check` printed
+  `[high] source-missing … no entry in sources.toml and no --source path
+  resolves it; add it to sources.toml` about a key that was in the file, three
+  lines above the header the message asked for, and `doctor` printed
+  `[ok  ] manifest sources.toml (19 bytes), 0 sources, every one of them
+  present on this machine` and exited 0.  Both readers now refuse the file with
+  one sentence naming the keys and the two ways to fix it.  The refusal is
+  written on the text in the shared pre-scan rather than against the parsed
+  mapping, because the subset parser used on 3.10 files those keys under a
+  bucket named `""` — a check written on the mapping would refuse on 3.11 and
+  stay silent on 3.10.  A key literally called `sources` and a dotted name are
+  excluded: both already have their own, more precise, sentence.
+
 ## [0.21.4] — 2026-11-03
 ### Fixed
 
