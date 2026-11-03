@@ -1967,6 +1967,50 @@ not what changed, but what proves the change works.
   has never been compared against a real CommonMark renderer; the fixtures are
   hand-written from the rule.
 
+- [x] **A pipe written the only correct way inside a table cell was read as a cell
+  boundary, and an empty cell was read as no block at all.**
+
+  *What was wrong.* GFM defines exactly one escape inside a table cell: a backslash
+  before the pipe. The table dialect matched each column with `[^|]+?`, which stops at
+  any pipe, so an author who escaped correctly had their quote cut at the backslash and
+  the rest of it installed as the `text` column. Measured on
+  `| c1 | paper | 1 | a\|b | t |`: quote `a\`, text `b`. The same row
+  with a bare pipe - the spelling Markdown says is wrong - gave quote `a`, text `b`, so
+  the correct spelling was the one that lost data. End to end on a page carrying a
+  literal pipe, the correctly escaped quote came back
+  `[high] quote-fuzzy ... similarity 1.00` and exited 1.
+
+  The same pattern required at least one character per cell, so a row with a blank
+  column matched no dialect: `| c1 | paper | 1 || short |` and `| c1 | paper | 1 | q ||`
+  were reported as `[high] no-claim-blocks ... This file has none`, over a file that
+  had one - the same false sentence v0.22.8 removed from a different path.
+
+  *Who was blocked.* Anyone whose source page or quote contains a pipe: a table of
+  statistics, a regular-expression example, a piece of shell, a phonology
+  representation. Writing it correctly was the way to lose text.
+
+  *Done when.* An escaped pipe reaches the claim as a pipe, in all three columns; an
+  empty quote or source is named by `claim-uncheckable` rather than by
+  `no-claim-blocks`; and the commands report a green run for a project whose only
+  table row has an empty `text` column.
+
+  *Done - why it is now true.* `_CELL = r"(?:[^|\\]|\\.)*?"`
+  matches one ordinary character or one backslash-plus-anything, for every column, and
+  `_unescape_pipe` undoes `\|` and nothing else - every other backslash stays
+  as written. `tests/test_table_cell_escapes.py` holds 20 tests over the parser and
+  both commands. Seven mutations applied, seven RED, `survivors: []`,
+  `broken mutants: []`: the cell ending on an escaped pipe, each column skipping
+  `_unescape_pipe` in turn, every backslash stripped instead of just the pipe, the
+  empty cell refused again, and only the first escape undone. The source-column
+  mutation survived the first pass, which is why
+  `test_the_source_cell_is_unescaped_too` exists.
+
+  *Not covered.* A backslash before anything other than a pipe is left as written
+  deliberately (a Windows path in a quote must survive); no real Markdown renderer was
+  consulted about whether it accepts such an escape, because the fixture is written
+  from the GFM spec. A blockquoted table row is still handled by the wrapped-block
+  path, not by the table path.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
