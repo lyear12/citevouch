@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.6] — 2026-11-03
 ### Fixed
 
 - **`doctor` counted a manuscript by the blocks it managed to read.** The `claims` check
@@ -27,7 +28,6 @@ tag and that file disagree.
   `doctor` still exits 0: a block it could not read is a finding with its own line number,
   and that division of labour is the same one the refused-block case has always had - which
   is also why the defect was invisible until the count was compared against the file.
-
 ## [0.22.5] — 2026-11-03
 ### Fixed
 
@@ -2490,7 +2490,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.5...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.6...HEAD
+[0.22.6]: https://github.com/lyear12/citevouch/releases/tag/v0.22.6
 [0.22.5]: https://github.com/lyear12/citevouch/releases/tag/v0.22.5
 [0.22.4]: https://github.com/lyear12/citevouch/releases/tag/v0.22.4
 [0.22.3]: https://github.com/lyear12/citevouch/releases/tag/v0.22.3
