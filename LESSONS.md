@@ -4906,3 +4906,37 @@ carries a liveness test of its own, because a resolver that reaches nothing make
 guard green and meaningless.
 
 Seen 1.
+
+## A suffix is what the author meant; the first bytes are what the file is
+
+Rule: when a reader is chosen from the file's extension, read the
+extension as a claim and spend five bytes checking the one case where
+being wrong is expensive - a format this tool has a dedicated reader for
+arriving under a name that routes it to the fallback.
+
+Why: `paper.txt` holding a PDF was read by the plain-text path, which
+succeeded: 4 pages and 206,870 characters of mojibake, `problem=None`.
+Nothing downstream could tell that from text, so the run reported
+`quote-missing ... no passage in the source is close to this quote` about
+a page that does contain the quote. The author's mistake was a file name;
+the accusation was about their evidence. A suffix is one word the author
+typed, and it is the only thing standing between a good reader and a bad
+one.
+
+The fix is not to disbelieve every suffix - a `.txt` that really is text
+must read the same as it always did, and this tool never overrides a
+suffix it has no better reader for. It sniffs exactly the case it can
+improve: `%PDF-` in the first five bytes, any name. If the check is
+wrong, the file reaches the PDF reader, which refuses out loud with
+`source-unreadable` - a sentence about the file rather than about the
+quote, which is the direction that costs the author least.
+
+How to apply: read the fixed number of bytes, not the whole file, and
+compare them to the whole magic (`== b"%PDF-"`, not
+`.startswith(b"%PDF")`, which accepts a five-byte file); a header that
+appears later in the file is a file *about* a PDF. And when the reader
+changes, the cache key has to change with it - the entry is stored under
+the reader that ran, so a run that cached mojibake as `plain` cannot hand
+it back after the fix.
+
+Seen 1.

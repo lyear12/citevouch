@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A PDF named `paper.txt` was decoded as text, and the run then accused
+  the quote.** The suffix is the author's statement about the format, and
+  this tool reads what it is told to read. But a PDF has its own reader
+  here, and using it on a file that *is* a PDF is strictly more capable
+  than decoding the same bytes as UTF-8. Measured: the demo paper copied
+  to `real.txt` extracted as 4 pages / 206,870 characters of mojibake, and
+  a claim quoting the paper's own sentence came back
+  `[high] quote-missing ... no passage in the source is close to this
+  quote in real.txt`, exit 1 — a sentence about the author's quote when
+  the fact was about the file's name.
+
+  `extract_pages` now reads the first five bytes of any file whose suffix
+  is not `.pdf`, and switches to the PDF readers when they spell `%PDF-`.
+  The cache entry is stored under the reader that actually ran, so the
+  mojibake an earlier version cached as `plain` is not handed back.
+
+  The one file this can hurt is text whose first bytes spell the PDF
+  header; it gets `source-unreadable` instead of a false `quote-missing`,
+  which is the right direction — a refusal makes the author look, a false
+  accusation makes them doubt their own quote.
+
 ## [0.22.0] — 2026-11-03
 ### Removed
 

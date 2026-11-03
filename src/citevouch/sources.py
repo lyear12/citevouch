@@ -134,6 +134,12 @@ def extractor_candidates(suffix: str) -> tuple[str, ...]:
     extraction we are trusting; "pdftotext" does not, because asking its
     version would mean spawning a process on every run, and the binary is
     rarely upgraded in place.
+
+    ``extract_pages`` passes the suffix it decided to read the file *as*, which
+    is not always the suffix the file carries: a PDF named ``.txt`` is read by
+    the PDF readers, so its cache entry is stored under their names.  That is
+    what stops the mojibake an earlier run cached as "plain" from being handed
+    back after the fix.
     """
     suffix = suffix.lower()
     if suffix in (".txt", ".md", ".text"):
@@ -370,14 +376,34 @@ _OPAQUE_MAGIC: tuple[tuple[bytes, str, str], ...] = (
 )
 
 
+def _looks_like_pdf(path: Path) -> bool:
+    """Whether the file opens with the PDF header, whatever it is named.
+
+    The suffix is the author's statement about the format and this tool reads
+    what it is told to read - but a PDF has its own reader here, so using it on
+    a file that *is* a PDF is strictly more capable than decoding the same
+    bytes as UTF-8.  Measured before this: the demo paper copied to
+    ``real.txt`` extracted as 4 pages / 206,870 characters of mojibake, and a
+    claim quoting the paper's own sentence came back ``quote-missing ... no
+    passage in the source is close to this quote in real.txt``.  The suffix was
+    right about the author's intent and wrong about the file.
+    """
+    try:
+        with path.open("rb") as handle:
+            return handle.read(5) == b"%PDF-"
+    except OSError:
+        return False
+
+
 def _opaque_format(path: Path) -> tuple[str, str] | None:
     """What this file's own bytes say it is, when it is not text at all.
 
-    Scoped to the suffixes this tool *guesses* at.  A ``.pdf`` has its own
-    readers and a ``.txt`` is the author stating the format, so neither is
-    sniffed; an unrecognised suffix is where reading as plain text is a guess,
-    and a guess that produces 2,544 characters of PNG for a word processor to
-    search is worse than no guess at all.
+    Scoped to the suffixes this tool *guesses* at: a ``.pdf`` has its own
+    readers and never needs this, and a suffix the tool knows is the author
+    stating the format, so the guess this guards against has not been made.
+    Only an unrecognised suffix falls through to "read it as text", and a guess
+    that produces 2,544 characters of PNG for a word processor to search is
+    worse than no guess at all.
     """
     try:
         with path.open("rb") as handle:
@@ -484,6 +510,15 @@ def extract_pages(
                 ),
                 path=str(path),
             )
+    if suffix != ".pdf" and _looks_like_pdf(path):
+        # The file is a PDF and says so in its first five bytes; only its name
+        # disagrees.  Reading it as whatever the name claims produced 206,870
+        # characters of mojibake from the demo paper, which downstream cannot
+        # tell from text - so the run accused the author's quote instead of
+        # naming the file.  Reading it with the PDF reader can only help: it
+        # either yields the paper's own words or refuses, and a refusal is a
+        # sentence about the file rather than about the quote.
+        suffix = ".pdf"
     if use_cache:
         cached = _load_cache(root, sha, extractor_candidates(suffix))
         if cached is not None:
