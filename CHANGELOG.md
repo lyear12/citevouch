@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.9] — 2026-11-03
 ### Fixed
 
 - **A pipe written the only correct way inside a table cell was read as a cell boundary.**
@@ -45,7 +46,6 @@ tag and that file disagree.
   claim the author has not finished, and the parser already has a finding for that, so
   an empty quote or source now comes back as `[high] claim-uncheckable` naming the claim
   and saying what is missing, while an empty `text` column simply verifies.
-
 ## [0.22.8] — 2026-11-03
 ### Fixed
 
@@ -2577,7 +2577,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.8...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.9...HEAD
+[0.22.9]: https://github.com/lyear12/citevouch/releases/tag/v0.22.9
 [0.22.8]: https://github.com/lyear12/citevouch/releases/tag/v0.22.8
 [0.22.7]: https://github.com/lyear12/citevouch/releases/tag/v0.22.7
 [0.22.6]: https://github.com/lyear12/citevouch/releases/tag/v0.22.6
