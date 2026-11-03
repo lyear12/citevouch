@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.10] — 2026-11-03
 ### Fixed
 
 - **A space between a command and its argument did not count, so the
@@ -2608,7 +2609,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.9...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.10...HEAD
+[0.22.10]: https://github.com/lyear12/citevouch/releases/tag/v0.22.10
 [0.22.9]: https://github.com/lyear12/citevouch/releases/tag/v0.22.9
 [0.22.8]: https://github.com/lyear12/citevouch/releases/tag/v0.22.8
 [0.22.7]: https://github.com/lyear12/citevouch/releases/tag/v0.22.7
