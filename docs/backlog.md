@@ -1937,6 +1937,36 @@ not what changed, but what proves the change works.
   here changes that.
 
 - [x] **The format gate quoted a file count it had never measured.** `tools/format_check.sh` counted every tracked `*.py`, `*.md` and `*.toml` and handed the same three extensions to `ruff format --check`; ruff has no TOML formatter, so it declined those files and printed `2 files already formatted` where the script counted 3. The lint job caught it on commit `3eb0c17`: `says 147 formatted files, ruff reports 146`. The same script accepted silence: a tree whose only tracked file was a `*.toml` printed nothing and exited **0**. **Who was blocked:** every commit message in this repository quotes that count, so the quote was wrong for anyone who tried to reproduce it, and the gate could report success having judged nothing. **Done when:** the count and the judged set are the same set, and both silence and disagreement stop the commit. **Done — why it is now true:** the extension list is `*.py`/`*.md` in both places, the green path refuses an absent summary line (`ruff reported no summary line, so it judged nothing; N file(s) were handed to it`, exit 2) and a summary that disagrees with the count (`ruff judged N of the M file(s) handed to it; the count cannot be quoted`, exit 2). `tests/test_format_check.py` went from 6 to 11 tests. Six mutations against the script went 6/6 RED with no survivors. That sentence then failed on the two macOS runners only, because BSD `wc -l` pads its answer to a fixed width - so `count` is piped through `tr -d ' '` and a test reads the script for it, since a Linux run cannot see the padding and a macOS run cannot see its absence. **Not covered:** the gap had been written down in the test file as `declined = 2` with a comment naming the two TOML files, which is a specification of the defect rather than a guard against it; nothing yet checks that a *future* extension added to the count is also one ruff accepts, beyond this same test failing.
+- [x] **A file whose only claim blocks were wrapped said it had none.**
+  Today's fix (`claim-block-unread`) covered the case of a good block plus a
+  wrapped one. The zero-claim path was still using `_CLAIMISH`, whose `^\s*`
+  cannot cross a `>` or a `- `, so a file holding *only* blockquoted, listed or
+  indented claim blocks matched nothing and the finding said, over a file whose
+  first line was the block:
+
+  > a claim block opens with three backticks, the word `claim`, then `id=` and
+  > `source=`. This file has none.
+
+  Measured on three files, one per dialect, each holding exactly one wrapped
+  block: all three said it, all three with `line 0`. The same branch also called
+  every indented block a fence, so an indented `<!-- claim` line was told that
+  "an indented fence is a code sample in Markdown".
+
+  Done when: the zero-claim message names the wrapped blocks, says which dialect
+  each was written in, counts them, and carries the line the reader can open.
+
+  Done — why it is now true: the finding is built from `_unread_opener` and
+  `_UNREAD_REASON`, the parser's own table, and the indent branch takes its noun
+  from the match. Seven mutations, all red: the branch never fires, the generic
+  sentence wins, every dialect described as a fence, the count always one, the
+  indent sentence always says fence, the other blocks never counted, and the
+  finding carries no line.
+
+  *Not covered*: a table row whose cells wrap across a line break is still
+  missed - the row pattern is line-based, like the parser's. And `_CONTAINER`
+  has never been compared against a real CommonMark renderer; the fixtures are
+  hand-written from the rule.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
