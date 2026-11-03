@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.19.88] — 2026-11-03
 ### Fixed
 
 - **`doctor` promised a green run for a project that fails.** Its claims line
@@ -24,7 +25,6 @@ tag and that file disagree.
   project is ever checked`. A test scans every non-docstring string in
   `src/citevouch/` for a promise of `exit 0`, because the next such sentence
   will not be in the same place.
-
 ## [0.19.87] — 2026-11-03
 ### Fixed
 
@@ -2221,7 +2221,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.87...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.88...HEAD
+[0.19.88]: https://github.com/lyear12/citevouch/releases/tag/v0.19.88
 [0.19.87]: https://github.com/lyear12/citevouch/releases/tag/v0.19.87
 [0.19.86]: https://github.com/lyear12/citevouch/releases/tag/v0.19.86
 [0.19.85]: https://github.com/lyear12/citevouch/releases/tag/v0.19.85
