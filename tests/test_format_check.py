@@ -21,7 +21,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "tools" / "format_check.sh"
-EXTS = ("*.py", "*.md", "*.toml")
+EXTS = ("*.py", "*.md")
 
 
 def _bash() -> str:
@@ -48,10 +48,16 @@ def _bash() -> str:
     pytest.fail("no working bash: these tests cannot be skipped here")
 
 
-def _run(repo: Path) -> subprocess.CompletedProcess:
-    script = SCRIPT.as_posix()
+def _run(repo: Path, script: Path | None = None) -> subprocess.CompletedProcess:
+    """Run a format-check script inside ``repo``.
+
+    ``script`` defaults to the one this checkout ships.  A test that needs a
+    *mutated* script must pass its own, because the default would silently run
+    the real one and assert about the wrong program.
+    """
+    target = (script or SCRIPT).as_posix()
     return subprocess.run(
-        [_bash(), "-c", f"cd '{repo.as_posix()}' && sh '{script}'"],
+        [_bash(), "-c", f"cd '{repo.as_posix()}' && sh '{target}'"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -117,10 +123,11 @@ def test_it_reports_the_number_of_tracked_files_ruff_accepts() -> None:
     assert result.returncode == 0, result.stderr
     reported = _reported(result.stdout, result.stderr)
     assert reported, (result.stdout, result.stderr)
-    # pyproject.toml and demo/sources.toml are handed to ruff but are not
-    # Python or Markdown, so ruff declines them and they never reach the count.
-    declined = 2
-    assert int(reported.split()[0]) == len(_tracked(ROOT)) - declined
+    # The script now hands ruff only the extensions ruff formats, and refuses
+    # to print a count unless ruff's own summary agrees with how many files it
+    # was given.  So the number and the tracked set are the same set - which is
+    # what makes the number quotable in a commit message.
+    assert int(reported.split()[0]) == len(_tracked(ROOT))
 
 
 def test_an_untracked_file_does_not_change_the_count(tmp_path: Path) -> None:
@@ -197,3 +204,133 @@ def test_a_misformatted_tracked_file_fails_with_ones_not_xargs_123(tmp_path: Pat
 
     result = _run(repo)
     assert result.returncode == 1, (result.returncode, result.stdout, result.stderr)
+
+
+def _repo_with(tmp_path: Path, files: dict[str, str]) -> Path:
+    """A git repository holding exactly ``files``, with scripts/ tracked too."""
+    repo = tmp_path / "r"
+    repo.mkdir()
+    for name, body in files.items():
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com"]
+    subprocess.run([*git, "init", "-q", "-b", "main"], cwd=repo, check=True)
+    subprocess.run([*git, "add", "."], cwd=repo, check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "fixture"], cwd=repo, check=True)
+    return repo
+
+
+def test_it_does_not_count_files_ruff_never_judges(tmp_path: Path) -> None:
+    """A toml file is not something `ruff format` formats.
+
+    The script used to count `*.toml` and hand the toml files to ruff, which
+    answered by ignoring them. The count was therefore two larger than the set
+    ruff looked at, and `tests/test_format_check.py` carried a `declined = 2`
+    that documented the gap instead of closing it. A commit message then quoted
+    the larger number and CI - which measures the same script on a fresh
+    checkout - reported the smaller one.
+    """
+    repo = _repo_with(
+        tmp_path,
+        {"a.py": "x = 1\n", "b.md": "# b\n", "only.toml": "a = 1\n"},
+    )
+    result = _run(repo)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert _reported(result.stdout, result.stderr).split()[0] == "2"
+
+
+def test_a_tree_of_only_toml_is_not_a_clean_tree(tmp_path: Path) -> None:
+    """ruff judges nothing and exits 0; that silence is not a pass.
+
+    Same failure shape as reading zero passing tests out of a suppressed
+    summary line, which this repository has already paid for once. Given only
+    files it does not format, ruff prints nothing and reports success - and the
+    script used to echo that as "0 files already formatted".
+    """
+    repo = _repo_with(tmp_path, {"only.toml": "a = 1\n"})
+    result = _run(repo)
+    assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
+    assert "files already formatted" not in result.stdout
+    assert "no tracked files" in result.stderr or "judged nothing" in result.stderr
+
+
+def test_a_count_ruff_disagrees_with_is_not_printed(tmp_path: Path) -> None:
+    """If ruff reports fewer files than it was given, the number is not quotable.
+
+    Reached by an extension this script counts and ruff refuses - the exact
+    shape of the toml bug, kept as a live check so that adding an extension to
+    the count without adding it to ruff fails here instead of in CI, on a commit
+    message nobody can edit afterwards.
+    """
+    repo = _repo_with(tmp_path, {"a.py": "x = 1\n", "b.md": "# b\n"})
+    script = repo / "tools" / "format_check.sh"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    body = SCRIPT.read_text(encoding="utf-8")
+    # Count one extension, hand ruff another: `*.md` is counted and withheld,
+    # which makes ruff report 1 where the count says 2.
+    mutated = body.replace("git ls-files -z -- '*.py' '*.md'", "git ls-files -z -- '*.py'")
+    assert mutated != body
+    script.write_text(mutated, encoding="utf-8")
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "add", "-A"],
+        cwd=repo,
+        check=True,
+    )
+
+    result = _run(repo, script=script)
+    assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
+    assert "judged 1 of the 2" in result.stderr
+
+
+def test_a_file_that_vanished_from_the_index_is_not_counted_silently(
+    tmp_path: Path,
+) -> None:
+    """A staged file deleted from disk is still in `git ls-files`.
+
+    This is how a commit message came to quote one file too many: the scratch
+    file was staged, then `rm`'d, and the index still listed it. ruff cannot read
+    it, so it reports one fewer file than the count - which the new comparison
+    catches, and which is the only reason the two numbers are allowed to differ.
+    """
+    repo = _repo_with(tmp_path, {"a.py": "x = 1\n", "b.md": "# b\n"})
+    vanished = repo / "gone.py"
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com"]
+    vanished.write_text("y = 1\n", encoding="utf-8")
+    subprocess.run([*git, "add", "gone.py"], cwd=repo, check=True)
+    vanished.unlink()
+
+    result = _run(repo)
+    assert result.returncode != 0, (result.returncode, result.stdout, result.stderr)
+    # The count says three; ruff could only read two. A green "3 files already
+    # formatted" is the sentence this test exists to forbid.
+    assert "3 files already formatted" not in result.stdout, result.stdout
+
+
+def test_a_ruff_that_says_nothing_is_not_a_clean_tree(tmp_path: Path) -> None:
+    """Silence is the one answer a checker must never read as agreement.
+
+    The real script cannot reach this state today - every tracked python or
+    markdown file is a file ruff judges - which is exactly why the branch
+    needs a caller-supplied script: an unreachable guard is one no test can
+    prove, and the day ruff stops printing its summary line this is the only
+    thing standing between a green gate and a gate that judged nothing.
+    """
+    repo = _repo_with(tmp_path, {"a.py": "x = 1\n", "b.md": "# b\n"})
+    script = repo / "tools" / "format_check.sh"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    body = SCRIPT.read_text(encoding="utf-8")
+    # Keep the count and the file list; replace only the judgement.
+    mutated = body.replace("python -m ruff format --check --", "true --")
+    assert mutated != body
+    script.write_text(mutated, encoding="utf-8")
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "add", "-A"],
+        cwd=repo,
+        check=True,
+    )
+
+    result = _run(repo, script=script)
+    assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
+    assert "judged nothing" in result.stderr
+    assert "already formatted" not in result.stdout

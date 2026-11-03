@@ -11,7 +11,9 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
 
+- **The format gate counted files it never judged, and could be green having judged nothing.** `tools/format_check.sh` counted every tracked `*.py`, `*.md` and `*.toml`, then handed all three extensions to `ruff format --check` - and ruff has no TOML formatter, so it silently declined those files and printed `2 files already formatted` where the script counted 3. The number this repository quotes in every commit message was therefore a count of the tracked set, not of the judged set, and it drifted by exactly the number of tracked TOML files: a backlog commit quoted `147` while `ruff` reported `146`, which is how the lint job caught it. The gap had been written down in `tests/test_format_check.py` as `declined = 2` with a comment explaining it instead of a guard removing it. Measured on a tree holding one unrelated tracked `*.toml`: the script printed `3 files already formatted` and exited 0 while ruff had judged two files. Two more holes in the same script: a tree whose only tracked file is a `*.toml` printed nothing and exited **0**, so a gate that judged zero files reported success; and a staged file deleted from disk stays in `git ls-files`, ruff cannot read it, and the old code exited on ruff's status without ever comparing its summary to the count, so the quoted number could be one too many. The script now counts and hands over the same two extensions, refuses an empty file list, and - on the green path - refuses both an absent summary line (`ruff reported no summary line, so it judged nothing; N file(s) were handed to it`, exit 2) and a summary that disagrees with the count (`ruff judged N of the M file(s) handed to it; the count cannot be quoted`, exit 2).
 ## [0.22.3] — 2026-11-03
 ### Fixed
 

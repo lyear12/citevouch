@@ -5005,3 +5005,35 @@ patterns from it, then assert the two agree on a shared set of inputs rather
 than each agreeing with itself.
 
 Seen 1.
+
+## A measurement that includes what the tool declined measures a different set
+
+Rule: when a gate hands a tool a list of files, the number it prints must be
+the number the tool *judged*, not the number the gate named. Ask the tool what
+it did.
+
+Why: `tools/format_check.sh` counted every tracked `*.py`, `*.md` and `*.toml`
+and handed all three to `ruff format --check`. Ruff has no TOML formatter, so
+it declined those files without complaint and printed `2 files already
+formatted` where the script had counted 3. Every commit message in this
+repository quotes that count, so the quote drifted by the number of tracked
+TOML files - and the drift was invisible until the lint job compared the two
+and said `says 147 formatted files, ruff reports 146`.
+
+The second half of the same discovery: the script never checked that ruff had
+said anything at all. A tree whose only tracked file was a `*.toml` printed
+nothing and exited 0, so a gate that judged zero files reported success. A
+summary line that is missing is not a summary line that agrees.
+
+How to apply: parse the tool's own summary instead of recomputing it, and make
+disagreement and silence both loud. A count that cannot be quoted should stop
+the commit rather than be rounded to something that looks right.
+
+What makes this one worth remembering: the gap was already written down. The
+test file carried `declined = 2` with a comment explaining exactly which files
+ruff refused. A comment describing a gap keeps it, and the next person reads
+it as a specification rather than a defect. Removing the two TOML files from
+the count is a two-character change; writing it down instead was a decision to
+keep the mismatch.
+
+Seen 1.
