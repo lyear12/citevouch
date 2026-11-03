@@ -5243,3 +5243,29 @@ pending form is what let `\footnotemark[1]` keep both its bracket and the space 
 while `\input {x}` still found its brace.
 
 Seen 1.
+
+## Two pieces of prose placed flush produce a word that is in neither of them
+
+**Rule.** When two pieces of text are alternatives that both belong to the
+document, join them with a space; touching an alternative to its neighbour is
+not a shorter spelling, it is a new token.
+
+**Why.** `\ifthenelse{test}{yes}{no}` cannot be decided here, and both branches
+are text the author wrote, so `latex._convert` keeps both. It kept them flush:
+`\ifthenelse{1=2}{We report five}{We report these} results.` measured as
+`We report fiveWe report these results.` — `fiveWe` is a token in neither
+branch, and it lands in the sentence `draft` shows the author to paste into a
+claim block. The same defect turned two citations into one run:
+`\ifthenelse{1=2}{\citep{no}}{\citep{yes}}` came out as `[@no][@yes]`. The
+branch was right in principle and wrong in punctuation, which is the shape this
+repository keeps meeting: a fix that added the missing text without asking what
+separates it from the text beside it.
+
+**How to apply.** Replace flush concatenation of alternatives with one space.
+Do not test a leading space instead of the separator: `to_text` collapses runs
+of spaces (`re.sub(r"[ \t]+", " ", text)`), so an extra space before the first
+branch is an equivalent mutant, and a mutation loop will report it as a
+survivor that means nothing. Test the observable: no token spans the join, and
+two citations stay two citations.
+
+**Seen 1.**

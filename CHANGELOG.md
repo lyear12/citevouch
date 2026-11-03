@@ -12,6 +12,24 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The two branches of `\ifthenelse` were written flush against each other, so they
+  formed words that are in neither branch.** `\ifthenelse{test}{yes}{no}` is not
+  decidable here, and both branches are text the author wrote, so the
+  converter keeps both. It kept them touching:
+
+  ```text
+  A. \ifthenelse{1=2}{We report five}{We report these} results.
+  ```
+
+  came out as `A. We report fiveWe report these results.`: `fiveWe` is a token
+  that appears in neither branch, and it is in the sentence that
+  `draft` offers the author to paste into a claim block. Two citation
+  branches were joined the same way and came out as `[@no][@yes]`.
+  Each branch is a whole piece of prose and at most one of them is ever
+  typeset, so they are now joined by one space.
+
 ## [0.22.10] — 2026-11-03
 ### Fixed
 

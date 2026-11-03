@@ -1137,10 +1137,20 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
                     group = _group_end(text, cursor)
                     if group > 0:
                         cursor = _skip_optional_args(text, group)
-                    for _ in range(2):
+                    for number in range(2):
                         group = _group_end(text, cursor)
                         if group < 0:
                             break
+                        if number:
+                            # Each branch is a whole piece of prose and at most
+                            # one of them is ever typeset, so they are joined by
+                            # a space.  Written flush,
+                            # ``{We report five}{We report these} results`` measured as
+                            # ``We report fiveWe report these results``: a token (``fiveWe``) that is in
+                            # neither branch, in the sentence ``draft`` offers the author to
+                            # paste.  Two citation branches were joined the same
+                            # way, ``[@no][@yes]``.
+                            out.append(" ")
                         out.append(_convert(text[cursor + 1 : group - 1], notes))
                         cursor = group
                     index = cursor

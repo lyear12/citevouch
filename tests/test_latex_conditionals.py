@@ -102,7 +102,10 @@ class TestTheBranchesOfIfThenElse:
 
     def test_both_branches_are_text_the_author_wrote(self) -> None:
         text = f"A. {B}ifthenelse{{1=2}}{{{B}citep{{no}}}}{{{B}citep{{yes}}}} B."
-        assert to_text(text) == "A. [@no][@yes] B.\n"
+        # One space: the two branches are separate pieces of prose, and at
+        # most one of them is ever typeset.  Flush against each other they
+        # also stopped being two citations.
+        assert to_text(text) == "A. [@no] [@yes] B.\n"
 
     def test_a_missing_second_branch_is_not_an_error(self) -> None:
         text = f"A. {B}ifthenelse{{1=2}}{{{B}citep{{only}}}} B."
