@@ -15,6 +15,44 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **`doctor` counted a manuscript by the blocks it managed to read.**
+  *Done 2026-11-04.*
+  *What was wrong.* The `claims` line prints how many claim blocks a manuscript
+  holds, and it computed that number from `len(parsed.spans)` and
+  `len(parsed.claims)` - the blocks the parser consumed and the ones it
+  accepted. A fence the parser walked past because a blockquote, a list item or
+  an indent put it out of reach is in neither set, and this round had just
+  given that fence its own finding. Measured on a project with one good block
+  and one blockquoted block: `doctor --manuscript manuscript.md --root .`
+  printed `[ok  ] claims      1 claim block` and exited 0, while `check` on the
+  same tree printed `[high] claim-block-unread at manuscript.md:8 (c2)` and
+  exited 1. The file holds two claim fences.
+  *Who was blocked.* Anyone who runs `doctor` because a report looked wrong:
+  the one command that exists to explain a run was describing a different file
+  from the one it was pointed at, and it said `1 claim block` in the most
+  authoritative voice in the output.
+  *Done when.* The number on the line is the number of fences the file holds,
+  and the sentence says when some of them were not read.
+  *Done - why it is now true.* `_claim_blocks` adds the `claim-block-unread`
+  findings to `spans` before printing, so the same file now reads `2 claim
+  blocks, 1 of which the parser could read; the next command names the rest`,
+  and a clean two-block manuscript still reads `2 claim blocks` with no
+  qualifier. The check deliberately stays green and `doctor` still exits 0 -
+  that division of labour is unchanged from the refused-block case, which has
+  its own test. Four tests in
+  `tests/test_skipped_claim_blocks.py::TestDoctorAgreesWithTheCommandItExplains`
+  pin the count, the qualifier, the no-claims sentence and the clean case; five
+  mutants against `doctor.py` were all RED with no survivors.
+  *Not covered.* A manuscript holding an unread fence and a refused block
+  together is arithmetic nobody pinned: the code would print three fences and
+  one read, and no test asserts that combination.
+  *Why it went unnoticed.* The other two counts had been made to agree in an
+  earlier round, so the sentence only ever printed the smaller of the numbers
+  and the missing category had nowhere to show up. A count built out of your
+  own bookkeeping drifts by exactly the size of the category you have not
+  modelled yet, and adding that category later looks like a change to the total
+  rather than a correction of a wrong one.
+
 - [x] **A claim block inside a blockquote, a list item or an indent was
   skipped without a word.** *Done 2026-11-04.*
   *What was wrong.* `parse_manuscript` only matched a claim fence at the left
