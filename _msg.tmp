@@ -1,0 +1,10 @@
+Record the format-gate fix in the backlog
+
+Run: `PYTHONPATH=src python -m pytest` -> 2199 passed in 288.88s
+Run: `python -m ruff check .` -> All checks passed!
+Run: `sh tools/format_check.sh` -> 147 files already formatted
+
+Not tried: anything but the backlog prose; this commit only writes down what
+the previous two commits measured.
+
+Broken by hand: nothing.
