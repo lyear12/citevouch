@@ -4786,3 +4786,24 @@ off because it may carry real `<text>`. Both are now tests, because a decision n
 down is a decision the next change will silently reverse.
 
 Seen 1.
+
+## A delimiter is punctuation, and punctuation does not delete what it wraps
+
+Rule: when a format marks a region with delimiters, the delimiters come off and the region
+stays. A reader that removes the region has decided the content is not text, and that decision
+needs its own reason.
+
+Why: `<![CDATA[ ... ]]>` means "nothing in here is markup", and it is how a feed, a JATS article
+and an OAI-PMH record deliver prose. The generic tag stripper matched it as one tag - `<`
+followed by `!` is exactly what a doctype looks like - so a source reading `We collected
+<![CDATA[9,800]]> rolesets.` extracted as `We collected roleset` and the claim quoting that
+sentence came back `[high] quote-missing` with the source file named. The author goes looking
+for a copy-paste mistake, and the file on disk has the sentence in it.
+
+How to apply: unwrap before you strip. Keep an unterminated region's content (a truncated save
+should lose the delimiters, not the document). And strip the unwrapped body again afterwards,
+because the two things CDATA carries in the wild are a literal string (`a < b`) and an HTML
+fragment a feed will render - one must survive tag removal, the other must not, and the tag
+rule already tells them apart.
+
+Seen 1.

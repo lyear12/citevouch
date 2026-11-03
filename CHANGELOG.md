@@ -12,6 +12,21 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A quote printed inside a CDATA section is no longer reported missing.**
+  `<![CDATA[ ... ]]>` is how a feed, a JATS article and an OAI-PMH record carry
+  prose, and the tag stripper read the whole section as one tag - `<` followed
+  by `!` is exactly what a doctype looks like - so the words were replaced by a
+  space and the delimiters took their place on the page.  Measured: a source
+  `We collected <![CDATA[9,800]]> rolesets.` extracted as `We collected
+  rolesets.`, and the claim quoting the sentence came back `[high]
+  quote-missing` with the source file named.  `sources._without_cdata` now
+  unwraps the section before tag removal, keeps an unterminated section's text
+  (a truncated save should lose the delimiters, not the document), and the body
+  is still stripped of tags afterwards so an Atom `type="html"` fragment does
+  not hand `<p>` to the page.
+
 ## [0.21.1] — 2026-11-03
 ### Fixed
 

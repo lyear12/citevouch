@@ -649,6 +649,46 @@ def _without_unrendered(text: str) -> str:
             index = len(text) if end is None else end.end()
 
 
+#: Where a CDATA section starts and ends.
+_CDATA = re.compile(r"<!\[CDATA\[(?P<body>.*?)\]\]>", re.DOTALL)
+
+
+def _without_cdata(text: str) -> str:
+    """Replace CDATA delimiters with the characters they wrap.
+
+    `<![CDATA[ ... ]]>` means "nothing in here is markup", and a feed, a JATS
+    article and an OAI-PMH record all deliver their prose inside one.  The tag
+    stripper read the whole section as a single tag - `<` followed by `!` is
+    exactly what a doctype looks like - so the words were dropped and the
+    delimiters took their place on the page.  A quote printed on the page then
+    came back `quote-missing` with the source file named, sending the author to
+    look for a copy-paste mistake that was not there.
+
+    The body is *kept as text and then still stripped of tags*, because the two
+    things CDATA is used for in the wild are one literal string (`a < b`,
+    preserved by the tag rule: a tag starts with a letter, `/`, `!` or `?`) and
+    an HTML fragment an Atom feed will render (whose tags the reader does not
+    see).  An unterminated section keeps everything it has: a truncated save
+    should lose the delimiters, not the document.
+    """
+    out: list[str] = []
+    index = 0
+    while True:
+        opener = _CDATA.search(text, index)
+        if opener is None:
+            rest = text[index:]
+            marker = rest.find("<![CDATA[")
+            if marker < 0:
+                out.append(rest)
+                return "".join(out)
+            out.append(rest[:marker])
+            out.append(rest[marker + len("<![CDATA[") :])
+            return "".join(out)
+        out.append(text[index : opener.start()])
+        out.append(opener.group("body"))
+        index = opener.end()
+
+
 def _strip_markup(text: str) -> str:
     """Reduce a markup document to the text a reader would actually see.
 
@@ -657,6 +697,7 @@ def _strip_markup(text: str) -> str:
     the quote an author wrote would vanish from the page it is verified
     against.
     """
+    text = _without_cdata(text)
     text = _without_unrendered(text)
     text = _TAG.sub(" ", text)
     text = html.unescape(text)
