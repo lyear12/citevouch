@@ -15,6 +15,49 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **A claim block inside a blockquote, a list item or an indent was
+  skipped without a word.** *Done 2026-11-04.*
+  *What was wrong.* `parse_manuscript` only matched a claim fence at the left
+  margin, which is right: Markdown renders an indented or container-prefixed
+  fence as a code sample. What was wrong is that it said nothing. `scan` had a
+  good near-miss sentence naming the indent, but that sentence lives in
+  `scan._no_claim_blocks_finding` and only runs when `parsed.nothing_to_check`
+  - a file that produced **zero** claims. One properly fenced block anywhere in
+  the manuscript switched the account off, so a file holding one good block and
+  one wrapped block was read as a file holding one block. Measured, on a
+  project whose `page.txt` holds the sentence both blocks quote: `scan` wrote
+  `citevouch.lock.json (1 claim)` and exited 0; `check` printed `1 claim — 1
+  verified, 0 moved, 0 missing` with `worst severity: info` and exited 0;
+  `doctor` printed `[ok  ] claims      1 claim block` and `[ok  ] extraction`
+  and exited 0. The second block's id was in no finding and in no ledger row.
+  The same measured for a bullet (`- ```claim`), an ordinal (`1. ```claim`) and
+  a bare two-space indent.
+  *Who was blocked.* Any author who wants a claim block inside a list item or a
+  quotation of their own draft, and every reviewer reading a green tick over a
+  manuscript that was only partly checked. `action.yml` runs
+  `check --use-recorded`, so the CI job a contributor sees was the green one.
+  *Done when.* The run names each skipped block by line, a file with no claims
+  at all still gets `no-claim-blocks` and not both, a fence inside a code sample
+  stays silent, and the recorded path agrees with the live one.
+  *Done — why it is now true.* `manuscript._unread_findings` walks the file
+  after the parse loop for `_WRAPPED_CLAIM` (a fence preceded by a blockquote
+  marker, a bullet, an ordinal or an indent, in any mix) outside the spans the
+  parser consumed, and reports `claim-block-unread` (high) per line with the
+  claim id on that line. Both callers of the parser get it, so `scan`, `check`,
+  `check --use-recorded` and `verify` all report it; `tests/test_skipped_claim_blocks.py`
+  has 15 tests across the four shapes, the two "must stay silent" shapes (a
+  four-backtick sample, a well-formed file), the HTML comment dialect, and the
+  three commands. Nine mutants against `manuscript.py` were all RED with no
+  survivors. `claim-block-unread` is in `CODES`, in `SARIF_RULES` and in both
+  README tables, which `tests/test_readme_example.py` checks in both
+  directions.
+  *Not covered.* The new pattern accepts `1.` and `1)` but no test pins the
+  right-paren spelling specifically; and `tests/test_claim_docstring.py` used to
+  assert the fingerprint producer by *line number* (`manuscript.py:264`), which
+  failed for a reason that said nothing about fingerprints when this change
+  moved the call - it now asserts the file, and still prints the place in the
+  failure message.
+
 - [x] **A `.docx` named `paper.txt` was read as text, and the run accused
   the quote.** *Done 2026-11-03.*
   *What was wrong.* v0.22.1 made the reader look at the file's bytes when
