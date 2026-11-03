@@ -15,6 +15,40 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **A `.docx` named `paper.txt` was read as text, and the run accused
+  the quote.** *Done 2026-11-03.*
+  *What was wrong.* v0.22.1 made the reader look at the file's bytes when
+  the suffix was a guess, but `.txt`, `.md`, `.text`, `.html`, `.htm`,
+  `.xml` and `.pdf` are exempt - the suffix is the author stating the
+  format, and a note beginning `PK` is prose. The file saved under the
+  wrong name is exactly the case where that statement and the file
+  disagree, and the plain reader **succeeds** on it: measured, a two-entry
+  zip copied to `real.txt` gave 196 characters of mojibake with 47
+  replacement characters and C0 controls, `problem` was `None`, and
+  `citevouch check` answered a quote the document contains with
+  `[high] quote-missing ... quote not found in real.txt`.
+  *Who was blocked.* Anyone whose reference manager exports a `.docx` and
+  whose download kept a text name. The words are in the file; the tool
+  said they are not.
+  *Done when.* A document saved under a text name is refused in the words
+  of the format it actually is, a note that merely opens with a magic
+  number still reads, the cache cannot hand the mojibake back, and a PDF
+  is not re-judged by a rule about text.
+  *Done - why it is now true.* `sources._noisy_format_problem` judges what
+  came out of the reader with `textnorm._noise` - the score
+  `_decode_text` already uses - confirmed by `_opaque_format`'s header, so
+  neither signal fires alone. Measured separation: the zip scores 47 in
+  196 characters, the `PK` note 2 in 73, against a threshold of
+  `max(4, len // 50)`. Both call sites apply it, because a cache holds
+  pages and not a verdict; `.pdf` is exempt because its bytes were already
+  checked against the header. Eight mutations, none survived, scoped to
+  `tests/test_noisy_text_suffix.py` and `tests/test_opaque_formats.py`.
+  *Not covered.* No real Word document was read - the fixture is a
+  hand-built two-entry zip, which is what Word writes, but styled runs and
+  tracked changes are not exercised. A binary file whose UTF-8 reading is
+  quieter than 2% noise is still read as text; that is the same trade the
+  codec fallback makes, and it is written down here so it is a decision
+  rather than an oversight.
 - [x] **A PDF named `paper.txt` was decoded as text, and the run accused the
   quote.** *Done 2026-11-03.*
   *What was wrong.* `extract_pages` chose its reader from the suffix alone.
