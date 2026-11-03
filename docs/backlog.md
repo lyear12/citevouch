@@ -15,6 +15,37 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **A PDF named `paper.txt` was decoded as text, and the run accused the
+  quote.** *Done 2026-11-03.*
+  *What was wrong.* `extract_pages` chose its reader from the suffix alone.
+  A source file whose name ends in `.txt`, `.md` or `.html` went to the
+  plain-text reader even when its first bytes say `%PDF-`, and that reader
+  succeeds on a PDF: the demo paper copied to `real.txt` came back as 4
+  pages / 206,870 characters of mojibake with `problem=None`.  Nothing
+  downstream can tell those pages from prose, so `citevouch check` answered
+  a claim quoting the paper's own sentence with
+  `[high] quote-missing ... no passage in the source is close to this quote
+  in real.txt`, exit 1.
+  *Who was blocked.* Anyone who renamed a download, or whose reference
+  manager saved a PDF under a name it also gave a `.txt` sibling.  Their
+  quote is on the page, and the tool told them it is not - the one error this
+  project exists to refuse to make.
+  *Done when.* A PDF under any name reaches the PDF readers, a real text file
+  reads exactly as before, and a cached mojibake reading cannot outlive the
+  fix.
+  *Done - why it is now true.* `sources._looks_like_pdf` reads five bytes and
+  compares them to the whole magic; `extract_pages` switches to `.pdf` when
+  they match, above the cache lookup and before `extractor_candidates` picks
+  the reader names, so the entry is stored under the reader that ran.  The
+  end-to-end test asserts `check` prints `quote-found` and no `quote-missing`,
+  and a second test asserts the ledger records the page the PDF reader found.
+  Four of five mutations are killed; the survivor is
+  *a pdf suffix also re-reads the header*, which is not a defect: the check
+  runs the reader the suffix already names, and a test pins that both routes
+  produce identical pages.
+  *Not covered.* A truncated PDF whose header is intact is refused by the
+  readers rather than by this branch, and that refusal reaches the author
+  the same way.
 - [x] **Four functions with docstrings describing features this tool does not
   have.** *Done 2026-11-03.*
   *What was wrong.* An AST scan of `src/`, `tests/` and `tools/` found these four
