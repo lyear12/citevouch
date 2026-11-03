@@ -2036,6 +2036,33 @@ not what changed, but what proves the change works.
   *Not covered:* `\\begin{comment}` was not re-probed for the same
   gap, and no test distinguishes a newline from a space before a brace group
   (both are treated as whitespace, which is what TeX does).
+- [x] **The two branches of `\ifthenelse` formed words that are in neither branch.**
+  *What was wrong.* `\ifthenelse{test}{yes}{no}` cannot be decided here and both
+  branches are the author's text, so the converter keeps both - but it kept
+  them touching.
+  ```text
+  A. \ifthenelse{1=2}{We report five}{We report these} results.
+  ```
+  came out as `A. We report fiveWe report these results.`. `fiveWe` is a token
+  in neither branch, and it is in the sentence `draft` offers the author to
+  paste into a claim block. Two citation branches came out as `[@no][@yes]`.
+  *Who was blocked.* Anyone drafting from a paper that uses `ifthen
+  conditions to build a sentence: the proposal they were shown contained a
+  word the paper never prints.
+  *Done when.* The branches are separated by one space and no token spans
+  the join.
+  *Done - why it is now true.* `latex._convert` appends a space before the
+  second branch. `tests/test_ifthenelse_branches.py` (8 tests) pins the
+  converted sentence, the two-citation case and the `statement_of` the
+  author is shown; five mutations were applied and all five went RED
+  (flush again, a newline, a comma, a non-breaking space, a loop that stops
+  after one branch).
+  *Not covered.* An empty branch (`\ifthenelse{1=2}{}{B}`) is not
+  covered: the space would then sit against whatever follows the command.
+  No real `ifthen` package document was converted; the fixtures are
+  hand-written from the documented syntax. A leading space on the first
+  branch is unobservable because `to_text` collapses runs of spaces,
+  so that mutation is equivalent and was dropped rather than papered over.
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
