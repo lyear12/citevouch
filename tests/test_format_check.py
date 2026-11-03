@@ -280,7 +280,11 @@ def test_a_count_ruff_disagrees_with_is_not_printed(tmp_path: Path) -> None:
 
     result = _run(repo, script=script)
     assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
-    assert "judged 1 of the 2" in result.stderr
+    # The exact spacing matters: BSD `wc -l` pads its answer to a fixed width
+    # and GNU does not, so a count interpolated straight into this sentence
+    # read `judged 1 of the        2` on the macOS runners and nowhere else.
+    # The assertion is written tight so the padding cannot come back.
+    assert "judged 1 of the 2 file(s)" in result.stderr
 
 
 def test_a_file_that_vanished_from_the_index_is_not_counted_silently(
@@ -334,3 +338,19 @@ def test_a_ruff_that_says_nothing_is_not_a_clean_tree(tmp_path: Path) -> None:
     assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
     assert "judged nothing" in result.stderr
     assert "already formatted" not in result.stdout
+
+
+def test_the_count_is_not_padded_by_wc() -> None:
+    """BSD `wc -l` pads its answer to a fixed width and GNU does not.
+
+    So the same tree reports `2` on Linux and `       2` on macOS, and a
+    number interpolated straight into a sentence a person reads carries the
+    padding on one platform and not the other. The gates are otherwise
+    platform-independent, so this is checked by reading the script rather
+    than by running it - a Linux run cannot see the padding and a macOS run
+    cannot see its absence.
+    """
+    body = SCRIPT.read_text(encoding="utf-8")
+    counted = [line for line in body.splitlines() if line.startswith("count=")]
+    assert counted, "the script no longer sets a count"
+    assert "tr -d" in counted[0], counted[0]

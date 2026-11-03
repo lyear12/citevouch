@@ -31,7 +31,11 @@ set -eu
 
 # The extensions ruff actually formats. Adding one here without checking that
 # ruff reports it back is how the count and the measurement drift apart again.
-count=$(git ls-files -- '*.py' '*.md' | wc -l)
+# `wc -l` pads its answer to a fixed width on BSD (macOS) and does not on
+# GNU, so the same number reaches this shell as '       2' or as '2'. It is
+# used in arithmetic, where padding is harmless, and in a sentence a person
+# reads, where it is not.
+count=$(git ls-files -- '*.py' '*.md' | wc -l | tr -d ' ')
 if [ "$count" -eq 0 ]; then
     # Not "0 files already formatted": no files is not a clean tree, it is a
     # checkout that could not be read, and reporting it as clean would be the
