@@ -15,6 +15,37 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **29 conditional commands kept their test argument and glued their branches.**
+  *Done 2026-11-04.*
+  *What was wrong.* `etoolbox` and LaTeX2e between them offer 29 commands that
+  choose between two pieces of author prose: `\iftoggle`, `\ifboolexpr`,
+  `\ifnumcomp`, `\ifdef`, `\IfFileExists` and 24 more. None was in any table in
+  `latex.py`, so all three of their failure modes happened at once - the test was
+  pasted into the sentence, the two branches were glued into a word that is in
+  neither of them, and `draft` would offer the result to the author inside a
+  `claim:` block. Measured (`B` = backslash):
+  `to_text("X " + B + "ifnumcomp{1}{=}{2}{Yes words}{No words} Y")` came out as
+  `'X 1=2Yes wordsNo words Y'`, and the same shape for `\ifboolexpr`,
+  `\ifdef\foo` and `\IfFileExists{sec/intro}`.
+  *Who was blocked.* Anyone writing a thesis or an article in the LaTeX dialect
+  most templates actually use. `biblatex` alone loads `etoolbox`.
+  *Done when.* All 29 convert to `'X Yes No Y'`, the number of test groups is
+  data in the table rather than something the handler guesses, and a test walks
+  the table so a name added without its count fails.
+  *Done - why it is now true.* `_BRANCH_COMMAND` is `dict[str, int]` mapping each
+  name to its test-arity (three for `\ifnumcomp`, two for `\ifstrequal`, one for
+  `\iftoggle`), `_BRANCH_BARE_TEST` names the seven `\ifdef...` commands whose
+  test is a bare control sequence, and the handler steps over each test group
+  before the two branch groups. `tests/test_latex_branch_commands.py` walks the
+  table (23 group cases, 8 bare cases) and asserts the table and the test's own
+  lists name the same commands. Six mutations, all red: table back to
+  `ifthenelse` only, bare-test set emptied, every command counted as one group,
+  branches joined flush again, the bare token not stepped over, the test always
+  consuming exactly one group. Full suite 2339 passed.
+  *Not covered.* No real `.tex` document was converted - the fixtures are written
+  from the LaTeX2e and etoolbox manuals. `\ifboolexpr` with a nested
+  `\notbool{...}` is converted but not asserted; only the plain form is.
+
 - [x] **The skipped-block finding covered one dialect and left the other two silent.**
   *Done 2026-11-04.*
   *What was wrong.* `claim-block-unread` (0.22.5) reported a claim fence that a
