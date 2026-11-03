@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.19.86] — 2026-11-03
 ### Fixed
 
 - The plural citation commands are read, in both the converter and the
@@ -27,7 +29,6 @@ tag and that file disagree.
   altogether, so a biblatex manuscript produced no proposals at all.
   Measured: `\cites{a}{b}` went from `'ab'` with no site to `[@a; @b]`
   with two; the seven singular names went from no site each to one.
-
 ## [0.19.85] — 2026-11-03
 ### Fixed
 
@@ -2187,7 +2188,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.85...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.19.86...HEAD
+[0.19.86]: https://github.com/lyear12/citevouch/releases/tag/v0.19.86
 [0.19.85]: https://github.com/lyear12/citevouch/releases/tag/v0.19.85
 [0.19.84]: https://github.com/lyear12/citevouch/releases/tag/v0.19.84
 [0.19.83]: https://github.com/lyear12/citevouch/releases/tag/v0.19.83
