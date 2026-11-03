@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.21.2] — 2026-11-03
 ### Fixed
 
 - **A quote printed inside a CDATA section is no longer reported missing.**
@@ -26,7 +27,6 @@ tag and that file disagree.
   (a truncated save should lose the delimiters, not the document), and the body
   is still stripped of tags afterwards so an Atom `type="html"` fragment does
   not hand `<p>` to the page.
-
 ## [0.21.1] — 2026-11-03
 ### Fixed
 
@@ -2307,7 +2307,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.2...HEAD
+[0.21.2]: https://github.com/lyear12/citevouch/releases/tag/v0.21.2
 [0.21.1]: https://github.com/lyear12/citevouch/releases/tag/v0.21.1
 [0.21.0]: https://github.com/lyear12/citevouch/releases/tag/v0.21.0
 [0.20.2]: https://github.com/lyear12/citevouch/releases/tag/v0.20.2
