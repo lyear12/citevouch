@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.13] — 2026-11-03
 ### Fixed
 
 - **A starred definition deleted the rest of the document, and the xparse commands
@@ -48,7 +49,6 @@ tag and that file disagree.
   path. A group that follows an etoolbox definition belongs to the page and is
   kept; the same group after an xparse definition is the body and is dropped.
   Both directions are pinned by tests.
-
 ## [0.22.12] — 2026-11-03
 ### Fixed
 
@@ -2698,7 +2698,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.12...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.13...HEAD
+[0.22.13]: https://github.com/lyear12/citevouch/releases/tag/v0.22.13
 [0.22.12]: https://github.com/lyear12/citevouch/releases/tag/v0.22.12
 [0.22.11]: https://github.com/lyear12/citevouch/releases/tag/v0.22.11
 [0.22.10]: https://github.com/lyear12/citevouch/releases/tag/v0.22.10
