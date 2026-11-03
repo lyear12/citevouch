@@ -1487,6 +1487,39 @@ not what changed, but what proves the change works.
   JavaScript-only page still has to look.  Naming it would mean the walker
   returning a reason rather than a string, which is a wider change than this.
 
+- [x] **`doctor` reported every check as ok on a project whose sources it had never opened.**
+  *What was wrong*: the eight checks asked about the bookkeeping - is there a
+  manifest, is the key bound, does the file exist - and none of them asked
+  whether the tool can read anything in the file.  Measured on three projects
+  where `check` on the same tree exited 1: a truncated `%PDF-1.4` file (the
+  check said `[ok  ] sources`, `check` said `[high] source-unreadable`), a scan
+  with no text layer (`[high] source-no-text`), and a zip renamed `.docx`
+  (`[medium] source-not-text`).  `doctor` printed `8 checks, all ok` and exited
+  0 on all three.
+  *Who is blocked*: anyone who runs `doctor` instead of the command that fails -
+  which is the only reason the command exists.  A green answer to a question it
+  never asked is the one lie a diagnostic cannot afford.
+  *Done when*: a project whose sources cannot be read gets a failing line from
+  `doctor`, naming the file and the step that fixes it, and a project whose
+  sources are readable still exits 0.
+  *Done — why it is now true*: `doctor._extraction` reads every source a claim
+  names through the same cache the real run uses, and reports the first three
+  failures with the advice the extractor already produces for each format plus
+  a count of the rest, so a truncated PDF is told to be re-downloaded and a
+  scan is told about `ocrmypdf`.  It stands aside with `ok=True` when an earlier
+  check owns the failure (an unbound key, an unparseable manifest, an unreadable
+  manuscript) and skips `source-missing`, which can only be the race between
+  reading the table and reading the file.  `tests/test_doctor_extraction.py`
+  (19 tests) asserts the verdict, the standing-aside branches built by stubbing
+  the extractor, the advice, the truncation count, and - by counting extractor
+  calls - that the second run reads the cache.  Six mutations are red: the
+  `source-missing` skip, `use_cache=True`, the truncation, the unbound-key
+  stand-aside, and both halves of the closing sentence.  Shipped in v0.21.0.
+  *Not covered*: the check opens every source the claims name, so a cold cache
+  costs about 23 seconds on the 100-paper corpus.  That is once per cache, but
+  it is the most expensive thing `doctor` now does and no test asserts any
+  bound on it.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
