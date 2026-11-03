@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.1] — 2026-11-03
 ### Fixed
 
 - **A PDF named `paper.txt` was decoded as text, and the run then accused
@@ -34,7 +35,6 @@ tag and that file disagree.
   header; it gets `source-unreadable` instead of a false `quote-missing`,
   which is the right direction — a refusal makes the author look, a false
   accusation makes them doubt their own quote.
-
 ## [0.22.0] — 2026-11-03
 ### Removed
 
@@ -2404,7 +2404,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.1...HEAD
+[0.22.1]: https://github.com/lyear12/citevouch/releases/tag/v0.22.1
 [0.22.0]: https://github.com/lyear12/citevouch/releases/tag/v0.22.0
 [0.21.5]: https://github.com/lyear12/citevouch/releases/tag/v0.21.5
 [0.21.4]: https://github.com/lyear12/citevouch/releases/tag/v0.21.4
