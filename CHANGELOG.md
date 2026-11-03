@@ -12,6 +12,27 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Added
+
+- **`source-not-text`: a file the tool cannot read is no longer read as text.**
+  A source with a suffix this tool does not know (`.docx`, `.odt`, `.epub`,
+  `.doc`, `.png`, `.rtf`) fell through both PDF readers and then fell back to
+  plain text, which decoded the zip into a hundred characters of valid-looking
+  nonsense and returned it as page 1. The run then reported
+  `[high] quote-missing ... quote not found in paper.docx` — a verdict about
+  the author's quote, when the fact was about the file format. The new code
+  reads the file's own first bytes and says what the document is and how to
+  convert it (`soffice --convert-to pdf paper.docx`). Medium severity: reading
+  it as text wasted a step, it did not corrupt anything.
+
+### Fixed
+
+- **The refusal is decided above the cache.** A cache entry written before the
+  check existed holds the zip bytes spelled as characters; a lookup first would
+  hand that text back forever, so the diagnosis would appear once and then
+  never again. `tests/test_opaque_formats.py` poisons an entry by hand and
+  asserts the verdict still wins.
+
 ## [0.19.88] — 2026-11-03
 ### Fixed
 

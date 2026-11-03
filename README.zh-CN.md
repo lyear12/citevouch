@@ -67,6 +67,7 @@ worst severity: high
 | `source-missing` | high | 账本要的那份 PDF 找不到了 |
 | `source-unreadable` | high | PDF 在，但抽不出文本 |
 | `source-no-text` | high | PDF 读成功但一个字的文本都没有——它是扫描件，需要 OCR |
+| `source-not-text` | medium | 这个文件是别的文档格式（.docx 是压缩包，不是文本）——先转换 |
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
 | `check-unavailable` | high | `doctor` 有一项检查过不去：没有 PDF 库、解释器版本不支持、缓存不可写 |

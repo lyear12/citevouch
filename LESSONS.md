@@ -4643,3 +4643,38 @@ Two mutations reproduce the failure - the old detail text, and a plausible
 turn `tests/test_no_predicted_exit.py` red.
 
 Seen 1.
+
+## A file you cannot read is not a file with no words in it
+
+**Rule.** A reader that does not recognise a format must say so.  Never let a
+fallback that happens to produce bytes stand in for "I read this document".
+
+**Why.** A `.docx` is a zip.  Both PDF extractors refused it, and the plain-text
+fallback decoded the zip into 120 characters of valid-looking nonsense and
+returned them as page 1.  Nothing crashed: the run produced a well-formed
+report that said `[high] quote-missing ... quote not found in paper.docx`.  The
+author reads that as "my quote is wrong"; the truth is "your file is not the
+kind of file I read".  The damage lands on the person who did nothing wrong,
+which is the same shape as the `source-no-text` bug and the `no-claim-blocks`
+bug: a tool whose silence or whose confident wrong answer describes the user's
+work instead of its own limits.
+
+**How to apply.** A fallback needs a precondition, not just a signature.  Ask
+the file what it is (the first sixteen bytes) and refuse where the suffix was a
+guess.  Keep the author's own statement of format authoritative - a `.txt` that
+begins with `PK` is a text file because they said so, and the cache must not be
+allowed to answer for a verdict: the refusal goes above the lookup, or the
+diagnosis appears once and never again.
+
+**Evidence.** Before: `sources.toml` pointing at a real `.docx` produced
+`[high] quote-missing ... there is no passage in real.docx close to this quote`
+and the run read as a citation failure.  After: `[medium] source-not-text at
+real.docx: paper.docx is a Microsoft Word document - a zip archive, not
+text - and citevouch reads PDF, HTML and plain text.  Convert it first, for
+example `soffice --convert-to pdf paper.docx``, with `1 claim — 0 verified, 0
+moved, 0 missing, 1 skipped` and exit 0 (`--fail-on high`).
+`tests/test_opaque_formats.py` fails on four mutations: the suffix boundary
+removed, the byte sniff removed, the zip magic changed, and the sniff moved
+below the cache.
+
+Seen 1.

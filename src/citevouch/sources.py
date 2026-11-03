@@ -31,6 +31,11 @@ from .textnorm import fold, read_text
 
 CACHE_DIRNAME = ".citevouch"
 CACHE_SUBDIR = "cache"
+
+#: The suffixes this tool has a reader for.  Everything else falls through to
+#: "try pdftotext, then read it as text", which is a guess - and a guess worth
+#: checking against the file's own first bytes (see ``_opaque_format``).
+_KNOWN_SUFFIXES = frozenset({".txt", ".md", ".text", ".html", ".htm", ".xml", ".pdf"})
 # Only the two formats that cost nothing to support. YAML used to be listed here
 # and skipped in the loop below, which is the worst of both: the name says
 # "supported" and the code says nothing at all. A manifest we cannot read is a
@@ -338,6 +343,53 @@ def _why_both_refused(path: Path) -> list[str]:
     return said
 
 
+#: The first bytes of a file, and the words that name what they are.  A file
+#: whose suffix this tool does not recognise is read as plain text, which is the
+#: right guess for ``notes.txt`` and the wrong one for ``paper.docx``: a .docx is
+#: a zip, so the read succeeds and returns the archive's bytes spelled as
+#: characters.  Those pages are not empty, so nothing downstream can tell them
+#: from text, and the run ends in ``quote-missing`` against the author's quote.
+_OPAQUE_MAGIC: tuple[tuple[bytes, str, str], ...] = (
+    (
+        b"PK\x03\x04",
+        "a zip archive",
+        "a .docx, .odt, .epub or .xlsx - a document another program would open",
+    ),
+    (
+        b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",
+        "an OLE compound file",
+        "a legacy Word, Excel or PowerPoint document (the .doc family)",
+    ),
+    (b"\x89PNG\r\n\x1a\n", "a PNG image", "an image, which has no text to quote"),
+    (b"\xff\xd8\xff", "a JPEG image", "an image, which has no text to quote"),
+    (b"GIF8", "a GIF image", "an image, which has no text to quote"),
+    (b"\x1f\x8b", "a gzip stream", "a compressed file"),
+    (b"BZh", "a bzip2 stream", "a compressed file"),
+    (b"\xfd7zXZ", "an xz stream", "a compressed file"),
+    (b"{\\rtf", "RTF", "rich text, which this tool does not parse"),
+)
+
+
+def _opaque_format(path: Path) -> tuple[str, str] | None:
+    """What this file's own bytes say it is, when it is not text at all.
+
+    Scoped to the suffixes this tool *guesses* at.  A ``.pdf`` has its own
+    readers and a ``.txt`` is the author stating the format, so neither is
+    sniffed; an unrecognised suffix is where reading as plain text is a guess,
+    and a guess that produces 2,544 characters of PNG for a word processor to
+    search is worse than no guess at all.
+    """
+    try:
+        with path.open("rb") as handle:
+            head = handle.read(16)
+    except OSError:
+        return None
+    for magic, name, what in _OPAQUE_MAGIC:
+        if head.startswith(magic):
+            return name, what
+    return None
+
+
 def _plain_text_pages(path: str | Path) -> list[str] | None:
     """Plain text, split on form feeds so a pdftotext dump keeps its pages."""
     try:
@@ -398,6 +450,26 @@ def extract_pages(
         )
     sha = sha256_file(path)
     suffix = path.suffix.lower()
+    if suffix not in _KNOWN_SUFFIXES:
+        # Sniffed above the cache on purpose.  A cache hit hands back pages of
+        # text, so a file whose first run stored the bytes of a zip as
+        # characters would keep reporting this verdict's absence from the cache
+        # for as long as the file sat there.  This is the one branch where the
+        # suffix is a guess, which is exactly where a wrong guess becomes a
+        # verdict about the author's quote.
+        opaque = _opaque_format(path)
+        if opaque is not None:
+            name, what = opaque
+            return [], Finding(
+                code="source-not-text",
+                message=(
+                    f"{path.name} is {name} - {what} - and citevouch reads PDF, "
+                    "HTML and plain text.  Convert it first, for example "
+                    f"`soffice --convert-to pdf {path.name}`, and point the "
+                    "claim at the converted file"
+                ),
+                path=str(path),
+            )
     if use_cache:
         cached = _load_cache(root, sha, extractor_candidates(suffix))
         if cached is not None:
