@@ -38,10 +38,24 @@ from .model import BibEntry
 from .scan import _resolve
 from .textnorm import normalize, numbers_in
 
-# Pandoc's bracket form: `[@key]`, `[@a; @b]`, `[-@key]`.  This is what people
-# writing Markdown actually use, so it is the primary dialect.
-_PANDOC = re.compile(r"\[(?P<body>(?:\s*-?@[A-Za-z0-9_.:\-]+[;,])*\s*-?@[A-Za-z0-9_.:\-]+)\]")
-_AT_KEY = re.compile(r"-?@(?P<key>[A-Za-z0-9_.:\-]+)")
+# Pandoc's bracket form: `[@key]`, `[@a; @b]`, `[-@key]`, `[see @a, p. 3]`.  This
+# is what people writing Markdown actually use, so it is the primary dialect.
+#
+# The bracket can hold more than key after key.  Pandoc's grammar is
+# `[prefix @key suffix; @key2 suffix2]`, where the prefix is prose ("see",
+# "cf.") and the suffix is a locator ("p. 3", "ch. 2 and p. 4").  Measured on
+# the previous pattern, which required the body to be keys separated by
+# semicolons: `[@a, p. 3]`, `[see @a]`, `[@a, p. 3; @b, p. 4]` and
+# `[-@a, ch. 2]` all matched nothing, so `citation_sites` returned `[]` and
+# `draft` told the author no citations were found - in a manuscript that cites
+# a source on every paragraph, using the syntax every reference manager emits.
+# A page number is how half of real Markdown citations are written.
+#
+# What must still not match: `[contact me at x@y.com]`, where the `@` is inside
+# a word.  Pandoc requires the key to start at a boundary, so the body and the
+# key both carry the same lookbehind.
+_PANDOC = re.compile(r"\[(?P<body>[^\[\]]*(?<![A-Za-z0-9_.:\-])-?@[A-Za-z0-9_.:\-]+[^\[\]]*)\]")
+_AT_KEY = re.compile(r"(?<![A-Za-z0-9_.:\-])-?@(?P<key>[A-Za-z0-9_.:\-]+)")
 # LaTeX's forms, because much of the audience types Markdown in an editor that
 # still has `.tex` habits and half of a draft arrives already using these.
 _LATEX = re.compile(
@@ -282,6 +296,14 @@ def sentence_at(text: str, start: int) -> tuple[str, int, int]:
 def statement_of(sentence: str) -> str:
     """The sentence without its citation markers, ready to be a `claim:` line."""
     text = _PANDOC.sub("", sentence)
+    # The plural commands go first: `\cites{a}{b}` is four brace groups of
+    # citation furniture, and `_LATEX` cannot match it at all (`s` is neither
+    # `*`, `[` nor `{`), so leaving this out put the raw command in the middle
+    # of the sentence the author is asked to paste.  Measured: a Markdown
+    # manuscript citing `\cites{page}` produced `claim: |
+    # ... construction \cites{page}.` - a sentence no human wrote, in the one
+    # field this command exists to propose.
+    text = _LATEX_MULTI.sub("", text)
     text = _LATEX.sub("", text)
     text = re.sub(rf"\s+(?=[{_NO_SPACE_BEFORE_CLASS}])", "", text)
     return re.sub(r"\s+", " ", text).strip()

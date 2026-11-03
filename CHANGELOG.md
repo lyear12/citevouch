@@ -12,6 +12,26 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`draft` read a Pandoc citation as a bare key or not at all.** The
+  bracket form was required to hold keys separated by semicolons, so
+  every citation carrying a locator or a prefix was invisible:
+  `[@a, p. 3]`, `[see @a]`, `[-@a, ch. 2]` and `[@a, p. 3; @b, p. 4]`
+  all matched nothing. Pandoc's grammar is
+  `[prefix @key suffix; @key2 suffix2]`, and a page number is how a
+  large share of real Markdown citations are written, so `draft`
+  answered "no citations were found" to manuscripts that cite in
+  every paragraph. The bracket body and the key now both require a
+  boundary before the `@`, so an address such as `[contact me at
+  x@y.com]` is still not a citation, and nothing is deleted from a
+  sentence that holds no citation at all.
+- **`draft` put the raw command in the sentence it asked the author to
+  paste.** The plural citation commands one parser had just learned
+  were never stripped by the other: a sentence ending `\cites{a}{b}`
+  became `claim: | ... \cites{a}{b}.` - a sentence no human wrote, in
+  the one field this command exists to propose.
+
 ## [0.19.86] — 2026-11-03
 ### Fixed
 

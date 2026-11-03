@@ -4554,3 +4554,46 @@ seven were missing from `draft.py`'s table. 44 tests now, one per name in each
 file, plus eleven mutations across the two. Shipped in 0.19.86.
 
 Seen 1.
+
+## A recogniser that knows part of the syntax reports absence, not refusal
+
+Rule: when a pattern matches a *subset* of the syntax it claims to read, the
+missing cases do not fail - they fall through to whatever the surrounding code
+does with "no match". Write down the grammar you are recognising, and write a
+test for every production in it.
+
+Why this keeps happening: a narrower pattern is invisible because the code
+around it is correct. `citation_sites` returned `[]`, `draft` said "no
+citations were found", and every layer agreed. Nothing raised, nothing was
+half-parsed, and the message the author got described the *result* of the miss
+rather than the miss. Measured: `[@a, p. 3]`, `[see @a]`, `[-@a, ch. 2]` and
+`[@a, p. 3; @b, p. 4]` all matched nothing, so a manuscript citing a source in
+every paragraph was told it cites nothing.
+
+Pandoc's grammar is `[prefix @key suffix; @key2 suffix2]` - the bracket holds
+prose and a locator, not only keys. I had implemented `[@key]` and `[@a; @b]`,
+which are the two shapes a hand-written test happens to use when the author of
+the test is also the author of the pattern.
+
+How to apply: read the *format's* grammar, not your own examples of it. For
+every production, ask which one of your inputs produces it; if the answer is
+"none", that production is untested and probably unimplemented. Then check the
+boundary the other way: what must not match. Adding a looser body pattern needs
+a lookbehind on the `@`, or `[contact me at x@y.com]` becomes a citation.
+
+The same pattern, read twice: `citation_sites` *finds* with it and
+`statement_of` *deletes* with it. Every way of finding is a way of deleting, so
+a command added to one and not the other leaves the command in the sentence
+handed back as the author's own words. Adding `_LATEX_MULTI` to the finder last
+round and not to the stripper is how `claim: | ... \cites{a}{b}.` reached
+a proposal file. Deleting prose is worse than inventing a key: a wrong key is
+visible in the ledger, a missing clause is not.
+
+Evidence: `src/citevouch/draft.py:_PANDOC` and `_AT_KEY` before and after the
+lookbehind; `statement_of` without the `_LATEX_MULTI` line; 50 tests across
+`tests/test_pandoc_locators.py` and `tests/test_pandoc_brackets.py`; five
+mutations in `_mut_pandoc.py`, two of which survived the first round because
+the recogniser had boundary guards and the stripper was never asked about a
+bracket that holds no citation.
+
+Seen 1.
