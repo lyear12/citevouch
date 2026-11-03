@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.2] — 2026-11-03
 ### Fixed
 
 - **A `.docx` saved as `paper.txt` was read as text, and the run then accused
@@ -30,7 +31,6 @@ tag and that file disagree.
   holds pages, not a verdict - and a PDF is exempt, because its bytes were
   already checked against the header and its readers are entitled to leave a
   control character in otherwise good text.
-
 ## [0.22.1] — 2026-11-03
 ### Fixed
 
@@ -2423,7 +2423,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.2...HEAD
+[0.22.2]: https://github.com/lyear12/citevouch/releases/tag/v0.22.2
 [0.22.1]: https://github.com/lyear12/citevouch/releases/tag/v0.22.1
 [0.22.0]: https://github.com/lyear12/citevouch/releases/tag/v0.22.0
 [0.21.5]: https://github.com/lyear12/citevouch/releases/tag/v0.21.5
