@@ -1428,6 +1428,34 @@ not what changed, but what proves the change works.
   that a promise about *another* command's output (as opposed to its exit code)
   is true.
 
+- [x] **A quote that exists only inside a `<script>` was verified.**
+  *What was wrong*: the HTML reader removed a `<script>`/`<style>` body only
+  when the end tag was spelled exactly `</script>`.  HTML also allows
+  `</script >` and `</script\n>`, so a formatter writing either spelling left
+  the whole body in the page text — and a sentence living only in JavaScript
+  came back `[info] quote-found`, `1 claim - 1 verified`, exit 0.  A truncated
+  `<script>` and an unterminated `<!--` matched nothing at all, so everything
+  after them was read as prose.
+  *Who is blocked*: every reader of the report.  This is a false positive on the
+  one axis the tool exists to police, so it is worse than a missed quote -
+  `quote-missing` sends an author to look, `quote-found` sends them away.
+  *Done when*: no region the format marks as unrendered can reach the page text,
+  whatever spelling the producer used.
+  *Done — why it is now true*: `sources._without_unrendered` walks the document
+  instead of matching one regex, accepts any whitespace before the end tag's
+  `>`, treats an unterminated region as running to the end of the file (which is
+  what a browser does with a raw-text element), and refuses `<!--` the same way.
+  `tests/test_unrendered_regions.py` (15 tests) asserts both levels: the helper,
+  and the verdict a real project gets.  Five mutations are red — the exact
+  end-tag spelling, an unterminated region stopping at its opener, comments
+  dropped from the region list, an unterminated comment stopping at its opener,
+  and `style` removed from the list.  Shipped in v0.20.1.
+  *Not covered*: `<textarea>`, `<template>`, `<noscript>`, `<iframe>` fallback
+  content and `<svg><title>` are also not prose a reader sees, and they are
+  still kept.  That is not one decision — the browser does show `<noscript>`
+  when scripting is off and `<textarea>` content is editable text — so nothing
+  asserts them either way.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
