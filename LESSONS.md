@@ -4880,3 +4880,29 @@ precise sentence, and the first draft of this rule shadowed three assertions in
 better refusal is a worse message with the same exit code.
 
 Seen 1.
+
+## A function nothing calls is a docstring claiming a feature
+
+Rule: when a function has a docstring saying what it is for, some test must reach it
+or it must not exist.  A function only a future reader will find is a promise the tool
+cannot keep, and the docstring is where the promise is written.
+
+Why: `verify.doi_index` was documented as the map for "the optional Crossref
+cross-check".  There is no Crossref cross-check, and `AGENTS.md` says one would belong
+in a separate optional command rather than inside `scan`/`verify`/`check` - so the
+docstring described a design the repository had explicitly declined, and nothing ran it
+to say so.  `verify.rebuild` said it existed "so the CLI has one call per verb" and the
+CLI imports `verify` directly.  `verify.summarize` was a second copy of the sentence
+`report.py` writes.  `sources._odd_bindings` pluralised a manifest's bad keys into one
+sentence while the live code writes that sentence per key.  Measured with an AST scan of
+`src/`, `tests/` and `tools/`: all four names appear nowhere.  Deleting them took
+`verify.py` from 90% to 96% line coverage and changed no test - which is exactly the
+problem: nothing was running them.
+
+How to apply: resolve per module, not per name.  `draft.summarize` is a real call and
+`verify.summarize` is not; a scan that collects attribute names alone counts them as one
+use and finds nothing.  `tests/test_no_dead_functions.py` does the per-module version and
+carries a liveness test of its own, because a resolver that reaches nothing makes the
+guard green and meaningless.
+
+Seen 1.
