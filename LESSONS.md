@@ -5085,3 +5085,32 @@ per line - unless they are inside a region you deliberately skipped, which is
 why the check has to know the spans you consumed rather than re-deriving them
 from the text. Then keep the two branches from firing together: a file with no
 claims at all gets the "nothing here" finding, not both.
+
+## A count that sums what you read is not a count of what is there
+
+Rule: when a check prints how many of something the input contains, the number
+must come from the input. Summing the items your parser handled - accepted
+plus refused plus skipped-partly - gives a total that moves whenever your
+parser gets better at failing, and never moves for the thing it failed to see.
+
+Why: `citevouch doctor`'s `claims` line printed how many claim blocks a
+manuscript holds, computed from `len(parsed.spans)` and `len(parsed.claims)`.
+Those two sets cover the blocks the parser consumed and the ones it accepted;
+a fence it walked past because a blockquote or an indent put it out of reach
+is in neither. Measured on a file with one good block and one blockquoted
+block: `doctor` printed `[ok  ] claims      1 claim block`, and it went
+unnoticed for a release because the *other* two numbers had been made to agree
+earlier and the sentence only ever printed the smaller.
+
+The general shape: a count built from your own bookkeeping is a count of your
+bookkeeping. It drifts by exactly the size of the category you have not modelled
+yet, and adding the next category is a change to the total rather than a
+correction to a wrong one, so nothing looks like a bug when it happens.
+
+How to apply: compare the printed number against an independent count of the
+input - here, one finding per fence the parser did not read makes that count
+available without a second parser. When the two disagree, the printed number is
+the one that is wrong, even when the disagreement is small and even when the
+check's own verdict is unaffected. And when a check delegates the *explanation*
+of a fault to the next command, that is never a licence to delegate the
+*arithmetic*.

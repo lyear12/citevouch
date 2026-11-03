@@ -90,6 +90,26 @@ def _codes(result) -> list[str]:
     return [finding.code for finding in result.findings]
 
 
+def _doctor(root: Path) -> subprocess.CompletedProcess:
+    """`doctor` takes the manuscript as a flag, not as a positional argument."""
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "citevouch",
+            "doctor",
+            "--manuscript",
+            str(root / "manuscript.md"),
+            "--root",
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
 BLOCKQUOTE = [
     "> " + FENCE + "claim id=c2 source=paper page=1",
     "> quote: |",
@@ -225,3 +245,51 @@ class TestTheCommand:
             live.returncode,
         )
         assert "claim-block-unread" in recorded.stdout, recorded.stdout
+
+
+class TestDoctorAgreesWithTheCommandItExplains:
+    """`doctor` must not count a file by the blocks it managed to read.
+
+    Measured before this class existed, on a project whose `page.txt` holds the
+    sentence both blocks quote: `doctor --manuscript manuscript.md --root .`
+    printed `[ok  ] claims      1 claim block` and exited 0, while `check` on the
+    same tree printed `[high] claim-block-unread at manuscript.md:8 (c2)` and
+    exited 1. The file holds two claim fences.
+
+    Two things are deliberately *not* asserted here. `doctor` stays green: a
+    block it could not read is a finding with its own line number, and that is
+    the same division of labour the refused-block case has always had - `doctor`
+    explains a machine, `check` names a fault, and printing both would be one
+    fact in two vocabularies. And the exit code stays 0 for the same reason.
+    What is asserted is that the number on the line is the number of fences the
+    file contains, which is the sentence `_claim_blocks`' own docstring says it
+    exists to get right.
+    """
+
+    def test_the_line_counts_the_fences_not_the_reads(self, tmp_path: Path) -> None:
+        manuscript = NL.join([*_good(), "", "Prose.", "", *BLOCKQUOTE, ""])
+        root = _project(tmp_path, manuscript)
+        result = _doctor(root)
+        assert "[ok  ] claims" in result.stdout, result.stdout
+        assert "2 claim blocks" in result.stdout, result.stdout
+
+    def test_the_line_says_some_of_them_were_not_read(self, tmp_path: Path) -> None:
+        manuscript = NL.join([*_good(), "", "Prose.", "", *BLOCKQUOTE, ""])
+        root = _project(tmp_path, manuscript)
+        result = _doctor(root)
+        assert "1 of which" in result.stdout, result.stdout
+        assert "names the rest" in result.stdout, result.stdout
+
+    def test_a_file_with_no_claims_still_says_what_it_used_to(self, tmp_path: Path) -> None:
+        """The existing sentence is the one case `doctor` owns; keep it."""
+        root = _project(tmp_path, "Just prose, no blocks at all." + NL)
+        result = _doctor(root)
+        assert result.returncode == 1, (result.returncode, result.stdout)
+        assert "no claim blocks" in result.stdout, result.stdout
+
+    def test_a_clean_manuscript_is_still_green(self, tmp_path: Path) -> None:
+        root = _project(tmp_path, NL.join([*_good("c1"), "", *_good("c2"), ""]))
+        result = _doctor(root)
+        assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
+        assert "2 claim blocks" in result.stdout, result.stdout
+        assert "1 of which" not in result.stdout, result.stdout

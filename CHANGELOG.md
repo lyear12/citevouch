@@ -12,6 +12,22 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`doctor` counted a manuscript by the blocks it managed to read.** The `claims` check
+  prints how many claim blocks the file holds, and it counted `parsed.spans` (the blocks the
+  parser consumed) plus `parsed.claims` (the ones it accepted). Neither counts a block the
+  parser walked past because a blockquote, a list item or an indent put the fence out of
+  reach, so a file holding two fences was reported as `1 claim block` - measured on a project
+  with one good block and one blockquoted block, where `doctor --manuscript manuscript.md
+  --root .` printed `[ok  ] claims      1 claim block` and exited 0 while `check` printed
+  `[high] claim-block-unread at manuscript.md:8 (c2)` and exited 1. The count now includes
+  the fences `claim-block-unread` named, so the same file reads `2 claim blocks, 1 of which
+  the parser could read; the next command names the rest`. The check stays green and
+  `doctor` still exits 0: a block it could not read is a finding with its own line number,
+  and that division of labour is the same one the refused-block case has always had - which
+  is also why the defect was invisible until the count was compared against the file.
+
 ## [0.22.5] — 2026-11-03
 ### Fixed
 

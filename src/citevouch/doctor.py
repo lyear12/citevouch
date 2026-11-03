@@ -388,18 +388,28 @@ def _claim_blocks(target: Path) -> Report:
             fix="Check the file's permissions, or pass a manuscript this tool can open.",
         )
     if parsed.claims:
+        # Three numbers, and the smallest of them is the one that was printed.
+        # `spans` holds the blocks the parser consumed, `claims` the ones it
+        # accepted, and `claim-block-unread` the fences it walked past because
+        # a container or an indent put them out of reach.  Counting only the
+        # first two said "1 claim block" about a file holding two fences - a
+        # false statement in the one check whose job is to stop false
+        # statements, which is what this function's own docstring says about
+        # the refused-block case and did not apply to this one.
         seen, read = len(parsed.spans), len(parsed.claims)
-        if read == seen:
+        unread = sum(1 for finding in parsed.findings if finding.code == "claim-block-unread")
+        fences = seen + unread
+        if fences == read:
             return Report(
                 name="claims",
                 ok=True,
-                detail=count_of(read, "claim block"),
+                detail=count_of(fences, "claim block"),
             )
         return Report(
             name="claims",
             ok=True,
             detail=(
-                f"{count_of(seen, 'claim block')}, {read} of which the parser "
+                f"{count_of(fences, 'claim block')}, {read} of which the parser "
                 "could read; the next command names the rest"
             ),
         )
