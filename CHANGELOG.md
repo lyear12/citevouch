@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`doctor` promised a green run for a project that fails.** Its claims line
+  read `holds no claim blocks, so every run will report 0 claims checked and
+  exit 0`. Every word of that is false: `check`, `verify` and `scan` all report
+  `no-claim-blocks` (high) and exit 1. The sentence was written in 0.19.47 by
+  the commit that added the check — it describes the behaviour that change had
+  just removed — so it was wrong from its first release. The line now says what
+  happens: `every run reports no-claim-blocks and exits 1: nothing in this
+  project is ever checked`. A test scans every non-docstring string in
+  `src/citevouch/` for a promise of `exit 0`, because the next such sentence
+  will not be in the same place.
+
 ## [0.19.87] — 2026-11-03
 ### Fixed
 

@@ -415,8 +415,9 @@ def _claim_blocks(target: Path) -> Report:
         name="claims",
         ok=False,
         detail=(
-            f"{target} holds no claim blocks, so every run will report "
-            "0 claims checked and exit 0"
+            f"{target} holds no claim blocks, so every run reports "
+            "`no-claim-blocks` and exits 1: nothing in this project is ever "
+            "checked"
         ),
         fix=(
             "Write them by hand, or propose them from the citations already in "

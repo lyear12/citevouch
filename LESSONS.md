@@ -4597,3 +4597,49 @@ the recogniser had boundary guards and the stripper was never asked about a
 bracket that holds no citation.
 
 Seen 1.
+
+## A sentence about another command's exit code is a sentence nothing runs
+
+**Rule.** If a message says what a *different* command will do, it is a claim
+with no test behind it.  Either it names a code (so a reader can look it up) or
+it says what this command found - never what the run will exit with.
+
+**Why this one is worth keeping.**  `doctor`'s claims line read, from the day
+the check shipped in 0.19.47:
+
+    <file> holds no claim blocks, so every run will report 0 claims checked
+    and exit 0
+
+`check`, `verify` and `scan` had all reported `no-claim-blocks` and exited 1
+since that same release.  The sentence was written by the commit that *fixed*
+the silent green run, and it describes the behaviour that commit removed.  It
+was wrong from its first release and stayed wrong for forty releases, because
+no test ever read it and no reader who trusted it had a reason to check.
+
+That is the expensive part: `doctor` is the command you run when a report looks
+empty, and this was the line telling you the emptiness was normal.
+
+**How to apply.**
+
+- When you write a message that describes *another* command, name the thing
+  rather than predicting its fate: "reports `no-claim-blocks` and exits 1" can
+  be checked against `check`; "will report 0 claims checked and exit 0" is a
+  promise nobody will notice breaking.
+- Predicting failure is the safe direction.  A reader told the run fails goes
+  and looks, and finds either the failure or a pleasant surprise.  Predicting
+  success silences a reader, which is why the guard scans for `exit 0` only.
+- Write the guard as a scan over the messages a reader can see, not over the
+  one sentence that was wrong.  The next such sentence will be somewhere else,
+  written by someone fixing the behaviour it fails to describe.
+- Docstrings and comments are exempt on purpose: they quote history ("this used
+  to exit 0") and that is a legitimate use of the old wording.
+
+**Evidence.**  Before: `[FAIL] claims  m.md holds no claim blocks, so every run
+will report 0 claims checked and exit 0`, while `citevouch check m.md --root .`
+printed `[high] no-claim-blocks ...` and exited 1.  After: `... reports no-claim-blocks and exits 1: nothing in this project is
+ever checked`.
+Two mutations reproduce the failure - the old detail text, and a plausible
+`exit 0` promise pasted into an unrelated message in `sources.py` - and both
+turn `tests/test_no_predicted_exit.py` red.
+
+Seen 1.
