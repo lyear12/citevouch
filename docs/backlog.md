@@ -1450,11 +1450,11 @@ not what changed, but what proves the change works.
   end-tag spelling, an unterminated region stopping at its opener, comments
   dropped from the region list, an unterminated comment stopping at its opener,
   and `style` removed from the list.  Shipped in v0.20.1.
-  *Not covered*: `<textarea>`, `<template>`, `<noscript>`, `<iframe>` fallback
-  content and `<svg><title>` are also not prose a reader sees, and they are
-  still kept.  That is not one decision — the browser does show `<noscript>`
-  when scripting is off and `<textarea>` content is editable text — so nothing
-  asserts them either way.
+  *Not covered*: `<svg><title>` is still kept, because an SVG may carry real
+  `<text>` and the title is not the only place its words can live.  The three
+  genuinely inert elements — `<template>`, `<textarea>`, `<iframe>` — were
+  added in v0.21.1; see the entry below.  `<noscript>` stays on purpose and is
+  now asserted to stay.
 
 - [x] **An empty `.txt` was told to run OCR on it.**
   *What was wrong*: `source-no-text` was written for a scanned PDF and its one
@@ -1519,6 +1519,41 @@ not what changed, but what proves the change works.
   costs about 23 seconds on the 100-paper corpus.  That is once per cache, but
   it is the most expensive thing `doctor` now does and no test asserts any
   bound on it.
+
+- [x] **A quote that lives only inside `<template>`, `<textarea>` or `<iframe>` came back verified.** *Done 2026-11-03.*
+  *What was wrong*: `sources._strip_markup` removed `<script>`, `<style>` and
+  comment bodies and called that the set of regions no reader sees.  Three
+  more elements are never painted as words: `<template>` content is inert by
+  specification, `<textarea>` content is a form value, and `<iframe>` content is
+  fallback text for browsers that cannot show the frame.  All three reached the
+  page text, so a sentence that exists only inside an inert template was
+  matched and reported as `[info] quote-found`.  Measured on a two-claim
+  project whose only HTML source held one sentence in a `<template>` and one in
+  a `<textarea>`: `citevouch check` printed two `quote-found` lines,
+  `2 claims — 2 verified, 0 moved, 0 missing`, `worst severity: info`, **exit
+  0** — a verified claim about words nobody can see on that page.
+  *Who is blocked*: anyone citing a web source built with a template engine, a
+  documentation site, or a widget library that ships text in `<template>` tags.
+  They get told their quote is on the page when it is in the markup only, which
+  is the one failure this tool cannot apologise for: `quote-missing` sends an
+  author to look, `quote-found` sends them away.
+  *Done when*: no element the format marks as inert can reach the page text,
+  and the elements deliberately left in are asserted to stay in.
+  *Done — why it is now true*: `sources._UNRENDERED_TAGS` is the single list
+  (`script`, `style`, `template`, `textarea`, `iframe`), and both the opener
+  pattern and the `_CLOSED` map are built from it, so the next name is a
+  one-line change.  `tests/test_unrendered_regions.py` gained
+  `TestElementsWhoseContentIsNotProse` (body dropped, attributes dropped,
+  unterminated element swallows the rest), `TestTheVerdictOnAnInertElement`
+  (a quote only in a `<template>` → exit 1, only in a `<textarea>` → exit 1,
+  prose beside the element → exit 0) and `TestWhatWasDeliberatelyLeftAlone`
+  (`<noscript>` and `<svg><text>` still read).  Eight mutations are red —
+  the list back to two names, each of the three new names removed in turn,
+  `noscript` added, `svg` added, the opener pattern hard-coded, the closer map
+  hard-coded — `survivors: none`.  Shipped in v0.21.1.
+  *Not covered*: `<svg><title>` is still kept (an SVG may carry real `<text>`),
+  and nothing asserts it either way.  `<noscript>` and `<svg>` are asserted to
+  stay, which is the opposite decision, not a gap.
 
 ## P1 — nobody can start using it
 
