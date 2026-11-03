@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.12] — 2026-11-03
 ### Fixed
 
 - **29 conditional commands from `etoolbox` and LaTeX2e were not in any table, so
@@ -45,7 +46,6 @@ tag and that file disagree.
   all red: table back to `ifthenelse` only, bare-test set emptied, every command
   counted as one group, branches joined flush again, the bare token not stepped
   over, and the test always consuming exactly one group.
-
 ## [0.22.11] — 2026-11-03
 ### Fixed
 
@@ -2661,7 +2661,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.11...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.12...HEAD
+[0.22.12]: https://github.com/lyear12/citevouch/releases/tag/v0.22.12
 [0.22.11]: https://github.com/lyear12/citevouch/releases/tag/v0.22.11
 [0.22.10]: https://github.com/lyear12/citevouch/releases/tag/v0.22.10
 [0.22.9]: https://github.com/lyear12/citevouch/releases/tag/v0.22.9
