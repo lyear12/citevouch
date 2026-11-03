@@ -84,7 +84,7 @@ worst severity: high
 | `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块 |
 | `claim-block-unclosed` | high | 某个 `` ```claim `` 块始终没有闭合，它之后的每条 claim 都被读成了它的一部分 |
 | `claim-uncheckable` | high | 某条 claim 块根本无法核对——缺 `source=`、缺引文、缺 id，或 id 重复导致第二块被丢弃 |
-| `claim-block-unread` | high | claim 围栏写在引用块、列表项或缩进里，Markdown 会把它渲染成代码示例——里面的内容一个字都没核对 |
+| `claim-block-unread` | high | claim 块（围栏、`<!-- claim` 注释或表格行）写在引用块、列表项或缩进里，Markdown 会把它渲染成代码示例——里面的内容一个字都没核对 |
 | `page-unreadable` | medium | `page=` 提示不是数字，会被忽略，引文改为按搜索定位 |
 | `no-claim-blocks` | high | 稿件里一个 claim 块都没有，因此什么都没被核对过 |
 

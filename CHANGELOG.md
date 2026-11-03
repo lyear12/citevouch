@@ -12,6 +12,31 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The skipped-block finding covered one dialect and left the other two silent.** The
+  `claim-block-unread` detector added in 0.22.5 looked for a claim fence, then for the
+  container prefixes that put it out of reach, and reported what it found. The format has
+  three openers - a fence, an `<!-- claim` comment and a table row - and only the first was
+  in that pattern, so on a project holding one good fenced block plus one wrapped block,
+  measured shape by shape with `sources.toml` mapping `paper = "page.txt"`:
+
+  | wrapped block | `scan` | `check` | ledger | findings |
+  | --- | --- | --- | --- | --- |
+  | fence, indented | 1 | 1 | `['c1']` | `claim-block-unread` |
+  | comment, indented | 0 | 0 | `['c1']` | none |
+  | comment, blockquoted | 0 | 0 | `['c1']` | none |
+  | table, indented | 0 | 0 | `['c1']` | none |
+  | table, blockquoted | 0 | 0 | `['c1']` | none |
+
+  The second block's id was in no finding and in no ledger row for four of the five, and
+  `check` called those runs a verification. Each dialect now has its own entry in one table
+  (`_WRAPPED`), the table opener is `_TABLE_CLAIM.pattern[1:]` rather than a retyped copy of
+  it so the parser and the detector cannot disagree about what a claim row is, and the
+  finding names the construct it actually found: a fence, a `<!-- claim` opener or a table
+  row, because "move it to the left margin" is only the whole fix for one of the three.
+  `doctor`'s `claims` count follows for free - it counts the fences this finding names.
+
 ## [0.22.6] — 2026-11-03
 ### Fixed
 

@@ -5114,3 +5114,38 @@ the one that is wrong, even when the disagreement is small and even when the
 check's own verdict is unaffected. And when a check delegates the *explanation*
 of a fault to the next command, that is never a licence to delegate the
 *arithmetic*.
+
+## A guard written for one dialect licenses the others
+
+**Rule.** When a format has more than one way to write the same construct, a detector
+for a mistake in that construct must enumerate every way, from one table, and must say
+which way it found. Fixing the dialect that the bug report happened to use is not fixing
+the defect; it is fixing one third of it and making the remaining two thirds harder to
+see, because the tool now appears to look.
+
+**Why.** `claim-block-unread` (0.22.5) reported a claim fence that a blockquote, a list
+item or an indent had put out of Markdown's reach. It matched `_BARE_CLAIM` - three
+backticks or tildes and the word `claim` - and nothing else. The format has three
+openers. Measured on one project holding a good fenced block plus one wrapped block,
+`scan` and `check` each exited **0** with a ledger of `['c1']` for a wrapped comment, a
+wrapped comment in a blockquote, a wrapped table row and a blockquoted table row; the
+second block's id was in no finding and in no ledger row, and `check` called those runs a
+verification. The five shapes, side by side, are in the CHANGELOG for 0.22.7.
+
+The failure is not that the author forgot the other dialects. It is that a fix which
+covers a third of the inputs *raises* the cost of the remaining two thirds: before the
+detector existed, a wrapped block looked exactly like a block the tool had not been asked
+about. Afterwards the author has been told the tool looks for wrapped blocks, so silence
+reads as "none here".
+
+**How to apply.** Put the openers in one table keyed by dialect, iterate it, and put the
+per-dialect reason in a second table so the finding names the construct the reader
+actually wrote - "move it to the left margin" is the whole fix for a fence and half a fix
+for a table row. Derive each opener from the parser's own pattern (`_TABLE_CLAIM.pattern[1:]`
+here, with its left-margin anchor removed) instead of retyping the shape, so the parser
+and the detector cannot drift about what counts as the construct. Then write the test as
+a table too, one case per dialect, and assert the sentences differ: a test that passes
+when all three findings share one generic message is a test that will let the next dialect
+be added silently.
+
+*Seen 1.*

@@ -74,8 +74,16 @@ _CLAIMISH = re.compile(r"^\s*(?:`{3,}|~{3,}|<!--)\s*[*_]*\s*claim\b", re.IGNOREC
 # What a line can put in front of a fence without being a comment: a blockquote
 # marker, a bullet, a number, an indent, and any mix of them.
 _CONTAINER = r"(?:(?:[ \t]*>[ \t]*)|(?:[ \t]*[-*+][ \t]+)|(?:[ \t]*\d+[.)][ \t]+)|(?:[ \t]+))*"
-# The fence itself, with no opinion about what precedes it.
+# The openers themselves, with no opinion about what precedes them.  One per
+# dialect, because the three dialects are spelled differently and the finding
+# has to name the construct the reader actually wrote.
 _BARE_CLAIM = re.compile(r"(?:`{3,}|~{3,})\s*[*_]*\s*claim\b", re.IGNORECASE)
+_BARE_COMMENT = re.compile(r"<!--\s*claim\s*:?", re.IGNORECASE)
+# The table opener is `_TABLE_CLAIM` itself, with its left-margin anchor
+# removed.  Reusing the pattern rather than retyping it is the point: a second
+# copy of a shape is a second copy that drifts, and the parser and this
+# detector must agree about what a claim row is.
+_BARE_TABLE = re.compile(_TABLE_CLAIM.pattern[1:])
 # A claim fence a container or an indent put out of reach of `_FENCE_OPEN`,
 # which only matches at the left margin.  Such a block is not a claim - Markdown
 # renders the fence as a code sample wherever it sits - but it is also not
@@ -89,7 +97,12 @@ _BARE_CLAIM = re.compile(r"(?:`{3,}|~{3,})\s*[*_]*\s*claim\b", re.IGNORECASE)
 # `scan._no_claim_blocks_finding` names the indented shape correctly, but only
 # for a file that produced *zero* claims, so one good block anywhere switched
 # it off.
-_WRAPPED_CLAIM = re.compile(_CONTAINER + _BARE_CLAIM.pattern, re.IGNORECASE)
+# Each dialect's opener, reachable through the same prefix grammar.
+_WRAPPED: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("fence", re.compile(_CONTAINER + _BARE_CLAIM.pattern, re.IGNORECASE)),
+    ("comment", re.compile(_CONTAINER + _BARE_COMMENT.pattern, re.IGNORECASE)),
+    ("table", re.compile(_CONTAINER + _BARE_TABLE.pattern)),
+)
 # The two keys that make a body a mapping, and the only two the parser reads a
 # value out of.  `numbers:` used to be a third, listed here from the first
 # commit although `_claim_from` builds `Claim.numbers` with `numbers_in(quote)`
@@ -610,23 +623,21 @@ def _unread_findings(
     for number, line in enumerate(lines, start=1):
         if covered[number]:
             continue
-        m = _WRAPPED_CLAIM.match(line)
-        if not m:
+        hit = _unread_opener(line)
+        if hit is None:
             continue
+        dialect, opener = hit
         # The id is on the line the author wrote, so name it.  A finding that
         # says "line 8" makes the reader count; one that says "claim c2 at
         # line 8" matches the block they are looking for.
-        claim_id = _attrs(line[m.end() :]).get("id", "")
+        claim_id = _id_from_opener(dialect, line, opener)
         who = f"claim {claim_id}: " if claim_id else ""
         found.append(
             Finding(
                 code="claim-block-unread",
                 message=(
-                    f"{who}line {number} opens a claim block that was not read: the "
-                    "fence is inside a blockquote, a list item or an indent, and a "
-                    "fence that is not at the left margin is a code sample in "
-                    "Markdown, not a claim - move it to the left margin to have it "
-                    "checked"
+                    f"{who}line {number} opens a claim block that was not read: "
+                    + _UNREAD_REASON[dialect]
                 ),
                 claim_id=claim_id,
                 path=path,
@@ -634,6 +645,52 @@ def _unread_findings(
             )
         )
     return found
+
+
+# Why each dialect was not read, and what to do about it.  The three are one
+# defect with three different fixes, so they cannot share one sentence: a fence
+# and a table row are moved left, a comment opener has to carry its `<!--` to
+# the margin as well, and a reader who pasted a row of pipes should be told
+# about pipes rather than about fences.
+_UNREAD_REASON = {
+    "fence": (
+        "the fence is inside a blockquote, a list item or an indent, and a "
+        "fence that is not at the left margin is a code sample in Markdown, "
+        "not a claim - move it to the left margin to have it checked"
+    ),
+    "comment": (
+        "the `<!-- claim` opener is inside a blockquote, a list item or an "
+        "indent, where Markdown renders the block as a code sample rather than "
+        "a comment - move the opening line to the left margin to have it "
+        "checked"
+    ),
+    "table": (
+        "the table row is inside a blockquote, a list item or an indent, where "
+        "Markdown renders it as a code sample rather than a table - move it to "
+        "the left margin to have it checked"
+    ),
+}
+
+
+def _unread_opener(line: str) -> tuple[str, re.Match[str]] | None:
+    """Which dialect this line opens a block with, if any.
+
+    The dialect comes back with the match because the three openers keep their
+    id in different places: a fence and a comment carry it as an attribute
+    after the opener, a table row carries it in its first cell.
+    """
+    for dialect, pattern in _WRAPPED:
+        m = pattern.match(line)
+        if m:
+            return dialect, m
+    return None
+
+
+def _id_from_opener(dialect: str, line: str, opener: re.Match[str]) -> str:
+    """The id the author wrote on that line, so the finding can name it."""
+    if dialect == "table":
+        return opener.group("id") or ""
+    return _attrs(line[opener.end() :]).get("id", "")
 
 
 def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:

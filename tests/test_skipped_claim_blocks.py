@@ -293,3 +293,117 @@ class TestDoctorAgreesWithTheCommandItExplains:
         assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
         assert "2 claim blocks" in result.stdout, result.stdout
         assert "1 of which" not in result.stdout, result.stdout
+
+
+# --------------------------------------------------------------------------
+# The same silence, in the other two dialects.
+#
+# `claim-block-unread` was written for the fence dialect and only for it, so
+# the fix left two thirds of the format uncovered. Measured on a project with
+# one good fenced block plus one wrapped block of each dialect (all quoting
+# the same page sentence, `sources.toml` mapping `paper = "page.txt"`):
+#
+#   shape           scan  check  ledger    findings
+#   fence, indented  0     0      ['c1']    claim-block-unread
+#   comment, indented 0    0      ['c1']    (none)
+#   comment, quoted  0     0      ['c1']    (none)
+#   table, indented  0     0      ['c1']    (none)
+#   table, quoted    0     0      ['c1']    (none)
+#
+# The second block's id is in no finding and in no ledger row for four of the
+# five, and `check` calls the run a verification. One dialect was fixed and the
+# other two kept the original defect, which is the shape this repository keeps
+# rediscovering: a guard on one reader is not a guard on the format.
+
+COMMENT_QUOTED = [
+    "> <!-- claim: c2 source=paper page=1",
+    "> " + QUOTE,
+    "> -->",
+]
+COMMENT_INDENTED = [
+    "  <!-- claim: c2 source=paper page=1",
+    "  " + QUOTE,
+    "  -->",
+]
+ROW = "| c2 | paper | 1 | " + QUOTE + " | " + QUOTE + " |"
+TABLE_QUOTED = ["> " + ROW]
+TABLE_INDENTED = ["  " + ROW]
+
+DIALECTS = {
+    "comment_quoted": COMMENT_QUOTED,
+    "comment_indented": COMMENT_INDENTED,
+    "table_quoted": TABLE_QUOTED,
+    "table_indented": TABLE_INDENTED,
+}
+
+
+class TestTheOtherTwoDialectsAreNotSilentEither:
+    @pytest.mark.parametrize("name", sorted(DIALECTS))
+    def test_a_wrapped_block_is_reported_not_swallowed(self, name: str) -> None:
+        text = NL.join([*_good(), "", "Prose between the two blocks.", "", *DIALECTS[name], ""])
+        parsed = parse_manuscript(text, "manuscript.md")
+        assert [claim.id for claim in parsed.claims] == ["c1"], "the good block still parses"
+        unread = [f for f in parsed.findings if f.code == "claim-block-unread"]
+        assert len(unread) == 1, [f.message for f in parsed.findings]
+        assert "c2" in unread[0].message, unread[0].message
+
+    @pytest.mark.parametrize("name", sorted(DIALECTS))
+    def test_the_command_refuses_the_run(self, tmp_path: Path, name: str) -> None:
+        text = NL.join([*_good(), "", *DIALECTS[name], ""])
+        root = _project(tmp_path, text)
+        scanned = _run(root, "scan")
+        assert scanned.returncode == 1, scanned.stdout
+        checked = _run(root, "check", "--use-recorded")
+        assert checked.returncode == 1, checked.stdout
+        assert "claim-block-unread" in checked.stdout, checked.stdout
+
+    def test_the_three_dialects_do_not_share_one_sentence(self) -> None:
+        """Each finding says which construct it found, because the fixes differ.
+
+        A fence and a table row are both fixed by deleting the prefix; the
+        comment dialect is fixed the same way but its opener is named
+        `<!-- claim`, and a reader hunting for a row of pipes should not be
+        told to look for a fence.
+        """
+        text = NL.join(
+            [*_good(), "", *BLOCKQUOTE, "", *COMMENT_INDENTED, "", *TABLE_QUOTED, ""]
+        )
+        parsed = parse_manuscript(text, "manuscript.md")
+        messages = [f.message for f in parsed.findings if f.code == "claim-block-unread"]
+        assert len(messages) == 3, messages
+        assert any("fence" in message for message in messages), messages
+        assert any("<!-- claim" in message for message in messages), messages
+        assert any("table row" in message for message in messages), messages
+
+    @pytest.mark.parametrize(
+        "block",
+        [
+            ["<!-- claim: c2 source=paper page=1", QUOTE, "-->"],
+            [ROW],
+            [FENCE + "claim id=c2 source=paper page=1", "quote: |", "  " + QUOTE, FENCE],
+        ],
+        ids=["comment", "table", "fence"],
+    )
+    def test_a_block_at_the_left_margin_is_still_read(self, block: list[str]) -> None:
+        """The new detector must not fire on the shapes that already parse."""
+        text = NL.join([*_good(), "", *block, ""])
+        parsed = parse_manuscript(text, "manuscript.md")
+        assert [claim.id for claim in parsed.claims] == ["c1", "c2"]
+        assert [f.code for f in parsed.findings].count("claim-block-unread") == 0
+
+    def test_a_sample_that_quotes_the_dialects_is_quiet(self) -> None:
+        """A documented example shows all three openers; none of them is a claim."""
+        text = NL.join(
+            [
+                *_good(),
+                "",
+                FENCE * 2 + "markdown",
+                *BLOCKQUOTE,
+                *COMMENT_INDENTED,
+                *TABLE_INDENTED,
+                FENCE * 2,
+                "",
+            ]
+        )
+        parsed = parse_manuscript(text, "manuscript.md")
+        assert [f.code for f in parsed.findings].count("claim-block-unread") == 0
