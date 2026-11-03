@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-11-03
 ### Fixed
 
 - **Code is not prose: a quote that exists only inside a `<script>` was
@@ -24,7 +25,6 @@ tag and that file disagree.
   `<script>` or an unterminated `<!--`, so everything after the footnote a
   writer never closed was read as prose. Unterminated now means "to the end of
   the file", which is what a browser does with a raw-text element too.
-
 ## [0.20.0] — 2026-11-03
 ### Added
 
@@ -2255,7 +2255,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/lyear12/citevouch/releases/tag/v0.20.1
 [0.20.0]: https://github.com/lyear12/citevouch/releases/tag/v0.20.0
 [0.19.88]: https://github.com/lyear12/citevouch/releases/tag/v0.19.88
 [0.19.87]: https://github.com/lyear12/citevouch/releases/tag/v0.19.87
