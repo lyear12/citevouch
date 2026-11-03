@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.8] — 2026-11-03
 ### Fixed
 
 - **A file whose only claim blocks were wrapped told its author that it had none.** With no
@@ -38,7 +40,6 @@ tag and that file disagree.
   the reader can open, and the indent sentence names the construct that was actually written.
   A file holding several blocks written the same way is now counted rather than described one
   at a time.
-
 ## [0.22.7] — 2026-11-03
 ### Fixed
 
@@ -2542,7 +2543,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.7...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.8...HEAD
+[0.22.8]: https://github.com/lyear12/citevouch/releases/tag/v0.22.8
 [0.22.7]: https://github.com/lyear12/citevouch/releases/tag/v0.22.7
 [0.22.6]: https://github.com/lyear12/citevouch/releases/tag/v0.22.6
 [0.22.5]: https://github.com/lyear12/citevouch/releases/tag/v0.22.5
