@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.21.1] — 2026-11-03
 ### Fixed
 
 - **A quote that exists only inside a `<template>`, `<textarea>` or `<iframe>`
@@ -24,7 +25,6 @@ tag and that file disagree.
   text on purpose: `<noscript>` content *is* shown when scripting is off, and
   an `<svg>` may carry real `<text>`, so removing either would turn a quote a
   reader can see into `quote-missing`.
-
 ## [0.21.0] — 2026-11-03
 ### Added
 
@@ -2292,7 +2292,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/lyear12/citevouch/releases/tag/v0.21.1
 [0.21.0]: https://github.com/lyear12/citevouch/releases/tag/v0.21.0
 [0.20.2]: https://github.com/lyear12/citevouch/releases/tag/v0.20.2
 [0.20.1]: https://github.com/lyear12/citevouch/releases/tag/v0.20.1
