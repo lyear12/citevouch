@@ -1399,6 +1399,35 @@ not what changed, but what proves the change works.
   forms the tests enumerate. Numeric styles (`[3]`) are still not citations
   here; the tests only pin that they are not deleted.
 
+- [x] **`doctor` told an author that a failing project was fine.**
+  *What was wrong*: the claims line read `<file> holds no claim blocks, so
+  every run will report 0 claims checked and exit 0`.  Both halves are false -
+  `check`, `verify` and `scan` all report `no-claim-blocks` (high) and exit 1 -
+  and the sentence was written in 0.19.47 by the commit that added the check,
+  so it described the behaviour that change had just removed.  `git log -S`
+  finds `920b87e`; checking that commit out and running `check` on a prose-only
+  file exits 1, so the sentence was wrong from its first release.
+  *Who is blocked*: the author who runs `doctor` because the report looked
+  empty - the one reader the line exists for - and is told the emptiness is
+  normal and green.
+  *Done when*: the line says what happens, and something fails if a message
+  grows a prediction of a clean exit again.
+  *Done - why it is now true*: `doctor._claim_blocks` now reports
+  `reports no-claim-blocks and exits 1: nothing in this project is ever
+  checked`.  `tests/test_no_predicted_exit.py` holds three tests about that line
+  (it must not promise a clean run; it must name the code and the failure; the
+  two commands must agree on the code) and one mechanical test that walks every
+  non-docstring string constant in `src/citevouch/*.py` and refuses any match
+  for `exit 0`.  Two mutations reproduce the defect: restoring the old detail
+  turns the file red, and pasting a plausible `exit 0` promise into an
+  unrelated message in `sources.py` is caught by the scan.  Shipped in 0.19.88.
+  *Not covered*: only `exit 0` is refused.  A message predicting a failure is
+  still unguarded, deliberately - a reader told the run fails goes and looks,
+  so a wrong prediction there costs a look, not a silence.  Docstrings and
+  comments stay exempt because they quote history on purpose.  No test checks
+  that a promise about *another* command's output (as opposed to its exit code)
+  is true.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
