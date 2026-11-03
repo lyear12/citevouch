@@ -185,6 +185,7 @@ $ citevouch doctor --root demo
 [ok  ] claims      5 claim blocks
 [ok  ] manifest    demo/sources.toml (148 bytes), 2 sources, every one of them present on this machine
 [ok  ] sources     2 source keys, every one of them bound to a file
+[ok  ] extraction  2 sources the claims name, every one of them readable
 
 Everything this tool needs is on this machine. If quotes are still reported missing, the source files are the place to look.
 ```
@@ -192,18 +193,22 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 (That is a machine with `pypdf` from pip and no poppler; with `pdftotext` installed the third line
 prints its path instead, shortened in the middle. Windows prints backslashes.)
 
-The last two lines are separate checks on purpose. `manifest` asks whether the file each key maps to
-is on this disk; `sources` asks whether the keys the manuscript actually names are bound at all. A
+The last three lines are separate checks on purpose. `manifest` asks whether the file each key maps
+to is on this disk; `sources` asks whether the keys the manuscript actually names are bound at all; a
 project can pass the first and fail the second — every claim naming `paper` while the manifest lists
 `other` — and that project is the one where `check` prints `source-missing` once per claim while
-`doctor` used to close with "Everything this tool needs is on this machine."
+`doctor` used to close with "Everything this tool needs is on this machine." `extraction` asks the
+question neither of them can: not whether the file is here, but whether this tool can get any words
+out of it. A truncated download, a scan with no text layer and a `.docx` all pass the first two and
+make every claim behind them uncheckable, so `doctor` opens each one and says which it was.
 
 The failure that sends people away from this tool is not an error message. It is a run that
 finishes and reports every quote missing, because the PDF could not be read at all — and nothing in
 that output says so. `doctor` is the command that is allowed to be reassuring: it checks that an
-extractor exists, that the cache is writable, that the interpreter is new enough, and that the files
-the project names are actually there. It exits `1` when something is broken, and it is the one
-place where `1` means "your machine", not "your manuscript".
+extractor exists, that the cache is writable, that the interpreter is new enough, that the files the
+project names are actually there, and that this tool can read the words out of them. It exits `1`
+when something is broken, and it is the one place where `1` means "your machine", not "your
+manuscript".
 
 ### Start from a manuscript, not from an empty file
 

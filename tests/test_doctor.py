@@ -53,6 +53,7 @@ class TestWhatItChecks:
             "claims",
             "manifest",
             "sources",
+            "extraction",
         ]
 
     def test_every_check_says_something(self, project: Path):
@@ -553,6 +554,7 @@ class TestTheExampleInTheReadme:
                 "claims",
                 "manifest",
                 "sources",
+                "extraction",
             }
             assert expected <= shown, f"{name}: the example omits {expected - shown}"
 

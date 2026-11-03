@@ -4742,3 +4742,27 @@ layer, and OCR does not untag a document.
   input that each one reaches *its own* branch.  "No OCR" is not enough - the
   markup sentence has no OCR either, so a text file that fell into the markup
   branch passed the first version of the test.  Seen 1.
+
+## A diagnostic that counts the inputs has not opened them
+
+`citevouch doctor` reported every one of its eight checks `[ok]` and exited 0 on
+three projects where `citevouch check` on the same tree exited 1.  Measured, all
+three: a truncated `%PDF-1.4` file -> `check` exits 1 with `[high]
+source-unreadable`; a scan with no text layer -> `[high] source-no-text`; a zip
+renamed `.docx` -> `[medium] source-not-text`.  `doctor` saw `sources` bound to a
+file that exists and stopped there, because the check it had was `is_file()`.
+
+- Rule: a diagnostic whose subject is a file's *contents* has to open the file.
+  Existence, a parseable manifest and a bound key are statements about the run's
+  bookkeeping, not about whether the tool can read anything.
+- Why: `doctor` is what a reader runs *instead of* the command that fails.  A
+  green answer to a question it never asked is the one lie a diagnostic cannot
+  afford, because the whole reason the reader is there is that they no longer
+  trust the other command.
+- How to apply: give the new check its own noun (here `extraction`), run it
+  through the same cache the real run uses, and let it *stand aside* with
+  `ok=True` when an earlier check already owns the failure - five lines that say
+  the same unreadable file is one problem described five times.  Assert the
+  standing-aside branches by building them (`monkeypatch` the extractor to return
+  `source-missing`), because a branch no test can reach is the same thing as an
+  untested branch.  Seen 1.

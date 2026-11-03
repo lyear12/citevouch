@@ -39,7 +39,7 @@ from .latex import looks_like_latex
 from .manuscript import parse_manuscript
 from .model import Finding
 from .scan import _resolve
-from .sources import candidate_files, near_misses, read_source_table
+from .sources import candidate_files, extract_pages, near_misses, read_source_table
 from .textnorm import count_of, read_text
 
 # The versions this package claims to run on, kept next to the check that
@@ -504,11 +504,125 @@ def _manifest(root: Path) -> Report:
     )
 
 
+def _extraction(target: Path, root: Path) -> Report:
+    """Can this tool turn the sources the claims name into text?
+
+    The check above answers "is the key bound"; ``manifest`` answers "is the
+    file there".  Both can pass while the file cannot be read at all, and that
+    is the last silence left in this command.  Measured before this check
+    existed: a project whose one claim points at a truncated PDF got eight
+    ``[ok  ]`` lines and exit 0, and ``check`` on the same tree printed ``[high]
+    source-unreadable ... PdfStreamError: Stream has ended unexpectedly`` and
+    exited 1.  A scan with no text layer and a ``.docx`` were the same shape:
+    ``source-no-text`` and ``source-not-text``, both invisible to ``doctor``.
+
+    The sentence for each file is the one ``sources`` already wrote for it, not
+    a summary written here.  A truncated download, a scan and a word processor
+    file need three different commands, and the only place that knows which code
+    fired for which file is the finding itself; a summarising line printed
+    ``ocrmypdf <file> out.pdf`` under a message that had already named the real
+    file, and would have answered a truncated download with an OCR command that
+    cannot repair it.  What this line adds is the one fact the per-file
+    sentences cannot state: what the ledger does until the file is fixed.
+
+    This is the one check that costs real time: it extracts each source the
+    claims name, which is work ``check`` was going to do anyway, and it goes
+    through the same content-hash cache, so a second run is nearly free.  It is
+    worth the cost here because the alternative is the reader believing a green
+    diagnosis about files the tool never opened.
+    """
+    try:
+        parsed = parse_manuscript(read_text(target), path=target.name)
+    except OSError:
+        # The `manuscript` check owns this, in the words the author can act on.
+        return Report(
+            name="extraction",
+            ok=True,
+            detail="not checked, because the manuscript could not be read",
+        )
+    named = sorted({claim.source for claim in parsed.claims if claim.source})
+    if not named:
+        return Report(name="extraction", ok=True, detail="no claim names a source")
+
+    table = read_source_table(root)
+    if table.manifest_problem:
+        # `manifest` owns the parse failure and printed the parser message.
+        return Report(
+            name="extraction",
+            ok=True,
+            detail="not checked, because the manifest could not be read",
+        )
+    bound: list[tuple[str, Path]] = []
+    for key in named:
+        found = table.found.get(key)
+        if found is None:
+            # `sources` owns a key bound to nothing, and `manifest` owns a key
+            # whose file is gone.  Reporting the same project state twice makes
+            # one problem look like two, in two vocabularies.
+            return Report(
+                name="extraction",
+                ok=True,
+                detail=("not checked, because a key a claim names is bound to nothing"),
+            )
+        bound.append((key, Path(found)))
+
+    said: list[str] = []
+    for key, source in bound:
+        _pages, problem = extract_pages(source, root, use_cache=True)
+        # `source-missing` cannot be produced by a file `read_source_table`
+        # returned, so this branch only fires in the race: the file was here
+        # when the table was read and is gone now.  The `manifest` check already
+        # named that file as present, and a second line contradicting it would
+        # be one cause in two vocabularies.
+        if problem is None or problem.code == "source-missing":
+            continue
+        said.append(f"{key!r}: {problem.message}")
+
+    if not said:
+        return Report(
+            name="extraction",
+            ok=True,
+            detail=(
+                f"{count_of(len(bound), 'source')} the claims name, every one of them readable"
+            ),
+        )
+
+    # Every message above already ends in the step that fixes *that* file, so
+    # this line adds the one sentence none of them can say: what the ledger does
+    # until they are fixed.  Repeating the per-file advice here was the first
+    # draft, and it printed "ocrmypdf <file> out.pdf" one line below a message
+    # that had already named the real file name.
+    shown = "; ".join(said[:3])
+    if len(said) > 3:
+        shown += (
+            f"; and {count_of(len(said) - 3, 'more source')}, which "
+            "`citevouch check` lists in full"
+        )
+    return Report(
+        name="extraction",
+        ok=False,
+        detail=(
+            f"{count_of(len(bound), 'source')} the claims name, and this tool "
+            f"cannot read: {shown}"
+        ),
+        fix=(
+            "Each line above ends in the command that fixes that file. Until it "
+            "is fixed, every claim backed by it is skipped rather than checked, "
+            "and `citevouch scan` will record the skip; run it again afterwards "
+            "so the ledger holds the readable file."
+        ),
+    )
+
+
 def diagnose(root: str | Path = ".", manuscript: str = "manuscript.md") -> list[Report]:
     """Every check, in the order a person would hit them."""
     base = Path(root)
     reports = [_python(), _pypdf(), _pdftotext(), _cache(base)]
     reports.extend(_project(base, manuscript))
+    # After `_project` rather than inside it: that helper returns early for a
+    # .tex manuscript, and both branches need this check - a LaTeX project
+    # whose claims live in a generated claims.md has sources like any other.
+    reports.append(_extraction(_resolve(base, manuscript), base))
     return reports
 
 

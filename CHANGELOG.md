@@ -11,6 +11,18 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- **`doctor` now opens the sources instead of only counting them.** Every other
+  check was green — the manifest was found, the keys were bound, the files
+  existed — while `check` on the same tree reported `source-unreadable`,
+  `source-no-text` or `source-not-text` and exited 1. `doctor` is the command a
+  worried user runs *instead of* the one that fails, so answering "the files are
+  there" to a question about their contents is worse than not answering. The new
+  `extraction` report reads every source a claim names, through the same cache,
+  and names the first few files it cannot read along with the step that fixes
+  each one. It stands aside when a key is unbound or the manifest will not parse,
+  so one problem is still reported by the one check that owns it.
 
 ## [0.20.2] — 2026-11-03
 ### Fixed

@@ -160,6 +160,7 @@ $ citevouch doctor --root demo
 [ok  ] claims      5 claim blocks
 [ok  ] manifest    demo/sources.toml (148 bytes), 2 sources, every one of them present on this machine
 [ok  ] sources     2 source keys, every one of them bound to a file
+[ok  ] extraction  2 sources the claims name, every one of them readable
 
 Everything this tool needs is on this machine. If quotes are still reported missing, the source files are the place to look.
 ```
@@ -167,14 +168,18 @@ Everything this tool needs is on this machine. If quotes are still reported miss
 （这是在「用 pip 装了 `pypdf`、没装 poppler」的机器上跑的；装了 `pdftotext` 时第三行会打印它的路径，
 中间做省略。Windows 打印的是反斜杠。）
 
-最后两行是两个检查，故意分开：`manifest` 问的是「每个 key 映射到的那个文件在不在这块盘上」，
+最后三行是三个检查，故意分开：`manifest` 问的是「每个 key 映射到的那个文件在不在这块盘上」，
 `sources` 问的是「手稿里真正点名的那些 key 到底绑上没有」。工程可以过第一关、卡在第二关——
 每条 claim 都写 `paper`，而清单里只有 `other`——而那种工程正是 `check` 逐条打印 `source-missing`、
-`doctor` 却以「这台机器该有的东西都有」收尾的那一种。
+`doctor` 却以「这台机器该有的东西都有」收尾的那一种。`extraction` 问的是前两关都问不到的那件事：
+不是「文件在不在」，而是「这个工具到底能不能从里面读出字来」。一个截断的下载、一份没有文字层的
+扫描件、一个 `.docx`，都能过前两关，而它们背后的每一条 claim 都无法被核对——所以 `doctor`
+会真的把每个来源打开一次，告诉你属于哪一种。
 
 真正把人赶走这个工具的，不是报错。是一次跑完、每条引文都报「找不到」，因为 PDF 根本没被读出来，
 而那段输出里没有一个字说明这一点——于是合理的反应是卸载。`doctor` 是唯一允许让人安心的命令：
-它查抽取器在不在、缓存能不能写、解释器够不够新、项目点名的文件到底在不在。有问题时它退 `1`，
+它查抽取器在不在、缓存能不能写、解释器够不够新、项目点名的文件到底在不在、以及这个工具
+到底能不能从那些文件里读出字来。有问题时它退 `1`，
 而这是全工具唯一一处 `1` 表示「你的机器有问题」而不是「你的稿子有问题」。
 
 ### 从稿件开始，而不是从一个空文件开始

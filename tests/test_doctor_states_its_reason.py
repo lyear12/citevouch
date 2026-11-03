@@ -109,11 +109,19 @@ class TestTheManuscriptFailureIsReportedOnce:
         """One missing file is one broken check, not two.
 
         `problems()` counts the failing lines, and the summary reads
-        "N of 7 checks failed".  A second failing line for the same cause would
+        "N of M checks failed".  A second failing line for the same cause would
         inflate that number and send the reader looking for a second problem.
+
+        The total is not pinned: this file is about one cause producing one
+        failure, and a hard-coded "of 7" turned every new check into a red test
+        about an unrelated number.  What has to hold is that the count of
+        `[FAIL]` lines and the number in the summary are the same, and that the
+        number is one.
         """
         project = _project(tmp_path)
         code = main(["doctor", "--root", str(project)])
         out = capsys.readouterr().out
         assert code == 1
-        assert "1 of 7 checks failed" in out, out
+        failures = [line for line in out.splitlines() if line.startswith("[FAIL]")]
+        assert len(failures) == 1, out
+        assert "1 of " in out and "checks failed" in out, out
