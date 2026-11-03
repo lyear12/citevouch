@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.11] — 2026-11-03
 ### Fixed
 
 - **The two branches of `\ifthenelse` were written flush against each other, so they
@@ -29,7 +30,6 @@ tag and that file disagree.
   branches were joined the same way and came out as `[@no][@yes]`.
   Each branch is a whole piece of prose and at most one of them is ever
   typeset, so they are now joined by one space.
-
 ## [0.22.10] — 2026-11-03
 ### Fixed
 
@@ -2627,7 +2627,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.10...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.11...HEAD
+[0.22.11]: https://github.com/lyear12/citevouch/releases/tag/v0.22.11
 [0.22.10]: https://github.com/lyear12/citevouch/releases/tag/v0.22.10
 [0.22.9]: https://github.com/lyear12/citevouch/releases/tag/v0.22.9
 [0.22.8]: https://github.com/lyear12/citevouch/releases/tag/v0.22.8
