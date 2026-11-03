@@ -4830,3 +4830,27 @@ reporting one refused block out of two leaves the second block exactly as invisi
 were before.
 
 Seen 1.
+
+## A delimiter scan that stops at the first closer cannot tell one block from two
+
+Rule: when a construct is delimited by a pair of marks, treat a second opening mark found
+inside the body as evidence that the pair does not match, not as body text. Report the
+mismatch and keep both constructs; never let one of them be absorbed into the other.
+
+Why: two claim blocks written back to back with the first closing fence missing produced a
+scan that ran from the first opener to the *second* block's closer. The second block's opener
+and quote became the first block's quote. Measured on a two-block manuscript whose sentences
+were both on page 1: `scan` exited 0 and wrote a ledger holding `['c1']`, while `check` exited
+1 with `[high] quote-missing at manuscript.md:3 (c1): ... ```` ```claim id=c2 sourc ```
+- a quote the author never wrote. `id=c2` appeared in no finding and in no ledger row: the
+author wrote two claims and one silently stopped existing, and the line they were sent pointed
+at a quote they had not written.
+
+How to apply: the reading that loses nothing is the only safe default. Here that meant
+stopping the body scan at the nested opener, emitting `claim-block-unclosed` on the first
+block naming the line where the second fence begins, and resuming the parse at that line so
+the second block becomes a claim too. Choose the decomposition that keeps every construct
+visible, then say out loud which mark is missing - an absorbed block is invisible in both the
+report and the record, so no later command can recover it.
+
+Seen 1.

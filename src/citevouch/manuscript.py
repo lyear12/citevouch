@@ -365,12 +365,51 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             attrs = _attrs(m.group("attrs"))
             body: list[str] = []
             j = i + 1
+            nested_at: int | None = None
             while j < len(lines) and not _FENCE_CLOSE.match(lines[j]):
+                if _FENCE_OPEN.match(lines[j]):
+                    # A second ```claim line inside this block. Two claim blocks
+                    # written back to back with the first closer missing look
+                    # exactly like this: the closer the author meant for the
+                    # first block is the second block's opener, so the scan
+                    # above runs past it and eats the second block's head and
+                    # quote into the first block's quote.
+                    #
+                    # Measured before this split, on a project where both
+                    # sentences are on page 1:
+                    #
+                    #     scan  -> exit 0, "wrote citevouch.lock.json (1 claim)"
+                    #     check -> exit 1, [high] quote-missing at :3
+                    #              "…sentences ```claim id=c2 sourc… - quote not
+                    #               in paper.txt"
+                    #
+                    # `id=c2` was in the report nowhere and in the ledger
+                    # nowhere: the author wrote two claims and one stopped
+                    # existing. The one line they got sent them to compare a
+                    # quote they never wrote against the PDF.
+                    #
+                    # Splitting is the reading that loses nothing - both blocks
+                    # become claims, and the missing fence is said out loud
+                    # below - so split, at the line where it happened.
+                    nested_at = j + 1
+                    break
                 body.append(lines[j])
                 j += 1
-            closed = j < len(lines)
+            closed = j < len(lines) and nested_at is None
             quote, claim_text, in_body = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            if nested_at is not None:
+                more.append(
+                    _unclosed_finding(
+                        start_line,
+                        "```claim",
+                        f"a second claim fence on line {nested_at} was read as part of "
+                        "this quote; the closing fence is missing - add it, and check "
+                        "that both blocks are the claims you meant",
+                        path,
+                        claim.id if claim is not None else "",
+                    )
+                )
             if not closed and claim is not None:
                 # Everything after this point was read as part of this block, so
                 # every later claim in the file is invisible. That is data loss,
@@ -388,7 +427,10 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     )
                 )
             accept(claim, more, start_line, j + 1)
-            i = j + 1
+            # Resume at the nested opener so its own claim block is read next;
+            # a block that ran to end of file skips past `j`, which is
+            # ``len(lines)`` and ends the loop either way.
+            i = j + 1 if closed else j
             continue
 
         opener = _ANY_FENCE.match(line)

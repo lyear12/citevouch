@@ -12,6 +12,20 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two claim blocks that share one closing fence are no longer read as one.**
+  With the first block's closer missing, the body scan ran from the first
+  opener to the *second* block's closer, swallowing the second opener and its
+  quote into the first block.  Measured on a two-block manuscript: `scan`
+  exited **0** and wrote a ledger holding `['c1']`, while `check` exited 1 with
+  `[high] quote-missing at manuscript.md:3 (c1): … ```` ```claim id=c2 sourc ````
+  — a quote the author never wrote.  `id=c2` was in no finding and in no ledger
+  row: the author wrote two claims and one stopped existing.  The scan now stops
+  at a nested opener, both blocks become claims, and the missing fence is
+  reported as `claim-block-unclosed` naming the line where the second fence
+  begins.
+
 ## [0.21.3] — 2026-11-03
 ### Fixed
 
