@@ -4766,3 +4766,23 @@ file that exists and stopped there, because the check it had was `is_file()`.
   standing-aside branches by building them (`monkeypatch` the extractor to return
   `source-missing`), because a branch no test can reach is the same thing as an
   untested branch.  Seen 1.
+
+## A list of exceptions is a claim about every name not on it
+
+Rule: when a reader removes the parts of a document that are not prose, the list of parts is
+the whole design. Write down why each absent neighbour was left out, next to the list.
+
+Why: the HTML reader dropped `<script>`, `<style>` and comments. `<template>` content is inert
+by specification, `<textarea>` content is a form value, `<iframe>` content is fallback text -
+none is painted as words on the page, all three were read as page text, and a sentence that
+lived only inside one came back `[info] quote-found` with exit 0. The test file for exactly
+this failure (`tests/test_unrendered_regions.py`) already existed and covered two of the five
+names; the defect was invisible because nobody had asked which names were *not* there.
+
+How to apply: a deletion list needs two comments - what is on it, and what is deliberately off
+it and why. The second one is the one that stops the next round from being a one-line patch.
+`<noscript>` is off the list because a browser does show it when scripting is off; `<svg>` is
+off because it may carry real `<text>`. Both are now tests, because a decision nobody wrote
+down is a decision the next change will silently reverse.
+
+Seen 1.

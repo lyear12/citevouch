@@ -12,6 +12,19 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A quote that exists only inside a `<template>`, `<textarea>` or `<iframe>`
+  is no longer certified as found.**  The HTML reader dropped the bodies of
+  `<script>`, `<style>` and comments, and those three were not on the list, so
+  a sentence that lives only in an inert template was read as page text and
+  came back `[info] quote-found` with exit 0 — a verified claim about words no
+  reader can see on that page.  This is the same failure the `<script>` fix
+  addressed, one element name short.  `<noscript>` and `<svg>` stay in the page
+  text on purpose: `<noscript>` content *is* shown when scripting is off, and
+  an `<svg>` may carry real `<text>`, so removing either would turn a quote a
+  reader can see into `quote-missing`.
+
 ## [0.21.0] — 2026-11-03
 ### Added
 

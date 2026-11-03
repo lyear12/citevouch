@@ -429,7 +429,7 @@ def _no_text_problem(pages: list[PageText], path: Path, suffix: str = ".pdf") ->
     if suffix in (".html", ".htm", ".xml"):
         advice = (
             "the markup holds no visible text - every word is inside a tag, a "
-            "script, a style sheet or a comment"
+            "script, a style sheet, a template or a comment"
         )
     elif suffix in (".txt", ".md", ".text"):
         advice = "the file is empty, or holds nothing but whitespace"
@@ -586,22 +586,39 @@ def _unreadable_message(path: Path) -> str:
 _TAG = re.compile(r"<(?:[a-zA-Z/!?](?:[^<>\"']|\"[^\"]*\"|'[^']*')*?)>")
 
 
+#: Elements a browser holds but never paints as page text.
+#:
+#: `<script>` and `<style>` were the first two names, and the defect that made
+#: them worth listing - a quote that exists only inside code certified as
+#: `quote-found` - is indifferent to which element it is hiding in.
+#: `<template>` content is inert by specification, `<textarea>` content is a
+#: form value rather than prose, and `<iframe>` content is fallback text for
+#: browsers that cannot show the frame, so a sentence in any of the three came
+#: back verified against a page no reader can see it on.
+#:
+#: `<noscript>` is deliberately absent: it is the one element whose content a
+#: browser *does* show, in the configuration where it shows it, so removing it
+#: would turn a quote a no-JS reader can read into `quote-missing`. `svg` is
+#: absent too, because an SVG may carry real `<text>`.
+_UNRENDERED_TAGS = ("script", "style", "template", "textarea", "iframe")
+
 #: Where a region the browser never paints as words starts.
 #:
 #: ``(?is)`` is at the front because a global flag may not appear mid-pattern
 #: (`re.error: global flags not at the start of the expression`), and the
 #: comment alternative below it needs only the tag branch, not dot-matching.
 _NOTHING_RENDERED_HERE = re.compile(
-    r"(?is)<(script|style)\b(?:[^<>\"']|\"[^\"]*\"|'[^']*')*>|<!--"
+    rf"(?is)<({'|'.join(_UNRENDERED_TAGS)})\b(?:[^<>\"']|\"[^\"]*\"|'[^']*')*>|<!--"
 )
-_CLOSED = {tag: re.compile(rf"(?is)</{tag}\s*>") for tag in ("script", "style")}
+_CLOSED = {tag: re.compile(rf"(?is)</{tag}\s*>") for tag in _UNRENDERED_TAGS}
 
 
 def _without_unrendered(text: str) -> str:
     """Drop the regions of an HTML file no reader ever sees.
 
-    A `<script>` or `<style>` body is not prose, and neither is a comment.  The
-    old rule gave up in two places and the page text kept the code:
+    A `<script>`, `<style>`, `<template>`, `<textarea>` or `<iframe>` body is
+    not prose, and neither is a comment.  The old rule gave up in two places
+    and the page text kept the code:
 
     * the end tag had to be spelled `</script>`, but HTML allows `</script >`
       and `</script\\n>`, so a formatter that writes either one left the whole
