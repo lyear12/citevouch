@@ -4940,3 +4940,39 @@ the reader that ran, so a run that cached mojibake as `plain` cannot hand
 it back after the fix.
 
 Seen 1.
+
+## An exemption is a claim about intent, and the wrong name is exactly
+
+where intent and file disagree.
+
+Rule: when a rule is skipped because "the author told us", name the
+input that made the statement, and handle the case where the
+statement and the file disagree. If the skip has no such case, the
+skip is a guess wearing the author's name.
+
+Why: `_KNOWN_SUFFIXES` exempts `.txt`, `.md`, `.text`, `.html`,
+`.htm`, `.xml` and `.pdf` from the header sniff, on the ground that
+the suffix is the author stating the format. v0.22.0 shipped that
+argument and v0.22.1 then found the case it does not cover: a
+`.docx` saved as `paper.txt`. The suffix was wrong, the plain
+reader succeeded on the zip, and the run answered the author's own
+quote with `[high] quote-missing ... quote not found in real.txt`.
+The exemption existed for a good reason - a note reading
+`PK\x03\x04 is the four bytes a zip begins with` is prose - and
+that reason was still true in the case that broke. Both are
+measurable: 47 replacement characters and C0 controls in 196
+characters for the zip, 2 in 73 for the note. The difference is in
+what came out of the reader, which is the thing the exemption never
+looked at.
+
+How to apply: judge the output of the exemption, not just the input
+that granted it. Here that means the noise score
+`textnorm._decode_text` already trusts, plus the file's own header
+to confirm the format the noise suggests - the score alone would
+refuse a PDF whose extractor left a control character, and the
+header alone would refuse the note about `PK`. And exempt the
+reader that already answered for the file: a PDF's bytes were
+checked against the header before extraction, so its pages are not
+re-litigated afterwards.
+
+Seen 1.

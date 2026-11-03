@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `.docx` saved as `paper.txt` was read as text, and the run then accused
+  the author's quote.** The known-suffix list is exempt from the byte sniff
+  because the suffix is the author stating the format - true, but the file
+  saved under the wrong name is exactly the case where the statement and the
+  file disagree. Measured: a two-entry zip copied to `real.txt` produced 196
+  characters of mojibake with 47 replacement characters and C0 controls,
+  `problem` was `None`, and `citevouch check` answered a quote the document
+  contains with `[high] quote-missing ... quote not found in real.txt`.
+  The judgement is now made on the text that came out, not the bytes that
+  went in: the same noise score `textnorm._decode_text` already uses to
+  decide an encoding was wrong, confirmed by the file's own header. A note
+  that merely begins `PK` still reads, because its noise is 2 in 73
+  characters rather than 47 in 196. The cache-hit path judges too - a cache
+  holds pages, not a verdict - and a PDF is exempt, because its bytes were
+  already checked against the header and its readers are entitled to leave a
+  control character in otherwise good text.
+
 ## [0.22.1] — 2026-11-03
 ### Fixed
 

@@ -27,7 +27,7 @@ from shutil import which
 from ._version import __version__
 from .errors import UsageError, why_not_a_file
 from .model import Finding, SourceRef
-from .textnorm import count_of, fold, read_text
+from .textnorm import _noise, count_of, fold, read_text
 
 CACHE_DIRNAME = ".citevouch"
 CACHE_SUBDIR = "cache"
@@ -434,6 +434,54 @@ def _markup_pages(path: str | Path) -> list[str] | None:
     return [_strip_markup(text)]
 
 
+def _not_text_finding(path: Path, name: str, what: str) -> Finding:
+    """The sentence for a file whose bytes are a document, not words."""
+    return Finding(
+        code="source-not-text",
+        message=(
+            f"{path.name} is {name} - {what} - and citevouch reads PDF, "
+            "HTML and plain text.  Convert it first, for example "
+            f"`soffice --convert-to pdf {path.name}`, and point the "
+            "claim at the converted file"
+        ),
+        path=str(path),
+    )
+
+
+def _noisy_format_problem(pages: list[PageText], path: Path, suffix: str) -> Finding | None:
+    """A file read as text whose text is not text, because its name was wrong.
+
+    A suffix this tool knows is the author stating the format, and it is
+    normally right, so its bytes are not sniffed: a note beginning
+    ``PK\\x03\\x04 is the four bytes a zip begins with`` is prose, and
+    refusing it would trade a good reading for a guess.  What that argument
+    forgot is the file that is a zip *and* is named ``.txt`` or ``.html`` -
+    a .docx saved under the wrong name - and there the UTF-8 reading
+    succeeds too:
+    measured, a two-file docx gave 196 characters of mojibake with 47
+    replacement characters and C0 controls, and the run answered the
+    author's quote with ``quote-missing``.
+
+    So the judgement is made on the text that came out, not on the bytes
+    that went in: the same noise score ``_decode_text`` already uses to
+    decide an encoding was wrong.  Below that score nothing is refused,
+    which is what keeps the note about PK readable; above it the header
+    only has to confirm what the noise already said.
+    """
+    # A PDF is not judged here: its bytes were already checked against the
+    # PDF header, so an extraction that produced pages produced them from a
+    # PDF, and its pages are allowed to carry a stray control character.
+    if suffix == ".pdf":
+        return None
+    joined = "".join(page.text for page in pages)
+    if _noise(joined) < max(4, len(joined) // 50):
+        return None
+    opaque = _opaque_format(path)
+    if opaque is None:
+        return None
+    return _not_text_finding(path, *opaque)
+
+
 def _no_text_problem(pages: list[PageText], path: Path, suffix: str = ".pdf") -> Finding | None:
     """A file that yielded no text at all, said in the words that fix it.
 
@@ -499,17 +547,7 @@ def extract_pages(
         # verdict about the author's quote.
         opaque = _opaque_format(path)
         if opaque is not None:
-            name, what = opaque
-            return [], Finding(
-                code="source-not-text",
-                message=(
-                    f"{path.name} is {name} - {what} - and citevouch reads PDF, "
-                    "HTML and plain text.  Convert it first, for example "
-                    f"`soffice --convert-to pdf {path.name}`, and point the "
-                    "claim at the converted file"
-                ),
-                path=str(path),
-            )
+            return [], _not_text_finding(path, *opaque)
     if suffix != ".pdf" and _looks_like_pdf(path):
         # The file is a PDF and says so in its first five bytes; only its name
         # disagrees.  Reading it as whatever the name claims produced 206,870
@@ -528,7 +566,13 @@ def extract_pages(
             # the first run reports source-no-text and every run after it,
             # reading the same empty pages out of the cache, reports
             # quote-missing instead.
-            return cached, _no_text_problem(cached, path, suffix)
+            # A cache holds pages, not a verdict, so a file whose first run
+            # stored a zip's bytes as characters has to be judged again here;
+            # otherwise every run after the first keeps searching the mojibake.
+            problem = _no_text_problem(cached, path, suffix) or _noisy_format_problem(
+                cached, path, suffix
+            )
+            return cached, problem
 
     # Whichever reader answers is the one recorded. Naming it from the suffix
     # alone would claim pypdf for files only pdftotext could open, and then
@@ -561,7 +605,10 @@ def extract_pages(
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
     _store_cache(root, sha, pages, used)
-    return pages, _no_text_problem(pages, path, suffix)
+    problem = _no_text_problem(pages, path, suffix) or _noisy_format_problem(
+        pages, path, suffix
+    )
+    return pages, problem
 
 
 def _unreadable_message(path: Path) -> str:
