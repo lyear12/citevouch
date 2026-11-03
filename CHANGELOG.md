@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.21.0] — 2026-11-03
 ### Added
 
 - **`doctor` now opens the sources instead of only counting them.** Every other
@@ -23,7 +25,6 @@ tag and that file disagree.
   and names the first few files it cannot read along with the step that fixes
   each one. It stands aside when a key is unbound or the manifest will not parse,
   so one problem is still reported by the one check that owns it.
-
 ## [0.20.2] — 2026-11-03
 ### Fixed
 
@@ -2278,7 +2279,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/lyear12/citevouch/releases/tag/v0.21.0
 [0.20.2]: https://github.com/lyear12/citevouch/releases/tag/v0.20.2
 [0.20.1]: https://github.com/lyear12/citevouch/releases/tag/v0.20.1
 [0.20.0]: https://github.com/lyear12/citevouch/releases/tag/v0.20.0
