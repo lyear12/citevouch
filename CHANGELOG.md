@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-11-03
 ### Removed
 
 - **Four module-level functions nothing called, each with a docstring
@@ -34,7 +35,6 @@ tag and that file disagree.
   name the repository actually references, per module, so `draft.summarize` is
   not mistaken for a use of `verify.summarize`. Six mutations are killed,
   including re-adding each of the four functions under clean source.
-
 ## [0.21.5] — 2026-11-03
 ### Fixed
 
@@ -2381,7 +2381,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.21.5...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/lyear12/citevouch/releases/tag/v0.22.0
 [0.21.5]: https://github.com/lyear12/citevouch/releases/tag/v0.21.5
 [0.21.4]: https://github.com/lyear12/citevouch/releases/tag/v0.21.4
 [0.21.3]: https://github.com/lyear12/citevouch/releases/tag/v0.21.3
