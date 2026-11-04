@@ -5569,3 +5569,20 @@ here), the merge that fills in the missing key is the other place the pair
 disappears - check the merged dict, not just the parsed one.
 
 Seen 1.
+
+## A decoder that cannot fail has decided that every file is text
+
+`textnorm._decode_text` ended in ```raw.decode("utf-8", errors="replace")```.  The line is there so the tool never crashes on a file it cannot read, and the price is that it can no longer tell "this is text" from "I gave up": anything at all becomes a string, and a string is what the rest of the program asks for.
+
+A page saved in GBK decoded to 54 characters of plausible mojibake with **one** replacement character in it.  The check that exists to notice a bad reading counts those characters and wants `max(4, len // 50)` - four.  Big5 gave two, Shift-JIS three, a cp1252 em dash one.  So the page was searched, found to contain nothing, and the author was told:
+
+    [high] quote-missing at manuscript.md:1 (c1): 我们收集了 40,688 个例句，并检验它们的分布。
+    — quote not found in page.txt
+
+Rule: when a function is written so that it cannot fail, ask what it returns instead of failing, and whether the caller can tell that answer from a real one.  If it cannot, the failure has not been handled - it has been renamed.
+
+Why: the fallback was not a mistake.  Without it, one odd byte anywhere stops the run, which is worse for everyone whose files are fine.  The mistake was believing that "the text decoded" is evidence about the file, when the decoder had been built to say that about every byte sequence it was given.
+
+How to apply: the test that separates a reading from a guess is a stricter attempt that is *allowed to throw*, and it must run before the forgiving one, not after.  Here that is ```raw.decode("utf-8")``` with no handler - success proves the file is UTF-8, and failure proves only that it is something else, which is the answer the tool needed to hear.  Two exemptions survived this reasoning and both were decided by measurement, not by taste: a file that names its own encoding is never refused (a UTF-16 page of Chinese scores 0.33 on the same scale and reads perfectly), and a bibliography is not judged at all (a GBK `.bib` scores 0.11-0.24, a cp1252 French page 0.085 - no line separates them).  A threshold that cannot separate the groups it was invented for is not a guard, it is a coin.
+
+Seen 1.

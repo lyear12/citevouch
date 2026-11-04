@@ -486,6 +486,99 @@ def _noise(text: str) -> int:
     return sum(1 for ch in text if ch == "\ufffd" or (ch < " " and ch not in "\t\n\r\f"))
 
 
+def invalid_utf8_share(raw: bytes) -> float:
+    """What fraction of these bytes cannot be read as UTF-8 at all.
+
+    The number exists to tell two files apart that ``_noise`` cannot.  Both
+    decode to text that looks like prose to a counting heuristic, and only one
+    of them is prose:
+
+    * a UTF-8 file with a stray byte in it - one letter is lost to a
+      replacement character, the rest of the sentence is intact;
+    * a file in an encoding nobody named, where *every* letter is wrong.
+
+    Measured before this existed: a GBK page produced 54 characters of
+    mojibake holding **one** replacement character, and the noise score that
+    decides whether a reading is plausible is ``max(4, len // 50)`` - four.
+    So the GBK page was accepted as text, searched, found to contain nothing,
+    and the run answered the author's quote with
+    ``[high] quote-missing``.  Big5 gave 2, Shift-JIS 3, a cp1252 em dash 1:
+    no desktop encoding ever reached that threshold.
+
+    The share is measured on bytes, not characters, because the failure being
+    described is a failure to find a character at all.
+    """
+    if not raw:
+        return 0.0
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    else:
+        # Valid UTF-8 is UTF-8.  This early return is also what keeps the
+        # scan below off the common path: only a file that already failed one
+        # strict decode is worth walking byte by byte.
+        return 0.0
+    bad = 0
+    index = 0
+    size = len(raw)
+    while index < size:
+        lead = raw[index]
+        if lead < 0x80:
+            index += 1
+            continue
+        if 0xC2 <= lead <= 0xDF:
+            width = 2
+        elif 0xE0 <= lead <= 0xEF:
+            width = 3
+        elif 0xF0 <= lead <= 0xF4:
+            width = 4
+        else:
+            bad += 1
+            index += 1
+            continue
+        chunk = raw[index : index + width]
+        if len(chunk) < width:
+            bad += len(chunk)
+            break
+        try:
+            chunk.decode("utf-8")
+        except UnicodeDecodeError:
+            bad += 1
+            index += 1
+            continue
+        index += width
+    return bad / size
+
+
+def proven_codec(raw: bytes) -> str | None:
+    """The encoding these bytes name for themselves, or ``None``.
+
+    Two things a file can say about itself and be believed: a byte-order
+    mark, and - for a file with no mark - the run of NUL bytes a UTF-16
+    save leaves between ASCII characters.  Both are proof of a specific
+    reading rather than a preference, and that is why a reader may act on
+    one, and why ``sources.encoding_problem`` must not refuse a file this
+    returns a codec for: swapping a reading that works for a refusal is
+    the same trade in the other direction.
+
+    ``None`` is not a verdict.  It says the file has said nothing about
+    itself, and the caller is about to guess.
+    """
+    for mark, codec in _BYTE_BOMS:
+        if raw.startswith(mark):
+            return codec
+    head = raw[:4096]
+    if b"\x00" in head:
+        pairs = len(head) // 2
+        if pairs:
+            if head[1::2].count(0) > pairs * 0.6:
+                return "utf-16-le"
+            if head[0::2].count(0) > pairs * 0.6:
+                return "utf-16-be"
+    return None
+
+
 def _decode_text(raw: bytes) -> str:
     """Decode text bytes the way the program that wrote them meant them.
 
@@ -527,17 +620,9 @@ def _decode_text(raw: bytes) -> str:
     cost of being wrong is turning good text into rubbish, and that has to be
     improbable before it is worth any gain.
     """
-    for mark, codec in _BYTE_BOMS:
-        if raw.startswith(mark):
-            return _strip_bom(raw.decode(codec, errors="replace"))
-    head = raw[:4096]
-    if b"\x00" in head:
-        pairs = len(head) // 2
-        if pairs:
-            if head[1::2].count(0) > pairs * 0.6:
-                return _strip_bom(raw.decode("utf-16-le", errors="replace"))
-            if head[0::2].count(0) > pairs * 0.6:
-                return _strip_bom(raw.decode("utf-16-be", errors="replace"))
+    named = proven_codec(raw)
+    if named is not None:
+        return _strip_bom(raw.decode(named, errors="replace"))
     decoded = _strip_bom(raw.decode("utf-8", errors="replace"))
     noise = _noise(decoded)
     if noise >= max(4, len(decoded) // 50):

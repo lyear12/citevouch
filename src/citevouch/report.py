@@ -47,6 +47,7 @@ SARIF_RULES = {
     "source-unreadable": "A source file could not be read.",
     "source-no-text": "A source file was read and held no text at all.",
     "source-not-text": "A source file is a document format this tool cannot read, so its text was never searched.",
+    "source-encoding": "A source file is saved in an encoding this tool cannot read, so its words were never searched.",
     "bib-key-missing": "A cited key is absent from the bibliography.",
     "bib-key-unused": "A bibliography entry is never cited.",
     "bib-field-empty": "A required bibliography field is empty.",

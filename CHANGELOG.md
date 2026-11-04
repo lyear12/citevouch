@@ -12,6 +12,26 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+**A source saved in a desktop encoding was read as mojibake, and the quote was then reported missing.**
+
+`textnorm._decode_text` ends in ```raw.decode("utf-8", errors="replace")```.  That line is why the tool never crashes on a file it cannot read, and also why it lies about one: a page saved in GBK decoded to 54 characters of valid-looking mojibake holding **one** replacement character, and the plausibility check that would have caught it needs ```max(4, len // 50)``` - four.  Big5 gave 2, Shift-JIS 3, a cp1252 em dash 1.  No desktop encoding ever reached it, so the mojibake was searched, found to contain nothing, and the run answered the author's quote with:
+
+    [high] quote-missing at manuscript.md:1 (c1): 我们收集了 40,688 个例句，并检验它们的分布。
+    — quote not found in page.txt
+
+A verdict about their sentence, when the fact was about the file's encoding.  Reproduced with four encodings (GBK, Big5, Shift-JIS, latin-1) on a page whose quote is verbatim on it; UTF-8 and UTF-16 were correct all along.
+
+Lowering the noise threshold cannot fix this - the same score protects text that legitimately holds a stray byte.  What separates the two cases is that a *mixture* fails strict UTF-8: valid UTF-8 is UTF-8, and a file that is not stays unreadable however it is measured.  New `textnorm.invalid_utf8_share` reports the fraction of bytes that fit no UTF-8 sequence at all, and `sources.encoding_problem` refuses a text-suffixed source above 0.25 - measured: GBK page 0.62, Big5 0.58, Shift-JIS 0.57 against cp1252 French 0.085 and one stray byte 0.024.
+
+New code `source-encoding` (high, next to `source-no-text`: both are cases where the author believes a source was searched and it was not).  Two deliberate exemptions, each a measurement rather than a preference:
+
+* a file that names its own encoding (a byte-order mark, or the NUL pattern a UTF-16 save leaves) is never refused - a UTF-16 page of Chinese scores 0.33, past the line, and is perfectly readable; the guard asks `textnorm.proven_codec` first, and that helper is now the one list both readers share;
+* a bibliography is not judged at all, because a Chinese `.bib` is mostly ASCII: a GBK one scores 0.11-0.24 where a GBK page scores 0.62, and a line low enough to catch it would be cleared by a cp1252 French page (0.085) by a hair.  Two files that close cannot be told apart by this number, and refusing a file the author can read is the same class of error as accusing their quote.
+
+`tests/test_source_encoding.py` (20 tests) covers the four encodings, the two exemptions and the cache.  Reverse validation: six mutants, `survivors: []` - and the first round had **two** survivors ("a file that names its own encoding is refused anyway", "every suffix is judged, PDFs included") because no test fed a file that is readable *and* past the line; the demo PDF is 0.33 on this scale.  One existing test was found to be checking nothing: `test_the_demo_pdf_is_not_affected` looked for `demo/page.txt`, which is not a file, and returned early.
+
 ## [0.22.19] — 2026-11-04
 ### Fixed
 

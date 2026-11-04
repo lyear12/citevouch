@@ -27,7 +27,14 @@ from shutil import which
 from ._version import __version__
 from .errors import UsageError, why_not_a_file
 from .model import Finding, SourceRef
-from .textnorm import _noise, count_of, fold, read_text
+from .textnorm import (
+    _noise,
+    count_of,
+    fold,
+    invalid_utf8_share,
+    proven_codec,
+    read_text,
+)
 
 CACHE_DIRNAME = ".citevouch"
 CACHE_SUBDIR = "cache"
@@ -448,6 +455,73 @@ def _not_text_finding(path: Path, name: str, what: str) -> Finding:
     )
 
 
+#: How much of a text file may fail to decode before it is refused outright.
+#:
+#: A text file is read as UTF-8, and a file that is not UTF-8 still decodes:
+#: ``errors="replace"`` turns every undecodable byte into one replacement
+#: character and hands the rest through.  The result is a page of text the
+#: matcher searches and does not find the author's sentence in, which comes
+#: back as ``quote-missing`` - a high finding about their quote, when the fact
+#: is about the file's encoding.
+#:
+#: Measured for this threshold, as the share of bytes that cannot start a
+#: UTF-8 character: GBK 0.56, Big5 0.42, Shift-JIS 0.49, a long GBK page 0.68
+#: - all of them unreadable in fact, all of them under the noise score that
+#: was supposed to catch them (``max(4, len // 50)``: one to three replacement
+#: characters, never four).  On the other side: cp1252 French prose 0.08, a
+#: cp1252 em dash 0.03, one stray byte in English 0.02.  Those files are
+#: mostly readable and their author would rather have the run than a refusal,
+#: so the line sits in the gap, well clear of both groups.
+MAX_UNDECODABLE_SHARE = 0.25
+
+#: The suffixes whose bytes go through the plain-text reader.
+_TEXT_SUFFIXES = (".txt", ".md", ".text", ".html", ".htm", ".xml")
+
+
+def encoding_problem(path: Path, suffix: str) -> Finding | None:
+    """Refuse a text file whose bytes are not text this tool can decode.
+
+    Only the suffixes the plain-text reader owns are judged.  A PDF or a zip
+    has its own reader and its own sentinels, and the plain reader never sees
+    it.  A bibliography is not judged either, and the reason is measured, not
+    assumed: a Chinese .bib is mostly ASCII - entry types, keys, field names,
+    braces - so a GBK one scores 0.11 to 0.24 where a GBK page scores 0.62,
+    and a line low enough to catch the bibliography would be cleared by a
+    cp1252 French page (0.085) by a hair.  Two files that close cannot be told
+    apart by this number, so the bibliography keeps its own finding.
+
+    The check sits above the cache for the same reason the opaque-format check
+    does: a run before this existed could have stored the replacement-character
+    reading as pages, and a cache hit hands those pages back without ever
+    looking at the bytes again.
+    """
+    if suffix not in _TEXT_SUFFIXES:
+        return None
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if proven_codec(raw) is not None:
+        # The file names its own encoding.  Refusing it would replace a
+        # reading that works with a sentence about bytes, which is the
+        # failure this check exists to remove, pointing the other way.
+        return None
+    share = invalid_utf8_share(raw)
+    if share < MAX_UNDECODABLE_SHARE:
+        return None
+    return Finding(
+        code="source-encoding",
+        message=(
+            f"{path.name} is not UTF-8: {share:.0%} of its bytes cannot be read "
+            "as UTF-8, which is the only text encoding this tool reads.  Nothing "
+            "in it was read.  Convert it first, for example "
+            f"`iconv -f <its encoding> -t utf-8 {path.name} > utf8.txt`, and "
+            "point citevouch at the converted file"
+        ),
+        path=str(path),
+    )
+
+
 def _noisy_format_problem(pages: list[PageText], path: Path, suffix: str) -> Finding | None:
     """A file read as text whose text is not text, because its name was wrong.
 
@@ -557,6 +631,13 @@ def extract_pages(
         # either yields the paper's own words or refuses, and a refusal is a
         # sentence about the file rather than about the quote.
         suffix = ".pdf"
+    # Before the cache, for the same reason the opaque check is: the run that
+    # first met this file decoded it with replacement characters and stored
+    # the result as pages, and every later run would read those pages back
+    # without ever looking at the bytes again.
+    undecodable = encoding_problem(path, suffix)
+    if undecodable is not None:
+        return [], undecodable
     if use_cache:
         cached = _load_cache(root, sha, extractor_candidates(suffix))
         if cached is not None:
