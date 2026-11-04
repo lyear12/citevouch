@@ -2180,6 +2180,44 @@ not what changed, but what proves the change works.
   contain a colon start being reported — but it is a shape the code cannot
   see, not a shape it handles.
 
+- [x] **A recovered release stayed a draft while every step reported success.**
+
+  *What was wrong.* `gh release create` attaches assets by creating a *draft*
+  release, uploading to it, and then publishing it — three API calls behind one
+  command. v0.22.14 died between the first and the third: the create call
+  answered `HTTP 502: Server Error` and the draft existed anyway. The
+  `Re-attach artefacts if the release already existed` step asks only
+  `gh release view "$tag"`, which answers "yes" for a draft. It uploaded the
+  wheel and the sdist, exited zero, and the run was green — with a release
+  nobody could see. A reader of a red run knows something is wrong; a reader of
+  a green run does not, which makes this strictly worse than failing. It was
+  published by hand minutes later, which is the human step this project exists
+  to not need.
+
+  *Who was blocked.* Anyone who found the repository through the release feed:
+  the version was tagged, the artefacts existed, and the release page did not.
+
+  *Done when.* A recovery that finds a draft publishes it, and a run whose last
+  API read still says "draft" fails.
+
+  *Done — why it is now true.* The recovery step reads `isDraft` from the API,
+  calls `gh release edit "$tag" --draft=false` when it is true, and then reads
+  `isDraft` again and exits 1 if it is still true. The assets are attached
+  before the publish, so a failure leaves a draft rather than an empty published
+  release. `tests/test_release_recovery.py` (7 tests) runs the real shell body
+  of the step against a `gh` stub whose *existence* and *draftness* are
+  separate state; five mutations are red (`survivors: []`).
+
+  *Not covered / observed later.* The fix was proven end to end by accident:
+  the next release's create call also answered 502, and the follow-up run
+  entered the recovery with a published release and printed
+  `release v0.22.15 is published` — the "already published" path, not the
+  "publish the draft" path, which no live run has yet taken. And the underlying
+  cause of the 502/500s from `api.github.com/repos/.../releases` is GitHub's,
+  not this repository's: four separate calls in ten minutes answered 500 or 502
+  and `gh workflow run` failed the same way twice, so a retry is now part of the
+  documented recovery rather than a surprise.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
