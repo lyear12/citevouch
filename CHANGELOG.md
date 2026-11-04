@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.19] — 2026-11-04
 ### Fixed
 
 - **Two spellings of one attribute, both written, and neither said so.**
@@ -39,7 +40,6 @@ tag and that file disagree.
   (15 tests) pins the parser and the command; six mutations are red, including
   one that only removed the attribution from the sentence and survived the
   first round.
-
 ## [0.22.18] — 2026-11-04
 ### Fixed
 
@@ -2893,7 +2893,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.18...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.19...HEAD
+[0.22.19]: https://github.com/lyear12/citevouch/releases/tag/v0.22.19
 [0.22.18]: https://github.com/lyear12/citevouch/releases/tag/v0.22.18
 [0.22.17]: https://github.com/lyear12/citevouch/releases/tag/v0.22.17
 [0.22.16]: https://github.com/lyear12/citevouch/releases/tag/v0.22.16
