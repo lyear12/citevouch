@@ -2330,6 +2330,47 @@ not what changed, but what proves the change works.
   belonging to a *different* paper - nothing in the corpus has that shape, and
   the fallback would silently attribute the entry to the wrong claim.
 
+- [x] **Two spellings of one attribute, both written, and neither said so.**
+  *Done 2026-11-04.*
+
+  *What was wrong.* `ref=` and `cite=` name the same bibliography entry; the
+  lookup reads `ref` and falls back to `cite`.  Writing both with different
+  values was silent in both directions, and the directions were different
+  defects.  Measured with `refs.bib` holding `knuth2020` and a quote verbatim
+  on page 1:
+
+  ```
+  ref=phantom cite=knuth2020   ->  exit 1
+      [high] bib-key-missing at m.md:1 (c1): claim c1 cites 'phantom',
+      which is not in the bibliography the ledger recorded
+  cite=phantom ref=knuth2020   ->  exit 0, no finding at all
+  ```
+
+  One direction accused the author on the strength of a value they may have
+  meant to delete; the other deleted it without a word.  Both left the
+  manuscript saying something no run had applied - the shape the misspelt
+  `Page: 1` field had before 0.22.14, one attribute over.
+
+  *Who was blocked.* Anyone who renamed a bibliography key and edited one of
+  the two spellings, and anyone reading a green run that had silently dropped
+  half of what they wrote.
+
+  *Done when.* Both values are named, the run says which one it used, and
+  neither direction is silent.
+
+  *Done - why it is now true.* A disagreeing pair is `claim-field-conflict`
+  (medium): the quote is still verified, but the finding names both values and
+  says which was used and which was dropped.  The lookup order is unchanged,
+  so nothing that verified stops verifying.
+  `tests/test_field_conflict.py` (15 tests) covers the parser and the command;
+  six mutations are red, including one that only removed the attribution from
+  the sentence and survived the first round.
+
+  *Not covered.* A pair split across the fence and the body is checked after
+  the merge, so it is caught; but nothing reads the pair order in the file, and
+  a project that writes `ref=` on the fence and a *different* `cite=` in the
+  body still gets the fence value with no note about where the other came from.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
