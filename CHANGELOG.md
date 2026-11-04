@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.18] — 2026-11-04
 ### Fixed
 
 - **`bib-key-missing` handed the author a bibliography key they never wrote.**
@@ -40,7 +41,6 @@ tag and that file disagree.
   the advice losing the attribute name, the sentence dropping the name it
   looked up, an empty `ref` counting as a written one, and the fallback
   removed.
-
 ## [0.22.17] — 2026-11-04
 ### Fixed
 
@@ -2865,7 +2865,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.17...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.18...HEAD
+[0.22.18]: https://github.com/lyear12/citevouch/releases/tag/v0.22.18
 [0.22.17]: https://github.com/lyear12/citevouch/releases/tag/v0.22.17
 [0.22.16]: https://github.com/lyear12/citevouch/releases/tag/v0.22.16
 [0.22.15]: https://github.com/lyear12/citevouch/releases/tag/v0.22.15
