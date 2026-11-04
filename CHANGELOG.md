@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.15] — 2026-11-04
 ### Fixed
 
 - **A release recovery that found the release treated "exists" as "published",
@@ -42,7 +43,6 @@ tag and that file disagree.
   Five mutations, `survivors: []`: no publish, no final check, publish before
   upload, re-publish a published release, and dropping the `if:` that gates the
   whole recovery on the create step's failure.
-
 ## [0.22.14] — 2026-11-04
 ### Fixed
 
@@ -2769,9 +2769,9 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.14...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.15...HEAD
+[0.22.15]: https://github.com/lyear12/citevouch/releases/tag/v0.22.15
 [0.22.14]: https://github.com/lyear12/citevouch/releases/tag/v0.22.14
-[0.22.13]: https://github.com/lyear12/citevouch/releases/tag/v0.22.13
 [0.22.12]: https://github.com/lyear12/citevouch/releases/tag/v0.22.12
 [0.22.11]: https://github.com/lyear12/citevouch/releases/tag/v0.22.11
 [0.22.10]: https://github.com/lyear12/citevouch/releases/tag/v0.22.10
