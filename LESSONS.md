@@ -5501,3 +5501,35 @@ reader trusts a copy, and no user should have to re-run anything to stop being
 wrongly accused.
 
 Seen 1.
+
+## A fallback that decides what to check must not decide what to call it
+
+**Rule.** When a lookup falls back from one name to another, the fallback may
+choose the subject of the check; the message the reader sees must say which
+name was actually used, and why.  "I looked this up as X because you wrote no
+Y" is a sentence the reader can act on; "you cite X" is a sentence about
+something they never wrote.
+
+**Why.** `citevouch`'s `Claim` keeps two namespaces apart on purpose - `source`
+names a local PDF, `ref` names a bibliography entry - and even says in its
+docstring that conflating them produces false "key not in bibliography"
+findings.  Then `verify.py` did `ref_key = claim.ref or claim.source` and wrote
+`claim c1 cites 'paper', which is not in the bibliography the ledger recorded`
+for a claim that writes only `source=paper`.  Measured on a project with a
+`refs.bib` holding `knuth2020`: nothing in that manuscript cites `paper`, and
+the one-line repair the sentence invites - adding `paper` to the bibliography -
+is worse than the fault it fixes, because it puts a file name in a list of
+publications.  The verdict was right the whole time and never changed severity;
+only the words were wrong.  That is the expensive shape: a correct verdict with
+a sentence that sends the reader to the wrong file.
+
+**How to apply.** For every fallback `a or b`, ask what the finding, log line
+or error message will print when `a` is empty.  If it prints `b` in the voice
+of `a`, the reader cannot tell which branch fired, and the advice attached to
+it will fit the wrong one.  Keep the fallback (a project that names its PDF and
+its entry the same way should not have to write the key twice) and branch the
+message instead.  Pin both branches in one test file, because a fix that only
+rewords the fallback case can leave the named case describing the same lookup
+twice.
+
+Seen 1.

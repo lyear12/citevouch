@@ -71,7 +71,7 @@ worst severity: high
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
 | `check-unavailable` | high | `doctor` 有一项检查过不去：没有 PDF 库、解释器版本不支持、缓存不可写 |
-| `bib-key-missing` | high | claim 引用的书目键不存在 |
+| `bib-key-missing` | high | claim 引用的书目键不在库里（没写 `ref=` 时，拿来查的是它源文件的名字） |
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
 | `bib-duplicate-key` | high | 两个条目共用一个键 |
 | `bib-unparsed-entry` | high | 有条目定界符始终未闭合，它之后的条目全部读不到 |

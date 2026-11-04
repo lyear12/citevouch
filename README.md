@@ -74,7 +74,7 @@ rots:
 | `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |
 | `ledger-stale` | high | the manuscript changed since the ledger was recorded |
 | `check-unavailable` | high | `doctor` found a check it cannot pass: no PDF library, an unsupported interpreter, a cache it cannot write |
-| `bib-key-missing` | high | the claim cites a bibliography key that is not there |
+| `bib-key-missing` | high | the claim cites no bibliography key that is there (with no `ref=`, its source file's name was looked up instead) |
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
 | `bib-duplicate-key` | high | two entries share a key |
 | `bib-unparsed-entry` | high | an entry never closes, so everything after it was not read |

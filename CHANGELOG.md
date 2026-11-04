@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`bib-key-missing` handed the author a bibliography key they never wrote.**
+  `source` names a local document; `ref` names a bibliography entry.  A claim
+  that writes only `source=paper` was looked up under `paper`, and when the
+  bibliography had no such entry the finding said
+
+      [high] bib-key-missing at manuscript.md:1 (c1): claim c1 cites 'paper',
+      which is not in the bibliography the ledger recorded
+
+  Nothing in that manuscript cites `paper` - it *names* it, as the file the
+  quote came from.  The verdict is right (a bibliography is present and this
+  claim names nothing in it) and stays `high`, but the sentence invites the
+  wrong repair: adding `paper` to `refs.bib` puts a PDF's file name in the
+  bibliography, while the one-line fix is `ref=<key>`.  The fallback that makes
+  the lookup possible still decides *what is checked*; it no longer decides
+  what the message calls it.  Measured on a project whose claim writes
+  `source=paper` and no `ref=`: before, the sentence above; after, `claim c1
+  names no ref=, so it was looked up as 'paper' - the name of its source file -
+  and the bibliography the ledger recorded has no such entry. Write ref=<key>
+  for the entry this quote comes from`.  A claim that does write `ref=phantom`
+  still reads `cites 'phantom'`, and a project that names its PDF and its entry
+  the same way is still green without a `ref=`.
+  `tests/test_bib_key_namespace.py` (7 tests) pins both halves at once.  Five
+  mutations, `survivors: []`: the fallback branch speaking in the `ref` voice,
+  the advice losing the attribute name, the sentence dropping the name it
+  looked up, an empty `ref` counting as a written one, and the fallback
+  removed.
+
 ## [0.22.17] — 2026-11-04
 ### Fixed
 

@@ -488,16 +488,33 @@ def verify(
         # teaches users to ignore the check.
         if not ledger.entries:
             break
+        # The key is looked up in two namespaces: `ref` when the author wrote
+        # one, and `source` otherwise, because a project that names its PDF and
+        # its bibliography entry the same way should not have to write the key
+        # twice.  The fallback decides *what is checked*; it must not decide
+        # *what the message calls it*.  Writing `cites 'paper'` for a claim
+        # that never mentions a bibliography key tells the author they cited
+        # something they did not write, and the fix that sentence invites -
+        # adding `paper` to refs.bib - puts the PDF's name in the bibliography.
+        # Measured before: `claim c1 cites 'paper', which is not in the
+        # bibliography the ledger recorded` for a claim writing `source=paper`
+        # and no `ref=`.
         ref_key = claim.ref or claim.source
         if ref_key in ledger.entries:
             continue
+        message = (
+            f"claim {claim.id} cites {ref_key!r}, which is not in the "
+            "bibliography the ledger recorded"
+            if claim.ref
+            else f"claim {claim.id} names no `ref=`, so it was looked up as "
+            f"{ref_key!r} - the name of its source file - and the bibliography "
+            "the ledger recorded has no such entry. Write `ref=<key>` for the "
+            "entry this quote comes from"
+        )
         result.findings.append(
             Finding(
                 code="bib-key-missing",
-                message=(
-                    f"claim {claim.id} cites {ref_key!r}, which is not in the "
-                    "bibliography the ledger recorded"
-                ),
+                message=message,
                 claim_id=claim.id,
                 path=claim.path,
                 line=claim.line,
