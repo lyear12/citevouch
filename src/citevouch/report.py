@@ -65,6 +65,10 @@ SARIF_RULES = {
     "claim-field-unknown": (
         "A claim body names a field this format does not have, so what it said was never applied."
     ),
+    "claim-field-conflict": (
+        "A claim names one attribute twice under two spellings, with different values, "
+        "so only one of the two was ever used."
+    ),
     "claim-block-unread": (
         "A claim fence sits where Markdown renders a code sample, so nothing in it was checked."
     ),

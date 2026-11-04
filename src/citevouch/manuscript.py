@@ -247,6 +247,37 @@ def _attrs(blob: str) -> dict[str, str]:
     return out
 
 
+#: Attribute spellings that name one thing.  Reading them as alternatives is
+#: what makes the format forgiving; *silently* dropping one of two different
+#: values is what makes a manuscript say something no run ever applied.
+_ALIASED_FIELDS: tuple[tuple[str, str], ...] = (("ref", "cite"),)
+
+
+def _conflicting_fields(attrs: dict[str, str], path: str, line: int) -> list[Finding]:
+    """Name an aliased pair written twice with two different values."""
+    out: list[Finding] = []
+    for used, also in _ALIASED_FIELDS:
+        if used not in attrs or also not in attrs:
+            continue
+        chosen, dropped = attrs[used], attrs[also]
+        if chosen == dropped:
+            continue
+        out.append(
+            Finding(
+                code="claim-field-conflict",
+                message=(
+                    f"this claim block writes both {used}={chosen!r} and "
+                    f"{also}={dropped!r}, which are two spellings of one "
+                    f"attribute; {used} was used and {also} was dropped - keep "
+                    "one of them"
+                ),
+                path=path,
+                line=line,
+            )
+        )
+    return out
+
+
 def _claim_from(
     attrs: dict[str, str],
     quote: str,
@@ -266,6 +297,18 @@ def _claim_from(
         merged.update(attrs)
         attrs = merged
     findings: list[Finding] = []
+    # Two spellings of one statement, written with different values.  The
+    # format accepts both (`ref=` and `cite=`), and the lookup has to pick one -
+    # so the pair is a statement the author made twice and the reader applied
+    # once.  Measured before this finding existed, with a quote verbatim on
+    # page 1 and `refs.bib` holding knuth2020:
+    #
+    #     ref=phantom cite=knuth2020  ->  [high] bib-key-missing 'phantom'
+    #     cite=phantom ref=knuth2020  ->  exit 0, no finding at all
+    #
+    # One direction accused the author on the strength of a string they may
+    # have meant to delete; the other dropped that string without a word.
+    findings.extend(_conflicting_fields(attrs, path, line))
     cid = attrs.get("id", "")
     if not cid:
         findings.append(

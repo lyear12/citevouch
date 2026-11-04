@@ -12,6 +12,34 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two spellings of one attribute, both written, and neither said so.**
+  `ref=` and `cite=` name the same bibliography entry; the lookup reads
+  `ref` and falls back to `cite`.  Writing both with different values was
+  silent in *both* directions, and the two directions were different defects.
+  Measured with `refs.bib` holding `knuth2020` and a quote verbatim on page 1:
+
+  ```
+  ref=phantom cite=knuth2020   ->  exit 1
+      [high] bib-key-missing at m.md:1 (c1): claim c1 cites 'phantom',
+      which is not in the bibliography the ledger recorded
+  cite=phantom ref=knuth2020   ->  exit 0, no finding at all
+  ```
+
+  One direction accused the author on the strength of a string they may have
+  meant to delete; the other dropped that string without a word.  Both left
+  the manuscript saying something no run had applied - the same shape as the
+  misspelt `Page: 1` body field fixed in 0.22.14, one attribute over.
+
+  A conflicting pair is now `claim-field-conflict` (medium): the run still
+  verifies the quote, but it names both values and says which one was used and
+  which was dropped.  The values are unaffected - the fallback still reads
+  `ref` first, so nothing that worked stops working.  `tests/test_field_conflict.py`
+  (15 tests) pins the parser and the command; six mutations are red, including
+  one that only removed the attribution from the sentence and survived the
+  first round.
+
 ## [0.22.18] — 2026-11-04
 ### Fixed
 

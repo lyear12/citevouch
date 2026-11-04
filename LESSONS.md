@@ -5533,3 +5533,39 @@ rewords the fallback case can leave the named case describing the same lookup
 twice.
 
 Seen 1.
+
+## A choice between two spellings is still a statement, and dropping the loser deletes it
+
+`ref=` and `cite=` are two spellings of one claim attribute.  The parser reads
+`attrs.get("ref", attrs.get("cite", ""))`, so a claim that writes both has said
+one thing twice, and the run applies exactly one of the two.  Measured with
+`refs.bib` holding `knuth2020` and a quote verbatim on page 1:
+
+    ref=phantom cite=knuth2020   ->  exit 1
+        [high] bib-key-missing at m.md:1 (c1): claim c1 cites 'phantom',
+        which is not in the bibliography the ledger recorded
+    cite=phantom ref=knuth2020   ->  exit 0, no finding at all
+
+The two directions are not the same defect.  One accuses the author on the
+strength of a value they may have meant to delete; the other deletes it in
+silence.  What they share is that a statement written in the manuscript was
+never applied and never mentioned - the shape the misspelt `Page: 1` field had
+before 0.22.14.
+
+**Rule.** When a format accepts two spellings of one attribute, writing both
+is a question the reader has to answer.  Answer it out loud: name both values
+and say which one was used.  Accepting the pair quietly is not tolerance, it
+is a lost sentence.
+
+**Why.** An alias table makes the reader *permissive*, and permissive readers
+look correct from the outside.  The failure is invisible in every test that
+writes one spelling, which is every test that was written by the same person
+who wrote the table.
+
+**How to apply.** For every `a.get(x) or a.get(y)`, ask what the finding says
+when both are present and differ.  If the answer is "nothing", the sentence is
+being deleted.  When the two spellings are on different lines (fence and body
+here), the merge that fills in the missing key is the other place the pair
+disappears - check the merged dict, not just the parsed one.
+
+Seen 1.
