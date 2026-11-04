@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.17] — 2026-11-04
 ### Fixed
 
 - **A ledger written by any earlier build made the verifier accuse a
@@ -40,7 +42,6 @@ tag and that file disagree.
   the wrong shape (`numbers: 5`, `numbers: ["x", 1]`) is still a damaged
   ledger and still exits 2 — no writer ever produced that shape, as opposed to
   a shape an older writer produced.
-
 ## [0.22.16] — 2026-11-04
 ### Fixed
 
@@ -2835,7 +2836,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.16...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.17...HEAD
+[0.22.17]: https://github.com/lyear12/citevouch/releases/tag/v0.22.17
 [0.22.16]: https://github.com/lyear12/citevouch/releases/tag/v0.22.16
 [0.22.15]: https://github.com/lyear12/citevouch/releases/tag/v0.22.15
 [0.22.14]: https://github.com/lyear12/citevouch/releases/tag/v0.22.14
