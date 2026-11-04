@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass, field
 
 from .model import Claim, Finding, fingerprint
-from .textnorm import CANON_PATTERN
+from .textnorm import quote_numbers
 
 _FENCE_OPEN = re.compile(r"^```claim\b(?P<attrs>.*)$")
 _FENCE_CLOSE = re.compile(r"^```\s*$")
@@ -338,16 +338,13 @@ def _claim_from(
         line=line,
         marker=attrs.get("marker", ""),
         ref=attrs.get("ref", attrs.get("cite", "")),
-        # ``CANON_PATTERN``, not ``numbers_in``: a quote is the author's
-        # transcription of a sentence, so ``40 688`` typed from a page that
-        # prints a grouping space is one number.  The report pattern refuses a
-        # bare space on purpose - "2019 2020 2021" is three years - and that
-        # rule still holds here, because a group needs one to three digits on
-        # the left and exactly three on the right.  Measured before this: a
-        # quote typing ``40,688`` against a page printing ``40 688`` was split
-        # into ``40`` and ``688`` and both were reported absent from a page
-        # that prints the number.
-        numbers=tuple(m.group(0) for m in CANON_PATTERN.finditer(quote)),
+        # ``quote_numbers``, so this writer and ``Ledger.from_json``'s reader
+        # are one function.  They were two copies of the same idea once: this
+        # line used ``CANON_PATTERN`` while the reader kept whatever the file
+        # held, so a ledger written before 0.22.16 - when a grouping space
+        # split one number into two - made the verifier accuse a *verbatim*
+        # quote of a number the page does not contain.
+        numbers=quote_numbers(quote),
         quote_fingerprint=fingerprint(quote),
     )
     return claim, findings

@@ -369,6 +369,28 @@ CANON_PATTERN = re.compile(
 _GROUPING = re.compile(r"[.,]")
 
 
+def quote_numbers(quote: str) -> tuple[str, ...]:
+    """The numbers a *quote* carries, in order, as written.
+
+    ``Claim.numbers`` is derived from this function and from nothing else.  The
+    distinction from :func:`numbers_in` is the grouping space: a quote is the
+    author's transcription of one sentence, so ``40 688`` typed from a page that
+    prints a thin space is one number, not two.  ``numbers_in`` reads free prose,
+    where "2019 2020 2021" really is three years.
+
+    Two readers and one writer is exactly the shape that produced the bug this
+    function replaces (0.22.16): ``manuscript._claim_from`` used ``CANON_PATTERN``
+    while the ledger reader kept whatever the file held, so a ledger written by
+    0.22.15 said ``["40", "688"]`` about a quote that says ``40 688`` and the
+    verifier accused a verbatim quote of a number the page did not contain.
+    Anything that needs the quote's numbers calls this, so the writer and the
+    reader cannot drift apart again.
+    """
+    if not quote:
+        return ()
+    return tuple(match.group(0) for match in CANON_PATTERN.finditer(quote))
+
+
 def numbers_in(text: str) -> tuple[str, ...]:
     """Every number the text asserts, in order, as written.
 

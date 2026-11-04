@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .errors import UsageError
+from .textnorm import quote_numbers
 
 # Severity ordering, low to high.  The CLI exit code is derived from the
 # highest severity present, which keeps CI integration boring.
@@ -377,6 +378,9 @@ class Claim:
     line: int = 0
     marker: str = ""
     ref: str = ""
+    # Derived from ``quote`` by ``textnorm.quote_numbers``, never stored as a
+    # fact about anything else: the ledger writes it for readers of the file,
+    # and ``Ledger.from_json`` recomputes it rather than trusting it.
     numbers: tuple[str, ...] = ()
     quote_fingerprint: str = ""
 
@@ -491,18 +495,39 @@ class Ledger:
             )
         for index, raw in enumerate(claims):
             entry = _object(raw, f"claims[{index}]")
+            quote = str(entry.get("quote", ""))
+            # The shape is checked and the value is not trusted.
+            #
+            # ``numbers`` is a transcription of ``quote`` - ``textnorm.quote_numbers``
+            # is the only producer - so the file's copy can only be stale, never
+            # more informed than the quote sitting next to it.  Trusting it made
+            # a real accusation out of a formatting change: ledgers written
+            # before 0.22.16 record ``["40", "688"]`` for a quote that says
+            # ``40 688``, because the grouping space used to split the number in
+            # two, and verifying such a ledger with this build reported
+            # ``[high] number-absent-in-quote`` about a quote that is verbatim
+            # the page.  ``check --use-recorded`` is what ``action.yml`` runs,
+            # so that landed on every repository that upgraded.
+            #
+            # Re-deriving is not leniency: a re-typed number is still absent
+            # from the page and still high, because the comparison now starts
+            # from the quote in the ledger, which is the text the author
+            # actually wrote.  A value of the wrong shape stays a damaged file
+            # (``_texts`` raises, exit 2) - that is a shape no writer produced,
+            # as opposed to a shape an older writer produced.
+            _texts(entry.get("numbers"), f"claims[{index}].numbers")
             ledger.claims.append(
                 Claim(
                     id=str(entry.get("id", "")),
                     text=str(entry.get("text", "")),
                     source=str(entry.get("source", "")),
-                    quote=str(entry.get("quote", "")),
+                    quote=quote,
                     page=_as_page(entry.get("page")),
                     path=str(entry.get("path", "")),
                     line=_whole(entry.get("line"), f"claims[{index}].line"),
                     marker=str(entry.get("marker", "")),
                     ref=str(entry.get("ref", "")),
-                    numbers=_texts(entry.get("numbers"), f"claims[{index}].numbers"),
+                    numbers=quote_numbers(quote),
                     quote_fingerprint=str(entry.get("quote_fingerprint", "")),
                 )
             )

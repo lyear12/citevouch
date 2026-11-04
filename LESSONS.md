@@ -5459,3 +5459,45 @@ a count with no finding is a verdict the author cannot act on or even
 understand.
 
 Seen 1.
+
+## A field with one producer is a cache, and a cache read as fact is a lie waiting for the producer to change
+
+`Claim.numbers` is written by one function, from a string that sits in the same
+JSON object: the claim's own `quote`. It is a derived field. It was stored in
+the ledger, and `Ledger.from_json` read it back as though it were an
+independent observation.
+
+0.22.16 changed what "one number" means — `40 688` with a grouping space became
+`40688` instead of `40` and `688`. A ledger committed before that change still
+holds the old split, so a build that re-read the file compared `40` and `688`
+against a page it now reads as `40688` and reported:
+
+    [high] number-absent-in-quote ... the quote says 40 and 688 but page 1 of
+    the source does not contain those numbers
+
+about a quote that is *character for character* the page it accuses. Only the
+tool's idea of where a number ends had changed.
+
+Rule: a value that one function computes from something else present in the
+same record is not evidence about the world — it is that function's previous
+answer. Re-derive it on read; keep the stored copy only to check its shape.
+A stale copy can only be older than its source, never better informed than it,
+so trusting it converts an improvement in the tool into an accusation against
+the author.
+
+Why it is not leniency: the comparison still starts from the text the author
+actually wrote, and a re-typed number is still absent from the page and still
+`high`. What the tool refuses to do is compare a value against a *different*
+function's older reading of it and then report the difference as the author's
+error. A shape no writer ever produced (`numbers: 5`, `numbers: [1]`) is still
+a damaged ledger and still refuses to load.
+
+How to apply: when a stored field has exactly one producer and its input is in
+the same record, the field is a cache. Ask what happens on the day the producer
+changes. If the answer is "old records start failing", the reader must recompute
+and the stored value is only a shape assertion. The tell is a CHANGELOG line
+that says "re-run the command after upgrading" — that is the tool admitting the
+reader trusts a copy, and no user should have to re-run anything to stop being
+wrongly accused.
+
+Seen 1.

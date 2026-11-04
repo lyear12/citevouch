@@ -11,6 +11,35 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A ledger written by any earlier build made the verifier accuse a
+  *verbatim* quote of a number the page does not contain.** 0.22.16 taught the
+  tool that `40 688` written with a grouping space is one number, and started
+  storing `Claim.numbers` that way — but `Ledger.from_json` kept whatever the
+  file held, and a ledger committed before 0.22.16 records `["40", "688"]` for
+  that same quote.  Verifying such a ledger compared the two stale tokens
+  against a page this build reads as `40688` and reported
+
+      [high] number-absent-in-quote ... the quote says 40 and 688 but page 1
+      of the source does not contain those numbers
+
+  about a quote that is *character for character* the page.  `action.yml` runs
+  `check --use-recorded`, so this was the CI verdict for every repository that
+  upgraded — an accusation, at high, caused by a formatting change inside the
+  tool.  Documenting "re-run `scan` after upgrading" is not a repair when the
+  upgrade itself is what turns a green build red.
+
+  `Claim.numbers` is derived data: `textnorm.quote_numbers` is its only
+  producer and the quote it describes sits in the same JSON object.  So
+  `Ledger.from_json` now re-derives it from that quote and only shape-checks
+  the stored list — a stale value can only be older than the quote, never
+  better informed than it.  This is deliberately not leniency: a re-typed
+  number is still absent from the page and still `high`, because the
+  comparison now starts from the text the author actually wrote.  A value of
+  the wrong shape (`numbers: 5`, `numbers: ["x", 1]`) is still a damaged
+  ledger and still exits 2 — no writer ever produced that shape, as opposed to
+  a shape an older writer produced.
 
 ## [0.22.16] — 2026-11-04
 ### Fixed
