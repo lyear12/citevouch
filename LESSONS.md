@@ -5384,3 +5384,33 @@ finding: here the quote is still checked, so the loss is a hint that was not
 applied — the same loss as `page-unreadable`, hence medium.
 
 **Seen 1.**
+
+
+## A success claim is about the outcome, not about the call returning zero
+
+**Rule.** When a step recovers a half-finished operation, the thing it must
+check is the operation's *outcome*, not whether the artefact it was building
+exists. "The release exists" and "the release is published" are two different
+facts; a recovery that asks only the first one reports success on a release
+nobody can see. Read the outcome from the system that owns it (the API's
+`isDraft`, the ledger's contents, the file's bytes), not from the step that just
+succeeded at something adjacent.
+
+**Why.** `gh release create` is three API calls — create a draft, upload the
+assets, publish — and the composite command hides the seam. v0.22.14 died
+between the first and the third: the create call answered `HTTP 502`, the draft
+existed anyway, and the recovery step found it, attached the artefacts, and
+exited zero. Every step was green and the release was invisible. A run that
+fails is recoverable by a reader; a run that lies is not, because there is
+nothing to read.
+
+**How to apply.** After a recovery, ask the owning system for the final state
+and fail if it is not what the step claims (`isDraft` again after publishing, a
+re-read of the file, a re-parse of the ledger). Do the repairs in the order that
+leaves a worse state on failure — attach the assets before publishing, so a
+failure leaves a draft rather than an empty published release. And test the step
+against a stub where "exists" and "is complete" are *separate* state, because a
+stub that flips both together cannot express the bug.
+
+**Seen 1.**
+

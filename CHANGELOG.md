@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A release recovery that found the release treated "exists" as "published",
+  so a draft stayed a draft while every step reported success.** `gh release
+  create` attaches assets by creating a *draft* release, uploading to it, and
+  then publishing it — three API calls. v0.22.14 died between the first and the
+  third: the create call answered `HTTP 502: Server Error`, and the draft
+  existed anyway. The `Re-attach artefacts if the release already existed` step
+  asks only `gh release view "$tag"`, which answers "yes" for a draft; it
+  uploaded the wheel and the sdist, exited zero, and the run was green with the
+  release invisible to anyone reading the repo. That is worse than a red run,
+  because nothing in the log said a word about it — the release was published
+  by hand minutes later, which is exactly the human step this project exists to
+  not need.
+
+  The recovery now finishes the job the create step was doing: after attaching
+  the assets (in that order — publishing an empty release is worse), it reads
+  `isDraft` from the API and calls `gh release edit "$tag" --draft=false` when
+  the answer is true, then reads `isDraft` again and fails the run if it is
+  still true. The last word comes from the API rather than from the step that
+  just succeeded at something else.
+
+  `tests/test_release_recovery.py` (7 tests) runs the real shell body of the
+  step against a `gh` stub whose *existence* and *draftness* are separate
+  state, so a body that publishes nothing cannot pass by saying it did. It
+  asserts the published-release path is left alone, that the assets are
+  attached before the publish, and that a release that stays a draft exits 1.
+  Five mutations, `survivors: []`: no publish, no final check, publish before
+  upload, re-publish a published release, and dropping the `if:` that gates the
+  whole recovery on the create step's failure.
+
 ## [0.22.14] — 2026-11-04
 ### Fixed
 
@@ -52,7 +83,7 @@ tag and that file disagree.
   source says` still joins the quote, `numbers:` is still a known key, and the
   end-to-end runs assert both that `quote-missing` is gone and that `--fail-on
   medium` still turns the run red. Six mutations, `survivors: []`.
-## [0.22.13] — 2026-11-03
+
 ### Fixed
 
 - **A starred definition deleted the rest of the document, and the xparse commands

@@ -173,6 +173,16 @@ jobs:
         # created" - an interrupted release being resumed - and attaching the
         # fresh artefacts is the right repair. Anything else stays red with the
         # create step's own error visible above.
+        #
+        # "Exists" is not the same as "published". `gh release create` attaches
+        # assets by creating a *draft* release, uploading to it, and publishing
+        # it - three API calls. v0.22.14 died between the first and the third:
+        # the create call answered `HTTP 502: Server Error`, the draft existed
+        # anyway, this step found it, uploaded the wheel and sdist, and exited
+        # zero. The run was green, the assets were there, and the release was a
+        # draft nobody could see - which is strictly worse than a red run,
+        # because nothing in the log said a word about it. So the recovery also
+        # has to finish the job the create step was doing: publish the draft.
         if: steps.create.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -185,6 +195,21 @@ jobs:
             echo "::error::release $tag could not be created and does not exist"
             exit 1
           fi
+          # `isDraft` is what decides this, not the existence of the release.
+          # A recovered release that stays a draft is invisible to the install
+          # instructions, to the README badge and to anyone watching the repo,
+          # while every step reports success.
+          if [ "$(gh release view "$tag" --json isDraft --jq .isDraft)" = "true" ]; then
+            echo "release $tag is a draft; publishing it"
+            gh release edit "$tag" --draft=false
+          fi
+          # The last word comes from the API rather than from the step that just
+          # succeeded at something else: a draft here means this run is a lie.
+          if [ "$(gh release view "$tag" --json isDraft --jq .isDraft)" = "true" ]; then
+            echo "::error::release $tag is still a draft after the repair"
+            exit 1
+          fi
+          echo "release $tag is published"
 
       - name: Summarise
         run: |
