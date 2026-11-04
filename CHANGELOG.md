@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.16] — 2026-11-04
 ### Fixed
 
 - **The same number, written with a grouping space, got three different
@@ -47,7 +49,6 @@ tag and that file disagree.
   Note for existing projects: the ledger records the numbers `scan` read, so a
   ledger written before this release keeps the old split of `40 688` into two
   numbers until `scan` is re-run.
-
 ## [0.22.15] — 2026-11-04
 ### Fixed
 
@@ -2805,7 +2806,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.15...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.16...HEAD
+[0.22.16]: https://github.com/lyear12/citevouch/releases/tag/v0.22.16
 [0.22.15]: https://github.com/lyear12/citevouch/releases/tag/v0.22.15
 [0.22.14]: https://github.com/lyear12/citevouch/releases/tag/v0.22.14
 [0.22.12]: https://github.com/lyear12/citevouch/releases/tag/v0.22.12
