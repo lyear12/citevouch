@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.14] — 2026-11-04
 ### Fixed
 
 - **A misspelt field name in a claim body either switched a check off in silence
@@ -51,7 +52,6 @@ tag and that file disagree.
   source says` still joins the quote, `numbers:` is still a known key, and the
   end-to-end runs assert both that `quote-missing` is gone and that `--fail-on
   medium` still turns the run red. Six mutations, `survivors: []`.
-
 ## [0.22.13] — 2026-11-03
 ### Fixed
 
@@ -2738,7 +2738,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.13...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.14...HEAD
+[0.22.14]: https://github.com/lyear12/citevouch/releases/tag/v0.22.14
 [0.22.13]: https://github.com/lyear12/citevouch/releases/tag/v0.22.13
 [0.22.12]: https://github.com/lyear12/citevouch/releases/tag/v0.22.12
 [0.22.11]: https://github.com/lyear12/citevouch/releases/tag/v0.22.11
