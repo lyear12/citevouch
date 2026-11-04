@@ -2297,6 +2297,39 @@ not what changed, but what proves the change works.
   is a reconstruction. A shape no writer ever produced (`numbers: 5`,
   `numbers: [1]`) still refuses to load.
 
+- [x] **`bib-key-missing` handed the author a bibliography key they never wrote.**
+  *Done 2026-11-04.*
+
+  *What was wrong.* A claim writing `source=paper` and no `ref=` was looked up
+  under `paper` - the name of its PDF - and the finding said `claim c1 cites
+  'paper', which is not in the bibliography the ledger recorded`. Measured on a
+  project whose `refs.bib` holds `knuth2020` and whose claim writes only
+  `source=paper`: all three verbs (`check --bib`, `verify`,
+  `check --use-recorded`) printed that sentence, `[high]`, exit 1.
+
+  *Who was blocked.* Anyone who keeps a bibliography and lets `source=` name
+  the PDF. The verdict is correct (a bibliography is present and the claim
+  names nothing in it), but the sentence sends them to `refs.bib` to add a file
+  name, when the one-line fix is `ref=<key>`.
+
+  *Done when.* The message says which namespace was actually used, and the
+  fallback keeps working for a project that names its PDF and its entry the
+  same way.
+
+  *Done — why it is now true.* The lookup is unchanged (`ref` when written,
+  `source` otherwise) and the message branches: with a `ref=`, `cites
+  'phantom'` as before; without one, `names no ref=, so it was looked up as
+  'paper' - the name of its source file - ... Write ref=<key>`. Severity is
+  still `high`. `tests/test_bib_key_namespace.py` (7 tests) pins both halves in
+  one file, and five mutations are red: the fallback branch speaking in the
+  `ref` voice, the advice losing the attribute name, the sentence dropping the
+  name it looked up, an empty `ref` counting as written, and the fallback
+  removed. Both README code tables updated.
+
+  *Not covered.* A bibliography whose entry keys collide with a source key
+  belonging to a *different* paper - nothing in the corpus has that shape, and
+  the fallback would silently attribute the entry to the wrong claim.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
