@@ -15,6 +15,40 @@ not what changed, but what proves the change works.
 
 ## P0 — the tool must not lie
 
+- [x] **One number, three spellings, three different verdicts.**
+  *Done 2026-11-04.*
+  *What was wrong.* A page printing `40 688` against a claim typing `40,688`
+  produced `number-absent-in-quote` - an accusation that the source does not
+  contain a figure printed on it. A non-breaking space in the same place
+  produced exit 0 with `0 verified, 0 moved, 1 missing` and **zero findings**:
+  a count nobody explained. A thin space produced `quote-fuzzy` at "similarity
+  1.00" *plus* the same false accusation. All three pages `fold()` to identical
+  text - those characters are already declared spaces - so every difference was
+  inside the tool. Cause: `REPORT_PATTERN`, `MASK_PATTERN` and
+  `canonical_number` each had a private rule about what joins digit triples and
+  none of them owned the question.
+  *Who was blocked.* Anyone quoting a paper typeset by a journal that groups
+  digits with a space (very common in European and humanities typesetting) or
+  that emits a thin space from its PDF pipeline. They were told their source
+  does not print a number it prints.
+  *Done when.* All nine spellings verify against all nine, and a genuinely
+  different figure still fails.
+  *Done - why it is now true.* `CANON_PATTERN` is the one owner of "are these
+  two spellings the same value", used by the canonical tier, by the page-side
+  number collection and by the claim's recorded numbers; a space counts only as
+  a thousands group, so `numbers_in("2019 2020 2021")` is unchanged and pinned
+  by a test. `canonical_number` strips every spacing character `fold` treats as
+  a space. `tests/test_number_spelling.py` (49 tests) walks the 9x9 matrix
+  through the real CLI, pins that a wrong figure still exits 1, and asserts that
+  anything landing in the `numbers` tier produced a sentence.
+  `_mut_spelling2.py`: 6 mutants, 6 red, no survivors — including "the
+  canonical tier reads numbers the old way", "only an ascii space groups
+  digits" and "the quote side reads numbers the old way".
+  *Not covered.* A ledger written before 0.22.16 still records a spaced group as
+  two numbers until `scan` is re-run; the changelog says so rather than the code
+  rewriting history. No real PDF that emits thin-space groups was measured -
+  the fixtures are hand-written text.
+
 - [x] **29 conditional commands kept their test argument and glued their branches.**
   *Done 2026-11-04.*
   *What was wrong.* `etoolbox` and LaTeX2e between them offer 29 commands that
