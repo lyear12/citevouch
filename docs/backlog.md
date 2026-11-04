@@ -2136,6 +2136,50 @@ not what changed, but what proves the change works.
   *Not covered.* No real `.tex` file that defines commands through a
   package; whether any xparse command takes more than three mandatory
   groups.
+- [x] **A misspelt field name in a claim body either switched a check off in
+  silence or accused the author of quoting a page their source never printed.**
+  *Done 2026-11-04.*
+  *What was wrong.* `_split_body` recognises a fixed set of body keys
+  (`quote`, `claim`, `numbers`, `id`, `source`, `ref`, `cite`, `page`,
+  `marker`). A left-margin line shaped like a field but naming anything else
+  had no branch of its own, so the branch after it took it — and which branch
+  that was depended on where the line sat. Measured on one project whose quote
+  really is on page 2, with the page hint misspelt:
+
+  - `Page: 1` above `quote:` — the hint was dropped, the claim was located by
+    search, and the run printed `[info] quote-found` and **exited 0**. Writing
+    `page: 1` on the same project prints `[medium] quote-moved … the quote is
+    on page 2, the ledger says 1`. A typo in a field name turned a check off,
+    and no finding anywhere said so.
+  - `Page: 1` below `quote:` — the line joined the quote, the passage searched
+    for ended in `Page: 1`, and the run printed `[high] quote-missing … The
+    resulting grammar consists of a network of 40,688 constructions. Page: 1 —
+    quote not found in page.txt` and **exited 1**: the tool's most serious
+    sentence, printed because the author capitalised a key.
+
+  *Who was blocked.* Anyone who typed an attribute with a capital letter, a
+  plural or a missing colon — which is every author, once. The first shape is
+  the dangerous one: it makes a project look clean while one of its checks is
+  not running.
+  *Done when.* Both paths say the same thing, the line number reported is the
+  line the editor shows, the key is named, and the line stays out of the quote.
+  *Done — why it is now true.* New `_KEYISH` matches the shape
+  (`^\s*[A-Za-z][A-Za-z0-9_-]*\s*:`) rather than a list of known names;
+  `_split_body` returns a fourth value listing `(offset, key)`, and
+  `_unknown_field_findings` turns each into `claim-field-unknown` (medium)
+  carrying `line = start_line + offset`. Both dialects call it. Indented lines
+  are still continuation text (`not raw[:1].isspace()`), and a correctly spelt
+  key is still silent. Severity is medium because the quote is still located
+  and compared — the loss is a hint that was never applied, the same loss as
+  `page-unreadable`. `tests/test_unknown_fields.py` has 20 tests; the
+  end-to-end ones assert the absence of `quote-missing` and that `--fail-on
+  medium` still turns the run red. Six mutations, `survivors: []`.
+  *Not covered.* `_KEYISH` accepts only an ASCII name, so a misspelt key in a
+  non-Latin script is still treated as prose. That is deliberate — every real
+  key is ASCII, and widening the pattern would make ordinary sentences that
+  contain a colon start being reported — but it is a shape the code cannot
+  see, not a shape it handles.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
