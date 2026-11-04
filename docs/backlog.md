@@ -2252,6 +2252,51 @@ not what changed, but what proves the change works.
   and `gh workflow run` failed the same way twice, so a retry is now part of the
   documented recovery rather than a surprise.
 
+- [x] **An upgraded build accused a verbatim quote of a number the page does
+  not contain, because the ledger it read was written by the older build.**
+
+  *What was wrong.* 0.22.16 made `40 688` (grouping space) one number instead
+  of two, and started recording `Claim.numbers` that way. A ledger committed by
+  any earlier build still holds `["40", "688"]`, and `Ledger.from_json` read
+  that list as fact. Verifying such a ledger compared the two stale tokens with
+  a page the new build reads as `40688` and reported
+
+      [high] number-absent-in-quote ... the quote says 40 and 688 but page 1
+      of the source does not contain those numbers
+
+  against a quote that is character for character the page. `action.yml` runs
+  `check --use-recorded`, so every repository that upgraded got that verdict on
+  its next pull request — the tool's own formatting change, reported as the
+  author's error. The 0.22.16 CHANGELOG said to re-run `scan`; a note telling
+  the user to re-run something is not a repair when the upgrade is what broke
+  them.
+
+  *Who was blocked.* Anyone who upgraded and kept the ledger they had committed
+  — which is the documented workflow, because the ledger is meant to be the
+  record CI reads.
+
+  *Done when.* The verifier reaches the same verdict about the same quote
+  whether the ledger was written by 0.22.15 or 0.22.17, and a genuinely
+  re-typed number is still caught.
+
+  *Done — why it is now true.* `Claim.numbers` is derived data: `textnorm.quote_numbers`
+  is its only producer and the quote it describes is in the same JSON object,
+  so a stored copy can only be older than its source. `Ledger.from_json` now
+  re-derives the tuple with `quote_numbers(quote)` and uses the stored list
+  only as a shape assertion. Measured before the change: `check --use-recorded`
+  on the old shape printed the `[high]` line above and exited 1; after it,
+  exits 0 with `quote-found`; `tests/test_old_ledger_numbers.py` (12 tests) pins
+  both directions, and six mutations — restoring the trust, deleting the shape
+  check, reading quote numbers with `REPORT_PATTERN`, returning nothing from the
+  producer, dropping the producer from the writer, and ungrouping the space —
+  are all red.
+
+  *Not covered.* A ledger written by a build older than 0.22.16 is reproduced by
+  rewriting the field in a fresh `scan` output rather than by checking out the
+  old release and running it; the JSON shape is the same but the reproduction
+  is a reconstruction. A shape no writer ever produced (`numbers: 5`,
+  `numbers: [1]`) still refuses to load.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
