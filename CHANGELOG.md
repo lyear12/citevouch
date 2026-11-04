@@ -12,6 +12,46 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A misspelt field name in a claim body either switched a check off in silence
+  or accused the author of quoting a page their source never printed.** The
+  body reader recognises a fixed set of keys (`quote`, `claim`, `numbers`, and
+  the attributes `id`, `source`, `ref`, `cite`, `page`, `marker`). A line that
+  was shaped like a field but named anything else took one of two paths, and
+  neither one said anything. Measured on a project whose quote really is on
+  page 2, with the page hint misspelt:
+
+  - `Page: 1` **above** `quote:` — the hint was dropped, the claim was located
+    by search, and the run printed `[info] quote-found` and exited 0. Writing
+    `page: 1` correctly on the same project prints `[medium] quote-moved …
+    the quote is on page 2, the ledger says 1`. So a typo in a field name
+    turned a check off, and nothing anywhere said so.
+  - `Page: 1` **below** `quote:` — the line was appended to the quote, so the
+    passage searched for ended in `Page: 1`, matched nothing, and the run
+    printed `[high] quote-missing … The resulting grammar consists of a
+    network of 40,688 constructions. Page: 1 — quote not found in page.txt` and
+    exited 1. That is the tool's most serious sentence — the author quoted
+    something their source does not contain — printed because the author
+    capitalised a key.
+
+  In a `quote: |` block a line at the left margin is a sibling key, never
+  continuation text, so the reading that loses nothing is to say both facts:
+  this is a field, and it is not one this format has. Both dialects (the fence
+  and the `<!-- claim -->` comment) now report `claim-field-unknown` (medium)
+  naming the line and the key, and keep the line out of the quote. Indented
+  lines are still continuation text, and a correctly spelt key is still
+  silent. Severity is medium because the quote is still located and compared —
+  what is lost is the instruction the field carried, which is the same loss as
+  `page-unreadable`.
+
+  The positive tests are in `tests/test_unknown_fields.py` (20 tests): the line
+  number reported is the line the editor shows, five misspellings are each
+  named, two unknown keys are two findings, an indented `Page: 1 is what the
+  source says` still joins the quote, `numbers:` is still a known key, and the
+  end-to-end runs assert both that `quote-missing` is gone and that `--fail-on
+  medium` still turns the run red. Six mutations, `survivors: []`.
+
 ## [0.22.13] — 2026-11-03
 ### Fixed
 

@@ -57,14 +57,23 @@ class TestTheAttributesAreNotQuoteText:
         result = parse_manuscript(_fenced(body))
         assert [claim.quote for claim in result.claims] == [QUOTE]
 
-    def test_an_unknown_key_still_is_part_of_the_quote(self) -> None:
-        # The fix names the six keys a claim may carry.  Anything else is text
-        # the author quoted, and dropping it silently would be a worse defect
-        # than the one being fixed: a quote that grew is visible in a verdict,
-        # a quote that shrank is visible nowhere.
+    def test_an_unknown_key_is_named_and_kept_out_of_the_quote(self) -> None:
+        # This used to assert the opposite - that an unrecognised `key:` line
+        # stayed inside the quote, on the grounds that a quote which grew is
+        # visible in a verdict while one that shrank is visible nowhere.
+        # Measured, the growth is worse than invisible: with the page hint
+        # misspelt just below `quote:`, the run printed `[high] quote-missing
+        # "…constructions. Page: 1"` - an accusation against a passage that is
+        # on the page, caused by a typo in a field. In a `quote: |` block a
+        # line at the left margin is a sibling key in YAML and never
+        # continuation text, so the honest reading is: this is a field, it is
+        # not one this format has, and the reader is told both facts.
         body = f"quote: |\n  {QUOTE}\nfootnote: hello"
         result = parse_manuscript(_fenced(body))
-        assert [claim.quote for claim in result.claims] == [f"{QUOTE}\nfootnote: hello"]
+        assert [claim.quote for claim in result.claims] == [QUOTE]
+        codes = [finding.code for finding in result.findings]
+        assert codes == ["claim-field-unknown"]
+        assert "footnote" in result.findings[0].message
 
     def test_the_html_dialect_reads_them_too(self) -> None:
         body = f"quote: |\n  {QUOTE}\nref: paper2026"

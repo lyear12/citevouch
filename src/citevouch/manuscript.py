@@ -160,6 +160,21 @@ _ATTRIBUTE_KEY = re.compile(r"^\s*(?P<key>id|source|ref|cite|page|marker)\s*:\s*
 
 # The credibility markers the surrounding workflow already uses.  Kept as data
 # rather than hard-coded checks so a project can rename them.
+# A line that is shaped like a field but names a key this format does not have.
+#
+# In a `quote: |` block a line at the left margin is a sibling key in YAML
+# terms, so it is never continuation text - but only a key this format knows
+# was consumed, and every other one took one of two silent paths.  Measured on
+# a project whose quote really is on page 2, with the page hint misspelt:
+#
+#     Page: 1 above `quote:`  -> the hint was dropped, exit 0, no finding
+#     Page: 1 below `quote:`  -> it joined the quote, and the run printed
+#                                [high] quote-missing "…constructions. Page: 1"
+#
+# One spelling switched a check off without saying so; the other accused the
+# author of quoting a page their source never printed.
+_KEYISH = re.compile(r"^\s*(?P<key>[A-Za-z][A-Za-z0-9_-]*)\s*:")
+
 DEFAULT_MARKERS = ("【原文】", "【实测】", "【推测】", "[原文]", "[实测]", "[推测]")
 
 
@@ -458,8 +473,9 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 body.append(lines[j])
                 j += 1
             closed = j < len(lines) and nested_at is None
-            quote, claim_text, in_body = _split_body(body)
+            quote, claim_text, in_body, unknown = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            more.extend(_unknown_field_findings(unknown, path, start_line))
             if nested_at is not None:
                 more.append(
                     _unclosed_finding(
@@ -589,8 +605,9 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     body.append(lines[j])
                     j += 1
                 closed = j < len(lines)
-            quote, claim_text, in_body = _split_body(body)
+            quote, claim_text, in_body, unknown = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            more.extend(_unknown_field_findings(unknown, path, start_line))
             if not closed and claim is not None:
                 more.append(
                     _unclosed_finding(
@@ -727,8 +744,10 @@ def _id_from_opener(dialect: str, line: str, opener: re.Match[str]) -> str:
     return _attrs(line[opener.end() :]).get("id", "")
 
 
-def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
-    """Split a claim body into (quote, claim, attributes written in the body).
+def _split_body(
+    body: list[str],
+) -> tuple[str, str, dict[str, str], list[tuple[int, str]]]:
+    """Split a claim body into (quote, claim, attributes, field lines we did not know).
 
     Accepts several shapes, tried in order of explicitness:
 
@@ -745,15 +764,30 @@ def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
     (high) - an accusation against a passage that is on the page.  Two
     dialects had it (the fence and the HTML comment), and both were silent
     about it, because the quote simply came back longer.
+
+    The fourth return value is the other half of that fix: a line at the left
+    margin that reads like a field but names no key this format has.  Measured
+    before it existed, on a project whose quote really is on page 2:
+
+        Page: 1  above ``quote:``  -> page hint dropped, exit 0, no finding
+        Page: 1  below ``quote:``  -> the line joined the quote, [high]
+                                      quote-missing "…constructions. Page: 1"
+
+    So a misspelt attribute either switched a check off without saying so, or
+    accused the author of quoting a page their source never printed.  Both are
+    reported now, and the line is kept out of the quote, because in a YAML
+    block scalar a line at the left margin is a sibling key and never
+    continuation text.
     """
     attributes: dict[str, str] = {}
+    unknown: list[tuple[int, str]] = []
     if not body:
-        return "", "", attributes
+        return "", "", attributes, unknown
     has_keys = any(_FIELD_KEY.match(raw) for raw in body)
     if has_keys:
         fields: dict[str, list[str]] = {}
         current = ""
-        for raw in body:
+        for index, raw in enumerate(body, start=1):
             m = _BODY_KEY.match(raw)
             if m:
                 current = m.group("key").lower()
@@ -779,16 +813,23 @@ def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
                 attributes[other.group("key").lower()] = _unquote(other.group("rest").strip())
                 current = ""
                 continue
+            keyish = _KEYISH.match(raw)
+            if keyish is not None and not raw[:1].isspace():
+                # A field line whose name this format does not have.  Read as
+                # quote text it becomes a false accusation, and skipped in
+                # silence it becomes a check the author believes ran.
+                unknown.append((index, keyish.group("key")))
+                continue
             if current:
                 fields.setdefault(current, []).append(raw)
         quote = _dedent(fields.get("quote", []))
         claim = _dedent(fields.get("claim", []))
-        return quote.strip(), claim.strip(), attributes
+        return quote.strip(), claim.strip(), attributes, unknown
 
     if any(raw.strip().startswith(">>") for raw in body):
         quote_lines = [raw.strip()[2:].strip() for raw in body if raw.strip().startswith(">>")]
         claim_lines = [raw for raw in body if not raw.strip().startswith(">>")]
-        return _dedent(quote_lines).strip(), _dedent(claim_lines).strip(), attributes
+        return _dedent(quote_lines).strip(), _dedent(claim_lines).strip(), attributes, unknown
 
     paragraphs: list[list[str]] = [[]]
     for raw in body:
@@ -798,9 +839,41 @@ def _split_body(body: list[str]) -> tuple[str, str, dict[str, str]]:
             paragraphs.append([])
     paragraphs = [p for p in paragraphs if p]
     if len(paragraphs) >= 2:
-        return _dedent(paragraphs[0]).strip(), _dedent(paragraphs[1]).strip(), attributes
+        return (
+            _dedent(paragraphs[0]).strip(),
+            _dedent(paragraphs[1]).strip(),
+            attributes,
+            unknown,
+        )
     only = _dedent(paragraphs[0] if paragraphs else []).strip()
-    return only, "", attributes
+    return only, "", attributes, unknown
+
+
+def _unknown_field_findings(
+    unknown: list[tuple[int, str]], path: str, start_line: int
+) -> list[Finding]:
+    """Say which line named a field this format does not have.
+
+    The offset is into the block's body, so the number reported is the number
+    the editor shows: the body starts on the line after the fence that opened
+    it.
+    """
+    found: list[Finding] = []
+    for offset, key in unknown:
+        found.append(
+            Finding(
+                code="claim-field-unknown",
+                message=(
+                    f"line {start_line + offset} reads like a field ({key!r}), and a claim "
+                    "body has no such key - it was neither applied nor searched as part of "
+                    "the quote. The body keys are quote, claim, numbers, id, source, ref, "
+                    "cite, page and marker"
+                ),
+                path=path,
+                line=start_line + offset,
+            )
+        )
+    return found
 
 
 def _dedent(lines: list[str]) -> str:

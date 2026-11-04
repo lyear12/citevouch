@@ -62,6 +62,9 @@ SARIF_RULES = {
     "claim-uncheckable": (
         "A claim block cannot be looked up at all, so its quote was never compared to anything."
     ),
+    "claim-field-unknown": (
+        "A claim body names a field this format does not have, so what it said was never applied."
+    ),
     "claim-block-unread": (
         "A claim fence sits where Markdown renders a code sample, so nothing in it was checked."
     ),

@@ -84,6 +84,11 @@ CODES = {
     # the run reported a number of claims that reads like a total.  A finding
     # that says "check whether you meant this" is cheap; a green run over a
     # claim nobody read is the failure this tool exists to prevent.
+    # A misspelt body field is not a refused claim: the quote is still found and
+    # compared, so nothing is unchecked that the reader is told was checked.  What
+    # is lost is the instruction the field carried, which is what makes this the
+    # same severity as `page-unreadable` - a hint that is not being applied.
+    "claim-field-unknown": "medium",
     "claim-block-unread": "high",
     # A page hint that is not a number.  The claim is still located by search,
     # so this is a note about an instruction being ignored, not a rejection.

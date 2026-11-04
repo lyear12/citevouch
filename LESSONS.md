@@ -5344,3 +5344,43 @@ assertion about the beginning passes whether or not everything after it vanished
 
 **Seen 2.** The two sightings were an unclosed expression in
 `textnorm._balanced` and a missing brace group in `latex._definition_end`.
+
+## A reader that knows only its own key table has two silent paths, and one of them accuses the author
+
+A claim body is a small key-value format: `quote`, `claim`, `numbers`, and the
+attributes `id`, `source`, `ref`, `cite`, `page`, `marker`. Anything else shaped
+like a key had no code path at all, so it fell through to whichever branch was
+next — and which branch that was depended on where in the body the line sat.
+
+Measured on one project whose quote really is on page 2, with the page hint
+misspelt:
+
+- `Page: 1` above `quote:` → the hint vanished, the claim was located by search,
+  `[info] quote-found`, **exit 0**. Spelling it `page:` on the same project
+  prints `[medium] quote-moved`. The typo turned a check off and nothing said so.
+- `Page: 1` below `quote:` → the line joined the quote, the passage searched for
+  ended in `Page: 1`, and the run printed `[high] quote-missing … The resulting
+  grammar consists of a network of 40,688 constructions. Page: 1 — quote not
+  found in page.txt`, **exit 1**. The tool's most serious sentence, printed
+  because the author capitalised a key.
+
+**Rule.** When a reader has a fixed vocabulary of keys, a line that *looks* like
+a key is a third case: not a known field, and not prose either. Say both facts —
+"this is a field, and I do not have that key" — and keep it out of the content.
+Dropping it silently hides an instruction the author believes took effect;
+passing it through as content invents an accusation they never made.
+
+**Why.** A left-margin line inside a `quote: |` block is a sibling key in YAML
+terms, so treating it as continuation text misreads the format the author is
+writing in — and the misreading is invisible, because a quote that grew still
+looks like a quote. The two paths fail in opposite directions, which is exactly
+why neither can serve as the fallback for the other.
+
+**How to apply.** Derive "looks like a key" from syntax (`^\s*name\s*:`), not
+from a list of the keys you happen to know; then decide by position, because an
+indented line is content and a left-margin one is not. Report the line number the
+editor shows, and name the key. Pick the severity of the *loss*, not of the
+finding: here the quote is still checked, so the loss is a hint that was not
+applied — the same loss as `page-unreadable`, hence medium.
+
+**Seen 1.**

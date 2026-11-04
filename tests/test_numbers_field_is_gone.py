@@ -37,15 +37,15 @@ def _fenced(body: list[str], attrs: str = "id=c1 source=paper page=1") -> str:
 
 class TestTheKeyNoLongerDividesTheBody:
     def test_a_numbers_line_does_not_swallow_an_arrow_quote(self) -> None:
-        quote, _, _ = _split_body([f">> {QUOTE}", "numbers: 1"])
+        quote, _, _, _ = _split_body([f">> {QUOTE}", "numbers: 1"])
         assert quote == QUOTE, "the arrow shape must keep its quote"
 
     def test_a_numbers_line_does_not_swallow_a_two_paragraph_quote(self) -> None:
-        quote, _, _ = _split_body([QUOTE, "", CLAIM, "numbers: 2"])
+        quote, _, _, _ = _split_body([QUOTE, "", CLAIM, "numbers: 2"])
         assert quote == QUOTE
 
     def test_a_numbers_line_does_not_swallow_a_quoted_block(self) -> None:
-        quote, _, _ = _split_body(["quote: |", f"  {QUOTE}", "numbers: |", "  99,999"])
+        quote, _, _, _ = _split_body(["quote: |", f"  {QUOTE}", "numbers: |", "  99,999"])
         assert quote == QUOTE
 
 
@@ -53,13 +53,13 @@ class TestTheKeyIsNotSpecialAtAll:
     """With the key gone, its line is ordinary body text - visible, not dropped."""
 
     def test_the_line_lands_in_the_claim_text_of_the_arrow_shape(self) -> None:
-        quote, claim, attributes = _split_body([f">> {QUOTE}", "numbers: 1"])
+        quote, claim, attributes, _ = _split_body([f">> {QUOTE}", "numbers: 1"])
         assert quote == QUOTE
         assert claim == "numbers: 1", "an unread key must stay visible, not vanish"
         assert attributes == {}
 
     def test_the_line_lands_in_the_quote_of_a_keyless_body(self) -> None:
-        quote, claim, _ = _split_body([QUOTE, "numbers: 1"])
+        quote, claim, _, _ = _split_body([QUOTE, "numbers: 1"])
         assert claim == ""
         assert "numbers: 1" in quote
 
