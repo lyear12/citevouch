@@ -5414,3 +5414,48 @@ stub that flips both together cannot express the bug.
 
 **Seen 1.**
 
+
+## A question answered by three tables is answered three ways
+
+A page printing `40 688` and a claim typing `40,688` were compared by three
+functions, each with its own notion of what a number is:
+
+- `REPORT_PATTERN` — what a manuscript asserts. Refuses a bare space between
+  digit triples, on purpose: "2019 2020 2021" is three years, not twenty
+  million.
+- `MASK_PATTERN` — what the numbers tier blanks out. Accepts an ASCII space and
+  a non-breaking space, but not the thin, figure, narrow and hair spaces.
+- `canonical_number` — what a value is compared by. Stripped only those same
+  two characters.
+
+So the same fact got three verdicts. With a bare space on the page the run
+said `number-absent-in-quote` — about a figure printed right there. With a
+non-breaking space it exited 0 saying `0 verified, 1 missing` and produced
+**no finding at all**, so nothing anywhere explained the missing count. With a
+thin space it said `quote-fuzzy` at "similarity 1.00" *and* the same false
+number accusation. `fold()` had already declared every one of those characters
+a space; only the number layer disagreed.
+
+The fix was not to make three tables agree but to give the question one owner:
+`CANON_PATTERN`, consulted by the canonical tier, by the page-side number
+collection and by the claim's recorded numbers. A space counts only as a
+thousands group — one to three digits, then exactly three — which is why
+"2019 2020 2021" still reads as three numbers after the change.
+
+Rule: when two functions must agree about a fact, give the fact one function
+and have both call it. Two copies of an answer are a promise to keep them in
+sync that nothing enforces, and the divergence surfaces as a verdict about the
+author's document rather than as an error in the tool.
+
+Why it happened: each layer was written to solve a *different* problem —
+asserting, masking, comparing — and each solved it correctly on its own. The
+bug lived in the seam, where "correct on its own" is not the property that
+matters.
+
+How to apply: before adding a second reader for a fact the tool already reads,
+ask which one decides. If neither does, that is the bug. And when a run
+reports "1 missing", make sure one of the checks it ran produced a sentence:
+a count with no finding is a verdict the author cannot act on or even
+understand.
+
+Seen 1.

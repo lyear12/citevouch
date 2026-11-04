@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass, field
 
 from .model import Claim, Finding, fingerprint
-from .textnorm import numbers_in
+from .textnorm import CANON_PATTERN
 
 _FENCE_OPEN = re.compile(r"^```claim\b(?P<attrs>.*)$")
 _FENCE_CLOSE = re.compile(r"^```\s*$")
@@ -135,8 +135,9 @@ _WRAPPED: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 # The two keys that make a body a mapping, and the only two the parser reads a
 # value out of.  `numbers:` used to be a third, listed here from the first
-# commit although `_claim_from` builds `Claim.numbers` with `numbers_in(quote)`
-# and never looked at a field.  Because membership of this set is also what
+# commit although `_claim_from` builds `Claim.numbers` from the quote's own
+# digits with `CANON_PATTERN` and never looked at a field.  Because membership
+# of this set is also what
 # decides "is this body a mapping at all", the dead key cost more than itself:
 # a correctly written `>> the quote` followed by `numbers: 1` was read as a
 # mapping with no quote in it, and came back as `claim-uncheckable` - silent
@@ -337,7 +338,16 @@ def _claim_from(
         line=line,
         marker=attrs.get("marker", ""),
         ref=attrs.get("ref", attrs.get("cite", "")),
-        numbers=numbers_in(quote),
+        # ``CANON_PATTERN``, not ``numbers_in``: a quote is the author's
+        # transcription of a sentence, so ``40 688`` typed from a page that
+        # prints a grouping space is one number.  The report pattern refuses a
+        # bare space on purpose - "2019 2020 2021" is three years - and that
+        # rule still holds here, because a group needs one to three digits on
+        # the left and exactly three on the right.  Measured before this: a
+        # quote typing ``40,688`` against a page printing ``40 688`` was split
+        # into ``40`` and ``688`` and both were reported absent from a page
+        # that prints the number.
+        numbers=tuple(m.group(0) for m in CANON_PATTERN.finditer(quote)),
         quote_fingerprint=fingerprint(quote),
     )
     return claim, findings

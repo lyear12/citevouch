@@ -302,10 +302,10 @@ def squash(text: str) -> str:
     return re.sub(r"\s+", "", fold(text))
 
 
-# Two number patterns, on purpose, and one test that pins their relation.
+# Three number patterns, on purpose, and one test that pins their relation.
 #
-# REPORT_PATTERN is what a manuscript *asserts*: `numbers_in` and therefore
-# `Claim.numbers` and the ledger. A space is not a thousands separator there -
+# REPORT_PATTERN is what a manuscript *asserts*: `numbers_in` reads free prose
+# with it. A space is not a thousands separator there -
 # "2019 2020 2021" is three years, not the garbage tokens "2019 202",
 # "0 202", "1" that a space-tolerant scan produces. The ledger must never
 # record a number nobody wrote.
@@ -316,7 +316,12 @@ def squash(text: str) -> str:
 # when one wrote "1,000" and the other's PDF extraction shows "1 000"; there,
 # over-masking is harmless because the masked span is discarded either way.
 #
-# Both patterns accept the Arabic thousands, decimal and percent signs, and
+# CANON_PATTERN, further down, is what a *value* is compared with. It accepts
+# every spacing character `fold` already treats as a space, but only as a
+# thousands group, so the year rule above still holds. The comment on it keeps
+# the bug that forced it into existence.
+#
+# All three patterns accept the Arabic thousands, decimal and percent signs, and
 # `\d` already matches every script's decimal digits in Python 3.  A paper
 # printed in Cairo writes 4٬0688 with those signs; an author quoting it types
 # ASCII digits.  Without this, the words match, the numbers are read as
@@ -341,6 +346,24 @@ _THOUSANDS = "[,\u00a0\u066c.]"
 _DECIMAL_TAIL = r"(?:\.\d+|\u066b\d+|,\d{1,2}(?!\d))"
 REPORT_PATTERN = re.compile(rf"\d+(?:{_THOUSANDS}\d{{3}}(?!\d))*{_DECIMAL_TAIL}?[%\u066a]?")
 MASK_PATTERN = re.compile(rf"\d+(?:[, \u00a0\u066c.]\d{{3}}(?!\d))*{_DECIMAL_TAIL}?[%\u066a]?")
+
+#: What a digit group may be joined by when the *value* is being compared.
+#:
+#: ``MASK_PATTERN`` above already joins ``40 688`` into one token - that is what
+#: makes the ``numbers`` tier fire instead of the quote being called missing -
+#: but the canonical tier used ``REPORT_PATTERN``, which by design does not
+#: accept a bare space ("2019 2020 2021" is three years, not 20 million).  So a
+#: page printing ``40 688`` and a quote typing ``40,688`` fell through to the
+#: numbers tier, which then said the number was absent from the page - an
+#: accusation about a number the reader can see.  A space counts here only as a
+#: *thousands* group: one to three digits on the left and exactly three on the
+#: right, which is why a four-digit year never starts a group.
+_SPACES = "[ \u00a0\u2007\u2009\u200a\u202f]"
+CANON_PATTERN = re.compile(
+    rf"(?:\d{{1,3}}(?:{_SPACES}\d{{3}}(?!\d))+"
+    rf"|\d+(?:{_THOUSANDS}\d{{3}}(?!\d))*)"
+    rf"{_DECIMAL_TAIL}?[%\u066a]?"
+)
 
 #: The separators `canonical_number` has to resolve into a group or a point.
 _GROUPING = re.compile(r"[.,]")
@@ -388,6 +411,10 @@ def canonical_number(token: str) -> str:
         digits.replace("\u066b", ".")
         .replace("\u066c", ",")
         .replace("\u00a0", "")
+        .replace("\u2007", "")
+        .replace("\u202f", "")
+        .replace("\u2009", "")
+        .replace("\u200a", "")
         .replace("\u066a", "")
         .replace("%", "")
         .replace(" ", "")

@@ -35,7 +35,14 @@ from .sources import (
     resolve_source,
     sha256_file,
 )
-from .textnorm import canonical_number, count_of, is_are, numbers_in, read_text
+from .textnorm import (
+    CANON_PATTERN,
+    canonical_number,
+    count_of,
+    is_are,
+    numbers_in,
+    read_text,
+)
 
 
 @dataclass
@@ -522,7 +529,7 @@ def _number_checks(
     present: set[str] = set()
     for candidate in pages:
         if candidate.number in wanted:
-            present.update(canonical_number(t) for t in _numbers(candidate.text))
+            present.update(canonical_number(t) for t in _page_numbers(candidate.text))
     if not present:
         return out
     absent = [raw for raw in claim.numbers if canonical_number(raw) not in present]
@@ -634,7 +641,7 @@ def _claim_number_checks(claim, pages=None, match=None) -> list[Finding]:
         for page in pages:
             if wanted and page.number not in wanted:
                 continue
-            on_page.update(canonical_number(n) for n in numbers_in(page.text))
+            on_page.update(canonical_number(n) for n in _page_numbers(page.text))
     slips: list[tuple[str, str]] = []
     for stated in numbers_in(claim.text):
         mine = canonical_number(stated)
@@ -744,7 +751,20 @@ def _number_where_checks(claim, match) -> list[Finding]:
     ]
 
 
-def _numbers(text: str) -> tuple[str, ...]:
-    from .textnorm import numbers_in  # local import keeps the hot path honest
+def _page_numbers(text: str) -> tuple[str, ...]:
+    """Every number a page prints, with grouped digits read as one number.
 
-    return numbers_in(text)
+    ``numbers_in`` is the report pattern, and it refuses a bare space between
+    digit triples on purpose - "2019 2020 2021" is three years.  A page,
+    though, prints ``40 688`` for forty thousand because that is its house
+    style, and comparing a quote's ``40,688`` against that page by the report
+    pattern alone says the page does not contain the number.  Measured: a page
+    printing ``40 688`` and a quote typing ``40,688`` produced
+    ``number-absent-in-quote`` about a figure the reader can see with their own
+    eyes.
+
+    ``CANON_PATTERN`` accepts a space only as a thousands group - one to three
+    digits, then exactly three - so a year still cannot start one, and this
+    agrees with the answer the canonical tier gives.
+    """
+    return tuple(match.group(0) for match in CANON_PATTERN.finditer(text))

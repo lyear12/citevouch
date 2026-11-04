@@ -55,6 +55,7 @@ from dataclasses import dataclass
 
 from .sources import PageText
 from .textnorm import (
+    CANON_PATTERN,
     MASK_PATTERN,
     REPORT_PATTERN,
     canonical_number,
@@ -248,16 +249,22 @@ def _numbers_under(text: str, skip: int, want: int) -> tuple[str, ...]:
 def _canonical_numbers(text: str) -> str:
     """Rewrite every number in ``text`` in the one spelling ``canonical_number`` picks.
 
-    ``REPORT_PATTERN`` rather than ``MASK_PATTERN`` on purpose: the quote side
-    has to agree with what the ledger recorded, and the ledger records
-    ``numbers_in``, which is the report pattern.  Where the two patterns
-    disagree - a bare space between digit triples - neither side sees a number
-    there and both texts stay as they were, which is the safe direction.
+    ``CANON_PATTERN`` rather than ``REPORT_PATTERN`` here, and the choice is
+    the whole of a measured bug.  The report pattern refuses a bare space
+    between digit triples on purpose ("2019 2020 2021" is three years), so both
+    sides of the comparison used to skip over ``40 688`` and leave it as it was.
+    But the page is not the only side that decides: a PDF prints ``40 688`` and
+    the author types ``40,688``, and the canonical tier - the one tier whose
+    entire job is to know that those are one number - saw neither as a number
+    and fell through to the numbers tier, which then reported the figure absent
+    from a page that prints it.  ``CANON_PATTERN`` accepts only a *grouping*
+    space (one to three digits, then exactly three), so a year still cannot
+    start one.
 
     Rewriting is idempotent, so applying it to text that is already canonical
     changes nothing and a page never has to be reasoned about twice.
     """
-    return REPORT_PATTERN.sub(lambda m: canonical_number(m.group(0)), text)
+    return CANON_PATTERN.sub(lambda m: canonical_number(m.group(0)), text)
 
 
 def _canonical_with_map(text: str) -> tuple[str, list[int]]:
@@ -273,12 +280,12 @@ def _canonical_with_map(text: str) -> tuple[str, list[int]]:
     original character: a match never starts mid-number at a word boundary
     unless the quote itself starts mid-number, which ``_bounded_in`` refuses.
     """
-    if not REPORT_PATTERN.search(text):
+    if not CANON_PATTERN.search(text):
         return text, list(range(len(text)))
     pieces: list[str] = []
     offsets: list[int] = []
     last = 0
-    for match in REPORT_PATTERN.finditer(text):
+    for match in CANON_PATTERN.finditer(text):
         pieces.append(text[last : match.start()])
         offsets.extend(range(last, match.start()))
         rewritten = canonical_number(match.group(0))
@@ -503,7 +510,7 @@ def _find_in_pages(
     # Tried before squashed so the finding can still say which page the quote
     # is on, and skipped entirely when the quote holds no number - there is
     # then nothing this tier can see that exact did not.
-    if REPORT_PATTERN.search(quote_norm):
+    if CANON_PATTERN.search(quote_norm):
         quote_canon = _canonical_numbers(quote_norm)
         for index in order:
             page = pages[index]

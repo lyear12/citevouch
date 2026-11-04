@@ -11,6 +11,42 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The same number, written with a grouping space, got three different
+  verdicts from three functions that each had their own rule.** A page printing
+  `40 688` and a claim typing `40,688` came back `number-absent-in-quote` — an
+  accusation that the source does not contain a figure the reader can see
+  printed on it. A page printing `40` + a non-breaking space + `688` came back
+  exit 0 with `0 verified, 0 moved, 1 missing` and **no finding at all**: the
+  run said a claim had not been checked and never said why. A page printing
+  `40` + a thin space + `688` came back `quote-fuzzy` at "similarity 1.00"
+  *plus* the same false number accusation. All three pages fold to the same
+  text — `fold` already declares every one of those spaces the same character —
+  so the disagreement was entirely inside the tool.
+
+  The cause was three tables. `REPORT_PATTERN` (what a manuscript asserts)
+  refuses a bare space between digit triples, because "2019 2020 2021" is three
+  years and not twenty million. `MASK_PATTERN` (what the numbers tier blanks
+  out) accepts a space and a non-breaking space but not the other spacing
+  characters. And `canonical_number` (what a value is compared by) stripped
+  only those same two. Nothing owned the question "are these two spellings the
+  same value", so each layer answered it differently and the layers disagreed
+  about which layer's answer applied.
+
+  Fixed by giving that question one owner: `CANON_PATTERN`, used by the
+  canonical tier, by the page-side number collection and by the claim's
+  recorded numbers. A space counts there only as a *thousands group* — one to
+  three digits, then exactly three — so the year rule above still holds
+  (`numbers_in("2019 2020 2021")` is unchanged, and a new test pins it).
+  `canonical_number` now strips every spacing character `fold` treats as a
+  space. Measured after the fix: all nine spellings of `40,688` verify against
+  all nine, and a genuinely different figure (page `40 688`, quote `80,688`)
+  still exits 1.
+
+  Note for existing projects: the ledger records the numbers `scan` read, so a
+  ledger written before this release keeps the old split of `40 688` into two
+  numbers until `scan` is re-run.
 
 ## [0.22.15] — 2026-11-04
 ### Fixed

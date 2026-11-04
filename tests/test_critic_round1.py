@@ -150,11 +150,21 @@ def test_a_quote_that_is_only_numbers_cannot_match_words_away():
     assert not match.found
 
 
-def test_space_thousands_still_reach_the_numbers_tier():
+def test_a_space_thousands_separator_is_the_same_number():
+    """A PDF prints `1 000`; the author types `1,000`; those are one number.
+
+    This asserted `tier == "numbers"` until the canonical tier learned to read a
+    grouping space.  The numbers tier is a *report* tier - it says the figure is
+    wrong - so asserting it here pinned a false accusation: the page prints the
+    number the quote claims, and the tool said the page did not contain it.
+    The report pattern still refuses a bare space (that is what keeps
+    `2019 2020 2021` three years), but the canonical tier now accepts one only
+    as a thousands group, which a four-digit year cannot start.
+    """
     pages = _pages("We coded 1 000 sentences, exactly.")
     match = find_in_pages("we coded 1,000 sentences", pages)
-    assert match.tier == "numbers"
-    assert not match.found  # numbers is a report tier, not a verification tier
+    assert match.tier == "canonical"
+    assert match.found
 
 
 def test_squashed_tier_refuses_quotes_too_short_to_trust():
