@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.20] — 2026-11-05
 ### Fixed
 
 **A source saved in a desktop encoding was read as mojibake, and the quote was then reported missing.**
@@ -31,7 +32,6 @@ New code `source-encoding` (high, next to `source-no-text`: both are cases where
 * a bibliography is not judged at all, because a Chinese `.bib` is mostly ASCII: a GBK one scores 0.11-0.24 where a GBK page scores 0.62, and a line low enough to catch it would be cleared by a cp1252 French page (0.085) by a hair.  Two files that close cannot be told apart by this number, and refusing a file the author can read is the same class of error as accusing their quote.
 
 `tests/test_source_encoding.py` (20 tests) covers the four encodings, the two exemptions and the cache.  Reverse validation: six mutants, `survivors: []` - and the first round had **two** survivors ("a file that names its own encoding is refused anyway", "every suffix is judged, PDFs included") because no test fed a file that is readable *and* past the line; the demo PDF is 0.33 on this scale.  One existing test was found to be checking nothing: `test_the_demo_pdf_is_not_affected` looked for `demo/page.txt`, which is not a file, and returned early.
-
 ## [0.22.19] — 2026-11-04
 ### Fixed
 
@@ -2913,7 +2913,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.19...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.20...HEAD
+[0.22.20]: https://github.com/lyear12/citevouch/releases/tag/v0.22.20
 [0.22.19]: https://github.com/lyear12/citevouch/releases/tag/v0.22.19
 [0.22.18]: https://github.com/lyear12/citevouch/releases/tag/v0.22.18
 [0.22.17]: https://github.com/lyear12/citevouch/releases/tag/v0.22.17
