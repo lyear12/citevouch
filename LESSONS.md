@@ -5607,3 +5607,52 @@ How to apply: two conditions, because neither is sufficient and each was kept by
 
 Seen 1.
 
+
+## A name list is a claim about every name not on it
+
+`\footnote`, `\footnotetext` and `\marginpar` were moved out of the sentence they
+hang on in an earlier round. The reason was measured and written down: keeping a
+note inline glues its words onto the word before it, so
+
+```
+The method works\footnote{See \citep{fn} for the proof.}, and we show it.
+  -> 'The method worksSee [@fn] for the proof., and we show it.'
+```
+
+`worksSee` is in no paper, and `draft` reads sentences out of the converted text
+and offers one to the author as the claim to paste. The fix was a set of three
+names. What was never asked is what the other names in the same family do.
+
+Measured on the tree that fix left behind, four releases later:
+
+```
+The method works\thanks{We thank the annotators.}, and we show it.
+  -> 'The method worksWe thank the annotators., and we show it.'
+The method works\tnotetext{See the appendix.}, and we show it.
+  -> 'The method worksSee the appendix., and we show it.'
+```
+
+and the same for `\marginnote`, `\sidenote`, `\endnote`. One of those is in every
+funded paper ever written, written mid-sentence inside `\author`.
+
+The rule: a name on a list like this is a claim that the name belongs on it; a
+name missing from it is a claim that the words are part of the sentence. Only the
+first kind of claim is ever checked, and it is checked by a test written at the
+same moment by the same hand.
+
+Why it matters here rather than as a style note: the failure is silent in both
+directions. Nothing crashes, nothing warns, and the produced sentence is
+grammatical-looking - `worksWe` reads as a typo a reader would blame on the
+author. The tool's whole job is to say what is on the page; a converter that
+invents words makes every downstream verdict a verdict about a text that does not
+exist.
+
+How to apply: when a fix is a list of names, ask what the list is a *sample of*.
+For LaTeX commands the sample is every command whose argument is prose a reader
+reads elsewhere - notes, thanks, table notes, margin notes - and the neighbouring
+names are found by asking what the package family is, not by waiting for a user
+to report the next one. The same shape appeared with the citation commands, the
+file-inclusion commands and the 28 metadata commands: each fix started as the
+names one paper happened to use.
+
+Seen 2 (the citation table, and this).

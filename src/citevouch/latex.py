@@ -197,7 +197,33 @@ _VERBATIM_MARK = "\x00verbatim:"
 #: `draft` proposed exactly that string as the claim text, so the proposal was
 #: built on a sentence nobody wrote.  A block of their own keeps the main
 #: sentence whole and leaves the note where a reader can see it is a note.
-_SEPARATE_ARGUMENT = frozenset({"footnote", "footnotetext", "marginpar"})
+#:
+#: The first version of this list held three kernel names.  Measured on the tree
+#: it left behind, ``\thanks{We thank the annotators.}``, ``\tnotetext{...}``,
+#: ``\marginnote{...}``, ``\sidenote{...}`` and ``\endnote{...}`` all still glued
+#: their body into the sentence - ``The method worksWe thank the annotators., and
+#: we show it.`` - which is the same defect under names a paper about papers
+#: uses constantly.  A name on this list is a claim that the name is a note; a
+#: name missing from it is a claim that the words belong to the sentence.
+_SEPARATE_ARGUMENT = frozenset(
+    {
+        "footnote",
+        "footnotetext",
+        "marginpar",
+        # The kernel's note inside ``\author`` and ``\title``.  It is the one
+        # that reaches a manuscript most often, because every funded paper has
+        # one, and it is written in the middle of a sentence.
+        "thanks",
+        # threeparttable's note under a table.
+        "tnotetext",
+        # The margin/side-note packages.
+        "marginnote",
+        "sidenote",
+        "sidenotetext",
+        # The endnotes package.
+        "endnote",
+    }
+)
 
 _KEEP_ARGUMENT = frozenset(
     {

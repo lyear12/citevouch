@@ -11,6 +11,36 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+**Five note commands still put their words inside the sentence that cited them.**
+
+`\footnote`, `\footnotetext` and `\marginpar` were moved out of the sentence they hang on
+when it was measured that keeping them inline produces words no paper contains. The list
+that decides this was three names long, and the same defect was live under the rest of the
+family. Measured on the tree before this release, with a note in the middle of a sentence:
+
+```
+The method works\thanks{We thank the annotators.}, and we show it.
+  -> 'The method worksWe thank the annotators., and we show it.'
+The method works\tnotetext{See the appendix.}, and we show it.
+  -> 'The method worksSee the appendix., and we show it.'
+```
+
+The same for `\marginnote`, `\sidenote` and `\endnote`. `worksWe` is in no paper; `draft`
+reads sentences out of the converted text, so a proposal built on that string is a claim
+about a sentence nobody wrote. `\thanks` is the one that matters most in practice: every
+funded paper has one, and it is written mid-sentence inside `\author`.
+
+* the five now separate like the three before them, and each note keeps its own words in a block of its own, so a citation inside a note still counts;
+* `\thanks*`, the starred spelling the kernel also accepts, is the same note and is now handled the same way;
+* nothing else moved: `\textbf`, `\emph`, `\textsc` and the rest of the inline wrappers still keep their argument where it was written, which a test pins from the other side.
+
+Note for authors: nothing to redo. The converted text of a `.tex` source changes, so
+`draft` proposals from a document that used these commands will read differently - better,
+because the note's words are no longer spliced into the middle of the sentence. Fixes
+`tests/test_latex_more_notes.py` (45 tests, both halves: the five are notes, and `\textbf`,
+`\emph`, `\textsc` stay inline). Eight mutations ran red, one per name plus the declaration,
+the star handling and the whole branch.
 
 ## [0.22.21] — 2026-11-05
 ### Fixed
