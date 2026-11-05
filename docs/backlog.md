@@ -2397,6 +2397,40 @@ not what changed, but what proves the change works.
   *Done - why it is now true*: two conditions now have to hold, and each is a fact about one file family.  The UTF-16 reading must score **zero** noise (byte pairs from a real character cannot decode to a control or replacement character, so all twelve genuine UTF-16-LE shapes measured zero, while 8-bit files read that way scored something in 558 of 600 random samples and in every single one that also held ASCII).  And the noise must be at least **a tenth** of the file (a stray byte in a long UTF-8 paper scores one or two characters; every genuine UTF-16-LE CJK document measured 0.17-0.41).  Neither alone suffices: cp1251 Russian reads cleanly as UTF-16 and is stopped only by the share test, and a short genuine UTF-16 document beats the share test and is stopped only by the zero test.  `tests/test_mojibake_fallback.py` (15 tests) pins both halves from both sides; six mutations ran red - the share test dropped, loosened to a fiftieth, the clean test dropped, loosened to "any improvement", the fallback disabled, forced.
   *Not covered*: a real GBK manuscript from an author's disk (the fixtures are written by the test); an 8-bit manuscript with no ASCII at all remains ambiguous and is reported through `source-encoding` rather than decoded; Windows editors beyond GBK, Big5, Shift-JIS, cp1251 and cp1252 were not measured.
 
+- [x] **Five note commands still glued their words into the sentence that cited them.** *Done 2026-11-05.*
+  *What was wrong*: `latex._SEPARATE_ARGUMENT` named exactly `footnote`, `footnotetext` and
+  `marginpar`. Everything else in the family stayed inline, so a note written mid-sentence
+  ended up in the middle of that sentence:
+  ```
+  The method works\thanks{We thank the annotators.}, and we show it.
+    -> 'The method worksWe thank the annotators., and we show it.'
+  The method works\tnotetext{See the appendix.}, and we show it.
+    -> 'The method worksSee the appendix., and we show it.'
+  ```
+  Same for `\marginnote`, `\sidenote`, `\sidenotetext`, `\endnote`, and the starred
+  `\thanks*` produced `'The method works*We thank the annotators., ...'` because the star
+  was not skipped. `draft` reads sentences out of the converted text, so a proposal built on
+  `worksWe` is a claim about a sentence nobody wrote. `\thanks` is the one that matters:
+  every funded paper carries one, mid-sentence inside `\author`.
+  *Who was blocked*: anyone whose `.tex` uses `\thanks` - which is to say most published
+  papers - got a `draft` sentence with the acknowledgement spliced into it.
+  *Done when*: every note in the family leaves the sentence alone, the star spelling is
+  handled, and the inline wrappers that should stay inline still do.
+  *Done - why it is now true*: `_SEPARATE_ARGUMENT` is now
+  `{footnote, footnotetext, marginpar, thanks, tnotetext, marginnote, sidenote,
+  sidenotetext, endnote}` and its docstring records the measured glue plus the rule - a name
+  on the list is a claim that the name is a note, a name missing from it is a claim that the
+  words belong to the sentence. `tests/test_latex_more_notes.py` pins both halves from both
+  directions: each of the six new names splits the sentence into `The method works, and we
+  show it.` with the note kept as `A note.`; `\thanks*` no longer leaves a `*` behind; a
+  citation inside any of them still reaches `citation_sites`; `\textbf`, `\emph` and
+  `\textsc` still keep their argument in place. Eight mutations ran red - the declaration
+  back to three names, one per removed name, the star skip deleted, the branch disabled -
+  `survivors: none`.
+  *Not covered*: a real thesis `.tex` from an author's disk (fixtures are hand-written from
+  the kernel and package documentation); starred spellings other than `\thanks*` were not
+  measured for the four package commands.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
