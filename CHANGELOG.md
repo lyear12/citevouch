@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.22] — 2026-11-05
 ### Fixed
 **Five note commands still put their words inside the sentence that cited them.**
 
@@ -41,7 +43,6 @@ because the note's words are no longer spliced into the middle of the sentence. 
 `tests/test_latex_more_notes.py` (45 tests, both halves: the five are notes, and `\textbf`,
 `\emph`, `\textsc` stay inline). Eight mutations ran red, one per name plus the declaration,
 the star handling and the whole branch.
-
 ## [0.22.21] — 2026-11-05
 ### Fixed
 
@@ -2966,7 +2967,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.21...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.22...HEAD
+[0.22.22]: https://github.com/lyear12/citevouch/releases/tag/v0.22.22
 [0.22.21]: https://github.com/lyear12/citevouch/releases/tag/v0.22.21
 [0.22.20]: https://github.com/lyear12/citevouch/releases/tag/v0.22.20
 [0.22.19]: https://github.com/lyear12/citevouch/releases/tag/v0.22.19
