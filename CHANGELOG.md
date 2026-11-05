@@ -11,6 +11,40 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+**A listing that showed \input made `draft` name a file the paper never reads.**
+
+`included_files` reads the raw source, and the raw source contains the listing
+that *demonstrates* the syntax. A name written inside a literal environment is an
+example, and it was reported as an include:
+
+```
+\begin{lstlisting}
+\input{chapters/intro}
+\end{lstlisting}
+```
+produced
+```
+<!-- This document pulls text in from chapters/intro, which `citevouch draft`
+does not read: any citation in those files is missing from the blocks below. -->
+```
+
+That sentence is false about that document, and it is printed in the one comment
+the tool tells an author to read. The same for `verbatim`, `verbatim*`, `minted`,
+`filecontents` and the `comment` package's environment. It also hid a real
+include: the body of a listing that quoted `%` used to be treated as a comment
+start, so a genuine `\input` after it could be dropped.
+
+* `included_files` now starts from the document with every literal body blanked, so a name shown there is not reported and a name outside one still is;
+* `comment` is in the set here and stays out of `_VERBATIM_ENVIRONMENT`: that set answers "is a `%` here a character", where a `%` inside a `comment` environment starts a real comment, while this one answers "is a command here executed";
+* `alltt`, `tabular` and `tikzpicture` are deliberately outside the set - TeX executes what is inside them, and a test pins each name from the other side;
+* an unclosed literal environment blanks the rest of the document, which is what TeX did to it too.
+
+Note for authors: nothing to redo. The warning in a generated `claims.md` changes
+for a `.tex` that shows `\input` in a listing - it stops naming a file that was
+never read. Tests: `tests/test_literal_environment_includes.py` (24 tests, both
+halves: the six literal environments are blanked and the three executed ones are
+not). Six mutations ran red, `survivors: none`.
 
 ## [0.22.22] — 2026-11-05
 ### Fixed

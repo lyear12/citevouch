@@ -184,6 +184,28 @@ _VERBATIM_ENVIRONMENT = re.compile(
     r"\\begin\s*\{(?P<name>verbatim\*?|lstlisting|minted|filecontents)\}"
 )
 
+#: Environments whose body TeX reads as characters, plus the one the `comment`
+#: package skips with a verbatim-style scan. A command inside one of these is
+#: being *shown*, not executed: it is the syntax the paper is talking about, and
+#: running it would be the tool reading a quotation as a command.
+#:
+#: `included_files` needs this set separately from `_VERBATIM_ENVIRONMENT`.
+#: That one answers "is a `%` here a character", and it leaves `comment` out on
+#: purpose (a `%` inside a comment environment starts a real comment). This one
+#: answers "is a command here executed", and `comment` belongs in it.
+#:
+#: Measured before this set existed: a listing that showed `\input{chapters/intro}`
+#: made `draft` print "This document pulls text in from chapters/intro, which
+#: `citevouch draft` does not read" - a sentence about a file the paper never
+#: reads, in the one comment the tool tells the author to check.
+_LITERAL_ENVIRONMENT = frozenset(
+    {"verbatim", "verbatim*", "lstlisting", "minted", "filecontents", "comment"}
+)
+
+_LITERAL_BEGIN = re.compile(
+    r"\\begin\s*\{(?P<name>" + "|".join(sorted(map(re.escape, _LITERAL_ENVIRONMENT))) + r")\}"
+)
+
 #: Stands in for text TeX does not interpret. A control character, so it cannot
 #: collide with anything an author writes in a paper.
 _VERBATIM_MARK = "\x00verbatim:"
@@ -937,6 +959,36 @@ def _group_end(text: str, start: int, opener: str = "{", closer: str = "}") -> i
     return -1
 
 
+def _without_literal_bodies(text: str) -> str:
+    r"""Blank out the body of every environment whose content TeX only shows.
+
+    `included_files` reads the raw source, and the raw source holds the listing
+    that *demonstrates* `\input`.  A name written there is an example, not a
+    file, so reporting it as one makes the warning false in the one place the
+    tool points the author at.  Bodies are replaced by a single space rather than
+    deleted, so no two words on either side of an environment get joined.
+
+    An unclosed environment blanks the rest of the document: a file that stops
+    inside a listing has nothing after it that TeX executed either.
+    """
+    if not _LITERAL_BEGIN.search(text):
+        return text
+    out: list[str] = []
+    index = 0
+    for match in _LITERAL_BEGIN.finditer(text):
+        if match.start() < index:
+            continue
+        close = _environment_close(text, match.end(), match.group("name"))
+        out.append(text[index : match.end()])
+        if close is None:
+            index = len(text)
+            break
+        out.append(" ")
+        index = close
+    out.append(text[index:])
+    return "".join(out)
+
+
 def _environment_close(text: str, start: int, name: str) -> int | None:
     r"""Index of the ``\end{name}`` that closes a verbatim block, or None.
 
@@ -1449,7 +1501,9 @@ def included_files(tex: str) -> list[str]:
     Sorting by position therefore needs no de-duplication between them.
     """
     stripped = _without_false_branches(
-        _without_definitions(_drop_inline_verbatim(strip_comments(tex))[0])
+        _without_definitions(
+            _drop_inline_verbatim(strip_comments(_without_literal_bodies(tex)))[0]
+        )
     )
     found: list[tuple[int, str]] = [
         (match.start(), match.group(1)) for match in _INCLUDE.finditer(stripped)

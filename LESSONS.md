@@ -5656,3 +5656,40 @@ file-inclusion commands and the 28 metadata commands: each fix started as the
 names one paper happened to use.
 
 Seen 2 (the citation table, and this).
+
+## A quotation of a command is not the command, wherever the quotation lives
+
+`included_files` reads the raw `.tex` source, and the raw source contains the
+listing that *demonstrates* the syntax. A name written inside a literal
+environment is an example. It was reported as a file the document pulls in:
+
+```
+\begin{lstlisting}
+\input{chapters/intro}
+\end{lstlisting}
+```
+
+produced `<!-- This document pulls text in from chapters/intro, which
+`citevouch draft` does not read -->` - a false sentence in the one comment the
+tool tells the author to check. The tool had already learned this for `\verb`
+(five earlier fixes), and had not asked whether the same shape lives in block
+form.
+
+**Rule.** When a reader is shown a command, the command does not run. That has
+to hold for every construct whose content is shown, not only the inline one that
+was measured first.
+
+**Why it happens.** The two questions "is a `%` here a character" and "is a
+command here executed" look like the same question and are not. They agree on
+`verbatim`, `lstlisting`, `minted` and `filecontents`, so one set seemed enough;
+they disagree on the `comment` package's environment, where a `%` starts a real
+comment and everything is still skipped. A shared set would have made one of the
+two answers wrong, and the wrong answer would have been silent.
+
+**How to apply.** For every construct that quotes text, ask both questions
+separately and write down where the answers differ. Then measure the boundary
+from both directions: a name inside must not be reported, and a name outside the
+very next line must still be. A set that is only tested from the inside can be
+"fixed" by making it swallow the whole document.
+
+Seen 1.
