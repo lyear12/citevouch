@@ -2443,6 +2443,44 @@ not what changed, but what proves the change works.
   *Done - why it is now true*: `included_files` starts from `_without_literal_bodies(tex)`, which blanks the body of each of the six environments and leaves the delimiters, so nothing that answers "what does this document read" sees the demonstration.  The set is deliberately **not** `_VERBATIM_ENVIRONMENT`: that one answers "is a `%` here a character" and must omit `comment` (a `%` inside a comment environment starts a real comment), while this one answers "is a command here executed" and must include it.  `alltt`, `tabular` and `tikzpicture` stay outside because TeX executes what is inside them.  `tests/test_literal_environment_includes.py` (24 tests) pins all three directions - inside is not reported, outside still is, and each executed environment still is - plus two end-to-end `draft` runs.  Six mutations ran red, `survivors: none`; the one that first survived (end tag not skipped past) found a real gap in the tests and in the code, and both were fixed rather than re-pinned.
   *Not covered*: a real thesis that uses `lstlisting` or `minted` (fixtures hand-written from the kernel and package documentation); a `\begin{...}` written in the body of another literal environment that happens to spell a different one.
 
+- [x] **A CRLF manuscript drafted differently from the same manuscript in LF.** *Done 2026-11-05.*
+  **What was wrong.** `textnorm.read_text` kept the carriage returns Windows
+  editors write, and `draft` finds the paragraph around a citation by
+  searching for `\n\n`. A CRLF file holds `\r\n\r\n`, so the search found
+  nothing and the whole manuscript became one paragraph. Measured on two
+  files differing only in how they were saved:
+
+  ```
+  LF   claim: |
+         We collected 154,391 examples from the corpus, and we evaluated them on 9,800 rolesets.
+  CRLF claim: |
+         ## Methods We collected 154,391 examples from the corpus, and we evaluated them on 9,800 rolesets.
+  ```
+
+  The heading was glued onto the sentence, so `draft` offered a sentence
+  nobody wrote for pasting into the manuscript, and its confidence fell
+  from `high` to `medium`. A `.tex` input was fine because
+  `latex.to_text` rebuilds the text - the asymmetry is what pointed at the
+  shared reader rather than at `draft`.
+  **Who was blocked.** Anyone on Windows who saved their manuscript in the
+  default editor, which writes CRLF.
+  **Done when.** `read_text` returns one text for both spellings, and the
+  drafts are byte-identical.
+  **Done - why it is now true.** `read_text` flattens `\r\n` and lone `\r`
+  to `\n` after `_decode_text`; nothing is written back. 14 tests in
+  `tests/test_line_endings.py` compare the two spellings' drafts with
+  `difflib`, pin the CRLF source page and the CRLF bibliography and the
+  LaTeX path, and assert the file on disk is unchanged. 3 tests in
+  `tests/test_one_reader.py` walk the package with `ast` and fail if a
+  module outside `textnorm` starts decoding bytes: adding a decoder to
+  `report.py` by hand turned it red. Five mutants, all red, no survivors:
+  keep the carriage returns, drop lone-`\r` handling, replace `\r` before
+  the pair, delete the break instead of flattening, write the normalised
+  text back.
+  *Not covered*: a UTF-16 file with CRLF on disk (the bytes reach the same
+  flattening but no test writes one); an editor that produces mixed line
+  endings inside one file.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
