@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.21] — 2026-11-05
 ### Fixed
 
 **The UTF-16 fallback turned a GBK manuscript into rubbish, and the tool then said the manuscript was empty.**
@@ -34,7 +35,6 @@ Neither half survives alone.  A long UTF-8 paper with cp1252 bytes pasted in rea
 An 8-bit file with no ASCII in it at all is still ambiguous, and it is reported rather than guessed: it reaches the `source-encoding` guard, which says the words were never searched.  Big-endian without a mark stays undecidable for the reason it always was - swapping a Han character's bytes yields another Han character - and the rule does not pretend otherwise.
 
 `tests/test_mojibake_fallback.py` (15 tests) pins the rule from both sides, including one test per half so that deleting either condition fails a test named after it.  Six mutations were run against it and every one went red: the share test dropped, loosened to a fiftieth, the clean test dropped, loosened to "any improvement", the fallback disabled, the fallback forced.
-
 ## [0.22.20] — 2026-11-05
 ### Fixed
 
@@ -2936,7 +2936,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.20...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.21...HEAD
+[0.22.21]: https://github.com/lyear12/citevouch/releases/tag/v0.22.21
 [0.22.20]: https://github.com/lyear12/citevouch/releases/tag/v0.22.20
 [0.22.19]: https://github.com/lyear12/citevouch/releases/tag/v0.22.19
 [0.22.18]: https://github.com/lyear12/citevouch/releases/tag/v0.22.18
