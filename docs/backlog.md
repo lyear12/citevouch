@@ -2431,6 +2431,18 @@ not what changed, but what proves the change works.
   the kernel and package documentation); starred spellings other than `\thanks*` were not
   measured for the four package commands.
 
+- [x] **A listing that showed `\input` made `draft` name a file the paper never reads.** *Done 2026-11-05.*
+  *What was wrong*: `latex.included_files` reads the raw `.tex` source, and the raw source holds the listing that demonstrates the syntax.  A name written inside a literal environment is an example, and it was reported as an include, so `draft` printed this in the one comment it tells the author to check:
+  ```
+  <!-- This document pulls text in from chapters/intro, which `citevouch draft`
+  does not read: any citation in those files is missing from the blocks below. -->
+  ```
+  Measured for every literal environment, each of which reported `['ghost/sec']`: `verbatim`, `verbatim*`, `lstlisting`, `minted`, `filecontents`, `comment`.  The inline spelling `\verb|\input{ghost/sec}|` was already right.
+  *Who was blocked*: anyone who documents `\input` with a listing - which is how a methods chapter explains its own file layout.  The warning is attached to the proposal `draft` hands them, so the first thing a new user reads about their own paper is false.
+  *Done when*: a name shown inside a literal environment is not reported, a name outside one still is, and an unclosed environment does not swallow the rest of the document quietly.
+  *Done - why it is now true*: `included_files` starts from `_without_literal_bodies(tex)`, which blanks the body of each of the six environments and leaves the delimiters, so nothing that answers "what does this document read" sees the demonstration.  The set is deliberately **not** `_VERBATIM_ENVIRONMENT`: that one answers "is a `%` here a character" and must omit `comment` (a `%` inside a comment environment starts a real comment), while this one answers "is a command here executed" and must include it.  `alltt`, `tabular` and `tikzpicture` stay outside because TeX executes what is inside them.  `tests/test_literal_environment_includes.py` (24 tests) pins all three directions - inside is not reported, outside still is, and each executed environment still is - plus two end-to-end `draft` runs.  Six mutations ran red, `survivors: none`; the one that first survived (end tag not skipped past) found a real gap in the tests and in the code, and both were fixed rather than re-pinned.
+  *Not covered*: a real thesis that uses `lstlisting` or `minted` (fixtures hand-written from the kernel and package documentation); a `\begin{...}` written in the body of another literal environment that happens to spell a different one.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
