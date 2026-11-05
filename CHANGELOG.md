@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.24] — 2026-11-05
 ### Fixed
 **A manuscript saved with CRLF and the same manuscript saved with LF drafted differently.**
 
@@ -44,7 +45,6 @@ the reader and not in `draft`.
   Five mutants: keep the `\r`s, drop lone-`\r` handling, replace `\r`
   before the pair, delete the break instead of flattening, write the
   normalised text back - all red, no survivors.
-
 ## [0.22.23] — 2026-11-05
 ### Fixed
 **A listing that showed \input made `draft` name a file the paper never reads.**
@@ -3035,7 +3035,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.23...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.24...HEAD
+[0.22.24]: https://github.com/lyear12/citevouch/releases/tag/v0.22.24
 [0.22.23]: https://github.com/lyear12/citevouch/releases/tag/v0.22.23
 [0.22.22]: https://github.com/lyear12/citevouch/releases/tag/v0.22.22
 [0.22.21]: https://github.com/lyear12/citevouch/releases/tag/v0.22.21
