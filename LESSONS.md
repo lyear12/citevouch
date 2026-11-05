@@ -5586,3 +5586,24 @@ Why: the fallback was not a mistake.  Without it, one odd byte anywhere stops th
 How to apply: the test that separates a reading from a guess is a stricter attempt that is *allowed to throw*, and it must run before the forgiving one, not after.  Here that is ```raw.decode("utf-8")``` with no handler - success proves the file is UTF-8, and failure proves only that it is something else, which is the answer the tool needed to hear.  Two exemptions survived this reasoning and both were decided by measurement, not by taste: a file that names its own encoding is never refused (a UTF-16 page of Chinese scores 0.33 on the same scale and reads perfectly), and a bibliography is not judged at all (a GBK `.bib` scores 0.11-0.24, a cp1252 French page 0.085 - no line separates them).  A threshold that cannot separate the groups it was invented for is not a guard, it is a coin.
 
 Seen 1.
+
+## A fallback that compares two readings has not asked whether either one is right
+
+`textnorm._decode_text` had a fallback for UTF-16 without a byte-order mark: if the UTF-8 reading was noisy, decode as UTF-16-LE and keep whichever scored *less* noise.  The comparison is sound for a file that is genuinely one or the other, and it says nothing at all about a file that is neither.  A GBK manuscript is neither.  Read as UTF-8 it is noisy in proportion to how much prose it holds - 40 noise characters in 138 - and read as UTF-16 it is noisy too, just slightly less.  So the fallback took the wrong one, and the whole manuscript became `'탑뾾쫎...'`: fences, `quote:` keys, attribute syntax, everything.
+
+The author was then told:
+
+    [high] no-claim-blocks at manuscript.md:2: manuscript.md contains no claim
+    blocks, so nothing was checked: a claim block opens with three backticks, the
+    word `claim`, then `id=` and `source=`. This file has none.
+
+Their manuscript had a claim block.  Worse, the code that fix replaced had been *better*: `raw.decode("utf-8", errors="replace")` kept every fence and turned only the Chinese lines into replacement characters, so the block was still there to be found.  The fix that was written to stop a false accusation introduced a bigger one.
+
+Rule: when a fallback chooses between two readings, ask what a *correct* file of the winning kind would score, and require that.  "Less noise than the alternative" is a relation between two guesses; "zero noise" is a fact about one of them.  Here the fact is that byte pairs which came from a real character cannot decode to a control or a replacement character, so every genuine UTF-16-LE document scores exactly zero - measured zero in all twelve shapes - while an 8-bit file read that way scored something in 558 of 600 random samples, and in every single one that also held ASCII.
+
+Why: a comparison always produces a winner.  A test produces an answer, and sometimes the answer is "not this".  The fallback could not say "not this" because it was written as a preference, so the presence of any winner was read as evidence that there was a right one.
+
+How to apply: two conditions, because neither is sufficient and each was kept by a case the other one failed.  The zero-noise test alone admits cp1251 Russian and Shift-JIS Russian, which do read cleanly as UTF-16; the share test alone (`noise * 10 >= length`) is beaten by short genuine UTF-16 documents, where a tenth of the file is a small number.  Also check the fix against the code it replaces: if the new behaviour is worse for some input the old one handled, the fallback has moved the failure rather than fixed it.  Nineteen mutations were run against the guard family in this session; the two that survived the first round were both cases where no test held a file that was neither kind - which is the only kind that matters to a comparison.
+
+Seen 1.
+

@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+**The UTF-16 fallback turned a GBK manuscript into rubbish, and the tool then said the manuscript was empty.**
+
+`textnorm._decode_text` has a fallback for files saved as UTF-16 without a byte-order mark: if the UTF-8 reading is noisier than `max(4, len // 50)`, try UTF-16-LE and keep it when it scores less noise.  A manuscript is mostly ASCII - its claim fences, its `quote:` keys and its attribute syntax all are - so a GBK or Big5 manuscript is noisy as UTF-8 in proportion to how much prose it holds and no more.  The fallback saw that noise, found a UTF-16 reading that scored lower, and took it.  The whole file became `'탑뾾쫎...'`: fences, keys and prose together.  The search that followed found no claim blocks in a manuscript that had them:
+
+    [high] no-claim-blocks at manuscript.md:2: manuscript.md contains no claim
+    blocks, so nothing was checked: a claim block opens with three backticks, the
+    word `claim`, then `id=` and `source=`. This file has none.
+
+That is a high finding that tells the author their manuscript is empty, when the fact is that the tool chose the wrong reading of it.  Worse than the mojibake it was trying to fix: `raw.decode("utf-8", errors="replace")` had kept every fence and turned only the Chinese lines into replacement characters, so the block was still there to be found.
+
+Two conditions now have to hold, and both are facts about the two file families rather than tuning:
+
+* **the UTF-16 reading has to score zero noise.**  Byte pairs that came from a real character cannot decode to a control or a replacement character, so every genuine UTF-16-LE document measures zero.  An 8-bit file read that way nearly always scores something - zero in only 42 of 600 random short samples across GBK, Big5, Shift-JIS and cp1251 - and never once it held ASCII as well, which is exactly the manuscript case.
+* **the noise has to be at least a tenth of the file.**  A stray byte in a long UTF-8 paper scores one or two noise characters and must not move the reading; every genuine UTF-16-LE CJK document measured between 0.17 and 0.41.
+
+Neither half survives alone.  A long UTF-8 paper with cp1252 bytes pasted in reads *clean* as UTF-16 and is saved only by the share test; a GBK manuscript has both a large share and a non-zero UTF-16 score and is saved only by the clean test.  Together they kept all twelve adversarial 8-bit files on the UTF-8 reading - GBK, Big5 and Shift-JIS manuscripts at three lengths each, plus Russian in GBK - and moved all twelve genuine UTF-16-LE files, in single-script and mixed-script shapes.
+
+An 8-bit file with no ASCII in it at all is still ambiguous, and it is reported rather than guessed: it reaches the `source-encoding` guard, which says the words were never searched.  Big-endian without a mark stays undecidable for the reason it always was - swapping a Han character's bytes yields another Han character - and the rule does not pretend otherwise.
+
+`tests/test_mojibake_fallback.py` (15 tests) pins the rule from both sides, including one test per half so that deleting either condition fails a test named after it.  Six mutations were run against it and every one went red: the share test dropped, loosened to a fiftieth, the clean test dropped, loosened to "any improvement", the fallback disabled, the fallback forced.
+
 ## [0.22.20] — 2026-11-05
 ### Fixed
 

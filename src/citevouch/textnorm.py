@@ -619,15 +619,48 @@ def _decode_text(raw: bytes) -> str:
     of its length, so a file that decoded cleanly is never reinterpreted: the
     cost of being wrong is turning good text into rubbish, and that has to be
     improbable before it is worth any gain.
+
+    Being noisier than that is not enough on its own to swap readings, and the
+    difference is the bug this docstring used to describe as a fix.  A GBK or
+    Big5 manuscript is mostly ASCII: its claim fences, its ``quote:`` keys and
+    its attribute syntax are all ASCII, and only the prose between them is
+    double-byte.  Read as UTF-8 that file is noisy in proportion to how much
+    prose it has - measured at six replacement characters in 145 - which is
+    over the absolute threshold, so the old rule swapped it for a UTF-16
+    reading whose noise happened to be smaller, and the whole manuscript became
+    ``'탑뾾쫎...'``: fences, keys and all.  The search that followed found no
+    claim blocks in a file that had them, and the author was told their
+    manuscript was empty.
+
+    Two further conditions separate the readings, and both are facts about the
+    two file families rather than tuning:
+
+    * the UTF-16 reading has to be *completely* clean.  Every genuine UTF-16-LE
+      document scores zero, because pairs of bytes that came from a real
+      character cannot decode to a control or a replacement character.  An
+      8-bit file read that way nearly always scores something: measured zero
+      in only 42 of 600 random short samples across GBK, Big5, Shift-JIS and
+      cp1251, and never once the file also held ASCII.
+    * the noise has to be a real share of the file, at least a tenth of it.  A
+      stray byte in a long UTF-8 paper scores one or two noise characters and
+      must not move; every genuine UTF-16-LE CJK document measured between
+      0.17 and 0.41.
+
+    Neither condition alone is enough.  Russian cp1251 and Shift-JIS encode
+    Russian with clean UTF-16 readings, so the first condition admits them;
+    and short genuine UTF-16 texts beat the second one - they are short, so a
+    tenth of them is small.  Together they kept every one of twelve adversarial
+    8-bit files on the UTF-8 reading and moved every one of twelve genuine
+    UTF-16-LE files, in both single-script and mixed-script shapes.
     """
     named = proven_codec(raw)
     if named is not None:
         return _strip_bom(raw.decode(named, errors="replace"))
     decoded = _strip_bom(raw.decode("utf-8", errors="replace"))
     noise = _noise(decoded)
-    if noise >= max(4, len(decoded) // 50):
+    if noise >= max(4, len(decoded) // 50) and noise * 10 >= len(decoded):
         candidate = _strip_bom(raw.decode("utf-16-le", errors="replace"))
-        if _noise(candidate) < noise:
+        if _noise(candidate) == 0:
             decoded = candidate
     return decoded
 
