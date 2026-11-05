@@ -5728,3 +5728,39 @@ equal, not that each one is individually plausible: both drafts looked fine on
 their own.
 
 Seen 1.
+
+## A token the parser kept and never read was a value the author wrote and the tool dropped
+
+`_attrs` reads every `key=value` on a claim block's fence line into a dict. Six
+names in that dict are ever consulted. A seventh is stored, and then the block
+runs without it while every line of output is written as though it ran with it.
+
+Measured on a project that prints the same sentence on page 1 and on page 3:
+
+    ```claim id=c1 source=paper page=3   -> quote-found page 3
+    ```claim id=c1 source=paper pgae=3   -> quote-found page 1, exit 0, no finding
+
+The author asked for page 3 and was answered from page 1. Nothing said the hint
+had been ignored - and the difference is not "the tool was lenient", it is "the
+tool answered a different question than the one it was asked".
+
+The body of the same block had refused this since the `Page: 1` fix, because a
+left-margin line that reads like a field is visibly not continuation text and
+someone had to decide what it was. The fence line never needed that decision:
+`_attrs` consumes the whole line, agrees that these are attributes, and then
+the reader's own key list is the only thing standing between a typo and
+silence. A parse that succeeds is not a parse that was understood.
+
+Two conditions made the report usable, and both had to be argued rather than
+assumed:
+- a near miss, so `data-x=` from some other tool is not accused of being a typo;
+- the right spelling absent, so a block carrying both `page=3` and an unrelated
+  `pgae=1` is left quiet - nothing was lost there, and a finding about a
+  statement that was honoured is a false positive.
+
+Transpositions cost one edit, not two. Plain Levenshtein scores a swap as two,
+which would have put `pgae` for `page` - the most common typo in the language -
+outside a distance-of-one net. The metric has to match the mistake, not the
+textbook.
+
+Seen 1.

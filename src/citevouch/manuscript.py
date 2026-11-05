@@ -157,7 +157,25 @@ _BODY_KEY = re.compile(r"^\s*(?P<key>quote|claim|numbers?)\s*:\s*(?P<rest>.*)$")
 
 # The keys a claim may name as attributes.  They are read from the opening line
 # (``​```claim id=c1 source=paper``) and, since the fix below, also from the body.
-_ATTRIBUTE_KEY = re.compile(r"^\s*(?P<key>id|source|ref|cite|page|marker)\s*:\s*(?P<rest>.*)$")
+#
+# One list, because the opening line and the body are two spellings of the same
+# statement: a key this format has is one it has in both places.  The body path
+# already refused to drop a field it did not know (`_KEYISH`); the opening line
+# read every `key=value` token, kept it in a dict, and then `_claim_from` looked
+# up only the six names below - so a misspelt one was parsed, stored and never
+# read.  Measured on a project whose quote sits on page 1 and again on page 3:
+#
+#     ```claim id=c1 source=paper page=3   -> quote-found page 3
+#     ```claim id=c1 source=paper pgae=3   -> quote-found page 1, exit 0, no finding
+#
+# The author asked for page 3, the answer came from page 1, and no line in the
+# output said the hint had been ignored.
+_KNOWN_ATTRIBUTES: frozenset[str] = frozenset({"id", "source", "ref", "cite", "page", "marker"})
+_ATTRIBUTE_KEY = re.compile(
+    r"^\s*(?P<key>"
+    + "|".join(sorted(map(re.escape, _KNOWN_ATTRIBUTES)))
+    + r")\s*:\s*(?P<rest>.*)$"
+)
 
 # The credibility markers the surrounding workflow already uses.  Kept as data
 # rather than hard-coded checks so a project can rename them.
@@ -245,6 +263,96 @@ def _attrs(blob: str) -> dict[str, str]:
             if token:
                 out["id"] = token
     return out
+
+
+def _unknown_attr_findings(blob: str, path: str, line: int) -> list[Finding]:
+    """Name an attribute on the opening line that is spelled like a key we know.
+
+    Two conditions, and both are load-bearing:
+
+    * **It is a near miss.** One edit away - a transposition, a dropped letter,
+      another letter - from one of the six keys this format has. That is what
+      separates ``pgae=3`` (a typo for ``page``) from ``data-x=3`` (some other
+      tool's annotation, or a key from a later format). Reporting every unknown
+      token would fire on files that are not claiming anything, and a finding
+      nobody can act on is how a real one gets ignored.
+    * **The right spelling is absent.** A block that writes ``ref=`` and also
+      carries an unrelated ``cite=`` lookalike has not lost a statement: the
+      one it needed is right there. Silence is correct there, because the
+      output already reads the key the author meant.
+
+    The misspelt key is still *dropped* rather than applied - guessing which
+    key an author meant is a format decision, not a reader's call, and a guess
+    that is wrong is worse than the silence this replaces.
+    """
+    written = [
+        (m.group("tight") or m.group("loose")).lower() for m in _ATTR.finditer(blob or "")
+    ]
+    present = set(written)
+    found: list[Finding] = []
+    seen: set[str] = set()
+    for key in written:
+        if key in _KNOWN_ATTRIBUTES or key in seen:
+            continue
+        seen.add(key)
+        near = _nearest_attribute(key)
+        if near is None or near in present:
+            continue
+        found.append(
+            Finding(
+                code="claim-field-unknown",
+                message=(
+                    f"this claim block writes {key}=, which is not an attribute "
+                    f"this format has; it was ignored, and {near}= was not read "
+                    "either - the six attributes are " + ", ".join(sorted(_KNOWN_ATTRIBUTES))
+                ),
+                path=path,
+                line=line,
+            )
+        )
+    return found
+
+
+def _nearest_attribute(key: str) -> str | None:
+    """The known key within one edit of ``key``; ``None`` when there is none."""
+    best: str | None = None
+    best_distance = 2
+    for known in sorted(_KNOWN_ATTRIBUTES):
+        distance = _edit_distance(key, known)
+        if distance < best_distance:
+            best, best_distance = known, distance
+    return best
+
+
+def _edit_distance(left: str, right: str) -> int:
+    """How many single-letter slips separate the two, transpositions counting one.
+
+    Plain Levenshtein scores a swap as two edits, and ``pgae`` for ``page`` is
+    the most common typo there is - the fingers know both letters and hit them
+    in the other order. Scoring it two would put the likeliest misspelling of
+    the likeliest attribute outside the net, which is the one case this check
+    exists for. So a swapped pair costs one, and the cap stays at two.
+    """
+    if abs(len(left) - len(right)) > 2:
+        return 3
+    rows = len(left) + 1
+    cols = len(right) + 1
+    table = [[0] * cols for _ in range(rows)]
+    for i in range(rows):
+        table[i][0] = i
+    for j in range(cols):
+        table[0][j] = j
+    for i in range(1, rows):
+        for j in range(1, cols):
+            cost = 0 if left[i - 1] == right[j - 1] else 1
+            table[i][j] = min(
+                table[i - 1][j] + 1,
+                table[i][j - 1] + 1,
+                table[i - 1][j - 1] + cost,
+            )
+            if i > 1 and j > 1 and left[i - 1] == right[j - 2] and left[i - 2] == right[j - 1]:
+                table[i][j] = min(table[i][j], table[i - 2][j - 2] + 1)
+    return int(table[-1][-1])
 
 
 #: Attribute spellings that name one thing.  Reading them as alternatives is
@@ -490,6 +598,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
         m = _FENCE_OPEN.match(line)
         if m:
             attrs = _attrs(m.group("attrs"))
+            opened_with = _unknown_attr_findings(m.group("attrs"), path, start_line)
             body: list[str] = []
             j = i + 1
             nested_at: int | None = None
@@ -525,6 +634,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             closed = j < len(lines) and nested_at is None
             quote, claim_text, in_body, unknown = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            more.extend(opened_with)
             more.extend(_unknown_field_findings(unknown, path, start_line))
             if nested_at is not None:
                 more.append(
@@ -648,6 +758,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     j += 1
                 closed = True
             else:
+                head = attrs_text
                 attrs = _attrs(attrs_text)
                 body = []
                 j = i + 1
@@ -657,6 +768,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 closed = j < len(lines)
             quote, claim_text, in_body, unknown = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            more.extend(_unknown_attr_findings(head, path, start_line))
             more.extend(_unknown_field_findings(unknown, path, start_line))
             if not closed and claim is not None:
                 more.append(

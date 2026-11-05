@@ -89,7 +89,7 @@ rots:
 | `claim-block-unclosed` | high | a `` ```claim `` block never closes, so every claim after it was read as part of it |
 | `claim-uncheckable` | high | a claim block cannot be looked up at all - no `source=`, no quote, no id, or an id used twice so the second block is dropped |
 | `claim-field-conflict` | medium | the claim writes both `ref=` and `cite=` with different values, so one of the two was dropped |
-| `claim-field-unknown` | medium | a line in a claim body looks like a field (`Page: 1`) but names a key this format does not have, so it was neither applied nor searched as part of the quote |
+| `claim-field-unknown` | medium | a key on the fence line or a line in the body looks like a field (`Page: 1`, `pgae=3`) but is not one this format has, so what it said was never applied |
 | `claim-block-unread` | high | a claim block (a fence, a `<!-- claim` comment or a table row) sits inside a blockquote, a list item or an indent, where Markdown renders it as a code sample - nothing in it was checked |
 | `page-unreadable` | medium | a `page=` hint is not a number, so it is ignored and the quote is located by search |
 | `no-claim-blocks` | high | the manuscript holds no claim blocks at all, so nothing in it was checked |

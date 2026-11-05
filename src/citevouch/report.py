@@ -64,7 +64,8 @@ SARIF_RULES = {
         "A claim block cannot be looked up at all, so its quote was never compared to anything."
     ),
     "claim-field-unknown": (
-        "A claim body names a field this format does not have, so what it said was never applied."
+        "A claim names a field this format does not have, on the fence line or in the body, "
+        "so what it said was never applied."
     ),
     "claim-field-conflict": (
         "A claim names one attribute twice under two spellings, with different values, "

@@ -12,6 +12,24 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+**A misspelt attribute on a claim block's fence line was parsed, stored and never read.**
+
+`_attrs` reads every `key=value` token on the opening line into a dict, and `_claim_from` then looks up six names. A seventh token was kept and never consulted, so the claim it was meant to steer ran without it and every line of output was written as if it had. On a project that prints the same sentence on page 1 and on page 3:
+
+```
+```claim id=c1 source=paper page=3   -> quote-found page 3
+```claim id=c1 source=paper pgae=3   -> quote-found page 1, exit 0, no finding
+```
+
+The author asked for page 3 and was answered from page 1, silently. The body path has refused this since the `Page: 1` fix: a left-margin line that reads like a field but names no known key is reported as `claim-field-unknown`. The fence line - where the format is documented and where most people write their attributes - had no such guard.
+
+The same report now covers both places, under two conditions that both earn their place:
+
+* **a near miss**, one edit away from a key this format has, including a transposition (`pgae` costs one, not two, because swapped letters are the typo the fingers actually make), so some other tool's `data-x=` is left alone;* **the right spelling is absent** - a block writing both `page=3` and an unrelated `pgae=1` has lost nothing, and silence there is correct.
+
+The misspelt key is still dropped rather than applied: guessing which key an author meant is a format decision, not a reader's call. `tests/test_opening_line_fields.py` (35 tests) covers both dialects, both edit shapes, the quiet cases and the severity contract; seven mutations, `survivors: none`.
+
 ## [0.22.24] — 2026-11-05
 ### Fixed
 **A manuscript saved with CRLF and the same manuscript saved with LF drafted differently.**
