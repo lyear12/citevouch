@@ -2485,14 +2485,14 @@ not what changed, but what proves the change works.
   *What was wrong.* `_attrs` reads every `key=value` token on a claim block's opening line into a dict; `_claim_from` consults six names in it. A seventh token was kept and never read, so the claim ran without it and every line of output was written as though it had run with it. Measured on a project that prints the same sentence on page 1 and on page 3:
 
   ```
-  ```claim id=c1 source=paper page=3   -> quote-found page 3
-  ```claim id=c1 source=paper pgae=3   -> quote-found page 1, exit 0, no finding
+  ```claim id=c1 source=paper page=3 -> quote-found page 3
+  ```claim id=c1 source=paper pgae=3 -> quote-found page 1, exit 0, no finding
   ```
 
-  *Who was blocked.* Anyone who typed an attribute on the fence line - the place the  format is documented and the place most people write them - and got a verdict  computed without it. The body of the same block has refused this since the  `Page: 1` fix (`claim-field-unknown`); the fence line had no guard.
-  *Done when.* Both places report the same code, one finding per misspelt key, with  the severity the format already assigns to it.
-  *Done - why it is now true.* `_KNOWN_ATTRIBUTES` is one frozenset that both the  fence-line check and the `_ATTRIBUTE_KEY` grammar derive from, so the two spellings  of an attribute cannot drift apart again. `_unknown_attr_findings` reports a token  only when it is one edit from a known key **and** the right spelling is absent;  `_edit_distance` counts a transposition as one edit because `pgae` for `page` is  the typo the fingers actually make. `tests/test_opening_line_fields.py` (35 tests)  covers both dialects, both edit shapes, the quiet cases (`data-x=`, a near miss  beside the right spelling) and the severity contract; seven mutations, all red,  `survivors: none`. `README.md`, `README.zh-CN.md` and the SARIF rule text all say  the code now covers both places.
-  *Not covered.* A misspelling that lands on another real word of the same length is  invisible to a distance-of-one rule (`pag=` is two edits from `page`); no corpus of  real typos was used to calibrate the threshold. Attribute names are ASCII only, so  a CJK spelling of one is a syntax error rather than a near miss.
+  *Who was blocked.* Anyone who typed an attribute on the fence line - the place the format is documented and the place most people write them - and got a verdict computed without it. The body of the same block has refused this since the `Page: 1` fix (`claim-field-unknown`); the fence line had no guard.
+  *Done when.* Both places report the same code, one finding per misspelt key, with the severity the format already assigns to it.
+  *Done - why it is now true.* `_KNOWN_ATTRIBUTES` is one frozenset that both the fence-line check and the `_ATTRIBUTE_KEY` grammar derive from, so the two spellings of an attribute cannot drift apart again. `_unknown_attr_findings` reports a token only when it is one edit from a known key **and** the right spelling is absent; `_edit_distance` counts a transposition as one edit because `pgae` for `page` is the typo the fingers actually make. `tests/test_opening_line_fields.py` (35 tests) covers both dialects, both edit shapes, the quiet cases (`data-x=`, a near miss beside the right spelling) and the severity contract; seven mutations, all red, `survivors: none`. `README.md`, `README.zh-CN.md` and the SARIF rule text all say the code now covers both places.
+  *Not covered.* A misspelling that lands on another real word of the same length is invisible to a distance-of-one rule (`pag=` is two edits from `page`); no corpus of real typos was used to calibrate the threshold. Attribute names are ASCII only, so a CJK spelling of one is a syntax error rather than a near miss.
 
 ## P1 — nobody can start using it
 
