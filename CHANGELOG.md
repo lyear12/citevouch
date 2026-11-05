@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.23] — 2026-11-05
 ### Fixed
 **A listing that showed \input made `draft` name a file the paper never reads.**
 
@@ -45,7 +47,6 @@ for a `.tex` that shows `\input` in a listing - it stops naming a file that was
 never read. Tests: `tests/test_literal_environment_includes.py` (24 tests, both
 halves: the six literal environments are blanked and the three executed ones are
 not). Six mutations ran red, `survivors: none`.
-
 ## [0.22.22] — 2026-11-05
 ### Fixed
 **Five note commands still put their words inside the sentence that cited them.**
@@ -3001,7 +3002,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.22...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.23...HEAD
+[0.22.23]: https://github.com/lyear12/citevouch/releases/tag/v0.22.23
 [0.22.22]: https://github.com/lyear12/citevouch/releases/tag/v0.22.22
 [0.22.21]: https://github.com/lyear12/citevouch/releases/tag/v0.22.21
 [0.22.20]: https://github.com/lyear12/citevouch/releases/tag/v0.22.20
