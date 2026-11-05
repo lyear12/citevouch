@@ -683,8 +683,33 @@ def read_text(path: Path | str) -> str:
     "this file is UTF-8" - so removing it at the boundary is lossless.  It is
     removed here rather than at each call site because the call sites are the
     four ways this bug came back.
+
+    Line endings are flattened here for the same reason, and the bug was the
+    same shape.  Windows editors save ``\\r\\n``; every grammar this tool reads
+    - claim fences, attribute lines, BibTeX fields, paragraph breaks - uses the
+    newline and nothing else, so the carriage return carries no information.
+    But a reader that splits on ``"\\n\\n"`` sees no paragraph break in a CRLF
+    file, and one did not: `draft` looked for the paragraph around a citation,
+    found none, and treated the whole manuscript as one paragraph.  The heading
+    above the sentence, the list above that, and the sentence itself came back
+    as one "sentence", so the proposed claim text was
+
+        ## Methods We collected 154,391 examples from the corpus ...
+
+    - a sentence the author never wrote, offered for pasting into the
+    manuscript, and its confidence fell from ``high`` to ``medium`` because the
+    heading's words diluted the terms it shared with the page.  Only the paths
+    that read through here were affected; a ``.tex`` file was fine, because the
+    LaTeX converter rebuilds the text itself.  That asymmetry is why this is
+    fixed at the reader and not in `draft`.
+
+    A lone ``\\r`` is also a line break - it is what classic Mac editors wrote -
+    and leaving it in place would let one dead convention keep the same bug
+    alive.  Nothing is written back: this changes what the tool reads, not the
+    author's file.
     """
-    return _decode_text(Path(path).read_bytes())
+    text = _decode_text(Path(path).read_bytes())
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def count_of(count: int, noun: str, plural: str = "") -> str:

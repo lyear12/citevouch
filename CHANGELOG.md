@@ -12,6 +12,39 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+**A manuscript saved with CRLF and the same manuscript saved with LF drafted differently.**
+
+Windows editors write `\r\n`, and this tool's `read_text` kept the carriage
+returns. `draft` finds the paragraph around a citation by searching for
+`\n\n`; a CRLF file contains `\r\n\r\n`, so the search found nothing and the
+whole manuscript became one paragraph. Two files differing only in how the
+editor saved them produced different drafts:
+
+```
+-  We collected 154,391 examples from the corpus, and we evaluated them on 9,800 rolesets.
++  ## Methods We collected 154,391 examples from the corpus, and we evaluated them on 9,800 rolesets.
+```
+
+The heading (or, lower down, a list) was glued onto the sentence, so `draft`
+offered the author a sentence nobody wrote, for pasting into the manuscript,
+and its confidence fell from `high` to `medium` because the heading's words
+diluted the terms it shared with the page. A `.tex` file was unaffected -
+`latex.to_text` rebuilds the text itself - which is why the fix belongs in
+the reader and not in `draft`.
+
+* `read_text` now flattens `\r\n` and lone `\r` to `\n` after decoding, so
+  every path that reads through it - manuscripts, bibliographies, text
+  sources, JSON - sees one text. Nothing is written back; the author's file
+  keeps its line endings.
+* `tests/test_line_endings.py` (14 tests) pins the reader, the draft text,
+  the verdicts, a CRLF page and a CRLF bibliography, and the LaTeX path.
+* `tests/test_one_reader.py` (3 tests) walks the package with `ast` and
+  fails if any module outside `textnorm` starts decoding bytes into text.
+  Five mutants: keep the `\r`s, drop lone-`\r` handling, replace `\r`
+  before the pair, delete the break instead of flattening, write the
+  normalised text back - all red, no survivors.
+
 ## [0.22.23] — 2026-11-05
 ### Fixed
 **A listing that showed \input made `draft` name a file the paper never reads.**

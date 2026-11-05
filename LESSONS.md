@@ -5693,3 +5693,38 @@ very next line must still be. A set that is only tested from the inside can be
 "fixed" by making it swallow the whole document.
 
 Seen 1.
+
+## A reader that preserves what its grammar cannot see has decided that the difference matters
+
+Windows editors write `\r\n`; this tool reads five grammars - claim fences,
+attribute lines, paragraph breaks, BibTeX fields, Markdown - and not one of them
+gives the carriage return a meaning. `read_text` kept it anyway, because
+keeping bytes is what a reader is supposed to do.
+
+The cost was not symmetric. A reader that strips a character its grammar cannot
+see loses nothing it can use; a reader that keeps one hands every downstream
+splitter a separator it does not recognise. `draft` splits paragraphs on `\n\n`,
+found none in `\r\n\r\n`, and treated the whole manuscript as one paragraph. Two
+files that differ only in how an editor saved them produced different claim
+text:
+
+    -  We collected 154,391 examples from the corpus, and we evaluated them on 9,800 rolesets.
+    +  ## Methods We collected 154,391 examples from the corpus, and we evaluated them on 9,800 rolesets.
+
+The author was handed a sentence nobody wrote, offered for pasting into the
+manuscript, and the confidence dropped from `high` to `medium` because the
+heading's words diluted the terms it shared with the page. The `.tex` path was
+fine, because the LaTeX converter rebuilds the text instead of passing it
+through - which is the tell: a bug on one input path and not another is a bug in
+the shared reader, not in the consumer that noticed.
+
+**How to apply.** For every file format you read, ask which characters the
+grammar gives meaning to. A character outside that set is not data you are
+preserving faithfully by keeping it - it is an unrecognised separator that will
+silently divide nothing. Flatten it at the one place that turns bytes into text,
+so a second reader cannot be added without meeting the same rule. And when a
+difference between two inputs must not matter, assert that the *outputs* are
+equal, not that each one is individually plausible: both drafts looked fine on
+their own.
+
+Seen 1.
