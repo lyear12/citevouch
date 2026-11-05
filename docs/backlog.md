@@ -2371,6 +2371,19 @@ not what changed, but what proves the change works.
   a project that writes `ref=` on the fence and a *different* `cite=` in the
   body still gets the fence value with no note about where the other came from.
 
+- [x] **`doctor` reads a source now; a source it still cannot read says so.** *Done 2026-11-04.*
+
+  What was wrong: a source saved in a desktop encoding was decoded with `errors="replace"`, and the replacement characters were far too few for the noise score to notice - GBK gave one, Big5 two, Shift-JIS three, against a threshold of four.  The mojibake was then searched and the author was told `[high] quote-missing ... quote not found in page.txt` about a sentence printed on that page.
+
+  Who was blocked: anyone whose PDF-to-text step or editor wrote GBK, Big5, Shift-JIS or latin-1.  That is most of a Chinese or Japanese corpus, and the verdict blamed their manuscript.
+
+  Done when: a file whose bytes are not decodable text is named as such, once, at high severity, and its quote is never judged.
+
+  Done - why it is now true: `textnorm.invalid_utf8_share` measures the fraction of bytes that fit no UTF-8 sequence (GBK page 0.62, Big5 0.58, Shift-JIS 0.57 against cp1252 French 0.085 and one stray byte 0.024), and `sources.encoding_problem` refuses a text-suffixed source above 0.25, above the cache, before any page is built.  `tests/test_source_encoding.py` (16 tests); six mutants, `survivors: []` after two had to be earned - the first round survived "a file that names its own encoding is refused anyway" and "every suffix is judged" because nothing in the suite fed a file that is readable *and* past the line.  The demo PDF scores 0.33 on that scale.
+
+  *Not covered*: a bibliography is deliberately not judged - a GBK `.bib` scores 0.11-0.24, which overlaps the range a cp1252 French page occupies, so no line separates them and the guard would refuse files the author can read.  Also not covered: a mostly-ASCII GBK file stays under the line and keeps the old `quote-missing` verdict; auto-detecting the encoding is out of scope, so the message names `iconv` and the author supplies the encoding.
+  *A number that was written from the plan instead of from a run*: the 0.22.20 CHANGELOG entry says `(20 tests)`; `pytest --collect-only -q` reports 16 for that file.  The released section is not edited - the tag is spent and rewriting its notes afterwards would make the notes a claim about today rather than about the release.  Recorded here so the next reader trusts the file over the paragraph.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
