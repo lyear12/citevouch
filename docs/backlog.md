@@ -2384,6 +2384,19 @@ not what changed, but what proves the change works.
   *Not covered*: a bibliography is deliberately not judged - a GBK `.bib` scores 0.11-0.24, which overlaps the range a cp1252 French page occupies, so no line separates them and the guard would refuse files the author can read.  Also not covered: a mostly-ASCII GBK file stays under the line and keeps the old `quote-missing` verdict; auto-detecting the encoding is out of scope, so the message names `iconv` and the author supplies the encoding.
   *A number that was written from the plan instead of from a run*: the 0.22.20 CHANGELOG entry says `(20 tests)`; `pytest --collect-only -q` reports 16 for that file.  The released section is not edited - the tag is spent and rewriting its notes afterwards would make the notes a claim about today rather than about the release.  Recorded here so the next reader trusts the file over the paragraph.
 
+- [x] **A GBK manuscript lost its claim fences, and the tool said the manuscript was empty.** *Done 2026-11-05.*
+  *What was wrong*: `textnorm._decode_text` falls back to UTF-16-LE when the UTF-8 reading looks noisy, and kept whichever reading scored less noise.  A manuscript is mostly ASCII - its fences, its `quote:` keys, its attribute syntax - so a GBK manuscript is noisy as UTF-8 only in proportion to its prose, and the UTF-16 reading scored lower.  The whole file became `'탑뾾쫎...'` and the search found no claim blocks in a manuscript that had them:
+  ```
+  [high] no-claim-blocks at manuscript.md:2: manuscript.md contains no claim blocks,
+  so nothing was checked: a claim block opens with three backticks, the word `claim`,
+  then `id=` and `source=`. This file has none.
+  ```
+  Worse than the behaviour it replaced: plain `raw.decode("utf-8", errors="replace")` kept every fence and turned only the Chinese lines into replacement characters, so the block was there to be found.  A fix written to stop one false accusation introduced a larger one.
+  *Who was blocked*: anyone whose editor or export wrote the manuscript in GBK, Big5, Shift-JIS or another 8-bit encoding - the largest desktop encoding family, and the one the tool had no way to name.
+  *Done when*: an 8-bit manuscript keeps its fences, a genuine UTF-16 document is still decoded, and neither reading is chosen without evidence about that file.
+  *Done - why it is now true*: two conditions now have to hold, and each is a fact about one file family.  The UTF-16 reading must score **zero** noise (byte pairs from a real character cannot decode to a control or replacement character, so all twelve genuine UTF-16-LE shapes measured zero, while 8-bit files read that way scored something in 558 of 600 random samples and in every single one that also held ASCII).  And the noise must be at least **a tenth** of the file (a stray byte in a long UTF-8 paper scores one or two characters; every genuine UTF-16-LE CJK document measured 0.17-0.41).  Neither alone suffices: cp1251 Russian reads cleanly as UTF-16 and is stopped only by the share test, and a short genuine UTF-16 document beats the share test and is stopped only by the zero test.  `tests/test_mojibake_fallback.py` (15 tests) pins both halves from both sides; six mutations ran red - the share test dropped, loosened to a fiftieth, the clean test dropped, loosened to "any improvement", the fallback disabled, forced.
+  *Not covered*: a real GBK manuscript from an author's disk (the fixtures are written by the test); an 8-bit manuscript with no ASCII at all remains ambiguous and is reported through `source-encoding` rather than decoded; Windows editors beyond GBK, Big5, Shift-JIS, cp1251 and cp1252 were not measured.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
