@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.27] — 2026-11-06
 ### Fixed
 
 * **A claim block's `marker=` said which mark vouches for it, and the scan never read it.**
@@ -46,7 +47,6 @@ tag and that file disagree.
   both want, letting the paragraph search cross a block, dropping the `bound`
   check in the scan, and matching without setting aside the Markdown that may
   precede a sentence.
-
 ## [0.22.26] — 2026-11-06
 ### Fixed
 **A sentence that only *described* the credibility notation was reported as an unbound claim.**
@@ -3113,7 +3113,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.26...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.27...HEAD
+[0.22.27]: https://github.com/lyear12/citevouch/releases/tag/v0.22.27
 [0.22.26]: https://github.com/lyear12/citevouch/releases/tag/v0.22.26
 [0.22.25]: https://github.com/lyear12/citevouch/releases/tag/v0.22.25
 [0.22.24]: https://github.com/lyear12/citevouch/releases/tag/v0.22.24
