@@ -5764,3 +5764,37 @@ outside a distance-of-one net. The metric has to match the mistake, not the
 textbook.
 
 Seen 1.
+
+## A mark that names a notation is not a mark that uses it
+
+`scan_unbound_markers` asked whether a marker's characters appeared anywhere in
+a line and reported the line if they did. That question cannot tell an
+assertion from a discussion of the notation:
+
+    > 这份节选保留了原档的【原文】/【实测】/【推测】三级标记约定，只是把
+
+That is the demo's own manuscript, line 3. `citevouch scan demo/manuscript.md`
+accused it of making a claim with no evidence on the page, three lines above
+the first claim block, and the advice the finding earns — bind a claim block to
+it — is advice to annotate a glossary. The two lines that really carry a bare
+mark (52 and 54) were reported too, so the list looked right and was one third
+wrong.
+
+**The rule**: a convention that marks provenance marks it at the *head* of what
+it vouches for. Once the Markdown that may stand in front of a sentence is set
+aside — indentation including the ideographic space, `>`, bullets, ordered-list
+numbers, emphasis — the mark either opens the line or it is a word in a
+sentence. The scan now asks that instead.
+
+**Why the miss is acceptable and the false positive is not**: a mark that
+trails its sentence is no longer reported. That is a deliberate cost. A missed
+nudge leaves the author where they were; a false accusation sends them to line
+3 to annotate a glossary, and a tool that does that twice is a tool whose
+output gets skimmed.
+
+**How to apply**: when a check is `needle in line`, ask what else that line
+could be. Here the answer was "a sentence about the needle". Adding a position
+test costs one regex; not adding it costs every reader's attention on the first
+false line.
+
+Seen 1.

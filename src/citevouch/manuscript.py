@@ -196,6 +196,25 @@ _KEYISH = re.compile(r"^\s*(?P<key>[A-Za-z][A-Za-z0-9_-]*)\s*:")
 
 DEFAULT_MARKERS = ("【原文】", "【实测】", "【推测】", "[原文]", "[实测]", "[推测]")
 
+# What may stand in front of a credibility mark.  The convention is a *prefix*:
+# a line that opens with 【原文】 is an assertion carrying its provenance, and a
+# line that merely names the notation is prose about the notation.
+#
+# The scan used to ask `marker in line`, so it reported both.  Measured on the
+# demo's own manuscript, line 3, which only explains the convention:
+#
+#     > 这份节选保留了原档的【原文】/【实测】/【推测】三级标记约定，只是把
+#
+# `citevouch scan demo/manuscript.md` accused that sentence of claiming
+# something without evidence, next to the two lines (52 and 54) that really do
+# carry a bare mark.  A false accusation costs more than a missed one here: the
+# reader who opens line 3 to fix it finds a remark about typography.
+#
+# The alternatives are what Markdown puts in front of a sentence: indentation
+# (including the ideographic space), block quotes, bullets, ordered-list
+# numbers and emphasis.
+_MARKER_DECORATION = re.compile(r"^(?:[ \t\u3000]+|>|[-*+](?=\s)|\d+[.)](?=\s)|\*\*|__|\*|_)+")
+
 
 @dataclass
 class ParseResult:
@@ -1073,14 +1092,27 @@ def scan_unbound_markers(
 
     ``spans`` comes from :class:`ParseResult`; passing it keeps documented
     claims from being reported as unbound.
+
+    For a mark to count it has to *open* the line, once the Markdown that may
+    stand in front of a sentence is set aside — see ``_MARKER_DECORATION``.
+    Asking whether the characters appear anywhere in the line reported a
+    sentence that only described the convention::
+
+        > 这份节选保留了原档的【原文】/【实测】/【推测】三级标记约定，只是把
+
+    That is a remark about the notation, and the advice the finding would earn
+    (bind a claim block to it) is advice to annotate a glossary.  A mark that
+    trails a sentence is described here as a miss, deliberately: the convention
+    heads the assertion it vouches for.
     """
     covered = _cover(spans or [])
     findings: list[Finding] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         if lineno in covered:
             continue
+        opening = _MARKER_DECORATION.sub("", line, count=1)
         for marker in markers:
-            if marker in line:
+            if opening.startswith(marker):
                 findings.append(
                     Finding(
                         code="claim-without-evidence",

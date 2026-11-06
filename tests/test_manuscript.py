@@ -187,7 +187,7 @@ quote: |
 
 
 def test_unbound_marker_is_reported():
-    text = "This sentence is marked 【原文】 but carries no claim block.\n"
+    text = "【原文】This sentence carries no claim block.\n"
     findings = scan_unbound_markers(text)
     assert len(findings) == 1
     assert findings[0].code == "claim-without-evidence"
@@ -195,7 +195,7 @@ def test_unbound_marker_is_reported():
 
 
 def test_bound_text_inside_a_claim_block_is_not_reported_as_unbound():
-    text = "```claim id=c1 source=a\nquote: |\n  quoted 【原文】 here\n```\n"
+    text = "```claim id=c1 source=a\nquote: |\n  【原文】 quoted here\n```\n"
     # Without spans the scan is line-based and cannot know better; with the
     # spans the parser produced, the documented claim is correctly exempt.
     assert len(scan_unbound_markers(text)) == 1
@@ -204,7 +204,7 @@ def test_bound_text_inside_a_claim_block_is_not_reported_as_unbound():
 
 
 def test_custom_markers_are_respected():
-    text = "A sentence marked [verified] here.\n"
+    text = "[verified] A sentence marked with a name this project chose.\n"
     findings = scan_unbound_markers(text, markers=("[verified]",))
     assert len(findings) == 1
 

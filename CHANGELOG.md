@@ -12,6 +12,31 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+**A sentence that only *described* the credibility notation was reported as an unbound claim.**
+
+`scan_unbound_markers` asked whether a marker's characters appeared anywhere in a line, and reported the line if they did. The demo's own manuscript carries the convention's introduction at line 3:
+
+```
+> 这份节选保留了原档的【原文】/【实测】/【推测】三级标记约定，只是把
+```
+
+`citevouch scan demo/manuscript.md` accused that sentence of making a claim with no evidence on the page. The advice the finding earns — bind a claim block to it — is advice to annotate a glossary.
+
+* The convention is a *prefix*: a line that opens with a mark vouches for what follows.
+* The scan now sets aside the Markdown that may stand in front of a sentence — indentation (including the ideographic space), `>`, bullets, ordered-list numbers, emphasis — and then asks whether the mark opens the line.
+* On the demo, the two real marks stay reported and the remark does not:
+
+```
+[low] claim-without-evidence at manuscript.md:52: the 【原文】 mark on this line has no claim block, ...
+[low] claim-without-evidence at manuscript.md:54: the 【推测】 mark on this line has no claim block, ...
+```
+
+* `tests/test_marker_position.py` (31 tests) covers thirteen kinds of prefix, the six documented marks, five ways a line merely *mentions* the notation (mid-sentence, inline code, HTML comment, table cell, after a name), and the demo itself.
+* Six mutants, all red: the containment test restored, no decoration set aside, whitespace only, nothing set aside, containment after the decoration, and the spans exemption removed.
+
+A mark that trails its sentence is now a miss rather than a finding. That is the same direction the rest of this file has taken when a guess would accuse a reader: silence costs a nudge, a false accusation costs the reader's trust in line 3.
+
 ## [0.22.25] — 2026-11-06
 ### Fixed
 **A misspelt attribute on a claim block's fence line was parsed, stored and never read.**

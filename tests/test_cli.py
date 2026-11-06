@@ -608,7 +608,7 @@ class TestQuietNeverHidesTheReasonForFailing:
         )
         # A stray marker outside any claim block is a `low` finding.
         (root / "m.md").write_text(
-            "Prose with an unbound marker 【原文】 in it."
+            "【原文】Prose that carries a marker but no claim block."
             + chr(10)
             + chr(10)
             + "```claim id=c1 source=p"
