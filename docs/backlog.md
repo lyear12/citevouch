@@ -2494,6 +2494,41 @@ not what changed, but what proves the change works.
   *Done - why it is now true.* `_KNOWN_ATTRIBUTES` is one frozenset that both the fence-line check and the `_ATTRIBUTE_KEY` grammar derive from, so the two spellings of an attribute cannot drift apart again. `_unknown_attr_findings` reports a token only when it is one edit from a known key **and** the right spelling is absent; `_edit_distance` counts a transposition as one edit because `pgae` for `page` is the typo the fingers actually make. `tests/test_opening_line_fields.py` (35 tests) covers both dialects, both edit shapes, the quiet cases (`data-x=`, a near miss beside the right spelling) and the severity contract; seven mutations, all red, `survivors: none`. `README.md`, `README.zh-CN.md` and the SARIF rule text all say the code now covers both places.
   *Not covered.* A misspelling that lands on another real word of the same length is invisible to a distance-of-one rule (`pag=` is two edits from `page`); no corpus of real typos was used to calibrate the threshold. Attribute names are ASCII only, so a CJK spelling of one is a syntax error rather than a near miss.
 
+- [x] **A sentence that only described the credibility notation was reported as an unbound claim.** *Done 2026-11-06.*
+  **What was wrong.** `scan_unbound_markers` asked whether a marker's characters
+  appeared anywhere in a line and reported the line if they did. The demo's own
+  manuscript explains the convention at line 3, and `citevouch scan
+  demo/manuscript.md` accused that explanation:
+
+  ```
+  [low] claim-without-evidence at manuscript.md:3: the 【原文】 mark on this line has no claim block, so nothing ties it to a page in a local source
+  ```
+
+  Line 3 is `> 这份节选保留了原档的【原文】/【实测】/【推测】三级标记约定，只是把` — a
+  remark about the notation. The advice the finding earns is "bind a claim block
+  to it", which here means annotating a glossary. The two lines that really do
+  carry a bare mark (52 and 54) were in the same list, so the output looked right
+  and was one third wrong.
+  *Who was blocked*: nobody was stopped, which is why this sat for so long. It
+  costs trust instead: the first finding a new user meets on their own manuscript
+  can be one about their typography.
+  *Done when*: a mark that opens its line is reported, a mark mentioned inside
+  prose is not, and the demo reports exactly its two real ones.
+  *Done - why it is now true*: `scan_unbound_markers` sets aside the Markdown that
+  may stand in front of a sentence (`_MARKER_DECORATION`: indentation including
+  `\u3000`, `>`, bullets, ordered-list numbers, emphasis) and then asks
+  `opening.startswith(marker)`. Measured: `scan demo/manuscript.md` now reports
+  lines 52 and 54 only. `tests/test_marker_position.py` (31 tests) covers thirteen
+  prefixes, the six documented marks, five ways a line merely mentions the
+  notation, and the demo file itself. Six mutants ran red, `survivors: none`.
+  Five older fixtures wrote the mark mid-sentence and were moved to the prefix
+  form - they test dedup, span coverage and custom names, not position.
+  *Not covered*: a mark that trails its sentence is now a **miss**, deliberately
+  (silence costs a nudge, a false accusation costs the output). No real
+  manuscript that mixes both spellings was measured, and the `marker=` claim
+  attribute is still parsed, stored and never read - that is a separate defect,
+  not yet written up here.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
