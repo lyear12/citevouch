@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.25] — 2026-11-06
 ### Fixed
 **A misspelt attribute on a claim block's fence line was parsed, stored and never read.**
 
@@ -29,7 +30,6 @@ The same report now covers both places, under two conditions that both earn thei
 * **a near miss**, one edit away from a key this format has, including a transposition (`pgae` costs one, not two, because swapped letters are the typo the fingers actually make), so some other tool's `data-x=` is left alone;* **the right spelling is absent** - a block writing both `page=3` and an unrelated `pgae=1` has lost nothing, and silence there is correct.
 
 The misspelt key is still dropped rather than applied: guessing which key an author meant is a format decision, not a reader's call. `tests/test_opening_line_fields.py` (35 tests) covers both dialects, both edit shapes, the quiet cases and the severity contract; seven mutations, `survivors: none`.
-
 ## [0.22.24] — 2026-11-05
 ### Fixed
 **A manuscript saved with CRLF and the same manuscript saved with LF drafted differently.**
@@ -3053,7 +3053,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.24...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.25...HEAD
+[0.22.25]: https://github.com/lyear12/citevouch/releases/tag/v0.22.25
 [0.22.24]: https://github.com/lyear12/citevouch/releases/tag/v0.22.24
 [0.22.23]: https://github.com/lyear12/citevouch/releases/tag/v0.22.23
 [0.22.22]: https://github.com/lyear12/citevouch/releases/tag/v0.22.22
