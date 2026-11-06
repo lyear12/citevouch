@@ -1078,11 +1078,95 @@ def _duplicate_finding(claim: Claim, seen: dict[str, int], path: str) -> Finding
     )
 
 
+def _paragraph_above(lines: list[str], first: int, covered: set[int]) -> int | None:
+    """Line number of the first line of the paragraph that ends above *first*.
+
+    ``None`` when there is no prose there, or when the paragraph runs into
+    another claim block - a mark may head the paragraph beside a block, not
+    reach through one.
+    """
+    index = first - 1
+    while index >= 1 and not lines[index - 1].strip():
+        index -= 1
+    top: int | None = None
+    while index >= 1 and lines[index - 1].strip() and index not in covered:
+        top = index
+        index -= 1
+    return top
+
+
+def _paragraph_below(lines: list[str], last: int, covered: set[int]) -> int | None:
+    """Line number of the first line of the paragraph that starts below *last*."""
+    index = last + 1
+    while index <= len(lines) and not lines[index - 1].strip():
+        index += 1
+    if index > len(lines) or index in covered:
+        return None
+    return index
+
+
+def _bound_mark_lines(
+    lines: list[str],
+    claims: list[Claim],
+    spans: list[tuple[int, int]],
+    markers: tuple[str, ...],
+) -> set[int]:
+    """Lines holding a credibility mark that a neighbouring claim block names.
+
+    A block writes ``marker=【原文】`` to say which mark vouches for the
+    assertion it documents, and the mark heads the paragraph next to the block.
+    That statement went unread for the whole life of the attribute: measured on
+
+        【原文】PyFCG 3.3 installs cleanly.
+
+        ```claim id=c1 source=a marker=【原文】
+        quote: |
+          PyFCG 3.3 installs cleanly.
+        ```
+
+    the ledger recorded ``marker='【原文】'`` for ``c1`` and ``scan`` printed
+    ``[low] claim-without-evidence … the 【原文】 mark on this line has no claim
+    block`` about line 1 in the same run.
+
+    Two guards keep this from becoming a way to silence a real finding.  The
+    mark has to be the *neighbouring* paragraph's first line, not somewhere
+    further up the page, and it has to be wanted by exactly one block: two
+    marks either side of one block are two readings of the same sentence, and
+    guessing which one it vouches for would hide the other.
+    """
+    wanted: dict[int, list[str]] = {}
+    for claim in claims:
+        if not claim.marker or claim.marker not in markers:
+            continue
+        span = next(
+            (s for s in spans if s[0] <= claim.line <= s[1]),
+            (claim.line, claim.line),
+        )
+        covered = _cover(spans)
+        candidates = [
+            line
+            for line in (
+                _paragraph_above(lines, span[0], covered),
+                _paragraph_below(lines, span[1], covered),
+            )
+            if line is not None and line not in covered
+        ]
+        matching = [
+            line
+            for line in candidates
+            if _MARKER_DECORATION.sub("", lines[line - 1], count=1).startswith(claim.marker)
+        ]
+        if len(matching) == 1:
+            wanted.setdefault(matching[0], []).append(claim.id)
+    return {line for line, ids in wanted.items() if len(ids) == 1}
+
+
 def scan_unbound_markers(
     text: str,
     path: str = "manuscript.md",
     markers: tuple[str, ...] = DEFAULT_MARKERS,
     spans: list[tuple[int, int]] | None = None,
+    claims: list[Claim] | None = None,
 ) -> list[Finding]:
     """Find credibility markers that are *not* inside a claim block.
 
@@ -1091,7 +1175,8 @@ def scan_unbound_markers(
     verified.  Reporting it is the point of this function.
 
     ``spans`` comes from :class:`ParseResult`; passing it keeps documented
-    claims from being reported as unbound.
+    claims from being reported as unbound.  ``claims`` does the same for a mark
+    a block explicitly names with ``marker=`` — see :func:`_bound_mark_lines`.
 
     For a mark to count it has to *open* the line, once the Markdown that may
     stand in front of a sentence is set aside — see ``_MARKER_DECORATION``.
@@ -1106,9 +1191,10 @@ def scan_unbound_markers(
     heads the assertion it vouches for.
     """
     covered = _cover(spans or [])
+    bound = _bound_mark_lines(text.splitlines(), claims or [], spans or [], markers)
     findings: list[Finding] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
-        if lineno in covered:
+        if lineno in covered or lineno in bound:
             continue
         opening = _MARKER_DECORATION.sub("", line, count=1)
         for marker in markers:

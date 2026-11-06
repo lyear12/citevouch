@@ -5798,3 +5798,30 @@ test costs one regex; not adding it costs every reader's attention on the first
 false line.
 
 Seen 1.
+
+## An attribute the parser stores is a promise some reader will use it
+
+`marker=` appeared on the opening line of a claim block in the first commit. It was
+parsed, kept on `Claim.marker`, written into `citevouch.lock.json`, read back out of
+it - and no code ever asked it a question.  The ledger therefore knew which mark
+vouched for which block while `scan` printed, about the same line, that no block
+tied the mark to anything:
+
+    [low] claim-without-evidence at m.md:1: the 【原文】 mark on this line has no
+    claim block, so nothing ties it to a page in a local source
+
+Both statements were true of the implementation and only one of them was true of
+the document.  A stored field is not a decision: it is an IOU that some reader
+will settle.  When you add one, add the reader in the same commit, or list the
+field among the ones deliberately kept for the writer's benefit and say why.
+
+**How to apply.** For each field the parser keeps, ask what would print
+differently if it were empty - and, if nothing would, ask whether it belongs in
+the format at all.  `grep -c` the field name across `src/` before believing it is
+read: four hits (the set of known keys, the writer, the JSON writer, the JSON
+reader) is a field that goes round in a circle.  The reader here also had to be
+narrow: the binding silences a finding, so it may only fire for the paragraph
+beside the block, and only when exactly one block wants that mark - a fix that
+silences too much is the same defect wearing the opposite coat.
+
+Seen 1.

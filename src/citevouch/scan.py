@@ -336,8 +336,16 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
         )
     # A credibility marker outside a claim block is the most common way a
     # manuscript looks verified while nothing can be checked.  Passing the
-    # claim spans keeps documented claims from being reported as unbound.
-    findings.extend(scan_unbound_markers(text, path=manuscript_path.name, spans=parsed.spans))
+    # claim spans keeps documented claims from being reported as unbound, and
+    # passing the claims lets a block's own `marker=` bind the mark beside it.
+    findings.extend(
+        scan_unbound_markers(
+            text,
+            path=manuscript_path.name,
+            spans=parsed.spans,
+            claims=parsed.claims,
+        )
+    )
 
     table = read_source_table(root, options.sources)
     known = table.found

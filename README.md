@@ -85,7 +85,7 @@ rots:
 | `bib-field-duplicate` | medium | one or more fields given twice in an entry (names are case-insensitive); first value of each kept, all names reported together |
 | `bib-macro-unknown` | medium | a field uses a `@string` macro that is not defined yet |
 | `bib-field-empty` | medium | a required field is empty or missing |
-| `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block |
+| `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block (a block's `marker=` binds the mark beside it) |
 | `claim-block-unclosed` | high | a `` ```claim `` block never closes, so every claim after it was read as part of it |
 | `claim-uncheckable` | high | a claim block cannot be looked up at all - no `source=`, no quote, no id, or an id used twice so the second block is dropped |
 | `claim-field-conflict` | medium | the claim writes both `ref=` and `cite=` with different values, so one of the two was dropped |

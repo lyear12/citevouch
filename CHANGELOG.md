@@ -12,6 +12,41 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A claim block's `marker=` said which mark vouches for it, and the scan never read it.**
+
+  `marker=` has been parsed from the opening line since the first commit, stored on
+  `Claim.marker`, written to the ledger and read back from it - and used by nothing.  A
+  manuscript that wrote the binding got both halves of the contradiction in one run:
+
+      【原文】PyFCG 3.3 installs cleanly.
+
+      ```claim id=c1 source=a marker=【原文】
+      quote: |
+        PyFCG 3.3 installs cleanly.
+      ```
+
+  The ledger recorded `marker='【原文】'` for `c1`, and `scan` printed
+  `[low] claim-without-evidence at m.md:1: the 【原文】 mark on this line has no claim
+  block, so nothing ties it to a page in a local source` in the same run.  Two
+  guards keep the binding from silencing a real finding: the mark has to head the
+  *neighbouring* paragraph (not somewhere further up the page, and not across
+  another block), and it has to be wanted by exactly one block - two marks either
+  side of one block are two readings of the same sentence, and guessing would hide
+  which one the author meant.
+
+  The table dialect has five fixed columns and no attribute grammar, so a table
+  row cannot write `marker=`; a mark beside a table row stays unbound, which is
+  the honest answer.
+
+  `tests/test_marker_attribute.py` (21 tests).  Nine mutations, all red: binding
+  nothing, ignoring the caller's marker list, accepting any nearby mark, keeping
+  only the paragraph above, only the paragraph below, binding a mark two blocks
+  both want, letting the paragraph search cross a block, dropping the `bound`
+  check in the scan, and matching without setting aside the Markdown that may
+  precede a sentence.
+
 ## [0.22.26] — 2026-11-06
 ### Fixed
 **A sentence that only *described* the credibility notation was reported as an unbound claim.**

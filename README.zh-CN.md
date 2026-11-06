@@ -82,7 +82,7 @@ worst severity: high
 | `bib-field-duplicate` | medium | 同一条目里有一个或多个字段出现两次（字段名不分大小写）；保留各字段的首个值，所有字段名一并报告 |
 | `bib-macro-unknown` | medium | 字段引用了尚未定义的 `@string` 宏；宏名按字面保留 |
 | `bib-field-empty` | medium | 必填字段为空或缺失 |
-| `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块 |
+| `claim-without-evidence` | low | 【原文】/【推测】式标记没有配 claim 块（claim 块写 `marker=` 就绑定了旁边那行标记） |
 | `claim-block-unclosed` | high | 某个 `` ```claim `` 块始终没有闭合，它之后的每条 claim 都被读成了它的一部分 |
 | `claim-uncheckable` | high | 某条 claim 块根本无法核对——缺 `source=`、缺引文、缺 id，或 id 重复导致第二块被丢弃 |
 | `claim-field-conflict` | medium | claim 同时写了 `ref=` 和 `cite=` 且值不同，其中一个被丢弃 |
