@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.26] — 2026-11-06
 ### Fixed
 **A sentence that only *described* the credibility notation was reported as an unbound claim.**
 
@@ -36,7 +37,6 @@ tag and that file disagree.
 * Six mutants, all red: the containment test restored, no decoration set aside, whitespace only, nothing set aside, containment after the decoration, and the spans exemption removed.
 
 A mark that trails its sentence is now a miss rather than a finding. That is the same direction the rest of this file has taken when a guess would accuse a reader: silence costs a nudge, a false accusation costs the reader's trust in line 3.
-
 ## [0.22.25] — 2026-11-06
 ### Fixed
 **A misspelt attribute on a claim block's fence line was parsed, stored and never read.**
@@ -3078,7 +3078,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.25...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.26...HEAD
+[0.22.26]: https://github.com/lyear12/citevouch/releases/tag/v0.22.26
 [0.22.25]: https://github.com/lyear12/citevouch/releases/tag/v0.22.25
 [0.22.24]: https://github.com/lyear12/citevouch/releases/tag/v0.22.24
 [0.22.23]: https://github.com/lyear12/citevouch/releases/tag/v0.22.23
