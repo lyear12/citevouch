@@ -5825,3 +5825,48 @@ beside the block, and only when exactly one block wants that mark - a fix that
 silences too much is the same defect wearing the opposite coat.
 
 Seen 1.
+
+## A number that counts what you recorded is not a number that counts what you read
+
+`citevouch: 1 claim — 1 verified, 0 moved, 0 missing` is the last line of every run, and it
+was built from `ledger.claims`. The ledger holds the blocks the parser *accepted*. A block
+with no `source=` is refused: it produces a `[high] claim-uncheckable` finding and no claim,
+so it is invisible to a sentence that counts claims, and the sentence describes a smaller
+document than the one just read.
+
+Measured, on a manuscript holding one accepted claim and one block with no `source=`:
+
+```
+[high] claim-uncheckable at manuscript.md:6 (c2): claim c2 names no source=; the quote cannot be looked up
+[info] quote-found at manuscript.md:1 (c1): quote found on page 1
+citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+```
+
+Two blocks were in the file. The run was red, so no failure was hidden from the exit code —
+the lie is in what the reader learns about their own document.
+
+**The tell** is the noun. The sentence said "claims" and the file holds "blocks". Those are
+two different populations whenever some input is rejected, and the writer, which only ever
+sees the surviving population, cannot tell that they differ. Ask the reader that saw the
+rejections — here, the parser's span list, one subtraction, `len(spans) - len(claims)`.
+
+**Do not special-case one refusal.** A counter bumped at each refusal site is three chances
+to forget and three places to keep in step. The difference between "found" and "recorded" is
+one number for one question, and it happens to be exactly the blocks nobody could check.
+
+**Getting the other formats right is not a copy of the first.** The CLI has three writers
+(text, JSON, Markdown) and two of them went red only after tests were written for them: the
+mutation run found `--format json` and `--format markdown` both silently unchanged, because a
+clause present in one writer is a fact about that writer. A tool whose report has three
+formats has three chances to describe a document it did not read.
+
+**The other direction is a real error too.** An unclosed fence is a reading problem, not a
+missing block: the parser still yields a claim for it, so counting it as "not checked" would
+claim the tool skipped a block it actually checked. Only *refused* blocks belong in the gap.
+
+Why it matters: the summary line is the one sentence a reader quotes into a review, a commit
+message, or a status update. It is also the one sentence a test is least likely to read,
+because it is not a finding — nothing crashes, nothing exits differently, and the numbers
+look arithmetic.
+
+Seen 1.

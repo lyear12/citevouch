@@ -325,7 +325,7 @@ def cmd_check(args: argparse.Namespace) -> int:
         result = verify(ledger, options, check_manuscript_hash=not args.allow_stale)
     else:
         ledger, scan_findings = scan(options)
-        result = verify(ledger, options, check_manuscript_hash=False)
+        result = verify(ledger, options, check_manuscript_hash=False, fresh=True)
         # Scan findings come first: a claim that could not be bound to a source
         # explains why the verification below it says nothing about that claim.
         # Duplicates are removed in _render, which every verb goes through.

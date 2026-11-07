@@ -104,6 +104,18 @@ def render_text(
             f"{result.moved} moved, {result.missing} missing"
             + (f", {result.skipped} skipped" if result.skipped else "")
         )
+        # A refused block is in the file and in the findings, and it is not a
+        # claim, so the tally above cannot count it.  Left unsaid, the sentence
+        # describes a smaller document than the one just read: a manuscript
+        # holding one good claim and one block with no `source=` summarised as
+        # `1 claim`, with a `[high] claim-uncheckable` line naming the other one
+        # right above it.  The run was already red, so this hid no failure from
+        # the exit code; what it hid is how much of the file was read.
+        if result.unrecorded:
+            lines.append(
+                f"{_plural(result.blocks, 'claim block')} — "
+                f"{result.unrecorded} of which this run could not check"
+            )
         # The summary describes the run, not the display.  Computing it from
         # the lines that survived `--quiet` reported `worst severity: info` for
         # a run that exited 1, because the finding that failed it had been
@@ -198,6 +210,11 @@ def render_json(
             "missing": result.missing,
             "skipped": result.skipped,
             "findings": len(run),
+            # `blocks` is what the manuscript holds and `checked` is what the
+            # ledger had, so a consumer can see the gap without recomputing it
+            # from the finding list.
+            "blocks": result.blocks,
+            "unrecorded": result.unrecorded,
         }
     else:
         payload["summary"] = {"findings": len(run)}
@@ -361,6 +378,13 @@ def render_markdown(
             f"**{result.verified}** verified · "
             f"**{result.moved}** moved · **{result.missing}** missing"
         )
+        if result.unrecorded:
+            # Same reason as the text summary: the bullet list below already
+            # shows the refusal, but the counts are what a reader quotes.
+            lines.append(
+                f"**{result.blocks}** {_word(result.blocks, 'claim block')} · "
+                f"**{result.unrecorded}** of which this run could not check"
+            )
         # The summary describes the run, not the shortened list, for the same
         # reason the text summary does: the finding that failed the run may be
         # one this report was told to leave out.

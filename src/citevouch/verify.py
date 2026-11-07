@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .bibtex import field_findings
 from .errors import why_not_a_file
-from .manuscript import parse_manuscript
+from .manuscript import ParseResult, parse_manuscript
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
 from .scan import ScanOptions, _no_claim_blocks_finding, _resolve
@@ -53,10 +53,47 @@ class VerifyResult:
     moved: int = 0
     missing: int = 0
     skipped: int = 0
+    # Claim blocks the parser found and refused, so the ledger never recorded
+    # them.  This is not a fourth arrow in the tally: the block has no claim to
+    # count, which is exactly why it went missing from the line.  It is the
+    # difference between "the file holds one claim" and "the file holds two
+    # blocks, one of which this run could not check", and only the second
+    # sentence is true.  Measured before this field existed, on a manuscript
+    # holding one accepted claim and one block with no ``source=``:
+    #
+    #     citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+    #
+    # with two blocks in the file and a `[high] claim-uncheckable` line naming
+    # the second one.  The run was red, so nothing was hidden *from the exit
+    # code*; what was wrong is that the arithmetic sentence described a smaller
+    # document than the one that had just been read.
+    unrecorded: int = 0
 
     @property
     def ok(self) -> bool:
         return not any(f.severity == "high" for f in self.findings)
+
+    @property
+    def blocks(self) -> int:
+        """How many claim blocks the manuscript holds, as the reader sees it.
+
+        ``checked`` counts claims in the ledger; this counts blocks in the
+        file.  They differ by exactly ``unrecorded``, because a block the
+        parser refused produces a finding instead of a claim.
+        """
+        return self.checked + self.unrecorded
+
+
+def _unrecorded(parsed: ParseResult) -> int:
+    """How many claim blocks the parser saw but could not record.
+
+    One subtraction for one question, so `scan`, `verify` and the recorded
+    paths cannot drift apart: every span the parser could see, minus every
+    claim it could put in the ledger.  An unclosed fence is not one of these —
+    it still yields a claim, which is why it is counted and checked like any
+    other.
+    """
+    return max(0, len(parsed.spans) - len(parsed.claims))
 
 
 def _gone_sentence(path: Path) -> str:
@@ -81,8 +118,16 @@ def verify(
     ledger: Ledger,
     options: ScanOptions,
     check_manuscript_hash: bool = True,
+    fresh: bool = False,
 ) -> VerifyResult:
-    """Re-check ``ledger`` against the files currently on disk."""
+    """Re-check ``ledger`` against the files currently on disk.
+
+    ``fresh`` says the ledger was built from this exact text moments ago, in
+    this same run (the live ``check``).  The refusals then describe a document
+    this run has already read, so the block count may be derived from a fresh
+    parse - but the findings must not be re-added, because ``scan`` returned
+    them a line earlier.
+    """
     result = VerifyResult()
     root = Path(options.root)
     manuscript_path = _resolve(root, options.manuscript)
@@ -183,6 +228,25 @@ def verify(
             text = ""
         parsed = parse_manuscript(text, manuscript_path.name)
         result.findings.extend(parsed.findings)
+        # Blocks the parser found and refused.  A refused block yields a
+        # finding and no claim, so it is invisible to the loop below, which
+        # walks `ledger.claims`.  Counting the difference here - rather than
+        # asking each refusal site to bump a counter - keeps one number for one
+        # question: every span the parser could see, minus every claim it could
+        # record.  An unclosed fence is not one of these: it still produces a
+        # claim, so it is counted and checked like any other.
+        result.unrecorded = _unrecorded(parsed)
+    elif fresh:
+        # The live `check` built this ledger from the text on disk one line
+        # earlier, so the parse describes the document this run is reporting
+        # on.  Only the count is taken: `scan` already returned the findings,
+        # and extending them here would print every refusal twice.
+        try:
+            fresh_text = read_text(manuscript_path)
+        except OSError:
+            fresh_text = None
+        if fresh_text is not None:
+            result.unrecorded = _unrecorded(parse_manuscript(fresh_text, manuscript_path.name))
 
     # A ledger that recorded no claims is the recording of a run that checked
     # nothing, and reading it back produces the same shape as the manuscript

@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The summary line counted the claims the ledger held, not the blocks the manuscript held.**
+
+  `citevouch: N claims — V verified, M moved, X missing` is the last line of every run, and it was built from `ledger.claims`. The ledger records only the blocks the parser *accepted*: a block with no `source=` is refused, so it reaches neither `verified` nor `missing` nor `skipped`, and the sentence describes a smaller document than the one just read. Measured on a manuscript holding one accepted claim and one block with no `source=`:
+
+  ```text
+  [high] claim-uncheckable at manuscript.md:6 (c2): claim c2 names no source=; the quote cannot be looked up
+  [info] quote-found at manuscript.md:1 (c1): quote found on page 1
+  citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+  worst severity: high
+  ```
+
+  Two blocks were in the file. The run was red, so nothing was hidden from the exit code; what was hidden is how much of the manuscript the numbers described.
+
+  The line now carries a second sentence only when there is a gap to report:
+
+  ```text
+  citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+  2 claim blocks — 1 of which this run could not check
+  worst severity: high
+  ```
+
+  `--format json` gains `summary.blocks` and `summary.unrecorded`, and `--format markdown` gains the same clause, because those are the two formats a dashboard or a pasted report reads.
+
+  The count is one subtraction in `src/citevouch/verify.py`: every span the parser could see, minus every claim it could record (`_unrecorded`). An unclosed fence is deliberately *not* counted there — it still yields a claim, so it is checked like any other, and saying "1 block, 1 not checked" for it would be false in the other direction.
+
+  The live `check` builds its ledger from the text on disk and then verifies with `check_manuscript_hash=False`, so it never re-parsed; `verify()` gained a `fresh=` argument that takes the count from a parse of that same text without re-adding the findings `scan` already returned. `tests/test_tally_counts_blocks.py` (14 tests) covers the text line, the JSON summary, the Markdown report, the quiet cases, and the demo. Nine mutants — none counted, all spans counted, clause never printed, `blocks` returning `checked`, the fresh pass not counting, the JSON fields dropped, the Markdown clause dropped, the live check not fresh, the plural dropped — all go red.
+
 ## [0.22.27] — 2026-11-06
 ### Fixed
 
