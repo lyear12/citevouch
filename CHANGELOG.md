@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.28] — 2026-11-07
 ### Fixed
 
 * **The summary line counted the claims the ledger held, not the blocks the manuscript held.**
@@ -40,7 +41,6 @@ tag and that file disagree.
   The count is one subtraction in `src/citevouch/verify.py`: every span the parser could see, minus every claim it could record (`_unrecorded`). An unclosed fence is deliberately *not* counted there — it still yields a claim, so it is checked like any other, and saying "1 block, 1 not checked" for it would be false in the other direction.
 
   The live `check` builds its ledger from the text on disk and then verifies with `check_manuscript_hash=False`, so it never re-parsed; `verify()` gained a `fresh=` argument that takes the count from a parse of that same text without re-adding the findings `scan` already returned. `tests/test_tally_counts_blocks.py` (14 tests) covers the text line, the JSON summary, the Markdown report, the quiet cases, and the demo. Nine mutants — none counted, all spans counted, clause never printed, `blocks` returning `checked`, the fresh pass not counting, the JSON fields dropped, the Markdown clause dropped, the live check not fresh, the plural dropped — all go red.
-
 ## [0.22.27] — 2026-11-06
 ### Fixed
 
@@ -3142,7 +3142,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.27...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.28...HEAD
+[0.22.28]: https://github.com/lyear12/citevouch/releases/tag/v0.22.28
 [0.22.27]: https://github.com/lyear12/citevouch/releases/tag/v0.22.27
 [0.22.26]: https://github.com/lyear12/citevouch/releases/tag/v0.22.26
 [0.22.25]: https://github.com/lyear12/citevouch/releases/tag/v0.22.25
