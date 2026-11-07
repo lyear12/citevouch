@@ -2525,9 +2525,24 @@ not what changed, but what proves the change works.
   form - they test dedup, span coverage and custom names, not position.
   *Not covered*: a mark that trails its sentence is now a **miss**, deliberately
   (silence costs a nudge, a false accusation costs the output). No real
-  manuscript that mixes both spellings was measured, and the `marker=` claim
-  attribute is still parsed, stored and never read - that is a separate defect,
-  not yet written up here.
+  manuscript that mixes both spellings was measured. The `marker=` claim attribute
+  was parsed, stored and never read - fixed in the entry below.
+
+- [x] **A claim block's `marker=` named the mark that vouches for it, and nothing read it.** *Done 2026-11-06.*
+  **What was wrong.** `marker=` has been parsed off the opening line since the first commit, kept on `Claim.marker`, written into `citevouch.lock.json`, and read back out of it.  Four places, no reader.  A manuscript that wrote the binding got both halves of the contradiction in one run:
+
+      【原文】PyFCG 3.3 installs cleanly.
+
+      ```claim id=c1 source=a marker=【原文】
+      quote: |
+        PyFCG 3.3 installs cleanly.
+      ```
+
+  Measured: the ledger recorded `marker='【原文】'` for `c1`, and `scan` printed `[low] claim-without-evidence at m.md:1: the 【原文】 mark on this line has no claim block, so nothing ties it to a page in a local source` in the same run.  A second shape measured the same: a block below the mark reported the line under it, and a block whose body held `marker: 【原文】` reported the line after it.  `CHANGELOG.md` for 0.22.14 already listed `marker` among the attributes the body reader knows, so the format promised a binding it never applied.
+  **Who was blocked.** Anyone using the project's own credibility notation with a claim block: the tool asked them to attach a block to a mark they had already attached, and the fix it implies (delete the mark, or duplicate it into a block) is the opposite of what the format wants.
+  **Done when.** A block that names a mark binds the mark beside it, and a block that does not name one binds nothing.
+  *Done - why it is now true*: `scan_unbound_markers` takes the parsed claims and skips a line that `_bound_mark_lines` returns.  A mark is bound only when it heads the *neighbouring* paragraph (via `_paragraph_above` / `_paragraph_below`, which stop at a claim block rather than walking through it) and exactly one block wants it - two marks either side of one block are two readings of one sentence, and picking one would hide the other.  The mark is matched with the same `_MARKER_DECORATION` the scan uses, so `- 【原文】` and `> 【原文】` bind like a bare one.  Measured: the six probe shapes now bind, and the demo still reports exactly lines 52 and 54.  `tests/test_marker_attribute.py` (21 tests) covers the three dialects, decorated marks, the caller's marker list, a mark two blocks both want, and the paragraph search stopping at a block.  Nine mutants ran red, `survivors: none` - the first run left four alive, each because no test exercised one guard, which is what added the `TestTheRulesThatKeepItNarrow` class.
+  *Not covered*: the table dialect has five fixed columns and no attribute grammar, so a table row cannot name a mark and a mark beside one stays unbound - honest, and pinned by two tests.  No real manuscript using `marker=` was available, so the neighbour rule rests on constructed shapes; the body spelling (`marker: 【原文】`) binds through the same `Claim.marker` but no test separates the two spellings.
 
 ## P1 — nobody can start using it
 
