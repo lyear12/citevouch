@@ -12,6 +12,47 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A bad `--ledger` path was reported as a problem inside the file.**
+
+  The four verbs that read a ledger asked the JSON parser first and the path
+  second, so a path that could not be a file at all came back as a parse
+  error:
+
+  ```text
+  $ citevouch report --ledger adir
+  citevouch: ledger adir is not readable JSON: [Errno 13] Permission denied: 'adir'
+  ```
+
+  Nothing is wrong with the JSON: `adir` is a directory. The sentence sends
+  the author to the parser, where there is nothing to find. A ledger under a
+  file was worse - it said the ledger was simply absent:
+
+  ```text
+  $ citevouch report --ledger manuscript.md/x.json
+  citevouch: no ledger at manuscript.md\x.json; run `citevouch scan` first
+  ```
+
+  That advice fails too, with a third sentence: `scan` cannot write there
+  either, because its parent is a file.
+
+  The write side already had the right wording (`adir is a directory, not a
+  file`), so the same mistake produced two different sentences depending on
+  which direction touched it. Both sides now ask one helper,
+  `_unusable_target`, and the read side asks it before the existence test.
+  One mistake, one sentence, whichever verb met it.
+
+  Only the wording changed: every shape still exits 2, a missing ledger still
+  says `no ledger at ...; run `citevouch scan` first`, and a real syntax
+  error still names the line the parser stopped on.
+
+  Covered by `tests/test_ledger_path_shapes.py` (13 tests: the read side
+  saying what the write side says, all three reading verbs agreeing, the
+  path-under-a-file case naming the file, the two shapes that were already
+  correct staying correct, and the helper being the single place the
+  judgement lives).
+
 ## [0.22.29] — 2026-11-08
 ### Fixed
 

@@ -5939,3 +5939,38 @@ in a two-line script under the same interpreter first. If a comment changes the 
 in the environment, and the fix goes in the script shape, not in the reasoning.
 
 Seen 1.
+
+## A path's shape is judged before its contents, and the judge says which direction asked
+
+`citevouch report --ledger adir` printed:
+
+```text
+citevouch: ledger adir is not readable JSON: [Errno 13] Permission denied: 'adir'
+```
+
+Nothing about that file's JSON is wrong — `adir` is a directory, so there is no JSON. The
+sentence sends the author to a parser that has nothing to parse, and the fix it implies (look at
+the file's contents) is not the fix that works (point `--ledger` at a file). The same run of the
+write side said the true thing: `adir is a directory, not a file`.
+
+One mistake, two sentences, because the read side asked *"can these bytes be parsed?"* while the
+write side asked *"can this path be a file?"* — and only the second question has the shape of the
+problem in it.
+
+The sharper case was a ledger under a file, `--ledger manuscript.md/x.json`:
+
+```text
+citevouch: no ledger at manuscript.md\x.json; run `citevouch scan` first
+```
+
+That advice is worse than useless: `scan` cannot create the ledger either, because the parent is a
+file, so following it produces a third sentence. The absence was reported before the impossibility.
+
+How to apply: for any path that is opened, ask the shape question first — is it a directory, is its
+parent a file — and only then complain about contents or existence. When the write path already has
+that judgement, move it into one helper and have the read path call it, rather than retyping the
+sentence: two copies drift, and here the drift was the bug. Keep the direction in the wording
+(`cannot read` versus `cannot write`) because the reader of a message is about to run one of them,
+and the other one is a wild goose chase.
+
+Seen 1.

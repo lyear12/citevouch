@@ -141,6 +141,31 @@ def _ledger_path(args: argparse.Namespace) -> Path:
     return path if path.is_absolute() else Path(args.root) / path
 
 
+def _unusable_target(path: Path, verb: str) -> str | None:
+    """Say why ``path`` cannot be a file this tool reads or writes, or ``None``.
+
+    One judgement, two callers, because the same mistake reached the caller as
+    two different sentences depending on the direction of the access.  Measured
+    with a project whose ``--ledger`` names a directory:
+
+        scan   -> adir is a directory, not a file
+        report -> ledger adir is not readable JSON: [Errno 13] Permission
+                  denied: 'adir'
+
+    The second is a sentence about the bytes inside a file, offered about a path
+    that is not a file at all; it sends the author to the JSON parser, where
+    there is nothing to find.  ``verb`` is only the word in the message, so the
+    read side says "cannot read" and the write side says "cannot write" about
+    the same shape.
+    """
+    if path.is_dir():
+        return f"{path} is a directory, not a file"
+    parent = path.parent
+    if parent.exists() and not parent.is_dir():
+        return f"cannot {verb} {path}: {parent} is a file, not a directory"
+    return None
+
+
 def _writable_target(path: Path) -> None:
     """Raise ``UsageError`` when ``path`` cannot be a file this tool writes.
 
@@ -154,13 +179,12 @@ def _writable_target(path: Path) -> None:
 
     The read side was already protected: ``_read_ledger`` turns ``OSError`` into
     a usage error. This is the same guard on the write side, so the two halves
-    agree about what a bad path means.
+    agree about what a bad path means - and, since the read side now asks the
+    same question through :func:`_unusable_target`, about how to say it.
     """
-    if path.is_dir():
-        raise UsageError(f"{path} is a directory, not a file")
-    parent = path.parent
-    if parent.exists() and not parent.is_dir():
-        raise UsageError(f"cannot write {path}: {parent} is a file, not a directory")
+    why = _unusable_target(path, "write")
+    if why is not None:
+        raise UsageError(why)
 
 
 def _write_text_lf(path: Path, text: str) -> None:
@@ -199,6 +223,17 @@ def _write_ledger(ledger: Ledger, path: Path) -> None:
 
 
 def _read_ledger(path: Path) -> Ledger:
+    # Before the existence test, and before the bytes: a path whose *shape*
+    # already rules out a file must not be reported as "no ledger" or through
+    # the parser.  ``report --ledger manuscript.md/x.json`` used to say "no
+    # ledger at …, run `citevouch scan` first" - advice that then fails with a
+    # third sentence, because the parent is a file and no scan can write there.
+    # ``_writable_target`` (now the same helper) protected the write side; this
+    # is the read side asking the identical question, so one mistake gets one
+    # sentence whichever verb met it.
+    why = _unusable_target(path, "read")
+    if why is not None:
+        raise UsageError(why)
     if not path.exists():
         raise UsageError(f"no ledger at {path}; run `citevouch scan` first")
     try:
