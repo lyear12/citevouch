@@ -2578,6 +2578,52 @@ not what changed, but what proves the change works.
   *Done - why it is now true.* The line is now an `if`.  Reverse validation: the `HEAD` version of the script exits 1 with empty stdout and stderr, the new one prints `170 files already formatted` and exits 0.  The bisect that found it is worth recording, because it is not a logic error: the `&&` was only fatal when the comment above it contained a period (`# ends with a period.` fails, `# a,` passes, `# a b` passes, five runs each).  So the trigger was a comment, and no amount of reading the logic would have found it.
   *Not covered*: the same `&&`-as-statement idiom was not swept from the other shell scripts on this machine (`tools/release_notes.sh` was not exercised); only `format_check.sh` is run as a gate here.  The underlying `sh` shim is not ours to fix, so the workaround is in our script, and CI cannot regression-test it - the local run is the only place this can be seen, which is why the entry is here and not in a test.
 
+- [x] **A bad `--ledger` path was described as a problem inside the file.**
+  *Done 2026-11-08.*
+  *What was wrong.* The four verbs that read a ledger parsed the JSON first and
+  judged the path second, so a path that could never hold a ledger came back as
+  a parse error. Measured on a project whose ledger flag pointed at a
+  directory:
+
+  ```text
+  $ citevouch report --ledger adir
+  citevouch: ledger adir is not readable JSON: [Errno 13] Permission denied: 'adir'
+  ```
+
+  There is no JSON to read; `adir` is a directory, and the sentence sent the
+  author to the parser where nothing was wrong. A ledger *under a file* was
+  worse, because it claimed the ledger was simply absent:
+
+  ```text
+  $ citevouch report --ledger manuscript.md/x.json
+  citevouch: no ledger at manuscript.md\x.json; run `citevouch scan` first
+  ```
+
+  Following that advice produced a third contradictory sentence: `scan` cannot
+  create the file either, because its parent is a file. The write side already
+  said the true thing (`adir is a directory, not a file`), so one mistake had
+  two sentences depending on which direction touched it.
+  *Who was blocked.* Anyone who mistyped `--ledger`, which `action.yml` and
+  every CI job pass through `check --use-recorded`. The message they got was
+  about their JSON, so they would go and look at a file that did not exist.
+  *Done when.* Each of the read verbs names the shape of the path, in the same
+  words the write side uses, before it says anything about contents or
+  existence.
+  *Done - why it is now true.* Both directions call one helper,
+  `cli._unusable_target(path, verb)`, and the read side asks it before
+  `path.exists()`. Measured now: `report --ledger adir` says
+  `adir is a directory, not a file`; `report --ledger manuscript.md/x.json`
+  says `cannot read manuscript.md\x.json: manuscript.md is a file, not a
+  directory`; a ledger that is merely absent still says `no ledger at ...; run
+  `citevouch scan` first`; a real syntax error still names the line. All four
+  shapes exit 2. `tests/test_ledger_path_shapes.py` holds 14 tests, and seven
+  mutants (drop the directory check, drop the parent-is-a-file check, ask after
+  the existence test, hard-code the verb, stop sharing the helper, ...) all
+  turn the suite red.
+  *Not covered.* A ledger on an unreachable network share, and a path whose
+  parent is a symlink to a file; both need an environment this runner does not
+  have.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
