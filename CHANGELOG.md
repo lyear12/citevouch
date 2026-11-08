@@ -11,6 +11,25 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **A code sample in the manuscript was counted as a claim block the run could not check.**
+
+  A fenced ```` ```python ```` block, a `~~~` fence and a four-backtick fence all made the summary line claim one more block than the file held. Measured on a manuscript with one real claim and one Python sample:
+
+  ```text
+  citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+  2 claim blocks — 1 of which this run could not check
+  worst severity: info
+  ```
+
+  There was one block. The same manuscript in `citevouch doctor` read `2 claim blocks, 1 of which the parser could read; the next command names the rest` - and no command named anything, because the "unread" block was a sample that was never meant to be read.
+
+  The cause is two questions sharing one list. `ParseResult.spans` answers "which line ranges may not be searched for prose", so it must be wide: a sample that shows a claim block must not have its own body reported as an unread claim. Counting blocks is a different question with a narrower answer, so `ParseResult` now carries `claim_spans` beside `spans`, and the summary line and `doctor` both count `claim_spans`.
+
+* **`tools/format_check.sh` exited 1 on this machine without printing anything.**
+
+  The fourth gate printed no output and failed, while the same file list passed under `ruff` directly. `set -eu` plus the idiom `[ "$status" -eq 123 ] && status=1` terminated the script in the `sh` shipped with this shell before the summary line was written; the same script is green under Git Bash and on CI. The behaviour changed with nothing but the wording of the comments above that line, so it was not a logic bug to reason about - it was an environment property to measure. The line is now an `if`, which says the same thing and does not depend on how a shell treats a failing `&&` in the middle of a `set -e` script.
 
 ## [0.22.28] — 2026-11-07
 ### Fixed

@@ -48,7 +48,9 @@ fi
 # person reading 123 learns nothing, so it is mapped back to ruff's own 1.
 status=0
 out=$(git ls-files -z -- '*.py' '*.md' | xargs -0 python -m ruff format --check -- 2>&1) || status=$?
-[ "$status" -eq 123 ] && status=1
+if [ "$status" -eq 123 ]; then
+    status=1
+fi
 
 if [ -n "$out" ]; then
     printf '%s\n' "$out"

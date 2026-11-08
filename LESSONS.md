@@ -5870,3 +5870,72 @@ because it is not a finding — nothing crashes, nothing exits differently, and 
 look arithmetic.
 
 Seen 1.
+
+## A list that answers one question will be wrong for the next question asked of it
+
+`ParseResult.spans` was built to answer a specific question: which line ranges must not be searched
+for prose? That question needs a *wide* answer. A manuscript may show a fenced ` ```python ` block
+whose body contains the word `claim`, or a `` ```claim `` fence inside a sample; if those ranges are
+not marked as consumed, the prose scanner reports the sample's own body as a claim block the parser
+failed to read. Widening the list is the correct fix for that question, and it was fixed that way
+twice.
+
+Then a new question arrived: how many claim blocks does this file hold? The cheap answer was the
+same list. It is wrong in exactly the direction the earlier fix made it wrong. One real claim plus
+one Python sample printed:
+
+```text
+citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+2 claim blocks — 1 of which this run could not check
+```
+
+There was one block. Nothing was reported as a finding, because the second "block" was not a block —
+so no test that reads findings could see the lie. `doctor` said the same thing in its own words, and
+`doctor` is the command the README tells a confused author to run first.
+
+The tell is not the number. The tell is the direction of the error. `spans` was widened on purpose to
+stop false *accusations*; reusing it for a *count* turned the same widening into a false *claim of
+coverage*. Whenever a collector is deliberately generous, ask what it was generous *for* — a structure
+that over-counts in service of "do not accuse" will over-count in any other role too.
+
+The repair is not to narrow the list. Narrowing it breaks the thing it was widened for, and the test
+that protects that purpose (`test_the_wider_list_still_covers_the_sample_for_prose_checks`) is the one
+that would have to fail first. The repair is a second list with the narrower rule, produced at the same
+place, so both questions are answered by a collector built for them.
+
+How to apply: when you add a count or a total, name the question it answers and check that the
+collection was gathered for that question. If two call sites share a collector and one of them needed
+it generous, the other one needs its own.
+
+Seen 1.
+
+## A gate that runs in one shell must be exercised in the shell that runs it
+
+`tools/format_check.sh` printed nothing and exited 1 on this machine while the underlying `ruff`
+command, run by hand on the same file list, printed `170 files already formatted` and exited 0. The
+five tests that run the gate went red with `AssertionError: (1, '', '')` — a failure with no text to
+read, which is the most expensive kind.
+
+The script contained `[ "$status" -eq 123 ] && status=1` under `set -eu`. Under the `sh` that ships
+with this shell that line terminated the script before the summary was written. Under Git Bash, and on
+the Linux and macOS CI runners, the same line is fine. This is why CI had been green for months while
+the local gate could not pass: the gate is the one script whose *result* is trusted without reading its
+output, so a silently-red gate and a green gate look the same to a person in a hurry.
+
+The part worth remembering is what the bisect found. The `&&` line was not fatal on its own. It became
+fatal when the comment above it contained a period: `# ends with a period.` failed, `# a,` passed,
+`# a b` passed. Five runs of each setting reproduced it. "The shell has a bug" is true and useless;
+"the shell has a bug that a comment can trigger" is the observation that makes the next person stop
+guessing and measure.
+
+Two rules come out of it. First: a script that is a gate has to be run under the shell that will run
+it, and its *exit code plus its output* both have to be checked — an exit code alone cannot tell
+"nothing to report" from "stopped early". Second: a compound command used as a statement is a claim
+that the shell's `set -e` semantics are the ones you learned, and the portable alternative (`if ... ;
+then ... ; fi`) costs two lines and asserts nothing about the shell.
+
+How to apply: when a gate fails with no output, do not read the gate as a logic problem — reproduce it
+in a two-line script under the same interpreter first. If a comment changes the result, the failure is
+in the environment, and the fix goes in the script shape, not in the reasoning.
+
+Seen 1.

@@ -220,9 +220,22 @@ _MARKER_DECORATION = re.compile(r"^(?:[ \t\u3000]+|>|[-*+](?=\s)|\d+[.)](?=\s)|\
 class ParseResult:
     claims: list[Claim]
     findings: list[Finding]
-    # 1-based inclusive line spans that belong to a claim block.  Prose checks
-    # use them to avoid re-reporting what the block already documents.
+    # 1-based inclusive line spans the parser consumed: claim blocks in any
+    # dialect, and also plain code fences, because prose inside a sample must
+    # not be reported as an unread claim opener.
     spans: list[tuple[int, int]] = field(default_factory=list)
+    # The subset of ``spans`` that opened as a claim block - accepted or
+    # refused, since both are blocks the author wrote and the file holds.
+    #
+    # The two lists are not a detail. ``spans`` answers *where may prose not
+    # be read* (a ````python` sample is such a place, and a `claim` line
+    # inside it is sample text, not a block); ``claim_spans`` answers *how
+    # many claim blocks does this file hold*. Counting spans for the second
+    # question reported a manuscript with one claim and one ````python`
+    # sample as `2 claim blocks - 1 of which this run could not check`, and
+    # no finding anywhere explained the second block, because there was no
+    # second block.
+    claim_spans: list[tuple[int, int]] = field(default_factory=list)
 
     @property
     def nothing_to_check(self) -> bool:
@@ -595,12 +608,14 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
     claims: list[Claim] = []
     findings: list[Finding] = []
     spans: list[tuple[int, int]] = []
+    claim_spans: list[tuple[int, int]] = []
     seen: dict[str, int] = {}
     lines = text.splitlines()
 
     def accept(claim: Claim | None, more: list[Finding], first: int, last: int) -> None:
         findings.extend(more)
         spans.append((first, last))
+        claim_spans.append((first, last))
         if claim is None:
             return
         if claim.id in seen:
@@ -826,7 +841,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
 
     if claims:
         findings.extend(_unread_findings(lines, spans, path))
-    return ParseResult(claims=claims, findings=findings, spans=spans)
+    return ParseResult(claims=claims, findings=findings, spans=spans, claim_spans=claim_spans)
 
 
 def _unread_findings(

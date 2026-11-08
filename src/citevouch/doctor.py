@@ -396,7 +396,11 @@ def _claim_blocks(target: Path) -> Report:
         # false statement in the one check whose job is to stop false
         # statements, which is what this function's own docstring says about
         # the refused-block case and did not apply to this one.
-        seen, read = len(parsed.spans), len(parsed.claims)
+        # `claim_spans`, not `spans`: the wider list also holds plain code
+        # fences, and a ````python`` sample is not a claim block. Counting it
+        # made this line say "2 claim blocks, 1 of which the parser could
+        # read" about a file holding one claim and one code sample.
+        seen, read = len(parsed.claim_spans), len(parsed.claims)
         unread = sum(1 for finding in parsed.findings if finding.code == "claim-block-unread")
         fences = seen + unread
         if fences == read:

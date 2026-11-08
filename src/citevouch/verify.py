@@ -88,12 +88,19 @@ def _unrecorded(parsed: ParseResult) -> int:
     """How many claim blocks the parser saw but could not record.
 
     One subtraction for one question, so `scan`, `verify` and the recorded
-    paths cannot drift apart: every span the parser could see, minus every
+    paths cannot drift apart: every claim block the parser opened, minus every
     claim it could put in the ledger.  An unclosed fence is not one of these —
     it still yields a claim, which is why it is counted and checked like any
     other.
+
+    ``parsed.claim_spans``, not ``parsed.spans``.  The wider list also holds
+    plain code fences, because a `claim` line inside a sample is sample text
+    and must not be reported as an unread opener.  Counting those as blocks
+    made the summary line say a file held two claim blocks when one of them
+    was a````python`` sample, and no finding anywhere explained the extra one,
+    because there was no extra one.
     """
-    return max(0, len(parsed.spans) - len(parsed.claims))
+    return max(0, len(parsed.claim_spans) - len(parsed.claims))
 
 
 def _gone_sentence(path: Path) -> str:
