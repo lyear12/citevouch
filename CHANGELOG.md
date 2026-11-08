@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.30] — 2026-11-08
 ### Fixed
 
 * **A bad `--ledger` path was reported as a problem inside the file.**
@@ -52,7 +53,6 @@ tag and that file disagree.
   path-under-a-file case naming the file, the two shapes that were already
   correct staying correct, and the helper being the single place the
   judgement lives).
-
 ## [0.22.29] — 2026-11-08
 ### Fixed
 
@@ -3203,7 +3203,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.29...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.30...HEAD
+[0.22.30]: https://github.com/lyear12/citevouch/releases/tag/v0.22.30
 [0.22.29]: https://github.com/lyear12/citevouch/releases/tag/v0.22.29
 [0.22.28]: https://github.com/lyear12/citevouch/releases/tag/v0.22.28
 [0.22.27]: https://github.com/lyear12/citevouch/releases/tag/v0.22.27
