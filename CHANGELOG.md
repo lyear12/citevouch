@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.29] — 2026-11-08
 ### Fixed
 
 * **A code sample in the manuscript was counted as a claim block the run could not check.**
@@ -30,7 +32,6 @@ tag and that file disagree.
 * **`tools/format_check.sh` exited 1 on this machine without printing anything.**
 
   The fourth gate printed no output and failed, while the same file list passed under `ruff` directly. `set -eu` plus the idiom `[ "$status" -eq 123 ] && status=1` terminated the script in the `sh` shipped with this shell before the summary line was written; the same script is green under Git Bash and on CI. The behaviour changed with nothing but the wording of the comments above that line, so it was not a logic bug to reason about - it was an environment property to measure. The line is now an `if`, which says the same thing and does not depend on how a shell treats a failing `&&` in the middle of a `set -e` script.
-
 ## [0.22.28] — 2026-11-07
 ### Fixed
 
@@ -3161,7 +3162,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.28...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.29...HEAD
+[0.22.29]: https://github.com/lyear12/citevouch/releases/tag/v0.22.29
 [0.22.28]: https://github.com/lyear12/citevouch/releases/tag/v0.22.28
 [0.22.27]: https://github.com/lyear12/citevouch/releases/tag/v0.22.27
 [0.22.26]: https://github.com/lyear12/citevouch/releases/tag/v0.22.26
