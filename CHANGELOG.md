@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.50] — 2026-11-09
 ### Fixed
 
 * **A quotation whose figures run across three pages was called a fabrication.** The
@@ -54,7 +55,6 @@ tag and that file disagree.
   them were re-aimed: the first campaign's "single-page pass always wins" and "the run
   pass only stitches two pages" both survived, because no fixture yet had a page-level
   match competing with a run-level match.
-
 ## [0.22.49] — 2026-11-09
 ### Fixed
 
@@ -3824,7 +3824,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.49...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.50...HEAD
+[0.22.50]: https://github.com/lyear12/citevouch/releases/tag/v0.22.50
 [0.22.49]: https://github.com/lyear12/citevouch/releases/tag/v0.22.49
 [0.22.48]: https://github.com/lyear12/citevouch/releases/tag/v0.22.48
 [0.22.47]: https://github.com/lyear12/citevouch/releases/tag/v0.22.47
