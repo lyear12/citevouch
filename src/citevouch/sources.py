@@ -30,6 +30,7 @@ from .model import Finding, SourceRef
 from .textnorm import (
     _noise,
     count_of,
+    declared_reading,
     fold,
     invalid_utf8_share,
     proven_codec,
@@ -505,6 +506,15 @@ def encoding_problem(path: Path, suffix: str) -> Finding | None:
         # The file names its own encoding.  Refusing it would replace a
         # reading that works with a sentence about bytes, which is the
         # failure this check exists to remove, pointing the other way.
+        return None
+    if declared_reading(raw) is not None:
+        # The document says which encoding it is in and those bytes decode
+        # cleanly with it, so the reader can read this file and refusing it
+        # would be the same mistake as above in a document-shaped spelling.
+        # Measured before this existed: a 244-byte GBK page whose ASCII header
+        # diluted the byte share to 0.168 slipped under the threshold, was
+        # decoded with errors="replace", and its verbatim sentence came back
+        # `[high] quote-missing`.
         return None
     share = invalid_utf8_share(raw)
     if share < MAX_UNDECODABLE_SHARE:

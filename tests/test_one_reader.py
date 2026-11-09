@@ -42,26 +42,47 @@ def _functions_that_decode() -> list[tuple[str, str]]:
 class TestThereIsOneReader:
     """No other module in the package turns bytes into text.
 
-    The three names are named rather than counted so that adding a fourth
-    fails here with the reason attached.  ``invalid_utf8_share`` is in the list
-    because it calls ``.decode`` to *measure* how much of a file is unreadable;
-    it returns a number and never hands the decoded text to a reader.
+    The names are named rather than counted so that adding a sixth fails here
+    with the reason attached.  ``invalid_utf8_share`` is in the list because it
+    calls ``.decode`` to *measure* how much of a file is unreadable; it returns a
+    number and never hands the decoded text to a reader.  ``declared_charset``
+    only looks at ASCII tag bytes, and ``declared_reading`` is a step of
+    ``_decode_text`` - both are pinned by the test below.
     """
 
     ALLOWED: ClassVar[frozenset[str]] = frozenset(
-        {"_decode_text", "read_text", "invalid_utf8_share"}
+        {
+            "_decode_text",
+            "read_text",
+            "invalid_utf8_share",
+            "declared_charset",
+            "declared_reading",
+        }
     )
 
-    def test_no_module_outside_textnorm_decodes_bytes(self) -> None:
-        outside = [
-            (module, name)
-            for module, name in _functions_that_decode()
-            if module != "textnorm.py"
+    def test_the_declaration_helpers_are_inside_the_one_reader(self) -> None:
+        """``declared_reading`` decodes, but it is a step of ``_decode_text``.
+
+        It is here rather than in the list above without a reason: a function
+        that returns text and is called by something other than the one reader
+        would be a second reader, and the CRLF bug this file guards against
+        would come back through it.  So the two call sites are pinned - the
+        reader, and a refusal that only asks whether the answer is ``None``.
+        """
+        source = (PACKAGE / "textnorm.py").read_text(encoding="utf-8")
+        start = source.index("def _decode_text(")
+        end = source.index("\ndef read_text(", start)
+        assert "declared_reading(raw)" in source[start:end]
+
+        sources = (PACKAGE / "sources.py").read_text(encoding="utf-8")
+        uses = [
+            line.strip()
+            for line in sources.splitlines()
+            if "declared_reading(" in line and "import" not in line
         ]
-        assert outside == [], (
-            "a second reader turns bytes into text; it must flatten line "
-            f"endings the way `read_text` does, or a CRLF file reads one way "
-            f"here and another way there: {sorted(outside)}"
+        assert uses == ["if declared_reading(raw) is not None:"], (
+            "sources.py must only ask whether the declaration decoded, never "
+            f"use the text it returned unflattened: {uses}"
         )
 
     def test_textnorm_decodes_in_exactly_the_expected_functions(self) -> None:

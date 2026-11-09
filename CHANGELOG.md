@@ -12,6 +12,24 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A page that names its own encoding was read as mojibake and its quote reported missing.** A source is refused as `source-encoding` when more than a quarter of its bytes cannot be UTF-8, and that share is measured over the whole file. An HTML header is ASCII, so it dilutes the share: measured on a one-claim project whose only source was a 239-byte GBK page carrying `<meta http-equiv="Content-Type" content="text/html; charset=gbk">`, `textnorm.invalid_utf8_share` scored 0.172 against the 0.25 line. The file slipped through the refusal, was decoded with `errors="replace"`, and its one Chinese sentence came back as
+
+  ```
+  [high] quote-missing at manuscript.md:1 (paper): 本文收集了六万八千个例句，全部来自语料库中的真实文本。 — quote not found in page.html
+  ```
+
+  with exit 1 - an accusation about a sentence printed verbatim in the file it was read from. The same page with one more sentence in it scores 0.254 and is refused correctly, which is why the defect only ever appeared on short documents.
+
+  The tool now reads the encoding the document claims for itself - `<meta charset>`, the `http-equiv` spelling, and the XML declaration - and uses it, but only when the name is one Python knows *and* those bytes decode with it cleanly. Two things follow. A UTF-8 page labelled `gb2312` still reads as UTF-8, because the wrong declaration fails the second test; and a page with no declaration still gets the old byte-share judgement, so the defect is fixed without loosening the guard that caught it. Both are measured, and both have tests.
+
+  Lowering the threshold was the alternative and it is wrong: a cp1252 French page scores 0.176 and reads perfectly, so the number is already as low as it can go. The share was never a bad guess about a file that could answer the question directly.
+
+  `sources.encoding_problem` asks the same question as `textnorm._decode_text` and got the same answer, because a refusal that disagrees with the reader is the same mistake pointing the other way: measured, a longer GBK page scores 0.643 and would have been refused as unreadable by a reader that now reads it fine.
+
+  20 tests, 9 mutations, all red.
+
 ## [0.22.52] — 2026-11-09
 ### Fixed
 

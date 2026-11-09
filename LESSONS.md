@@ -6871,3 +6871,24 @@ How to apply it:
   not only where the bug was.  Twelve of the thirteen mutants here died on a fixture
   that already existed, which is the sign that the fixtures were written from the
   grammar rather than from the bug report.
+
+## A file can answer the question, but saying the answer and meaning it are two tests
+
+`sources.encoding_problem` refused a source when more than a quarter of its bytes could not be UTF-8.  The share is measured over the whole file, and an HTML header is ASCII, so the header dilutes it: a 239-byte GBK page with a `http-equiv` charset scored 0.172, slipped through, was decoded with `errors="replace"`, and its one Chinese sentence - printed verbatim in that file - came back as `[high] quote-missing`, exit 1.  The same page with one more sentence scores 0.254 and is refused correctly.  The defect could only ever appear on short documents, which is why the guard looked sound for as long as it did.
+
+The tempting fix is to lower the threshold, and it is wrong in a way that is worth naming: a cp1252 French page scores 0.176 and reads perfectly, so 0.25 was already at the edge of what the data allows.  A threshold tuned against the same distribution it is classifying has no room left; the answer is not a better number but a different kind of evidence.  The document knew its encoding.  Nothing was asking.
+
+So: read the declaration, and then make the declaration prove itself.  Two tests, and both are needed.  ``declared_charset`` returns a name only if Python knows the codec, because a name nobody can decode with is a spelling mistake and returning it would make the caller raise instead of falling back to the guess it already had. ``declared_reading`` returns the text only if those exact bytes decode with that codec without error, so a UTF-8 page labelled `gb2312` keeps its UTF-8 reading. Believing a declaration because it exists is how a readable file becomes rubbish - measured: `'<meta charset="gbk">'` over UTF-8 bytes raises `UnicodeDecodeError: 'gbk' codec can't decode byte 0xac in position 25`, and the same bytes forced through it read `'鏈�鏂囨敹闆嗕簡…'` instead of the sentence.
+
+The second half of the fix matters as much as the first and is easy to skip: the **refusal** had to learn the same thing as the **reader**.  Only teaching ``_decode_text`` means a long GBK page (share 0.643) is still refused as `source-encoding` - a file the reader can now read, reported as unreadable.  Two code paths that answer one question must be changed together, and the test that proves it is one line: `declared_reading(raw) is not None` implies `encoding_problem(path, suffix) is None`.
+
+* A threshold on a property that varies with file size is a threshold on file size.
+  Before tuning it, ask whether the input can simply be asked.
+* "The file says X" and "the file is X" are two tests; a reader that skips the
+  second turns a typo in a header into mojibake for a file that was fine.
+* When a measurement decides a verdict, find every place that computes it.  Here the
+  decoder and the refusal were the same question asked twice, and fixing one left
+  the other telling the author nothing was read.
+* Strip the things that *show* a declaration before looking for one: a tutorial page
+  that prints `<meta charset="gbk">` inside a comment or an example is not
+  declaring anything, and the regex cannot tell the difference on its own.

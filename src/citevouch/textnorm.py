@@ -12,6 +12,7 @@ caller never has to guess whether normalisation succeeded.
 
 from __future__ import annotations
 
+import codecs
 import re
 import unicodedata
 from pathlib import Path
@@ -551,6 +552,58 @@ def invalid_utf8_share(raw: bytes) -> float:
     return bad / size
 
 
+#: A charset the document itself names, and where it said so.
+#:
+#: A file that says "I am GBK" has answered the question this module otherwise
+#: has to guess at from a byte-share, and the guess is what went wrong: an HTML
+#: header is ASCII, so it dilutes the share of undecodable bytes and a 244-byte
+#: GBK page scored 0.168 against a 0.25 line, was decoded with
+#: ``errors="replace"``, and its one Chinese sentence came back as
+#: ``[high] quote-missing`` - an accusation about a sentence printed verbatim in
+#: the file it was read from.
+#:
+#: Only the spellings a document actually uses are read: ``<meta charset>``,
+#: ``<meta http-equiv="Content-Type" content="...; charset=...">`` and the XML
+#: declaration.  Comments are stripped first, because a tutorial page that
+#: *shows* ``<meta charset="gbk">`` inside an example is not declaring anything.
+_DECLARED_CHARSET = re.compile(
+    rb"""(?is)<meta\s[^>]*?charset\s*=\s*["']?\s*([A-Za-z0-9_.:-]+)|<\?xml\s[^>]*?encoding\s*=\s*["']([A-Za-z0-9_.:-]+)["']""",
+)
+
+#: The comment shapes a declaration can hide inside.
+_HTML_COMMENT = re.compile(rb"(?s)<!--.*?-->")
+
+
+def declared_charset(raw: bytes) -> str | None:
+    """The encoding this document claims for itself, normalised, or ``None``.
+
+    Reading the declaration is not the same as trusting it.  ``_decode_text``
+    only acts on one that decodes the file *cleanly*, so a UTF-8 page labelled
+    ``gb2312`` still reads as UTF-8 - measured, and there is a test for it.
+
+    The name is put through :func:`codecs.lookup` so that the answer is a codec
+    Python has, and so that ``gb2312`` and ``GBK`` and ``gbk`` all arrive as one
+    spelling.  A name Python does not know is not a declaration this tool can
+    honour, and returning it would make the caller raise instead of falling
+    back to the guess it already has.
+    """
+    head = raw[:4096]
+    if b"<" not in head:
+        return None
+    head = _HTML_COMMENT.sub(b" ", head)
+    found = _DECLARED_CHARSET.search(head)
+    if found is None:
+        return None
+    name = found.group(1) or found.group(2)
+    if name is None:
+        return None
+    try:
+        codec = codecs.lookup(name.decode("ascii", errors="replace").strip())
+    except (LookupError, UnicodeDecodeError):
+        return None
+    return codec.name
+
+
 def proven_codec(raw: bytes) -> str | None:
     """The encoding these bytes name for themselves, or ``None``.
 
@@ -577,6 +630,30 @@ def proven_codec(raw: bytes) -> str | None:
             if head[0::2].count(0) > pairs * 0.6:
                 return "utf-16-be"
     return None
+
+
+def declared_reading(raw: bytes) -> str | None:
+    """The text of these bytes, when the document names an encoding that works.
+
+    The pair of facts that makes this trustworthy rather than a guess: the file
+    says which encoding it is in, *and* those bytes decode cleanly with it.  A
+    wrong declaration fails the second test, so a UTF-8 page labelled ``gb2312``
+    falls through to the UTF-8 reader instead of being turned into rubbish -
+    measured, and there is a test for it.
+
+    Returning the text rather than the codec is deliberate.  Both callers want
+    the same thing - "can this file be read at all" - and a function that
+    answered with a codec would let one of them call ``decode`` without checking
+    that it works, which is the shape of every bug this module has had.
+    """
+    declared = declared_charset(raw)
+    if declared is None or declared == "utf-8":
+        return None
+    try:
+        text = raw.decode(declared)
+    except (UnicodeDecodeError, LookupError):
+        return None
+    return _strip_bom(text)
 
 
 def _decode_text(raw: bytes) -> str:
@@ -656,6 +733,9 @@ def _decode_text(raw: bytes) -> str:
     named = proven_codec(raw)
     if named is not None:
         return _strip_bom(raw.decode(named, errors="replace"))
+    named = declared_reading(raw)
+    if named is not None:
+        return named
     decoded = _strip_bom(raw.decode("utf-8", errors="replace"))
     noise = _noise(decoded)
     if noise >= max(4, len(decoded) // 50) and noise * 10 >= len(decoded):
