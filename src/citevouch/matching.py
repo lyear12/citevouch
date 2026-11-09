@@ -408,6 +408,41 @@ def _context(page_text: str, needle_index: int, needle_len: int, width: int = 12
 MAX_STITCHED_PAGES = 4
 
 
+def _number_match(
+    page: PageText,
+    flat: str,
+    pos: int,
+    masked_quote: str,
+    spanned: tuple[int, ...],
+) -> Match:
+    """A numbers-tier match, with the figures read out of the page it matched.
+
+    ``page`` is the text the tier matched (a single page, or a run stitched by
+    ``_page_runs``), ``flat`` is that text masked and flattened, and ``spanned``
+    is every page number it covers.  Kept as one function so the single-page
+    pass and the run pass cannot drift apart: the first version of this tier
+    built its ``Match`` inline, and a run pass would have been a second copy of
+    the same twelve arguments with one of them wrong.
+    """
+    return Match(
+        tier="numbers",
+        page=page.number,
+        similarity=1.0,
+        context=_flat_context(page.text, flat, pos, len(masked_quote)),
+        reason=(
+            "the words around the numbers match this page but the numbers "
+            "in the quote differ from the source"
+        ),
+        page_numbers=_numbers_under(
+            page.text,
+            flat.count(_NUMBER_PLACEHOLDER, 0, pos),
+            masked_quote.count(_NUMBER_PLACEHOLDER),
+        ),
+        spans_to=spanned[-1] if len(spanned) > 1 else None,
+        spanned=spanned,
+    )
+
+
 def _page_runs(
     pages: list[PageText], page_hint: int | None = None
 ) -> Iterator[tuple[PageText, int, tuple[int, ...]]]:
@@ -736,33 +771,36 @@ def _find_in_pages(
         masked_quote = squash(mask_numbers(quote))
         real_chars = masked_quote.replace(_NUMBER_PLACEHOLDER, "")
         if len(real_chars) >= MIN_MASKED_CHARS:
+            # 1.0 is not a comparison, it is this tier's definition: the
+            # masked quote was found verbatim, so every non-placeholder
+            # character matched by construction.  This used to run
+            # difflib.SequenceMatcher over those same two strings and return
+            # whatever ratio it got, which could only ever be 1.0 - a
+            # computation that looked like evidence and could not fail.
+            #
+            # Two passes, for the reason the exact tier above has a run pass:
+            # a quotation can start on page 2 and end on page 4, so the figures
+            # it quotes are printed on pages 2, 3 and 4.  Reading one page at a
+            # time, a quote whose *middle* page printed a different figure was
+            # reported as `quote-missing` - a fabricated quotation - while the
+            # very same words with the right figures were found across those
+            # same pages.  Measured: pages 2-4 carried the sentence, page 3
+            # alone printed a different total, and the tool answered "quote not
+            # found in page.txt".  It could see the sentence but not the typo,
+            # and it answered the harder question with the answer to the
+            # easier one.
             for index in order:
                 page = pages[index]
                 flat = squash(mask_numbers(page.text))
                 pos = flat.find(masked_quote)
                 if pos >= 0:
-                    return Match(
-                        tier="numbers",
-                        page=page.number,
-                        # 1.0 is not a comparison, it is the tier's definition:
-                        # the masked quote was found verbatim, so every
-                        # non-placeholder character matched by construction.
-                        # This used to run difflib.SequenceMatcher over those
-                        # same two strings and return whatever ratio it got,
-                        # which could only ever be 1.0 - a computation that
-                        # looked like evidence and could not fail.
-                        similarity=1.0,
-                        context=_flat_context(page.text, flat, pos, len(masked_quote)),
-                        reason=(
-                            "the words around the numbers match this page but the numbers "
-                            "in the quote differ from the source"
-                        ),
-                        page_numbers=_numbers_under(
-                            page.text,
-                            flat.count(_NUMBER_PLACEHOLDER, 0, pos),
-                            masked_quote.count(_NUMBER_PLACEHOLDER),
-                        ),
-                    )
+                    return _number_match(page, flat, pos, masked_quote, (page.number,))
+
+            for joined, _end_number, spanned in _page_runs(pages, page_hint):
+                flat = squash(mask_numbers(joined.text))
+                pos = flat.find(masked_quote)
+                if pos >= 0:
+                    return _number_match(joined, flat, pos, masked_quote, spanned)
 
     needle_tokens = _tokens(quote_norm)
     if len(needle_tokens) < MIN_FUZZY_TOKENS:

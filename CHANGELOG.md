@@ -12,6 +12,49 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A quotation whose figures run across three pages was called a fabrication.** The
+  numbers tier -- the one that compares the words with every figure blanked out, so
+  it can say "the words are the page's, the numbers are not" -- read one page at a
+  time.  The exact and canonical tiers had already been taught to stitch adjacent
+  pages; this one never was.  So a sentence that starts on page 2 and ends on page 4
+  was found across the run when its figures were right, and reported
+  `quote-missing` when a figure printed on page 3 disagreed:
+
+    ```
+    [high] quote-missing at manuscript.md:1 (c1): We collected a very large number of
+    examples from the corpus and then filtered the 154,39... — quote not found in page.txt
+    ```
+
+  Page 3 printed `9,800`; the quote said `154,391`.  That is a typo, which this tool
+  exists to name precisely, and it was reported as a fabricated quotation instead --
+  the worst sentence available, about a passage the author can read on the pages they
+  cited.  Worse, the run answered the harder question (are these the source's figures?)
+  with the answer to the easier one (is this the source's sentence?).
+
+  The tier now makes two passes: single pages first, then every run of adjacent pages,
+  the same order the exact tier uses so a quote that fits on one page is still
+  attributed to that page.  Both passes build their `Match` through one helper, because
+  a second copy of the same twelve arguments is where the next wrong one would live.
+
+  Two things had to follow it:
+
+  * `_number_checks` is asked about every page of the run.  Reading only the first
+    page would have reported a figure printed on page 3 as absent from the source.
+  * The sentence names a run the way a reader names it.  It used to join the page
+    numbers with `" or "`, so a three-page run read as *"page 2 or 3 or 4 of the source
+    does not contain that number"* -- three pages offered as alternatives, when the
+    finding means the number is on none of them.  It now says *"pages 2, 3 and 4 ...
+    do not contain that number"*.
+
+  `tests/test_numbers_across_pages.py` (10 tests) pins the code the run reports, the
+  pages the sentence names, the single-page case (unchanged), the `Match` fields, and
+  that `check --use-recorded` agrees with `check`.  Ten mutants, all red once two of
+  them were re-aimed: the first campaign's "single-page pass always wins" and "the run
+  pass only stitches two pages" both survived, because no fixture yet had a page-level
+  match competing with a run-level match.
+
 ## [0.22.49] — 2026-11-09
 ### Fixed
 

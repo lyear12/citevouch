@@ -6711,3 +6711,58 @@ How to apply it:
   have found the quote and then mis-described it.
 
 Seen 1.
+
+## A weaker tier does not get the improvements of the stronger one unless someone carries them across
+
+The numbers tier answers "the words are the page's, are the figures?". The exact tier
+answers "is this the page's sentence?". They read the same pages through different
+comparisons, and when the exact tier learned to stitch adjacent pages so a sentence
+running off the bottom of page 2 could still be found, the numbers tier did not -- it
+kept reading one page at a time.
+
+The result was a sentence this tool printed on a real project:
+
+```
+[high] quote-missing at manuscript.md:1 (c1): We collected a very large number of
+examples from the corpus and then filtered the 154,39... — quote not found in page.txt
+```
+
+Page 3 of that source printed `9,800`; the quote said `154,391`. With the right figure
+the same words were found across pages 2 to 4, with the wrong one the tool said the
+passage did not exist. So the run answered the harder question -- is this figure the
+source's? -- with the answer to the easier one -- is this sentence the source's? -- and
+it answered it with the most expensive word in the vocabulary. A typo was reported as a
+fabricated quotation, about pages the author can open and read.
+
+Two lessons, and the second is the one that costs money.
+
+**A tier is a second reader of the same input.** Every improvement to how one tier sees
+the text is a question for every other tier: does the cheaper comparison need to see the
+same thing? The exact tier's run pass was a correctness fix for the exact tier. It was
+also, silently, a correctness fix the numbers tier never got, and the numbers tier is
+where "the number is wrong" is supposed to be said precisely.
+
+**The expensive sentence is the one a weaker tier reaches for.** `quote-missing` is the
+heaviest thing this tool can say. Any tier that cannot answer its own question falls
+through to a tier that answers a different one, and the sentence attached to that
+fall-through is written for the tier that failed, not for the fact being reported. When
+you widen a weaker tier, check what its neighbours were saying in its absence.
+
+How to apply:
+
+* When a tier gains a capability, search the file for the other tiers' loops over the
+  same input and ask each one whether it is now reading less than it should. Here the
+  tell was in plain sight: `for index in order: page = pages[index]` in five places,
+  `for joined, end_number, spanned in _page_runs(pages, page_hint)` in one.
+* Build both passes through one constructor. The tier's `Match` carries about a dozen
+  fields; a second inline copy is where the next wrong one lives. Here the single-page
+  and run passes both go through `_number_match`.
+* Ask what the sentence will say *now*. Widening the pass made three pages report a
+  missing figure, and the existing wording joined them with " or " -- "page 2 or 3 or 4
+  of the source does not contain that number" reads as three alternatives, not one run.
+  The fix was a second sentence, not a second condition.
+* Re-aim a survivor before calling it equivalent. Two mutants survived the first
+  campaign because no fixture had a page-level match competing with a run-level match;
+  both died once a quote that fits one page sat next to a quote that needs three.
+
+Seen 1.

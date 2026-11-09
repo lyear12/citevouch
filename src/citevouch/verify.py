@@ -633,7 +633,7 @@ def verify(
             # which one, which is the sentence the author can act on.  Emitted
             # last, the summary won and the answer was dropped - measured, this
             # branch printed "the numbers do not" and nothing else.
-            specific = _number_checks(claim, pages, match.page)
+            specific = _number_checks(claim, pages, match.spanned)
             result.findings.extend(specific)
             if not specific:
                 # Nothing is missing *from the page*, and the old sentence here
@@ -763,7 +763,17 @@ def _number_checks(claim, pages, spanned: int | tuple[int, ...] | None) -> list[
         return out
     absent = [raw for raw in claim.numbers if canonical_number(raw) not in present]
     if absent:
-        where = "page " + " or ".join(str(n) for n in wanted)
+        if len(wanted) == 1:
+            where = f"page {wanted[0]}"
+            verb = "does"
+        else:
+            # A run of pages is named the way a reader names it.  The first
+            # version joined the numbers with " or ", which read as "page 2 or
+            # 3 or 4" - three pages offered as alternatives, when the finding
+            # means the number is on none of them.  Measured on a quote running
+            # from page 2 to page 4 whose middle page printed another figure.
+            where = f"pages {_and_list(tuple(wanted))}"
+            verb = "do"
         # One claim yields every one of its findings at the claim's own line, so
         # the duplicate pass kept the first wrong number and hid the rest: the
         # author corrected it, ran again, and met the second.  Measured before
@@ -779,7 +789,7 @@ def _number_checks(claim, pages, spanned: int | tuple[int, ...] | None) -> list[
                 code="number-absent-in-quote",
                 message=(
                     f"claim {claim.id}: the quote says {listed} but {where} "
-                    f"of the source does not contain {tail}"
+                    f"of the source {verb} not contain {tail}"
                 ),
                 claim_id=claim.id,
                 path=claim.path,
