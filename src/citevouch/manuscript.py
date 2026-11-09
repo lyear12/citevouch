@@ -58,8 +58,8 @@ _HTML_CLOSE = re.compile(r"^\s*-->\s*$")
 # The unescaping is `_unescape_pipe`, applied where the columns are read.
 _CELL = r"(?:[^|\\]|\\.)*?"
 _TABLE_CLAIM = re.compile(
-    r"^\|\s*(?P<id>[A-Za-z0-9_.:-]+)\s*\|\s*(?P<source>" + _CELL + r")\s*\|"
-    r"\s*(?P<page>\d+|-)\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"
+    r"^\|\s*(?P<id>[A-Za-z0-9_.:-]*)\s*\|\s*(?P<source>" + _CELL + r")\s*\|"
+    r"\s*(?P<page>\d+|-|)\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"
     r"\s*(?P<text>" + _CELL + r")\s*\|"
 )
 # What a cell's text is once the cell boundary has been found: the only escape

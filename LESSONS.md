@@ -6015,3 +6015,40 @@ How to apply:
   values get blanked first, and `source=weird:name` is one value.
 
 Seen 1.
+
+## A row the author has not finished is not a row that is not there
+
+The table dialect is five cells wide, and two of them were required to hold
+something: `_TABLE_CLAIM` demanded a character in the `id` cell and a
+digit-or-`-` in the `page` cell.  A row with either one left blank therefore
+matched nothing.  It became no claim and no span, and a one-row manuscript was
+reported as holding no claim block at all.  Measured on a one-page source whose
+quote is verbatim on page 1:
+
+    | c1 | paper |  | <quote> | ok |   ->  [high] no-claim-blocks ... This file has none
+    |  | paper | 1 | <quote> | ok |      exit 1
+
+Both rows plainly hold a claim.  The quietest shape was worse: a blank-`page`
+row followed by a good row gave `1 claim - 1 verified, 0 moved, 0 missing`,
+exit 0, and not one line mentioned the row the parser had walked past.
+
+The emptiness was never the interesting part.  An empty cell is a claim the
+author has not finished, and the code that builds a claim already knew what to
+say about both omissions: a blank `id` is `claim-uncheckable ... has no id=`,
+and a blank `page` means "no page hint", which is exactly what `-` already
+meant.  Only the pattern that finds the row disagreed, and a pattern that
+refuses the row is a sentence saying the row does not exist.
+
+**How to apply.**  When a grammar refuses a shape, ask what the reader *could*
+have said about it.  If the answer is a sentence the format already has - a
+missing field means "unfinished", not "malformed" - the grammar is stricter
+than the finding table, and the strictness buys silence rather than safety.
+The shape a reader can describe is the shape the parser should hand it.
+
+A companion lesson arrived from the mutation run.  The detector that finds
+claim-shaped lines inside blockquotes derives its table pattern from
+`_TABLE_CLAIM` rather than retyping it, and a mutant that retyped it survived
+until a wrapped-row test existed.  Two copies of a shape are two chances to
+disagree, and the copy with no test is the one that drifts.
+
+Seen 1.

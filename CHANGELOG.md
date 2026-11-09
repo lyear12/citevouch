@@ -12,6 +12,47 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table claim row with an empty cell made the file look empty.**
+
+  The table dialect is five cells wide: `| id | source | page | quote | claim |`.
+  `_TABLE_CLAIM` required a character in the `id` cell and a digit-or-`-` in the
+  `page` cell, so a row with either one left blank matched nothing at all.  The
+  row then belonged to no claim and to no span, and a one-row manuscript was
+  reported as holding no claim block whatsoever.  Measured on a one-page source
+  whose quote is verbatim on page 1:
+
+  ```
+  | c1 | paper |  | <quote> | ok |   ->  [high] no-claim-blocks at m.md:
+  |  | paper | 1 | <quote> | ok |        m.md contains no claim blocks, so
+                                        nothing was checked: ... This file
+                                        has none.                        exit 1
+  ```
+
+  Both rows plainly hold a claim.  The quietest shape was worse: a blank-`page`
+  row followed by a good row gave `1 claim - 1 verified, 0 moved, 0 missing`,
+  exit 0, and not one line mentioned the row the parser had walked past.
+
+  An empty cell is not a syntax error - it is a claim the author has not
+  finished, and both omissions already had an honest answer in `_claim_from`:
+
+  * a blank `id` gives `claim-uncheckable: claim block has no id= attribute`,
+    the same sentence the fence dialect gives;
+  * a blank `page` means "no page hint", which is what `-` already meant.
+
+  `_TABLE_CLAIM` now allows both cells to be empty, so the row is read and the
+  finding names the line.  A header row (`| id | source | page | ... |`) is
+  still not a claim: its `page` cell holds the word `page`.
+
+  `tests/test_table_blank_cells.py` (11 tests) covers the four shapes, the
+  parser directly, and the wrapped-row detector.  Five mutants, no survivors:
+  the id cell required again, the page cell required again, a blank id filled
+  with a placeholder, a blank page turned into page 0, and the wrapped-row
+  detector retyping the table shape instead of deriving it from
+  `_TABLE_CLAIM.pattern` (that last one survived until the wrapped-row test
+  existed, which is why it is in the file).
+
 ## [0.22.31] — 2026-11-09
 ### Fixed
 
