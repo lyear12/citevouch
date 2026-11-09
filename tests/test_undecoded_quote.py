@@ -27,6 +27,11 @@ NL = chr(10)
 B3 = "`" * 3
 QUOTE = "本文收集了六万八千个例句，全部来自语料库中的真实文本。"
 PAGE = "前言" + NL + QUOTE + NL
+#: Long enough that the ASCII ``[@paper]`` survives the GBK bytes being read
+#: as UTF-8.  The ``[`` and the ``@`` are only swallowed when an odd byte of a
+#: two-byte character lands on them, and with a short sentence it does.
+FILL = "我们在三个语料库上重复了这个实验，结果与之前一致。"
+CITED = QUOTE + FILL + " [@paper]"
 
 
 def _project(tmp_path: Path, encoding: str = "gbk") -> Path:
@@ -236,6 +241,134 @@ class TestTheDraftSaysWhyItFoundNothing:
         code, out, err = _run(root, "draft", "manuscript.md", "-o", "claims.md")
         assert code == 0
         assert "1 claim block(s) proposed" in (out + err)
+
+
+def _cited(tmp_path: Path, encoding: str = "gbk") -> Path:
+    """A project whose manuscript holds a citation that *survives* the damage.
+
+    Whether the ASCII ``[@paper]`` survives being read as UTF-8 depends on
+    byte alignment: a 74-byte sentence swallows the ``[`` and the ``@``, and
+    then ``draft`` finds no citation at all.  This body is long enough that
+    the citation is found, which is the only way to reach the branch below.
+    """
+    root = tmp_path / "s"
+    root.mkdir(parents=True, exist_ok=True)
+    # The page prints both sentences, so the UTF-8 control below has something
+    # to find.  The citation hangs off the second one.
+    (root / "page.txt").write_text(PAGE + FILL + NL, encoding="utf-8", newline=NL)
+    (root / "sources.toml").write_text(
+        "[sources]" + NL + 'paper = "page.txt"' + NL, encoding="utf-8", newline=NL
+    )
+    (root / "manuscript.md").write_bytes((CITED + NL).encode(encoding))
+    return root
+
+
+class TestTheSentenceItselfWasNeverDecoded:
+    def test_the_page_is_not_blamed_for_the_encoding(self, tmp_path: Path):
+        # Measured before this branch existed, on a GBK manuscript whose
+        # `[@paper]` survived: `draft` proposed nothing and wrote "nothing on
+        # any page shares enough terms with the sentence (3 needed)".  That is
+        # a true sentence about a comparison nobody should have run - the
+        # words it compared were 96 replacement characters - and it names the
+        # one thing that was never at fault.
+        root = _cited(tmp_path)
+        code, _out, _err = _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        assert code == 0
+        written = (root / "claims.md").read_text(encoding="utf-8")
+        assert "shares enough terms" not in written
+        assert "never decoded" in written
+        assert "iconv" in written
+        # The sentence is in the file that needs converting, and that is the
+        # file the author has to run the command on.  A reason that says "the
+        # manuscript" without naming it sends them to look at the source page.
+        assert "manuscript.md is not UTF-8" in written
+
+    def test_it_says_how_many_characters_were_lost(self, tmp_path: Path):
+        # The count is the one fact the decoder recorded, and it tells the
+        # author whether the file is mostly readable or mostly gone.
+        root = _cited(tmp_path)
+        _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        written = (root / "claims.md").read_text(encoding="utf-8")
+        assert "characters of it are replacement characters" in written
+
+    def test_the_readable_version_of_the_same_file_is_proposed(self, tmp_path: Path):
+        # The neighbouring contract, unchanged: same words, UTF-8, one block.
+        root = _cited(tmp_path, encoding="utf-8")
+        code, out, err = _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        assert code == 0
+        assert "1 claim block(s) proposed" in (out + err)
+
+    def test_a_readable_sentence_that_matches_nothing_still_says_so(self, tmp_path: Path):
+        # The other direction: a sentence the pages really do not share enough
+        # terms with must keep the old reason, because for that file the page
+        # *is* the fact.
+        root = _cited(tmp_path, encoding="utf-8")
+        (root / "manuscript.md").write_text(
+            "研究问题" + NL + NL + "太阳能电池板的转换效率在阴天会显著下降 [@paper]" + NL,
+            encoding="utf-8",
+            newline=NL,
+        )
+        code, _out, _err = _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        assert code == 0
+        written = (root / "claims.md").read_text(encoding="utf-8")
+        assert "shares enough terms" in written
+        assert "never decoded" not in written
+
+
+def _mixed(tmp_path: Path) -> Path:
+    """A GBK manuscript holding one decodable citation and one that is not.
+
+    The page is printed by the source, so the ASCII sentence is quotable; the
+    Chinese one is not, because its own characters are replacement characters.
+    A guard that looks at the whole file cannot tell these two apart, and a
+    guard that looks at the whole file is what a first draft would write.
+    """
+    root = tmp_path / "m"
+    root.mkdir(parents=True, exist_ok=True)
+    ascii_sentence = "We collected 40,688 examples from the corpus."
+    chinese = QUOTE + FILL + " [@paper]"
+    (root / "alpha.txt").write_text(ascii_sentence + NL, encoding="utf-8", newline=NL)
+    (root / "page.txt").write_text(QUOTE + FILL + NL, encoding="utf-8", newline=NL)
+    (root / "sources.toml").write_text(
+        "[sources]" + NL + 'alpha = "alpha.txt"' + NL + 'paper = "page.txt"' + NL,
+        encoding="utf-8",
+        newline=NL,
+    )
+    body = NL.join([ascii_sentence + " [@alpha]", "", chinese, ""])
+    (root / "manuscript.md").write_bytes(body.encode("gbk"))
+    return root
+
+
+class TestAFileCanBeHalfReadable:
+    def test_the_readable_citation_is_still_proposed(self, tmp_path: Path):
+        # Measured: a guard keyed on the whole file (`text.count(UNDECODED)`)
+        # skipped *both* citations, including the ASCII one whose sentence was
+        # never damaged.  The file is bad; the sentence is what matters.
+        root = _mixed(tmp_path)
+        code, _out, _err = _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        assert code == 0
+        written = (root / "claims.md").read_text(encoding="utf-8")
+        assert "```claim" in written
+        assert "id=alpha" in written
+
+    def test_the_damaged_citation_is_the_one_left_as_a_comment(self, tmp_path: Path):
+        root = _mixed(tmp_path)
+        _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        written = (root / "claims.md").read_text(encoding="utf-8")
+        comments = [ln for ln in written.splitlines() if ln.startswith("<!-- line ")]
+        assert len(comments) == 1
+        assert "paper" in comments[0]
+        assert "never decoded" in comments[0]
+
+    def test_the_summary_line_counts_one_of_each(self, tmp_path: Path):
+        # "1 claim block(s) proposed (1 verbatim), 1 citation(s) left as
+        # comments" - the older reason would have been true of the file and
+        # false of the citation.
+        root = _mixed(tmp_path)
+        _code, out, err = _run(root, "draft", "manuscript.md", "-o", "claims.md")
+        said = out + err
+        assert "1 claim block(s) proposed" in said
+        assert "1 citation(s) left as comments" in said
 
 
 class TestTheDoctorMayNotBeMoreOptimisticThanTheRun:

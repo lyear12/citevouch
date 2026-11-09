@@ -6943,3 +6943,47 @@ separately what it would say if the input had not been read at all, and give eac
 one the sentence that names the file.  And when the count of a thing is zero,
 check whether the reader could see the thing before blaming how the author wrote
 it.
+
+## The comparison found nothing because the sentence was never read
+
+A reader that cannot fail returns text, so a bad decode looks like a
+successful read: the file has a fence, an attribute line, a `quote:`
+key, and one sentence worth of prose.  Every downstream command then
+answers a question about garbage using the vocabulary it has for good
+input.  Measured on a GBK manuscript whose `[@paper]` survived the
+damage, with the sentence printed verbatim on the source page:
+
+    citevouch: 0 claim block(s) proposed (0 verbatim), 1 citation(s) left
+    <!-- line 1: paper - nothing on any page shares enough terms with
+         the sentence (3 needed) -->
+
+The comparison really did find fewer than three shared terms.  It found
+them because the words it compared were 96 replacement characters.  The
+page had nothing to do with it, and the sentence names the page.
+
+The previous round taught `check` to stop accusing the quote.  That was
+one reader; `draft` is a second reader of the same sentence, and it was
+still answering.  A fix that teaches one reader and forgets the others
+teaches nobody - the count is only in the tool if every command that
+opens the file asks it.
+
+* The guard must ask the *sentence*, not the file.  Measured on a mixed
+  manuscript holding one undamaged ASCII sentence and one destroyed
+  Chinese one: keying on `text.count(UNDECODED)` skipped both, because
+  the file is bad and the sentence is the thing being compared.
+* The reason must name the thing that has to change.  `the sentence`
+  plus `manuscript.md is not UTF-8` plus the `iconv` line sends the
+  author to their editor; `nothing on any page shares enough terms`
+  sends them to their PDF, which is innocent.
+* A reason can be *true* and still be the wrong fact.  The old message
+  was accurate about a comparison that should never have run, which is
+  the quietest kind of lie this tool can tell: no assertion in it is
+  false, and the conclusion in the reader's head is.
+
+**How to apply.** When a guard is added to one command, list every
+other command that reads the same input and ask what it says on the
+same file - the question is not "is this fixed" but "who else is
+still guessing".  Scope a guard to the smallest object it can decide:
+file-level predicates are cheap to write and expensive to be wrong
+about.  And when a message explains a negative result, check whether
+the input was readable before accepting the explanation.

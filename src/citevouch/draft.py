@@ -38,7 +38,7 @@ from .evidence import is_the_manuscript
 from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
 from .scan import _resolve
-from .textnorm import UNDECODED, normalize, numbers_in, read_text
+from .textnorm import UNDECODED, count_of, normalize, numbers_in, read_text
 
 # Pandoc's bracket form: `[@key]`, `[@a; @b]`, `[-@key]`, `[see @a, p. 3]`.  This
 # is what people writing Markdown actually use, so it is the primary dialect.
@@ -750,6 +750,31 @@ def draft(
         if (site.start, site.key) in seen:
             continue
         seen.add((site.start, site.key))
+        # A sentence whose own characters were never decoded cannot be compared
+        # with a page, and pretending otherwise produces a fact about the page
+        # that is really a fact about the file.  Measured on a GBK manuscript
+        # whose `[@paper]` survived the damage: `draft` proposed nothing and
+        # wrote `nothing on any page shares enough terms with the sentence (3
+        # needed)` - a true sentence about a comparison nobody should have run,
+        # because the sentence it compared was 96 replacement characters.  The
+        # page was never the problem, so it is not named.
+        undecoded = sentence.count(UNDECODED)
+        if undecoded:
+            name = Path(manuscript).name if manuscript else "the manuscript"
+            result.skipped.append(
+                Skipped(
+                    key=site.key,
+                    reason=(
+                        f"the sentence this cites was never decoded: "
+                        f"{count_of(undecoded, 'character')} of it are replacement "
+                        f"characters, so no page was searched for it - {name} is not "
+                        "UTF-8. Convert it first, for example "
+                        f"`iconv -f GBK -t utf-8 {name} > utf8.md`"
+                    ),
+                    line=site.line,
+                )
+            )
+            continue
         statement = statement_of(sentence)
         path, needs_line = resolve(site.key, known, bib, root)
         if path is None:

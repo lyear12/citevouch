@@ -12,6 +12,51 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A sentence the file never decoded was compared with a page.**
+  The previous release stopped `check` from accusing a quote whose
+  characters were never decoded. `draft` was the other half, and it was
+  still guessing: whether the ASCII `[@paper]` survives a GBK manuscript
+  being read as UTF-8 depends on byte alignment (a 74-byte sentence
+  swallows the `[` and the `@`; a longer one does not), so a manuscript
+  could carry a citation `draft` found and a sentence it could not read.
+  Measured on such a file, with the sentence printed verbatim on the
+  source page:
+
+  ```
+  citevouch: 0 claim block(s) proposed (0 verbatim), 1 citation(s) left as comments
+  <!-- line 1: paper - nothing on any page shares enough terms with the
+       sentence (3 needed) -->
+  ```
+
+  Every word of that is true except the subject. The comparison really
+  did find fewer than three shared terms - because the sentence it
+  compared was 96 replacement characters - and the page was never at
+  fault. A tool that sends an author to look at their source PDF for a
+  fault in their own editor is the failure this project exists to avoid.
+
+  The guard asks the sentence, not the file. A GBK manuscript can hold a
+  perfectly readable ASCII sentence beside a destroyed Chinese one, and
+  skipping both would be the same mistake with the sign flipped: measured
+  on a mixed file, `text.count(UNDECODED)` skipped the citation whose
+  sentence was never damaged. So the reason now names the sentence, the
+  number of replacement characters that were its words, the manuscript
+  that has to be converted, and the command that converts it:
+
+  ```
+  <!-- line 5: paper - the sentence this cites was never decoded: 67
+       characters of it are replacement characters, so no page was searched
+       for it - manuscript.md is not UTF-8. Convert it first, for example
+       `iconv -f GBK -t utf-8 manuscript.md > utf8.md` -->
+  ```
+
+  `tests/test_undecoded_quote.py` grew a mixed-file project (one
+  decodable citation, one destroyed) and four tests around it, and 8
+  mutations die: no guard, counting the file instead of the sentence,
+  inverting the condition, appending the reason without `continue`,
+  dropping the count, dropping the file name, dropping the command.
+
 ## [0.22.54] — 2026-11-09
 ### Fixed
 
