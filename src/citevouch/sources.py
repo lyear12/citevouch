@@ -812,6 +812,202 @@ def _without_unrendered(text: str) -> str:
             index = len(text) if end is None else end.end()
 
 
+#: What an attribute may hold before it ends the tag.
+#:
+#: `>` is legal inside a quoted attribute value, so a tag scanner that stops at
+#: the first one cuts `<div title="a > b">` in half.  Named once here because
+#: four patterns below need it.
+_ATTRIBUTE_TAIL = """[^<>"']|"[^"]*"|'[^']*'"""
+
+#: Any opening tag, with its name captured.
+_OPENING_TAG = re.compile(rf"(?is)<([a-zA-Z][^\s/>]*)(?:{_ATTRIBUTE_TAIL})*>")
+
+#: The name of an opening tag, whatever follows it.
+_TAG_NAME = re.compile(r"<\s*([a-zA-Z][^\s/>]*)")
+
+#: Elements with no content at all, so hiding one hides nothing else.
+_VOID_ELEMENTS = frozenset(
+    "area base br col embed hr img input link meta param source track wbr".split()
+)
+
+
+def _unquote(value: str) -> str:
+    """An attribute value without the quotes it was written in."""
+    if len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]:
+        return value[1:-1]
+    return value
+
+
+#: One attribute of an opening tag: its name and, when written, its value.
+#:
+#: A value may be double-quoted, single-quoted or bare, and an attribute may
+#: have no value at all (`<p hidden>`).  Bare values cannot contain `>`, `/`
+#: or whitespace, which is what ends them.
+_ATTRIBUTE = re.compile(r"""(?is)([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)))?""")
+
+
+def _attributes(tag: str) -> dict[str, str | None]:
+    """The attributes of one opening tag, keyed by their lower-case name.
+
+    Written as a tokeniser rather than a `\bhidden\b` search because the
+    search found the word in places that are not attributes: `title="hidden"`
+    and `aria-hidden="true"` both dropped the element they appeared on, and
+    the sentence a sighted reader can see on the page came back
+    `quote-missing` - the failure in the direction that costs an author a
+    morning.  An attribute name starts where the previous value ends.
+    """
+    name = _TAG_NAME.match(tag)
+    if name is None:
+        return {}
+    found: dict[str, str | None] = {}
+    index = name.end()
+    while True:
+        match = _ATTRIBUTE.search(tag, index)
+        if match is None:
+            return found
+        index = match.end()
+        key = match.group(1).lower()
+        if key == "/":
+            # The `/>` that closes a self-closing tag is not an attribute.
+            return found
+        value = match.group(2)
+        if value is None:
+            value = match.group(3)
+        if value is None:
+            value = match.group(4)
+        found.setdefault(key, value)
+
+
+def _style_hides(value: str) -> bool:
+    """Whether these declarations stop the browser painting the element.
+
+    Two properties do it.  ``display: none`` removes the element and its whole
+    subtree from the layout; ``visibility: hidden`` keeps the box and paints
+    nothing in it.  Both cases are the same defect here: words in the file that
+    no reader sees, certified as a quote on the page.
+
+    Nothing else counts.  ``color: white``, ``font-size: 0`` and
+    ``opacity: 0`` are all ways an author *can* hide text, and every one of
+    them is also a way an author paints text that is meant to be read (an
+    overlay, a printed stylesheet, a hover state), so treating them as hidden
+    trades a false `quote-found` for a false `quote-missing` - the more
+    expensive direction in a tool whose job is to help an author find evidence.
+    """
+    for declaration in value.split(";"):
+        name, colon, text = declaration.partition(":")
+        if not colon:
+            continue
+        name = name.strip().lower()
+        text = text.strip().lower()
+        if text.endswith("!important"):
+            text = text[: -len("!important")].strip()
+        if name == "display" and text == "none":
+            return True
+        if name == "visibility" and text in ("hidden", "collapse"):
+            return True
+    return False
+
+
+def _paints_nothing(tag: str) -> str | None:
+    """The element's name when the browser will paint none of its content.
+
+    Reads the tag the way a browser decides: a `style` attribute that hides
+    it, or the `hidden` attribute.  The one value of `hidden` that does not
+    hide anything is `until-found`, which means "keep this out of the layout
+    until the reader searches for a word in it" - the browser then paints it,
+    so a quote inside it is a quote a reader can be shown.
+    """
+    name = _TAG_NAME.match(tag)
+    if name is None:
+        return None
+    element = name.group(1).lower()
+    attributes = _attributes(tag)
+    style = attributes.get("style")
+    if style is not None and _style_hides(style):
+        return element
+    if "hidden" in attributes:
+        value = (attributes["hidden"] or "").strip().lower()
+        if value != "until-found":
+            return element
+    return None
+
+
+def _end_of_element(text: str, start: int, name: str) -> int:
+    """Where this element's content stops being inside it.
+
+    Counting, not searching: `<div style="display:none"><div>x</div>tail</div>`
+    has a `</div>` that closes the *inner* element, and a scanner that stops at
+    the first one would hand `tail` - which the browser does not paint either -
+    back to the page text.  A tag that never closes means "to the end of the
+    file", which is what a browser does with a truncated document.
+    """
+    pattern = re.compile(rf"(?is)<(/?)\s*{re.escape(name)}(?:{_ATTRIBUTE_TAIL})*/?>")
+    depth = 1
+    index = start
+    while True:
+        found = pattern.search(text, index)
+        if found is None:
+            return len(text)
+        index = found.end()
+        if found.group(1):
+            depth -= 1
+            if depth == 0:
+                return index
+        elif not found.group(0).rstrip().endswith("/>"):
+            depth += 1
+
+
+def _without_unpainted(text: str) -> str:
+    """Drop the elements the document tells the browser not to paint.
+
+    `<script>` and its neighbours are hidden by their *name*, and that list was
+    the whole rule.  A browser can also be told to paint nothing about an
+    element it does hold, and then the words inside are in the file and not on
+    the page:
+
+        <div style="display:none">We collected 40,688 examples.</div>
+        <p hidden>We collected 40,688 examples.</p>
+
+    Measured before this existed, all seven shapes - `display:none`,
+    `visibility:hidden`, the `hidden` attribute, `aria-hidden`, a `<title>`, a
+    `<datalist>` option and an ordinary `<p>` - came back `[info] quote-found`
+    with exit 0 from a one-claim project whose only source was that file.  The
+    first three are the bug this function fixes.  The last four are the answer
+    the tool should keep giving, because a reader *can* reach those words:
+    `aria-hidden` speaks to assistive technology rather than to the painter, a
+    `<title>` is printed in the tab and the window bar, a `<datalist>` option is
+    painted when the reader opens the list (the same reasoning that keeps
+    `noscript` out of `_UNRENDERED_TAGS`), and `hidden="until-found"` is painted
+    as soon as the page is searched.  Dropping any of them would flip a real
+    quote into `quote-missing`, which is the more expensive error.
+
+    Runs after `_without_unrendered`, which has already taken the raw-text
+    elements out: a `<script>` inside a hidden `<div>` is gone by the time this
+    reaches the `<div>`, and one pass over the remainder is enough.
+    """
+    out: list[str] = []
+    index = 0
+    while True:
+        found = _OPENING_TAG.search(text, index)
+        if found is None:
+            out.append(text[index:])
+            return "".join(out)
+        out.append(text[index : found.start()])
+        element = _paints_nothing(found.group(0))
+        if element is None:
+            out.append(found.group(0))
+            index = found.end()
+            continue
+        out.append(" ")
+        if element in _VOID_ELEMENTS:
+            # `<img hidden src="...">` has no content to hide, and looking for
+            # its end tag would run to the end of the document and swallow a
+            # page whose images the author marked decorative.
+            index = found.end()
+        else:
+            index = _end_of_element(text, found.end(), element)
+
+
 #: Where a CDATA section starts and ends.
 _CDATA = re.compile(r"<!\[CDATA\[(?P<body>.*?)\]\]>", re.DOTALL)
 
@@ -862,6 +1058,7 @@ def _strip_markup(text: str) -> str:
     """
     text = _without_cdata(text)
     text = _without_unrendered(text)
+    text = _without_unpainted(text)
     text = _TAG.sub(" ", text)
     text = html.unescape(text)
     text = re.sub(r"&nbsp;?", " ", text)

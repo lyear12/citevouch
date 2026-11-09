@@ -6809,3 +6809,65 @@ How to apply it:
 * A surviving mutant about "read the whole file instead" is not a missing guard.  It is
   a live alternative implementation, and the test that kills it is the layout where the
   two disagree -- not an assertion about the code.
+
+## A list of exceptions is a claim about every name that is not on it
+
+The HTML reader removed inert elements by tag name: `script`, `style`, `template`,
+`textarea`, `iframe`.  That list was the entire rule for "the reader cannot see this".
+A browser has a second, larger vocabulary for the same idea, and none of it is a tag
+name: `display: none`, `visibility: hidden`, the `hidden` attribute, and the elements
+that live in `<head>` rather than in the page.  Measured on a one-claim project whose
+only source held the sentence in each of those, all six layouts answered
+
+    [info] quote-found at m.md:1 (c1): quote found on page 1
+
+and exited 0.
+
+The direction is what makes it expensive.  Every other HTML defect this reader has had
+(0.21.1 `<template>`, 0.21.2 CDATA) turned a visible quote into `quote-missing`: the
+author is annoyed, checks, and finds the tool wrong.  This one certifies words nobody
+can see.  A tool that says "your quote is on page 1" when it is in a `display:none` div
+has removed the only thing it was hired to do.
+
+Three parts of this are reusable.
+
+**Hiding is not a tag property, it is a declaration about an element.**  The moment the
+rule is written as a set of names, every mechanism that is not a name is unchecked.
+When you find yourself listing names, ask what the *predicate* is -- here "does the
+browser paint this element" -- and then ask which languages can answer it.  CSS and the
+`hidden` attribute are two of them; a tag blacklist is not a third.
+
+**The first fix searched for the word instead of reading the attribute.**  A
+`\bhidden\b` search over the opening tag matched `title="hidden"`,
+`data-hidden="true"`, `class="hidden"`, `id="hidden"` and `aria-label="hidden"`, and
+dropped five elements nothing had hidden.  Narrowing the search with a lookbehind
+(`(?<![-\w])hidden\b`) fixed `aria-hidden` and still ate `title="hidden"`, because the
+problem is not the boundary -- it is that the code was asking "does this string contain
+the word" when the question was "is `hidden` an attribute name here".  A tokeniser is
+the answer; a better regex is the same bug with better manners.
+
+**A guard that drops too much is not the safe direction.**  `aria-hidden="true"` is for
+assistive technology and the browser still paints it; `<title>` is printed in the tab
+and the window bar; `hidden="until-found"` is rendered the moment a reader searches the
+page.  All three are words a reader can reach, so dropping them flips a real quote into
+`quote-missing`.  The docstring of `_style_hides` has to say why `color: white`,
+`font-size: 0` and `opacity: 0` are *not* in the set: each is genuinely invisible, and
+each can also be the ordinary way a page is styled, so the two errors do not cost the
+same.  Say which error you are choosing, or the next person will "fix" it.
+
+How to apply it:
+
+* When a rule is a list of names, write down the predicate it is an approximation of.
+  The list is a claim about every name not on it, and the missing names are the ones
+  nobody typed.
+* Prefer a tokeniser to a word search whenever the question is "is this a field/attribute/
+  keyword", not "does this text contain the word".  The word appears in values,
+  in comments, and in prose about the very thing you are detecting.
+* Before adding a name to an exclusion set, check both directions of the mistake: what
+  happens if I drop something visible?  That direction is usually the expensive one for
+  a verification tool, and it usually looks like the "safe" choice.
+* When a fix replaces a heuristic with a parser, mutate the parser where it is easiest
+  to get wrong -- the end of a value, a bare value with no quotes, the case of a name --
+  not only where the bug was.  Twelve of the thirteen mutants here died on a fixture
+  that already existed, which is the sign that the fixtures were written from the
+  grammar rather than from the bug report.

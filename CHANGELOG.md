@@ -12,6 +12,48 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A sentence the browser never paints was verified as a quotation.** The HTML
+  reader dropped inert elements by tag name (`script`, `style`, `template`,
+  `textarea`, `iframe`) and that list was the whole rule. A browser can also be
+  told to paint nothing about an element it does hold, and then the words are
+  still in the file and still not on the page. Measured on a one-claim project
+  whose only source held the sentence in each of these:
+
+  - `<div style="display:none">We collected 40,688 examples from the corpus.</div>`
+  - `<div style="visibility:hidden"></div>`
+  - `<p hidden>`
+  - `<span aria-hidden="true">`
+  - a `<title>`
+  - a `<datalist>` `<option>`
+
+  Every one of them answered `[info] quote-found … quote found on page 1` and
+  exited 0. The first three are the bug. The other three are the answer the tool
+  should keep giving, because a reader can reach those words: an `aria-hidden`
+  span is still painted for a sighted reader, a `<title>` is printed in the tab
+  and the window bar, and a `<datalist>` option is painted when the list is
+  opened. `hidden="until-found"` is the same case and is tested beside them - it
+  is painted the moment the page is searched. Certifying words no reader can see
+  is the one failure this tool cannot apologise for, and it does not care which
+  mechanism hid them - exactly as it does not care whether the code was in a
+  `<script>` or a `<template>`.
+
+  The reader now reads the opening tag instead of the tag name: `_attributes()`
+  is a real tokeniser (an attribute name starts where the previous value ends,
+  and a value may be double-quoted, single-quoted or bare), `_style_hides()`
+  says `display: none` or `visibility: hidden|collapse`, `_paints_nothing()`
+  adds the `hidden` attribute when it is not `until-found`, and
+  `_without_unpainted()` removes the whole element with a depth counter so a
+  nested `<div>` goes with its parent and a sibling does not.
+
+  The first attempt searched the tag for the word `hidden`. Measured against
+  `title="hidden"`, `data-hidden="true"`, `class="hidden"`, `id="hidden"` and
+  `aria-label="hidden"`, that dropped five elements nothing had hidden. The
+  guard against it is not a narrower search but a tokeniser.
+
+  37 tests, 13 mutations, all red.
+
 ## [0.22.51] — 2026-11-09
 ### Fixed
 
