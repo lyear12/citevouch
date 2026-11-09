@@ -6987,3 +6987,55 @@ still guessing".  Scope a guard to the smallest object it can decide:
 file-level predicates are cheap to write and expensive to be wrong
 about.  And when a message explains a negative result, check whether
 the input was readable before accepting the explanation.
+
+## A character says where a byte could have been lost; only the decoder says one was
+
+The previous lesson taught three readers to refuse a quotation holding U+FFFD.
+All three asked the text - `UNDECODED in quote` - and two releases later that
+question refused a correct quotation in a file that had lost nothing.
+
+A paper about text encodings prints the character on purpose.  Measured on a
+lossless UTF-8 manuscript reading `Notepad wrote <U+FFFD> where the byte could
+not be decoded.`, with its source page printing the same sentence verbatim:
+
+    [high] claim-not-decoded at manuscript.md:3 (c1): 1 character of this quote
+    were never decoded, so the quote was never searched - manuscript.md cannot
+    be read as UTF-8 without loss. Convert it first, for example
+    `iconv -f GBK -t utf-8 manuscript.md > utf8.md`
+
+Every clause is false: the file decodes losslessly, nothing was lost, `iconv`
+would mangle it, and `find_in_pages` returns `tier: exact, page: 1` for that
+quote.  All three dialects agreed, which is what makes this shape dangerous -
+agreement across readers looks like corroboration and was here just three
+copies of one wrong predicate.
+
+The fix is not a better predicate on the text.  It is to ask the operation that
+knows: a strict `raw.decode(codec)` either succeeds or raises, and that
+difference *is* the answer, so the decoder reports it alongside the text
+(`_decode_text_and_loss`), the reader forwards it (`read_text_and_loss`,
+`read_loses_bytes`), and every refusal asks both questions - "did the reading
+cost a byte" and "does the quote hold the mark".  A file-level predicate is
+cheap to write and expensive to be wrong about; this one was wrong in the
+expensive direction, refusing a paper and blaming its author.
+
+Three things to notice.  A predicate on an artefact answers a question about
+the *artefact*, not about how it was produced - and those differ exactly when
+production failed.  Agreement between readers is not evidence when the readers
+share a helper; grep for the shared helper, not for the readers.  And when a
+guard is softened, the mutation that must die is the one that makes the flag
+constant: `_lost` always True and always False are the two cheapest wrong
+implementations, and both are invisible unless some test reaches every branch
+that reports a loss (here: the declared charset, the UTF-16 swap, and a
+truncated file whose loss is a trailing byte and not a substituted character).
+
+How to apply:
+
+* When a guard reads a mark out of text to conclude something about how the
+  text was made, find the step that made it and ask that step instead.  If the
+  step returns only the product, give it a second return value.
+* Keep the flag next to the answer at every layer, and re-test each branch
+  separately: one branch reporting another branch's loss passes every test
+  where only one branch runs.
+* After narrowing a guard, re-run the mutations that made it fire before, plus
+  the two constants.  A guard that never fires and a guard that always fires
+  are both one-line mistakes.
