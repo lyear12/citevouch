@@ -6766,3 +6766,46 @@ How to apply:
   both died once a quote that fits one page sat next to a quote that needs three.
 
 Seen 1.
+
+## A match that covers more input has more than one page, and its caller has to ask which
+
+The matcher was taught to find a quotation running off the bottom of a page: it now
+returns `Match.spanned`, every page the hit touches.  The caller that turns a hit into
+a proposed claim still said `match.page` -- singular, the *first* page of the run -- and
+searched that one page for the author's sentence.  A sentence ending on the next page
+is not among that page's own sentences, so the verbatim branch missed and the proposal
+fell back to reading the source for a *similar* sentence instead.  Measured in one
+project, one sentence, two layouts:
+
+    whole on page 2:   1 quoting the sentence verbatim   confidence: high    page=2
+    split 2 -> 3:      0 verbatim (1 claim block)        confidence: medium  page=3
+                       quote: filtered them by hand before training the model on
+                              the remaining portion.
+
+The half sentence is a real sentence of the page.  It is also not what the author
+wrote, and the block was written into the file the author is told to copy from.
+
+The expensive part was not finding the bug, it was that the obvious fix is wrong.
+Widening the caller to stitch the whole document looks strictly safer -- more text can
+only help -- and it is the one change that makes the branch *miss*: a page boundary
+carries no reliable sentence break, so a page that ends "see also" merges into the next
+page's opening and the real sentence stops being a sentence in the joined text.  A
+fixture with a dangling page before the run is what proves the difference; without one,
+both versions pass every test, which is exactly how the mutant survived its first
+campaign.
+
+How to apply it:
+
+* When a function's job grows from "where did I find it" to "what did I read", every
+  caller that consumed the old answer is now reading a subset.  Grep for the old field
+  by name; `match.page` had four readers and one of them meant "the pages".
+* "Look at more" is not automatically "safer".  Before widening an input, ask what
+  invariant the narrower input was silently providing.  Here it was "a page's own text
+  is segmentable into sentences", which a stitched multi-page buffer is not.
+* Keep the reported location narrow even when the search widens: the claim names
+  `match.page` because that is where a reader starts, not because that is all that was
+  read.  Search scope and attribution are different questions and answer to different
+  masters.
+* A surviving mutant about "read the whole file instead" is not a missing guard.  It is
+  a live alternative implementation, and the test that kills it is the layout where the
+  two disagree -- not an assertion about the code.

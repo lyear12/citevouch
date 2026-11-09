@@ -12,6 +12,31 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`draft` quoted half of a sentence the source printed across two pages.** The
+  matcher learned to find a quotation that runs off the bottom of one page (0.22.49,
+  `_page_runs` and `Match.spanned`), so the *match* covered every page of the run.
+  `propose_quote` then looked the hit up by `match.page` alone -- the first page of the
+  run -- and offered the verbatim branch only that page's own sentences.  A sentence
+  that ends on the next page is not one of them, so the branch missed and the proposal
+  fell back to the medium-confidence path, quoting whichever half of the sentence
+  happened to fit on one page.  Measured on the same sentence in the same project:
+
+    * whole on page 2: `1 quoting the sentence verbatim`, `confidence: high`,
+      `page=2`, the complete sentence
+    * split across pages 2 and 3: `1 claim block(s) proposed (0 verbatim)`,
+      `confidence: medium`, `page=3`, and only
+      `filtered them by hand before training the model on the remaining portion.`
+
+  The verbatim search now reads the pages the match covers, and still names
+  `match.page` - the page a reader starts on.  Stitching the whole document instead
+  looks safer and is the one way this branch can be made to say "not verbatim" about a
+  sentence the source prints exactly: page boundaries have no reliable sentence break,
+  so a page ending `see also` merges into the next page's opening and the real sentence
+  is no longer a sentence in the joined text.  Seven mutations of the new code are all
+  red, including that one.
+
 ## [0.22.50] — 2026-11-09
 ### Fixed
 

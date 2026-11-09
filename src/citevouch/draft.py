@@ -533,16 +533,26 @@ def propose_quote(
     """
     match = matching.find_in_pages(statement, pages, page_hint=page_hint)
     if match.found and match.page is not None:
-        found = next((page for page in pages if page.number == match.page), None)
-        if found is not None:
-            verbatim = _verbatim_sentence(found.text, statement)
-            if verbatim:
-                return (
-                    verbatim,
-                    found.number,
-                    "high",
-                    "the manuscript's sentence appears verbatim in the source",
-                )
+        # The matcher can see a sentence that runs over a page break, so the
+        # verbatim search has to look at the same text it looked at.  Asking
+        # only `match.page` means asking the first page of the run, whose own
+        # sentences do not contain a sentence that ends on the next page: the
+        # verbatim branch then missed, and the proposal fell back to the
+        # medium-confidence path, which quoted the half of the sentence that
+        # did fit on one page.  Measured on a sentence printed across pages 2
+        # and 3: `1 claim block(s) proposed (0 verbatim)` and `confidence:
+        # medium`, where the same sentence wholly on one page gave `1 verbatim`
+        # and `confidence: high`.
+        covering = [page for page in pages if page.number in match.spanned]
+        joined = " ".join(page.text.strip() for page in covering).strip()
+        verbatim = _verbatim_sentence(joined, statement)
+        if verbatim:
+            return (
+                verbatim,
+                match.page,
+                "high",
+                "the manuscript's sentence appears verbatim in the source",
+            )
     wanted = terms_of(statement)
     if not wanted:
         return None
