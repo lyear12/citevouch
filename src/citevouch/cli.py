@@ -34,7 +34,7 @@ from .manuscript import parse_manuscript
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, recorded_path, scan
-from .sources import MANIFEST_NAMES, read_source_table
+from .sources import MANIFEST_NAMES, read_source_table, sha256_file
 from .textnorm import count_of, read_text
 from .verify import VerifyResult, verify
 
@@ -766,6 +766,12 @@ def cmd_draft(args: argparse.Namespace) -> int:
         bib=bib,
         known=known,
         root=root,
+        # Both passes that judge a claim refuse a source that is the manuscript,
+        # by resolved path and by digest.  `draft` reads the same files to answer
+        # the same question, so it has to recognise the same answer - otherwise
+        # it writes a block that `check` rejects on sight.
+        manuscript=str(manuscript),
+        manuscript_digest=sha256_file(manuscript),
         table=table,
         # The ids the manuscript already uses.  A proposal is a block the author
         # pastes next to the original, so an id the original already has is a

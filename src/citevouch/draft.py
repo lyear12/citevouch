@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import matching, sources
+from .evidence import is_the_manuscript
 from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
 from .scan import _resolve
@@ -698,6 +699,8 @@ def draft(
     max_terms: int = 0,
     taken_ids: set[str] | None = None,
     bib_unreadable: set[str] | None = None,
+    manuscript: str = "",
+    manuscript_digest: str = "",
 ) -> Draft:
     """Read `text` and write down what could be proposed for it.
 
@@ -731,6 +734,27 @@ def draft(
                 Skipped(
                     key=site.key,
                     reason=_why_no_file(site.key, table, bib, bib_unreadable),
+                    line=site.line,
+                )
+            )
+            continue
+        # The file this key resolved to is the manuscript we are reading, or a
+        # byte-for-byte copy of it.  Measured before this branch existed: a
+        # manifest mapping the key to `paper.md` produced a block quoting a
+        # sentence out of `paper.md`, and pasting it - the only thing this
+        # command tells an author to do - made `check` report
+        # `[high] source-is-manuscript`.  `scan` and `verify` both refuse this
+        # file already; a command that manufactures the finding is worse than
+        # the silence it replaced, because the author trusts what it writes.
+        if is_the_manuscript(_resolve(Path(root), path), manuscript, manuscript_digest):
+            result.skipped.append(
+                Skipped(
+                    key=site.key,
+                    reason=(
+                        f"the file for {site.key} is this manuscript, so it cannot be "
+                        "the evidence for its own sentences - point the key at the "
+                        "source paper"
+                    ),
                     line=site.line,
                 )
             )

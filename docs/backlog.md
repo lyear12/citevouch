@@ -3268,6 +3268,33 @@ not what changed, but what proves the change works.
   one file only sometimes; the digest comparison is what covers that and no
   test here can exercise both filesystems at once.
 
+- [x] **`draft` proposed a claim block that `check` refuses on sight.**
+  v0.22.47 taught `scan` and `verify` that a source may not be the manuscript
+  itself, and left `draft` out. A `sources.toml` binding a key to the
+  manuscript, or a bibliography entry whose `file` field names it, made
+  `draft` write a block into `claims.md` and recommend pasting it back:
+
+      ```claim id=knuth2020 source=knuth2020 page=1
+      quote: |
+        We collected precisely 987,654 examples under a blue moon \citep{knuth2020}.
+      ```
+
+  Pasting it back gave `[high] source-is-manuscript`. *Who is blocked*: an
+  author who follows the advice the tool just printed, which is every author
+  the command exists for. *Done when* `draft` asks the same question the
+  other two readers ask, and the skip note names the file.
+  *Done - why it is now true*: `src/citevouch/draft.py` calls
+  `evidence.is_the_manuscript` between resolving the key and recording it as
+  a needed source, and `src/citevouch/cli.py` passes the manuscript path and
+  its digest. `tests/test_draft_source_is_manuscript.py` (10 tests) pins all
+  three routes plus one test that builds the block the old code wrote and
+  asserts `check` rejects it. Six mutants, `survivors: []` - one candidate
+  was an equivalent mutant (the digest subsumes the path for every input
+  reaching it) and is documented in the script rather than tested for.
+  *Not covered*: a manuscript reached through a symlink whose target is the
+  source page; `draft` also still prints no bibliography parse findings
+  (that was v0.22.44's separate fix for `scan`, and `draft` shares it).
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*

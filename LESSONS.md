@@ -6635,3 +6635,39 @@ apart, that is not a passing test: run the one entry point that only has one of
 them, which is the case a user actually hits.
 
 Seen 1.
+
+## A fix that teaches two readers and forgets the third teaches nobody
+
+v0.22.47 taught `scan` and `verify` that a source may not be the manuscript
+itself. `draft` was not taught, so a `sources.toml` naming the manuscript made
+`draft` write this into `claims.md` and recommend pasting it back:
+
+      ```claim id=knuth2020 source=knuth2020 page=1
+      quote: |
+        We collected precisely 987,654 examples under a blue moon \citep{knuth2020}.
+      ```
+
+Pasting it back gave `[high] source-is-manuscript`. The tool produced, and
+recommended, the exact block its own next command rejects. A proposal the tool
+would refuse on sight is not a proposal; it is a trap with a citation in it.
+
+The finding is not that a guard was missing in one place. The finding is that
+the guard was added where the *defect was measured*, not where the *rule lives*.
+A rule about what a source may be is a rule about the word "source", and three
+commands read that word: `scan` builds the ledger, `verify` reads it, `draft`
+proposes from the same table. Two out of three is not progress, because the one
+that was left out is the one that *writes text an author will paste*.
+
+How to apply it:
+
+- When a fix is a rule about a noun ("a source may not be the manuscript"), grep
+  for every command that resolves that noun before calling the fix done. The
+  guard belongs in the resolver, not in the caller that surfaced the bug.
+- Suspect most the reader that produces text the author copies. A wrong finding
+  costs a minute; a wrong proposal costs the trust that made the tool worth
+  running, and it is pasted back before anyone checks it.
+- Write the sentence the left-out reader would have printed, and test it. "A
+  proposal the tool would refuse on sight is not a proposal" is a requirement a
+  test can hold on to; "add the same guard" is not.
+
+Seen 1.

@@ -11,6 +11,25 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **`draft` proposed a claim block that `check` would refuse on sight.**
+  v0.22.47 taught `scan` and `verify` that a source may not be the manuscript
+  itself, and left `draft` out. So a `sources.toml` naming the manuscript, or a
+  bibliography `file = {paper.md}` field, made `draft` write this into
+  `claims.md` and tell the author to paste it back:
+
+      ```claim id=knuth2020 source=knuth2020 page=1
+      quote: |
+        We collected precisely 987,654 examples under a blue moon \citep{knuth2020}.
+      ```
+
+  Pasting it back gave `[high] source-is-manuscript` - the tool produced, and
+  recommended, the exact block its own next command rejects. A proposal the tool
+  would refuse on sight is not a proposal; it is a trap with a citation in it.
+  The three paths are now asked the same question the other two readers ask, and
+  the skip note says which file is the problem and what to do about it
+  (`tests/test_draft_source_is_manuscript.py`, 10 tests, six mutants).
 
 ## [0.22.47] — 2026-11-09
 ### Fixed
