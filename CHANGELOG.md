@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.55] — 2026-11-09
 ### Fixed
 
 * **A sentence the file never decoded was compared with a page.**
@@ -56,7 +57,6 @@ tag and that file disagree.
   mutations die: no guard, counting the file instead of the sentence,
   inverting the condition, appending the reason without `continue`,
   dropping the count, dropping the file name, dropping the command.
-
 ## [0.22.54] — 2026-11-09
 ### Fixed
 
@@ -3995,7 +3995,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.54...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.55...HEAD
+[0.22.55]: https://github.com/lyear12/citevouch/releases/tag/v0.22.55
 [0.22.54]: https://github.com/lyear12/citevouch/releases/tag/v0.22.54
 [0.22.53]: https://github.com/lyear12/citevouch/releases/tag/v0.22.53
 [0.22.52]: https://github.com/lyear12/citevouch/releases/tag/v0.22.52
