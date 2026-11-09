@@ -345,6 +345,14 @@ _DROP_ARGUMENT = frozenset(
         "autoref",
         "cref",
         "Cref",
+        # `\\ref`-family commands that the fallthrough left in the sentence:
+        # `\\nameref{sec:data}` became ``sec:data`` as a word of the prose, so
+        # `draft` proposed a sentence containing a label key.  `\\vref` is the
+        # same command under a different package, so it goes in the same set -
+        # a table of names retyped in a second place is incomplete there.
+        "nameref",
+        "vref",
+        "Vref",
         "usepackage",
         "documentclass",
         "bibliographystyle",
@@ -639,6 +647,18 @@ def _without_definitions(text: str) -> str:
     return "".join(out)
 
 
+#: Commands whose first argument names something the reader never sees, and
+#: whose second argument is the author's prose.  `\\captionof` is the caption
+#: package's way of titling a float that is not a float - the one spelling a
+#: thesis uses for a table set inside a paragraph - and it was not in any table,
+#: so the unknown-command branch dropped the name and kept both arguments.
+#: Measured before this set had them: `\\captionof{table}{We collected 154,391
+#: examples.}` converted to `tableWe collected 154,391 examples.`, and because
+#: that is not the sentence the page holds, `draft` proposed nothing at all -
+#: a verbatim citation reported as "0 claim block(s) proposed".  Same shape for
+#: `\\rotatebox{90}{...}` -> `90We collected ...` on a rotated figure label and
+#: `\\hyperref[sec:data]{...}` -> `[sec:data]We collected ...`.
+#:
 #: Commands with one argument that is not prose (a colour, a URL, a scale, a
 #: width) followed by one that is.  Neither ``_KEEP_ARGUMENT`` nor
 #: ``_DROP_ARGUMENT`` describes them, so they used to fall through to the
@@ -661,6 +681,16 @@ _SKIP_FIRST_ARGUMENT = frozenset(
         "href",
         "foreignlanguage",
         "multicolumn",
+        # The caption package's float-less caption and the graphics package's
+        # rotation each take one name before the text the reader sees.
+        # `\captionof*` needs no entry of its own: the scanner stops the command
+        # name at the `*` and `_skip_optional_args` consumes it, so both
+        # spellings arrive here as `captionof`.  Listing `captionof*` as well
+        # was a name no lookup could ever produce - a dead line that read like
+        # coverage.
+        "captionof",
+        "rotatebox",
+        "hyperref",
     }
 )
 
@@ -670,6 +700,15 @@ _SKIP_FIRST_ARGUMENT = frozenset(
 #: is the third argument - skipping only the span left the alignment `c` glued to
 #: the cell, which measured as ``cwide text``.
 _SKIP_ARGUMENT_COUNT = {"fcolorbox": 2, "resizebox": 2, "multicolumn": 2}
+
+#: Commands that spell their name in the optional argument *instead of* the
+#: first braced one.  ``\hyperref[label]{text}`` and ``\hyperref{url}{text}``
+#: both take exactly one argument that is not prose, but not the same one:
+#: skipping a braced argument after a bracket ate the text and left an empty
+#: sentence, which measured as ``\hyperref[sec:data]{We collected 154,391
+#: examples.}`` converting to nothing at all - a worse outcome than the leak
+#: this set was built for, because the words disappeared instead of growing.
+_OPTIONAL_IS_THE_NAME = frozenset({"hyperref"})
 
 #: Commands with no prose argument at all, and how many braced arguments each
 #: takes.  Every one of these fell through to "keep whatever it wraps", which
@@ -1338,6 +1377,8 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
                     # followed by no further argument of its own.
                     cursor = _skip_optional_args(text, end)
                     skip = _SKIP_ARGUMENT_COUNT.get(name, 1)
+                    if name in _OPTIONAL_IS_THE_NAME and "[" in text[end:cursor]:
+                        skip -= 1
                     for _ in range(skip):
                         group = _group_end(text, cursor)
                         if group < 0:

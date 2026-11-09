@@ -11,6 +11,44 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **Three commands pasted the name they were pointing at into the sentence.**
+  `\captionof{table}{We collected 154,391 examples.}` converted to
+  `tableWe collected 154,391 examples.` - the float type glued to the first
+  word - and `draft` then compared a sentence the author never wrote against
+  the page. A citation that is verbatim in the source came back as
+  `0 claim block(s) proposed: 0 quoting the sentence verbatim`:
+
+  ```text
+  # plain paragraph in the .tex
+  1 claim block(s) proposed: 1 quoting the sentence verbatim
+  <!-- confidence: high - the manuscript's sentence appears verbatim in the source -->
+
+  # the same sentence inside \captionof{table}{...}
+  0 claim block(s) proposed: 0 quoting the sentence verbatim
+  ```
+
+  `\rotatebox{90}{...}` leaked `90`, and `\hyperref[sec:data]{...}` leaked
+  `[sec:data]`. All three take one argument that names something and one that
+  is prose; none of them was in `_SKIP_FIRST_ARGUMENT`, so they fell through to
+  the unknown-command branch, which drops the command name and keeps every
+  argument. `\captionof` is the caption package's way of titling a float that
+  is not a float - the normal spelling for a table set inside a paragraph - so
+  this was not an exotic input.
+
+  `\nameref` and `\vref` were the mirror image: they are `\ref` with a
+  different name, `\ref`'s argument is already dropped, and these two were not
+  in that set, so `see \nameref{sec:data} for details.` put the label key in
+  the prose as a word.
+
+  *Not covered*: the `\hyperref` adjustment keys off a `[` before the first
+  braced argument, so a paper that writes `\hyperref [label]{text}` with a space
+  before the bracket is read as the braced form. The braced form keeps its
+  words, so the failure is a leaked `[label]`, not lost text. `\stackrel`,
+  `\overset` and `\underbrace` leak their first argument too, but all three
+  are math and read by `_plain_math`, which keeps the digits a reader sees; left
+  alone deliberately.
 
 ## [0.22.39] — 2026-11-09
 ### Fixed

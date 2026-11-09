@@ -6368,3 +6368,43 @@ How to apply:
   never reached.
 
 Seen 1.
+
+## A command's first argument is a name or a sentence, and only its position says which
+
+`\captionof{table}{We collected 154,391 examples.}` converted to
+`tableWe collected 154,391 examples.`, `\rotatebox{90}{...}` to
+`90We collected ...`, `\hyperref[sec:data]{...}` to `[sec:data]We collected
+...`. Each takes one argument that names something the reader never sees,
+followed by one that is the author's prose. None of them was in
+`_SKIP_FIRST_ARGUMENT`, so each fell through to the unknown-command branch -
+which drops the command name and keeps every argument, on the theory that an
+unknown command is probably a wrapper around a sentence.
+
+The damage is not cosmetic. `draft` compares the converted sentence against the
+page, so a leaked `table` in front of the words made a verbatim citation come
+back as `0 claim block(s) proposed: 0 quoting the sentence verbatim`. Measured
+on the same fixture: plain paragraph -> `1 claim block(s) proposed: 1 quoting
+the sentence verbatim` with `confidence: high`; inside `\captionof` -> zero
+proposals, and the tool never says why.
+
+The mirror case is `\nameref{sec:data}` and `\vref{sec:data}`, which are `\ref`
+under other names. `\ref`'s argument is in `_DROP_ARGUMENT`, these two were not,
+so the label key entered the prose as a word: `see \nameref{sec:data} for
+details.` read as `see sec:data for details.`
+
+How to apply:
+
+- The fallthrough is the defect, not the individual command. "Unknown command,
+  therefore a wrapper" is a guess that is wrong for every command whose leading
+  argument is a name, and the set of such commands is unbounded.
+- A command family is one name in a table, not one name in a table plus its
+  relatives retyped elsewhere. `\captionof*` needed no entry of its own - the
+  scanner stops the name at the `*` and the optional-argument skipper eats it -
+  and adding it produced a line no lookup could reach: dead code that read like
+  coverage.
+- When the leaked thing is a label or a float type, look for the sibling
+  spellings in the same table before extracting a helper. Half of this fix was
+  a command missing from `_SKIP_FIRST_ARGUMENT`; the other half was two commands
+  missing from `_DROP_ARGUMENT`.
+
+Seen 1.
