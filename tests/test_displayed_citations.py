@@ -304,6 +304,29 @@ class TestWhatTheDisplayRuleHasToKnow:
         assert "```claim" in written
 
 
+class TestTheBlankingHelperKeepsItsContract:
+    """``blank`` is public, and a caller can hand it a span that does not fit.
+
+    The spans this tool produces are measured in the string they describe, so
+    they always fit - but a negative start would wrap around to the end of the
+    string and blank prose that the author wrote, which is the silent way to be
+    wrong.  Clamping is the difference between ignoring a bad span and
+    corrupting a good one.
+    """
+
+    def test_a_negative_start_does_not_wrap_around(self) -> None:
+        assert display.blank("abcdef", [(-4, 2)]) == "  cdef"
+
+    def test_an_end_past_the_string_stops_at_the_end(self) -> None:
+        assert display.blank("abcdef", [(4, 999)]) == "abcd  "
+
+    def test_a_span_entirely_past_the_string_changes_nothing(self) -> None:
+        assert display.blank("abcdef", [(99, 120)]) == "abcdef"
+
+    def test_newlines_are_never_removed(self) -> None:
+        assert display.blank("a" + NL + "b", [(0, 3)]) == " " + NL + " "
+
+
 class TestARealCitationIsStillMissedWhenItIsMissing:
     """The point is to stop reading examples, not to stop reading citations."""
 

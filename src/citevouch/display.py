@@ -24,6 +24,7 @@ is the same position in the manuscript and line numbers do not move.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 NL = "\n"
 
@@ -156,14 +157,19 @@ def display_spans(text: str) -> list[tuple[int, int]]:
     return spans
 
 
+def blank(text: str, spans: Iterable[tuple[int, int]]) -> str:
+    """``text`` with every region in ``spans`` blanked, offsets unchanged."""
+    out = list(text)
+    for start, end in spans:
+        for index in range(max(0, start), min(end, len(out))):
+            if out[index] not in (NL, "\r"):
+                out[index] = " "
+    return "".join(out)
+
+
 def mask(text: str) -> str:
     """``text`` with every displayed region blanked, offsets unchanged."""
     spans = display_spans(text)
     if not spans:
         return text
-    out = list(text)
-    for start, end in spans:
-        for index in range(start, end):
-            if out[index] not in (NL, "\r"):
-                out[index] = " "
-    return "".join(out)
+    return blank(text, spans)

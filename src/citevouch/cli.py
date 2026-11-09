@@ -755,12 +755,16 @@ def cmd_draft(args: argparse.Namespace) -> int:
     )
     converted = latex_module.looks_like_latex(manuscript)
     included: list[str] = []
+    # Where the converter put back a body TeX prints rather than reads: a
+    # `\verb|\citep{ghost}|` is a specimen, and the restored characters are
+    # the only copy of it by the time `draft` runs.
+    displayed: list[tuple[int, int]] = []
     if converted:
         # A paper split across files keeps its citations in the parts, and
         # `to_text` reads one file.  Reporting the names it could not follow
         # turns a silent zero into a question the author can answer.
         included = latex_module.included_files(text)
-        text = latex_module.to_text(text)
+        text, displayed = latex_module.to_text_and_display(text)
     result = draft_module.draft(
         text,
         bib=bib,
@@ -782,6 +786,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         # is the only thing this command tells them to do - turned a working
         # project into a high-severity one.
         taken_ids=_existing_claim_ids(text),
+        displayed=displayed,
         manuscript_lost=manuscript_lost,
         bib_unreadable=bib_unreadable,
     )

@@ -963,12 +963,35 @@ def _drop_inline_verbatim(text: str) -> tuple[str, list[str]]:
     return "".join(out), bodies
 
 
-def _restore_dropped(text: str, bodies: list[str]) -> str:
-    """Put back the literal characters `_drop_inline_verbatim` took out."""
+def _restore_dropped(text: str, bodies: list[str]) -> tuple[str, list[tuple[int, int]]]:
+    """Put back the literal characters `_drop_inline_verbatim` took out.
+
+    The spans are the other half of the answer.  TeX prints a ``\\verb`` body
+    literally, so ``\\verb|%|`` has to reach the output as a percent sign and
+    ``\\verb|\\textit{x}|`` as visible backslashes - but the *same* body is a
+    specimen to every reader downstream, and `draft` read the restored
+    ``\\verb|\\citep{ghost}|`` as a citation the author made, then told them
+    their own example was missing a paper.  Reporting where each body landed
+    lets the caller blank exactly what was displayed, instead of trying to
+    recognise it again from the characters - which is the guess that failed.
+    """
     if not bodies:
-        return text
+        return text, []
     pattern = re.compile(re.escape(_DROPPED_MARK) + r"(\d+)" + re.escape(_DROPPED_MARK))
-    return pattern.sub(lambda found: bodies[int(found.group(1))], text)
+    out: list[str] = []
+    spans: list[tuple[int, int]] = []
+    cursor = 0
+    landed = 0
+    for found in pattern.finditer(text):
+        out.append(text[cursor : found.start()])
+        landed += found.start() - cursor
+        body = bodies[int(found.group(1))]
+        spans.append((landed, landed + len(body)))
+        out.append(body)
+        landed += len(body)
+        cursor = found.end()
+    out.append(text[cursor:])
+    return "".join(out), spans
 
 
 def strip_comments(text: str) -> str:
@@ -1690,12 +1713,33 @@ def to_text(tex: str) -> str:
     The result keeps the paragraph structure (blank lines) and turns citations
     into ``[@key]`` so that `draft` needs no second code path for LaTeX.
     """
+    return to_text_and_display(tex)[0]
+
+
+def to_text_and_display(tex: str) -> tuple[str, list[tuple[int, int]]]:
+    """`to_text`, plus where each displayed TeX body ended up in the result.
+
+    An inline ``\\verb``-family body is dropped before the citation patterns
+    run and put back afterwards as the characters TeX prints - so a
+    ``\\verb|\\citep{ghost}|`` is not a citation in the converter, correctly.
+    It was one again in `draft`, which reads the converted text: the restored
+    characters came back as the LaTeX spelling, `citation_sites` recognised it,
+    and the author was told their own example key has no local file.  Measured
+    on a manuscript with ``\\verb|\\citep{ghost2021}|`` beside a real
+    ``\\citep{paper}``: ``3 citation(s) left as comments``.
+
+    The bodies go back **last**, after the whitespace passes: their markers
+    hold no space and no newline, so no pass touched them and no pass moved
+    them, and a span measured here is a span in the string the caller gets.
+    Collapsing whitespace before the restore would mean measuring spans in one
+    string and returning another.
+    """
     body = document_body(strip_comments(tex))
     body, verbatim = _drop_inline_verbatim(body)
     body = _MULTI_CITE.sub(lambda match: _pandoc_multi(match.group("arguments")), body)
     body = _CITE.sub(lambda match: _pandoc_marker(match.group(1)), body)
     notes: list[str] = []
-    text = _restore_dropped(_convert(body, notes), verbatim)
+    text = _convert(body, notes)
     # Collapse the runs of blank lines the block environments produce.
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r" *\n *", "\n", text)
@@ -1706,4 +1750,5 @@ def to_text(tex: str) -> str:
         # model.  Keeping it in one block of its own means `draft` reads it as
         # a phrase the author wrote rather than as words inside a claim.
         text = text + "\n\n" + "\n\n".join(notes)
-    return text + "\n"
+    text, displayed = _restore_dropped(text, verbatim)
+    return text + "\n", displayed

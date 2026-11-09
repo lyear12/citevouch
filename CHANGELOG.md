@@ -12,6 +12,28 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A citation the author was showing with `\verb` was one `draft` said they made.**
+
+  TeX prints an inline-verbatim body literally, so the converter drops each body before the citation patterns run and puts the characters back afterwards - that is how `50\verb|%|` reaches the output as a percent sign. The restored characters come back in LaTeX spelling, and `draft` reads the converted text: `\verb|\citep{ghost2021}|` came back as `\citep{ghost2021}` and `citation_sites` recognised it. The author was told their own example key has no local file, and a specimen placed above a sentence also stopped that sentence matching, because the example text travelled into the sentence `draft` compared.
+
+  Measured on a manuscript with the example beside a real `\citep{paper}`, before this change:
+
+  ```
+  citevouch: 1 claim block(s) proposed (0 verbatim), 3 citation(s) left as comments
+  <!-- line 3: ghost2021 - no local file: not in sources.toml, no `file` field
+       in the bibliography, and no file named after the key -->
+  ```
+
+  The Markdown half of this defect was fixed in 0.22.58 by blanking the display before anything reads it. This one cannot use that answer: the restored characters have to stay, because they are what the paper prints. The converter is the only code that knows where each body landed, so `latex.to_text_and_display()` now says where, and `display.blank()` blanks exactly those spans. `latex.to_text()` is that function's first half, so the two cannot drift.
+
+  The bodies go back **last**, after the whitespace passes. Their markers hold no space and no newline, so no pass touched them and no pass moved them - measuring spans in one string and returning another is how this kind of fix goes wrong.
+
+  What this does not fix: a body inside the sentence that cites the real page still blanks a hole in that sentence, so it falls back to the medium-confidence passage. Markdown inline code has the same behaviour and it is recorded in `docs/backlog.md` - the fix is to compare against text with holes rather than against the printed characters, which is a different change from this one.
+
+  `tests/test_latex_displayed_citations.py` (20 tests) covers all five inline-verbatim commands, the literal characters that must survive, the spans pointing at the bodies in the returned string, and the prose that must keep its citations. 12 mutations, all red - one of them only after `blank()` got tests for spans that do not fit, because a negative start wrapped around to the end of the string and blanked prose the author wrote.
+
 ## [0.22.58] — 2026-11-09
 ### Fixed
 

@@ -728,6 +728,7 @@ def draft(
     # of that read: in a lossless file a replacement character is one the
     # author wrote, and a paper about encodings is full of them.
     manuscript_lost: bool = False,
+    displayed: list[tuple[int, int]] | None = None,
 ) -> Draft:
     """Read `text` and write down what could be proposed for it.
 
@@ -759,6 +760,15 @@ def draft(
     # markers travelled into the sentence compared with the page.  Blanking the
     # display keeps every offset and newline, so line numbers do not move.
     masked = display.mask(text)
+    # A `.tex` manuscript reaches this function already converted, and what a
+    # ``\verb`` family bodies printed is displayed just as a fenced block is:
+    # `latex.to_text` puts the literal characters back because TeX prints them
+    # (``50\verb|%|`` is a percent sign), and `citation_sites` then read the
+    # restored ``\citep{ghost}`` as a citation the author made.  The converter
+    # says where each body landed, so the same masking applies - no second
+    # rule, and no guessing from the characters.
+    if displayed:
+        masked = display.blank(masked, displayed)
     sites = citation_sites(masked)
     result.no_citations = not sites
     # Only a reading that lost bytes explains missing characters; in a lossless

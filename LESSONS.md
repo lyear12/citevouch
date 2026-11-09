@@ -7121,3 +7121,38 @@ How to apply:
   line with text after the run does not close anything;
 * masking is only half the fix - the same distinction usually exists in every other
   input format, so write down which ones are still open.
+## A literal can be both what the reader sees and what the reader believes
+TeX prints an inline-verbatim body literally, so a converter has to put the
+characters back: `50\verb|%|` is a percent sign, and `\verb|\textit{x}|` is
+visible backslashes. That promise is to the reader. The same restored characters
+are *evidence* to every reader downstream, and they arrive in the spelling of the
+source language: a `\verb|\citep{ghost}|` is a specimen to a human and a citation
+to `citation_sites`. Both statements are true, of the same string, and the tool
+cannot tell them apart by looking.
+
+The repair was not to make the downstream reader smarter about characters - that
+is the guess that failed. The code that did the restoring already knew where each
+body landed; it just threw that knowledge away. A function that decides something
+on behalf of its callers should hand back the coordinates of its decision, not
+leave them to be rediscovered from the text it produced.
+
+The order of operations is part of the answer. The whitespace passes run before
+the bodies are restored, because their markers hold no space and no newline: no
+pass touches them, so no pass can move them, and a span measured at the end is a
+span in the string the caller gets. Restore first, collapse second, and the spans
+would describe a string that no longer exists - silently, and only for the
+documents whose whitespace happened to change.
+
+How to apply:
+
+* When a function restores, expands or substitutes text, ask whether anything
+  downstream needs to know which characters were substituted. If yes, return the
+  spans; the caller cannot recover them.
+* Measure spans only in the final string. Any pass that can move characters must
+  run before the measurement, or be proven not to touch the region.
+* A helper that takes caller-supplied offsets clamps them. Out-of-range spans from
+  a bug are worth ignoring; a negative start that wraps to the end of the string
+  blanks prose the author wrote, which is the silent way to be wrong.
+* "The output looks right" is not the test. The test is that the two readers who
+  need opposite things from the same characters both get their answer.
+
