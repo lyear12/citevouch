@@ -3153,6 +3153,39 @@ not what changed, but what proves the change works.
   *Not covered*: no real reference-manager export; a key regex that is
   deliberately loose and only ever runs on a file the parser already refused.
 
+- [x] **The command `draft` told the author to run next failed on its own output.**
+  `draft` ends by naming the `check` command that reads the file it just wrote.
+  That sentence was built from the output path alone, so a run with `--root`
+  printed an advice without it, and following the advice checked the current
+  directory instead of the project:
+
+  ```text
+  $ citevouch draft proj/paper.md --root proj -o claims.md --bib proj/refs.bib
+  citevouch: wrote claims.md; read it, then `citevouch check claims.md` to see what it got wrong
+  $ citevouch check claims.md
+  [high] source-missing at claims.md:11 (knuth2020): claim knuth2020 names
+  source='knuth2020' but no entry in sources.toml ...
+  ```
+
+  The second command exits 1 with a false accusation about a claim `draft` had
+  itself just quoted verbatim from a page it had read.
+  *Who is blocked*: the first-time user this command exists for. `draft` is the
+  command that turns a paper into checkable claims, so its last line is the
+  only instruction many readers ever follow.
+  *Done when*: the command printed in the output can be copied and run from the
+  directory it was printed in, and does what the sentence says.
+  *Done - why it is now true*: `cli._check_advice(output, root)` builds it from
+  the values the run used - `--root` whenever the run had one and nothing for
+  `--root .` - and `cli._shell_word` prints paths with forward slashes (a
+  Windows backslash is a shell escape) and quotes anything with a space,
+  including the `'` -> `'\''` case that would otherwise end the quote early.
+  `tests/test_draft_advice_runs.py` (6 tests) extracts the command from the
+  output and executes it, so the test fails on what a user would notice.
+  Six mutations, `survivors: []` (one survived the first round: nothing escaped
+  an apostrophe, which needed a filename with one in it to show).
+  *Not covered*: only POSIX `sh` rules are honoured - the advice is split with
+  `shlex` in the test, and `cmd.exe` quoting differs.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
