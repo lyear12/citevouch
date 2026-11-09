@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.31] — 2026-11-09
 ### Fixed
 
 * **A colon on a claim block's opening line was parsed away in silence.**
@@ -41,7 +42,6 @@ tag and that file disagree.
 
   Covered by `tests/test_opening_line_colons.py` (12 tests) across both dialects
   and both verbs; eight mutations of the new code all go red.
-
 ## [0.22.30] — 2026-11-08
 ### Fixed
 
@@ -3233,7 +3233,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.30...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.31...HEAD
+[0.22.31]: https://github.com/lyear12/citevouch/releases/tag/v0.22.31
 [0.22.30]: https://github.com/lyear12/citevouch/releases/tag/v0.22.30
 [0.22.29]: https://github.com/lyear12/citevouch/releases/tag/v0.22.29
 [0.22.28]: https://github.com/lyear12/citevouch/releases/tag/v0.22.28
