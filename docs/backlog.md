@@ -2886,6 +2886,61 @@ not what changed, but what proves the change works.
   sarif` passes no `everything`, so its document never gains the key - it has
   no `--quiet` to explain.
 
+- [x] **One bibliography was recorded with two different paths.**
+  `sources.toml`'s paths and the ledger's own `bibliographies` list are recorded
+  relative to `--root` with forward slashes, so a ledger written on Windows
+  resolves on the Linux job that runs the same commit. The bibliography
+  *entries* were not: `scan` handed `parse_bib` the path exactly as the shell
+  spelled it.
+  *What was wrong*: one project, two shells, two ledgers.
+
+  ```text
+  scan proj/manuscript.md --root proj --bib proj/sub/refs.bib
+    entries['knuth2020'].path = 'proj\sub\refs.bib'
+    bibliographies            = ['sub/refs.bib']
+  cd proj && scan manuscript.md --root . --bib sub/refs.bib
+    entries['knuth2020'].path = 'sub\refs.bib'
+  ```
+
+  Neither agreed with the `sub/refs.bib` the same run wrote into
+  `bibliographies`, and every finding built on an entry (`bib-field-empty`,
+  `bib-field-malformed`, `bib-unreadable`) named the file back in whichever
+  spelling the recording shell used. A commit made on Windows therefore
+  produced different finding text, and a different SARIF
+  `artifactLocation.uri`, on the Linux job.
+  *Who was blocked*: anyone whose CI runs on a different OS from their laptop,
+  which is the default for a GitHub project developed on Windows. The finding
+  was still *correct* — the entry really was missing its `year` — but the file
+  it named is not a file the reader on the other machine can open, and the one
+  thing this tool must never do is send an author to a file that does not exist.
+  *Done when*: one project scanned from two directories writes one ledger, and
+  a finding about a bibliography names a path that resolves against `--root`.
+  Both are asserted in `tests/test_bib_path_portable.py` (15 tests).
+  *Done - why it is now true*: the recorded path is computed in one place,
+  `scan.recorded_path` (renamed from `_ledger_path` — `cli`, `verify` and `scan`
+  all need it, and a private name collided with the CLI's own flag resolver for
+  `--ledger`). All four call sites that hand a bibliography to the parser use
+  it: the recording pass, the live `check --bib`, `verify`'s re-read, and
+  `draft --bib`. Eight mutants, none survived: entries keep the shell's
+  spelling; the recorded path is absolute; it keeps the platform separator; the
+  `bibliographies` list goes back to the native spelling; the recorded pass
+  stops normalising; the live run stops normalising; a path outside the root is
+  invented into one; and `draft` joins the recorded path to the shell instead
+  of the root.
+  *The half that bites back*: moving the spelling made `draft` start lying.
+  It resolved a bib entry's `file` field against `entry.path`'s folder, which
+  only worked while that path was relative to the shell — from one directory
+  above the project it silently stopped finding a `paper.txt` sitting beside
+  the bibliography. That is the second reason the whole path question is worth
+  one function: a path that is relative to the root is only correct if every
+  reader joins it to the root, and there were readers in two modules nobody
+  thought of as path readers.
+  *Not covered*: a real round trip between a Windows and a Linux checkout (the
+  ledger was never carried across machines, only the two shells on one);
+  bibliographies reached through a symlink or a UNC share; and `draft`'s
+  `file`-field fallback still tries the bibliography's folder before the root,
+  which is deliberate — Zotero writes paths relative to the `.bib`.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
