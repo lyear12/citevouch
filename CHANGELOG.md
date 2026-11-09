@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.41] — 2026-11-09
 ### Fixed
 
 * **`report` printed the same bibliography line for two opposite facts.**
@@ -46,7 +48,6 @@ tag and that file disagree.
   when nothing could be read, names never printed, `none recorded` replaced
   by a bare count, no clipping, the count left off, the JSON field removed,
   the JSON field written empty.
-
 ## [0.22.40] — 2026-11-09
 ### Fixed
 
@@ -3598,7 +3599,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.40...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.41...HEAD
+[0.22.41]: https://github.com/lyear12/citevouch/releases/tag/v0.22.41
 [0.22.40]: https://github.com/lyear12/citevouch/releases/tag/v0.22.40
 [0.22.39]: https://github.com/lyear12/citevouch/releases/tag/v0.22.39
 [0.22.38]: https://github.com/lyear12/citevouch/releases/tag/v0.22.38
