@@ -34,7 +34,18 @@ import pytest
 from citevouch.manuscript import parse_manuscript
 
 NL = chr(10)
-ENV = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")}
+# The em dash in the summary line is a byte sequence, not a character, until
+# both ends of the pipe agree on an encoding. Left alone, the child writes with
+# the Windows code page and the parent decodes with the locale, which is UTF-8
+# on this machine and cp1252 on the runner - so the same assertion passed here
+# and failed on all three windows-latest jobs (E2 80 94 on one side of the
+# comparison, EF BF BD on the other). Pin both ends instead of trusting the
+# ambient locale.
+ENV = {
+    **os.environ,
+    "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
+    "PYTHONIOENCODING": "utf-8",
+}
 PAGE = "We collected 154,391 examples from the corpus."
 MANIFEST = "[sources]" + NL + 'paper = "page.txt"' + NL
 HEADER = "| id | source | page | quote | claim |" + NL + "|---|---|---|---|---|" + NL
@@ -58,6 +69,7 @@ def _run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         [sys.executable, "-m", "citevouch", *args, "--root", str(root)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         env=ENV,
         check=False,
     )

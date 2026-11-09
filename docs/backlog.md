@@ -2643,6 +2643,51 @@ not what changed, but what proves the change works.
 
   *Not covered.* Still a report, not a repair: `page: 9` is not applied, because deciding whether it is a hint or a note is a format change. A colon-spelled key that is neither known nor within one edit of a known one is not reported at all - `foo: 1` stays silent, which is the price of not firing on notes.
 
+- [x] **A table claim row with an empty cell made the file look empty.**
+  The table dialect is five cells wide (`| id | source | page | quote | claim |`)
+  and `_TABLE_CLAIM` required a character in the `id` cell and a digit-or-`-` in
+  the `page` cell. A row with either one left blank matched nothing, so it
+  belonged to no claim and to no span, and a one-row manuscript was reported as
+  holding no claim block at all. Measured on a one-page source whose quote is
+  verbatim on page 1:
+
+  ```
+  | c1 | paper |  | <quote> | ok |   ->  [high] no-claim-blocks at m.md:
+  |  | paper | 1 | <quote> | ok |        m.md contains no claim blocks, so
+                                        nothing was checked ... This file has
+                                        none.                            exit 1
+  ```
+
+  The quietest shape was worse: a blank-`page` row followed by a good row gave
+  `1 claim - 1 verified, 0 moved, 0 missing`, exit 0, and no line mentioned the
+  row the parser had walked past.
+
+  *Who was blocked.* Anyone who writes a table row before deciding which page
+  the quote is on, or who is still numbering their claims. The tool answers "this
+  file has no claim blocks" to a file that plainly has one, and offers to run
+  `draft` over it - which proposes blocks for text that already has them.
+
+  *Done when.* A blank `id` cell produces `claim-uncheckable` (the sentence the
+  fence dialect already gives), a blank `page` cell means "no page hint" (what
+  `-` already meant), and a header row is still not a claim.
+
+  *Done - why it is now true.* `_TABLE_CLAIM` in `src/citevouch/manuscript.py`
+  now allows both the `id` and `page` cells to be empty; `_claim_from` already
+  answered both omissions correctly once the row reached it.
+  `tests/test_table_blank_cells.py` (11 tests) covers the four row shapes end to
+  end, the parser directly, and the wrapped-row detector. Five mutants, no
+  survivors: the id cell required again, the page cell required again, a blank
+  id filled with a placeholder, a blank page turned into page 0, and the
+  wrapped-row detector retyping the table shape instead of deriving it from
+  `_TABLE_CLAIM.pattern` - that last one survived until a wrapped-row test
+  existed, which is why the test is in the file.
+
+  *Not covered.* A row with a cell that holds neither a value nor nothing - a
+  stray `-` in the `source` column, say - still fails to resolve and reports
+  `source-missing`; that is the right finding, not a parse failure. No fixture
+  in the corpus writes claim tables at all, so every shape here is one I wrote,
+  not one a real manuscript showed.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*

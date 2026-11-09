@@ -53,6 +53,22 @@ tag and that file disagree.
   `_TABLE_CLAIM.pattern` (that last one survived until the wrapped-row test
   existed, which is why it is in the file).
 
+* **The test for that fix passed here and failed on all three Windows jobs.**
+
+  `tests/test_table_blank_cells.py` runs the command in a child process and
+  compared its output against a summary line containing an em dash. It did not
+  pin an encoding on either end, so the child wrote with the Windows code page
+  and the parent decoded with the locale: `EF BF BD` on one side of the
+  comparison and `E2 80 94` on the other. This machine's locale and code page
+  both happen to be UTF-8, so the assertion held locally; on
+  `windows-latest` (3.10, 3.12 and 3.13) it failed with
+  `assert '1 claim � 1 verified' in '... citevouch: 1 claim — 1 verified ...'`
+  and the release was skipped.
+
+  The child now gets `PYTHONIOENCODING=utf-8` and the parent decodes with
+  `encoding="utf-8"`. The product code was never wrong - only the test that
+  watched it was reading a byte sequence it had assumed was text.
+
 ## [0.22.31] — 2026-11-09
 ### Fixed
 

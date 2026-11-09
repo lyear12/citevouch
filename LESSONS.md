@@ -6052,3 +6052,30 @@ until a wrapped-row test existed.  Two copies of a shape are two chances to
 disagree, and the copy with no test is the one that drifts.
 
 Seen 1.
+
+## A guard that reads one function cannot guard a seam between two
+
+The Windows jobs failed because `tests/test_table_blank_cells.py` spawned the
+command in a helper called `_run` and compared its output with an em dash two
+functions away, with no encoding pinned on either end. The child wrote with the
+code page, the parent decoded with the locale, and the two sides of the
+comparison held different bytes. The development machine's locale and code page
+are both UTF-8, so the assertion held there; all three `windows-latest` jobs
+failed and the release was skipped.
+
+The first version of the guard I wrote for it walked **one function at a time**
+looking for an unpinned child next to a non-ASCII assertion. It passed - and it
+passed against the broken file too, because the child and the expectation were
+never in the same function. Same shape as the defect it was meant to catch.
+
+How to apply:
+
+- Decide the unit of the rule from where the defect lived. A helper and its
+  caller are one unit, so the walk is over files, not definitions.
+- Before trusting a new guard, run it against the broken version of what it
+  guards. If it stays green, it is not a guard; it is a comment with a `def`.
+- Narrow the rule until it can be stated without exceptions. "Every file that
+  asserts on non-ASCII text and reads a child as text must pin an encoding"
+  has no exceptions; "every function that does both" had one per file.
+
+Seen 1.
