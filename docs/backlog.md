@@ -2688,6 +2688,50 @@ not what changed, but what proves the change works.
   in the corpus writes claim tables at all, so every shape here is one I wrote,
   not one a real manuscript showed.
 
+- [x] **A test read a child's output as bytes it had assumed were text.**
+  `tests/test_table_blank_cells.py` spawned the command in a helper and compared
+  its stdout with a summary line containing an em dash, pinning an encoding on
+  neither end.  The child wrote with the Windows code page and the parent decoded
+  with the locale, so the two sides of the comparison held different bytes.
+  This machine's locale and code page are both UTF-8, which is exactly why it
+  passed here:
+
+  ```
+  test (windows-latest, 3.10)  failure
+  test (windows-latest, 3.12)  failure
+  test (windows-latest, 3.13)  failure
+  Auto release 54018dd         skipped
+
+  assert '1 claim \ufffd 1 verified' in '... citevouch: 1 claim - 1 verified ...'
+  ```
+
+  The product code was never wrong.  A test that watches a program across a pipe
+  has to say which encoding the pipe carries; without that, the assertion is
+  about a byte sequence and reads like it is about a sentence.
+
+  *Who was blocked.* The release.  `Test 54018dd` failed on three of eleven jobs,
+  `Auto release 54018dd` skipped, so a fix that was correct and fully tested
+  locally produced no version at all - and the numbers on the machine that wrote
+  it all agreed with each other.
+
+  *Done when.* The failing Windows jobs go green and `v0.22.32` exists.
+
+  *Done - why it is now true.* The child gets `PYTHONIOENCODING=utf-8` and the
+  parent decodes with `encoding="utf-8"`; `tests/test_root_guard.py` had the same
+  one-line gap and is pinned too.  `tests/test_child_output_encoding.py` walks
+  **files, not functions** and requires an encoding on every text-reading child in
+  any file that asserts on non-ASCII text.  That scope is the point: the child
+  was spawned in `_run` and the em dash asserted two functions away, and the
+  first version of this guard walked one function at a time and stayed green
+  against the broken file.  The guard is reverse-validated - restore the pre-fix
+  test and it goes red.  `Test 9139fc9` is green on all eleven jobs, including
+  the three Windows cells, and `v0.22.32` was released by it.
+
+  *Not covered.* The scan is deliberately narrow: an ASCII-only file may still
+  read a child without pinning an encoding, and a non-ASCII string a test writes
+  into a fixture is input rather than an expectation.  No other Windows-only
+  encoding path was hunted - this one was found by a red runner, not by the scan.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
