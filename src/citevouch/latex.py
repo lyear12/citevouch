@@ -478,6 +478,34 @@ _BRANCH_BARE_TEST: frozenset[str] = frozenset(
     }
 )
 
+#: Environments whose body is not prose, so it is dropped whole.
+#:
+#: A table is a grid of cells.  The author does not assert its rows the way they
+#: assert a sentence, so a citation written inside one labels a row rather than
+#: supporting an argument, and the column specification (``{lX}``) is
+#: typesetting, not a word.
+#:
+#: This set used to name ``tabular`` and ``tabular*`` only, which meant the
+#: choice of package decided whether the tool read a table as text.  Measured
+#: before the fix, converting ``\\begin{tabularx}{\\linewidth}{lX}`` and one row
+#: gave ``'lX\\nBaseline [@knuth2020] & 90,000'``: the column spec as a word, the
+#: row as a sentence, and the row's citation recorded as a citation of the
+#: paper's argument.  ``draft`` then said::
+#:
+#:     0 claim block(s) proposed (0 verbatim), 1 citation(s) left as comments
+#:     <!-- line 9: knuth2020 - nothing on any page shares enough terms with
+#:          the sentence (3 needed) -->
+#:
+#: - about ``Baseline \\citep{knuth2020} & 90,000``, which is not a sentence at
+#: all.  The same table with ``tabular`` was dropped and the run truthfully
+#: said "no citations were found".
+#:
+#: Deliberately absent: ``array``, ``matrix``, ``pmatrix``, ``bmatrix``,
+#: ``Bmatrix``, ``vmatrix``, ``Vmatrix``, ``smallmatrix``, and the display-math
+#: environments (``equation``, ``align``, ``gather``, ``split``, ``cases``).
+#: Those bodies are formulas, where a number is part of the formula and a
+#: reader does see it - the converter keeps their numbers on purpose, and
+#: ``tests/test_table_environments.py`` writes that decision down as tests.
 _DROP_ENVIRONMENT = frozenset(
     {
         "thebibliography",
@@ -485,11 +513,20 @@ _DROP_ENVIRONMENT = frozenset(
         "verbatim*",
         "lstlisting",
         "minted",
-        "tabular",
-        "tabular*",
         "tikzpicture",
         "filecontents",
         "comment",
+        # Tables, in every package a journal template might name.  `tabular`
+        # and `tabular*` were the only two here; the rest were read as prose.
+        "tabular",
+        "tabular*",
+        "tabularx",
+        "xltabular",
+        "tabulary",
+        "longtable",
+        "tabu",
+        "longtabu",
+        "supertabular",
     }
 )
 

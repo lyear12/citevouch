@@ -6270,3 +6270,53 @@ How to apply:
   other than X.
 
 Seen 1.
+
+## A decision written as a list of names is a decision about the packages that were in the room
+
+`_DROP_ENVIRONMENT` named `tabular` and `tabular*`.  Every other package that
+draws a table -- `tabularx`, `xltabular`, `tabulary`, `longtable`, `tabu`,
+`longtabu`, `supertabular` -- fell through to the code path for prose, so the
+package a journal template happened to name decided what the tool believed the
+author had written.  Measured, converting one `tabularx` table:
+
+```
+\begin{tabularx}{\linewidth}{lX}
+Baseline \citep{knuth2020} & 90,000 \\
+
+to_text -> 'lX\nBaseline [@knuth2020] & 90,000'
+```
+
+`draft` then said `0 claim block(s) proposed (0 verbatim), 1 citation(s) left as
+comments` and blamed the page for not containing a sentence that was a row of a
+table.  The same table with `tabular` was dropped and the run said "no citations
+were found" -- two verdicts for one paper, chosen by a package name.
+
+The list was not wrong about `tabular`; it was wrong about the question.  The
+question is "is this environment's body prose", and a list of names answers "was
+this name in the room when I wrote the list".  The other half of the bug is that
+the fallthrough branch is *silent*: an unknown command keeps whatever it wraps,
+and an unknown environment is assumed to wrap prose.  That default is a claim
+about every environment the author might use, and it is the claim that has to be
+defended.
+
+How to apply:
+
+- When a set of names decides whether input is prose or data, the set is a
+  statement about the packages in the wild, not about the packages you happened
+  to grep for.  Write down what the fallthrough assumes, then look for names
+  that assume the opposite.
+- Fix the whole family in one commit even if only one member was measured.  The
+  reason `tabularx` was reachable at all is that the list was built by
+  encountering names, and `longtable` is reachable for exactly the same reason.
+- Some members look like the family and are not.  `array` and the `matrix`
+  environments are grids too, but they live in math mode, where a reader does
+  see the numbers and the converter keeps them on purpose.  Write that decision
+  down as a test (`TestMathIsLeftAlone`) so the next reader can tell a boundary
+  from an oversight.
+- A mutation that deletes the whole fix proves the tests see the fix; it does
+  not prove they see the *code*.  The first mutation round here survived one
+  mutant because the nested-environment test used a *different* environment for
+  its inner table, which never exercised the nesting counter.  Change one name
+  at a time, and let each test use the shape the counter is for.
+
+Seen 1.

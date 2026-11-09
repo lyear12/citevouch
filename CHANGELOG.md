@@ -12,6 +12,44 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table was read as prose unless the author happened to use `tabular`.**
+  `_DROP_ENVIRONMENT` named `tabular` and `tabular*` and nothing else, so the
+  package that draws the table decided whether the tool read it. `tabularx`,
+  `xltabular`, `tabulary`, `longtable`, `tabu`, `longtabu` and `supertabular`
+  were not on the list: their column specification leaked into the text as a
+  word and every cell was read as a sentence.
+
+  Measured before the fix, converting one `tabularx` table:
+
+  ```text
+  \begin{tabularx}{\linewidth}{lX}
+  Baseline \citep{knuth2020} & 90,000 \\
+
+  to_text -> 'lX
+              Baseline [@knuth2020] & 90,000'
+  ```
+
+  `draft` then reported `0 claim block(s) proposed (0 verbatim), 1 citation(s)
+  left as comments` and blamed the page for not containing
+
+  ```text
+  <!-- line 9: knuth2020 - nothing on any page shares enough terms with the sentence (3 needed) -->
+  ```
+
+  - a sentence that is a row of a table, assembled out of a column spec and two
+  ampersands. The same table written with `tabular` was dropped whole and the
+  run truthfully said no citations were found. One paper, one table, two
+  verdicts, chosen by a package name.
+
+  All seven are now dropped like `tabular` was. `tests/test_table_environments.py`
+  (44 tests) pins the cells, the column spec, the citation in a cell, a table
+  nested in the same environment, an unclosed table, the includes inside one,
+  and - just as important - that `array` and the `matrix` family and the
+  display-math environments keep their numbers, because a formula's numbers are
+  what a reader sees. Ten mutations, `survivors: []`.
+
 ## [0.22.37] — 2026-11-09
 ### Fixed
 
