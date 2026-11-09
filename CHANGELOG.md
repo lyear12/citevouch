@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.53] — 2026-11-09
 ### Fixed
 
 * **A page that names its own encoding was read as mojibake and its quote reported missing.** A source is refused as `source-encoding` when more than a quarter of its bytes cannot be UTF-8, and that share is measured over the whole file. An HTML header is ASCII, so it dilutes the share: measured on a one-claim project whose only source was a 239-byte GBK page carrying `<meta http-equiv="Content-Type" content="text/html; charset=gbk">`, `textnorm.invalid_utf8_share` scored 0.172 against the 0.25 line. The file slipped through the refusal, was decoded with `errors="replace"`, and its one Chinese sentence came back as
@@ -29,7 +30,6 @@ tag and that file disagree.
   `sources.encoding_problem` asks the same question as `textnorm._decode_text` and got the same answer, because a refusal that disagrees with the reader is the same mistake pointing the other way: measured, a longer GBK page scores 0.643 and would have been refused as unreadable by a reader that now reads it fine.
 
   20 tests, 9 mutations, all red.
-
 ## [0.22.52] — 2026-11-09
 ### Fixed
 
@@ -3909,7 +3909,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.52...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.53...HEAD
+[0.22.53]: https://github.com/lyear12/citevouch/releases/tag/v0.22.53
 [0.22.52]: https://github.com/lyear12/citevouch/releases/tag/v0.22.52
 [0.22.51]: https://github.com/lyear12/citevouch/releases/tag/v0.22.51
 [0.22.50]: https://github.com/lyear12/citevouch/releases/tag/v0.22.50
