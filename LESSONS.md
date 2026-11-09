@@ -6232,3 +6232,41 @@ How to apply:
   severity too, in a different order.
 
 Seen 1.
+
+## A path that is relative to the root is only correct if every reader joins it to the root
+
+The ledger recorded the same bibliography twice, in two spellings:
+
+```text
+scan proj/manuscript.md --root proj --bib proj/sub/refs.bib
+  entries['knuth2020'].path = 'proj\sub\refs.bib'
+  bibliographies            = ['sub/refs.bib']
+cd proj && scan manuscript.md --root . --bib sub/refs.bib
+  entries['knuth2020'].path = 'sub\refs.bib'
+```
+
+Three writers had been given the shared helper that records a path relative to
+`--root` with forward slashes; the entries were handed the path as the shell
+spelled it. The same commit therefore produced different finding text and a
+different SARIF `artifactLocation.uri` depending on which directory it was
+typed in, and a Windows ledger named files the Linux job could not open.
+
+The interesting half is the repair. Fixing the spelling broke `draft`, which
+resolved a bib entry's `file` field against `entry.path`'s folder - correct
+while that path was relative to the *shell*, silently wrong once it was
+relative to the *root*. Measured: a `paper.txt` beside a `sub/refs.bib`
+resolved from inside the project and not from one level above it.
+
+How to apply:
+
+- A "relative to X" convention is not a property of the string; it is a
+  contract with every reader of that string. `grep` the readers before you
+  change the convention, not after.
+- When two writers of one concept disagree, the disagreement is usually that
+  one of them never got the helper. Look for the call site that passes
+  `str(path)` where its neighbours pass a function.
+- Changing a path convention can fix a lie and introduce one in the same
+  commit. The second one lives wherever a reader joins the path to something
+  other than X.
+
+Seen 1.
