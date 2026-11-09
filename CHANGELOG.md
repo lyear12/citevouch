@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.52] — 2026-11-09
 ### Fixed
 
 * **A sentence the browser never paints was verified as a quotation.** The HTML
@@ -53,7 +54,6 @@ tag and that file disagree.
   guard against it is not a narrower search but a tokeniser.
 
   37 tests, 13 mutations, all red.
-
 ## [0.22.51] — 2026-11-09
 ### Fixed
 
@@ -3891,7 +3891,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.51...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.52...HEAD
+[0.22.52]: https://github.com/lyear12/citevouch/releases/tag/v0.22.52
 [0.22.51]: https://github.com/lyear12/citevouch/releases/tag/v0.22.51
 [0.22.50]: https://github.com/lyear12/citevouch/releases/tag/v0.22.50
 [0.22.49]: https://github.com/lyear12/citevouch/releases/tag/v0.22.49
