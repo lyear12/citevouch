@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.59] — 2026-11-09
 ### Fixed
 
 * **A citation the author was showing with `\verb` was one `draft` said they made.**
@@ -33,7 +34,6 @@ tag and that file disagree.
   What this does not fix: a body inside the sentence that cites the real page still blanks a hole in that sentence, so it falls back to the medium-confidence passage. Markdown inline code has the same behaviour and it is recorded in `docs/backlog.md` - the fix is to compare against text with holes rather than against the printed characters, which is a different change from this one.
 
   `tests/test_latex_displayed_citations.py` (20 tests) covers all five inline-verbatim commands, the literal characters that must survive, the spans pointing at the bodies in the returned string, and the prose that must keep its citations. 12 mutations, all red - one of them only after `blank()` got tests for spans that do not fit, because a negative start wrapped around to the end of the string and blanked prose the author wrote.
-
 ## [0.22.58] — 2026-11-09
 ### Fixed
 
@@ -4122,7 +4122,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.58...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.59...HEAD
+[0.22.59]: https://github.com/lyear12/citevouch/releases/tag/v0.22.59
 [0.22.58]: https://github.com/lyear12/citevouch/releases/tag/v0.22.58
 [0.22.57]: https://github.com/lyear12/citevouch/releases/tag/v0.22.57
 [0.22.56]: https://github.com/lyear12/citevouch/releases/tag/v0.22.56
