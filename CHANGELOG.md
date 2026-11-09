@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.43] — 2026-11-09
 ### Fixed
 
 * **Two `--bib` files that define one key silently overwrote each other.**  `parse_bib` reports a key defined twice *inside one file* (`bib-duplicate-key`, high). Two files each defining it once produced no finding at all, because `scan` merged them with `dict.update`: the later file replaced the earlier one, so which work a claim rested on was decided by the order of the `--bib` flags.
@@ -28,7 +29,6 @@ tag and that file disagree.
   `tests/test_bib_cross_file_keys.py` (14 tests) covers both orders, three files defining one key, the recorded and live passes, and the cases that must stay silent: two files with different keys, one entry, one file naming a key twice (still one finding), and one file passed twice. Nine mutations, all red - including one that replaced the newly added test, which is how the `--bib a.bib --bib a.bib` case got pinned.
 
   *Not covered*: `citevouch draft --bib` reads the same files but never prints their parse findings at all - not this one, and not the ones that already existed - so the clause above applies to `scan`, `check` and `verify` only. That silence is older than this change and is left alone here.
-
 ## [0.22.42] — 2026-11-09
 ### Fixed
 
@@ -3631,7 +3631,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.42...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.43...HEAD
+[0.22.43]: https://github.com/lyear12/citevouch/releases/tag/v0.22.43
 [0.22.42]: https://github.com/lyear12/citevouch/releases/tag/v0.22.42
 [0.22.41]: https://github.com/lyear12/citevouch/releases/tag/v0.22.41
 [0.22.40]: https://github.com/lyear12/citevouch/releases/tag/v0.22.40
