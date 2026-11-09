@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.51] — 2026-11-09
 ### Fixed
 
 * **`draft` quoted half of a sentence the source printed across two pages.** The
@@ -36,7 +37,6 @@ tag and that file disagree.
   so a page ending `see also` merges into the next page's opening and the real sentence
   is no longer a sentence in the joined text.  Seven mutations of the new code are all
   red, including that one.
-
 ## [0.22.50] — 2026-11-09
 ### Fixed
 
@@ -3849,7 +3849,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.50...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.51...HEAD
+[0.22.51]: https://github.com/lyear12/citevouch/releases/tag/v0.22.51
 [0.22.50]: https://github.com/lyear12/citevouch/releases/tag/v0.22.50
 [0.22.49]: https://github.com/lyear12/citevouch/releases/tag/v0.22.49
 [0.22.48]: https://github.com/lyear12/citevouch/releases/tag/v0.22.48
