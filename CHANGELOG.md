@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.56] — 2026-11-09
 ### Fixed
 
 * **A paper that quotes a replacement character was refused as a file that
@@ -63,7 +64,6 @@ tag and that file disagree.
   is still proposed for by `draft`. 12 mutations, all red - including the one
   that made the flag always `True`, the one that made it always `False`, and
   the four that gave one decoder branch another branch's answer.
-
 ## [0.22.55] — 2026-11-09
 ### Fixed
 
@@ -4047,7 +4047,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.55...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.56...HEAD
+[0.22.56]: https://github.com/lyear12/citevouch/releases/tag/v0.22.56
 [0.22.55]: https://github.com/lyear12/citevouch/releases/tag/v0.22.55
 [0.22.54]: https://github.com/lyear12/citevouch/releases/tag/v0.22.54
 [0.22.53]: https://github.com/lyear12/citevouch/releases/tag/v0.22.53
