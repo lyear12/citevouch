@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.38] — 2026-11-09
 ### Fixed
 
 * **A table was read as prose unless the author happened to use `tabular`.**
@@ -49,7 +50,6 @@ tag and that file disagree.
   and - just as important - that `array` and the `matrix` family and the
   display-math environments keep their numbers, because a formula's numbers are
   what a reader sees. Ten mutations, `survivors: []`.
-
 ## [0.22.37] — 2026-11-09
 ### Fixed
 
@@ -3494,7 +3494,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.37...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.38...HEAD
+[0.22.38]: https://github.com/lyear12/citevouch/releases/tag/v0.22.38
 [0.22.37]: https://github.com/lyear12/citevouch/releases/tag/v0.22.37
 [0.22.36]: https://github.com/lyear12/citevouch/releases/tag/v0.22.36
 [0.22.35]: https://github.com/lyear12/citevouch/releases/tag/v0.22.35
