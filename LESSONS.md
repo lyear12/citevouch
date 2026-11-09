@@ -6512,3 +6512,47 @@ How to apply:
   that cannot represent it.
 
 Seen 1.
+
+## A command named in the output is a promise that typing it works
+
+`draft` ends by naming the command that reads the file it just wrote. The name
+was assembled from the output path and nothing else, so a run with `--root`
+printed an advice without it. Measured from the directory above the project:
+
+```text
+$ citevouch draft proj/paper.md --root proj -o claims.md --bib proj/refs.bib
+citevouch: wrote claims.md; read it, then `citevouch check claims.md` to see what it got wrong
+$ citevouch check claims.md
+[high] source-missing at claims.md:11 (knuth2020): claim knuth2020 names
+source='knuth2020' but no entry in sources.toml ...
+```
+
+The check ran against the current directory and accused a claim `draft` had
+itself quoted verbatim from a page it had read. `draft` is the first command a
+new user runs, so the final thing the tool said was a false accusation about
+its own output.
+
+The advice is a sentence about a command, and like the "hidden by --quiet"
+sentence, nothing runs it. Two rules follow:
+
+- Build the advice from the arguments the run actually used, not from the ones
+  that happen to be in scope at the print site. `--root` was the whole
+  difference between the two commands working and not.
+- The advice must be copy-pasteable: forward slashes (a backslash is a shell
+  escape), quotes around anything with a space, and `'` escaped as `'\''`.
+  A path is an argument, not a decoration.
+
+The test that matters walks the command out of the output and executes it.
+Asserting that the string contains `--root` would have caught this one; running
+the string catches the next one too.
+
+How to apply:
+
+- Any time an output says "run `x`", grep for how `x`'s arguments are built and
+  check they came from this run's namespace.
+- Test it by executing the advice from the directory it was printed in, not by
+  comparing it to an expected string.
+- A path embedded in prose is a shell word: quote it, or the advice is a
+  sentence that only looks like a command.
+
+Seen 1.

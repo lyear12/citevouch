@@ -12,6 +12,21 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The command `draft` told the author to run next failed on its own output.** `draft` ends by naming the `check` command that reads the file it just wrote. That sentence was built from the output path alone, so a run with a `--root` printed an advice without it:
+
+  ```text
+  $ citevouch draft proj/paper.md --root proj -o claims.md --bib proj/refs.bib
+  citevouch: wrote claims.md; read it, then `citevouch check claims.md` to see what it got wrong
+  $ citevouch check claims.md
+  [high] source-missing at claims.md:11 (knuth2020): claim knuth2020 names source='knuth2020' but no entry in sources.toml ...
+  ```
+
+  The second command ran against the current directory instead of the project and accused a claim `draft` had itself just quoted verbatim from a page it had read. `draft` is the first command a new user runs, so the last thing it said was a false accusation about its own work.
+
+  The advice is now built by `cli._check_advice(output, root)` from the values the run actually used: it carries `--root` whenever the run did (and omits it for `--root .`, where there is nothing to add), prints the path with forward slashes because a Windows backslash is an escape in a shell, and quotes any argument that needs it through `cli._shell_word` - including the `'` → `'\''` case, since an apostrophe in a filename would otherwise end the quote early. `tests/test_draft_advice_runs.py` (6 tests) walks the command out of the output and runs it, so the test fails on the same thing a user would. Six mutations, `survivors: []`.
+
 ## [0.22.44] — 2026-11-09
 ### Fixed
 

@@ -558,6 +558,50 @@ def _refuse_an_output_that_is_an_input(
             raise UsageError(message)
 
 
+def _shell_word(value: str) -> str:
+    """A value quoted for a shell, or bare when it needs no quoting.
+
+    The advice `draft` prints is meant to be copied and run.  A path with a
+    space in it would otherwise split into two arguments and fail for a reason
+    that has nothing to do with the draft, so the quoting is part of the
+    sentence rather than an afterthought.
+    """
+    if not value:
+        return "''"
+    if any(ch.isspace() for ch in value) or any(ch in value for ch in "\"'$`"):
+        return "'" + value.replace("'", "'\\''") + "'"
+    return value
+
+
+def _check_advice(output: Path, root: str) -> str:
+    """The `check` command that reads the file this run just wrote.
+
+    Measured before this existed, from the directory above the project::
+
+        $ citevouch draft proj/paper.md --root proj -o claims.md --bib proj/refs.bib
+        citevouch: wrote claims.md; read it, then `citevouch check claims.md`
+        $ citevouch check claims.md
+        [high] source-missing at claims.md:11 (knuth2020): claim knuth2020 names
+        source='knuth2020' but no entry in sources.toml ...
+
+    The advice left out the ``--root`` that made the first command work, so the
+    check ran against the current directory and accused a claim `draft` had
+    itself just quoted verbatim.  A command named in the output is a promise
+    that typing it does what the reader expects, and the only way to keep that
+    promise is to build it from the values this run actually used.
+
+    ``--root`` is printed in the form it was given: when it was ``.`` there is
+    nothing to add, and a run inside the project keeps the short advice.
+    """
+    # Forward slashes, like every other path this tool prints: a Windows
+    # backslash in a command meant for a shell is an escape character, and the
+    # advice is meant to be copied into one.
+    parts = ["citevouch", "check", _shell_word(output.as_posix())]
+    if root and root != ".":
+        parts += ["--root", _shell_word(root)]
+    return " ".join(parts)
+
+
 def cmd_draft(args: argparse.Namespace) -> int:
     """Propose claim blocks for a manuscript that has none.
 
@@ -703,9 +747,10 @@ def cmd_draft(args: argparse.Namespace) -> int:
                 sys.stderr,
             )
         else:
+            advice = _check_advice(output, args.root)
             _emit(
                 f"citevouch: wrote {output}; read it, then "
-                f"`citevouch check {output}` to see what it got wrong\n",
+                f"`{advice}` to see what it got wrong\n",
                 sys.stderr,
             )
     return 0
