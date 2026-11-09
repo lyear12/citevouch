@@ -3186,6 +3186,47 @@ not what changed, but what proves the change works.
   *Not covered*: only POSIX `sh` rules are honoured - the advice is split with
   `shlex` in the test, and `cmd.exe` quoting differs.
 
+- [x] **An output flag could write over a file the run had just read.**
+  `scan --ledger` accepted any path, and the ledger is the one file this tool is
+  meant to write, so the flag looks like an ordinary destination. Measured, on a
+  project holding one claim:
+
+  ```text
+  $ citevouch scan paper.md --root . --ledger paper.md
+  citevouch: wrote paper.md (1 claim)                        ->  exit 0
+  ```
+
+  The manuscript was 97 bytes of Markdown and 753 bytes of JSON afterwards.
+  `--ledger sources.toml` replaced the manifest and `--ledger page.txt` replaced
+  the page the quote came from; every one of them exited 0 and said what it had
+  written.
+
+  `draft -o` had refused such outputs since v0.19.52, but its list came from the
+  command line, so it missed the same class of file from the other end: `draft -o
+  page.txt --force` wrote 511 bytes of proposals over the page `sources.toml`
+  binds to `paper`, because no flag ever names that path.
+
+  *Who is blocked*: anyone who mistypes a `--ledger` or `-o` in a directory full
+  of filenames that look like ledgers. The run reports success, so nothing tells
+  them until the next command cannot read the manuscript they just destroyed.
+
+  *Done when*: an output path that resolves to any file the run read is refused
+  before the write, with a message naming the file and what it is to the project.
+
+  *Done — why it is now true*: both writers ask `cli._project_inputs`, built from
+  what the run read rather than from its flags: the manuscript, both manifest
+  names, every source the manifest or `--source` bound, every `--bib` file, and
+  the ledger. The comparison is by resolved path; `scan --dry-run` is exempt
+  because it writes nothing. `tests/test_ledger_overwrites_input.py` (13) asserts
+  the bytes of every protected file, not only the exit code, and nine mutations
+  of the guard are all red. One of them survived first — the comparison falling
+  back to a textual one — because `Path` discards a leading `./`, so the test now
+  names one file two ways with `..`.
+
+  *Not covered*: a filesystem where two spellings of one path are two files (a
+  case-insensitive checkout on a case-sensitive runner); a source bound by a
+  manifest that lives outside `--root`.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
