@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.39] — 2026-11-09
 ### Fixed
 
 * **A long table's caption was dropped along with its cells.**
@@ -41,7 +42,6 @@ tag and that file disagree.
   captions in one table, a caption printed inside a listing, a caption outside
   the environment not being lifted twice, and the end-to-end `draft` run that
   used to say no citations were found. Nine mutations, `survivors: []`.
-
 ## [0.22.38] — 2026-11-09
 ### Fixed
 
@@ -3524,7 +3524,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.38...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.39...HEAD
+[0.22.39]: https://github.com/lyear12/citevouch/releases/tag/v0.22.39
 [0.22.38]: https://github.com/lyear12/citevouch/releases/tag/v0.22.38
 [0.22.37]: https://github.com/lyear12/citevouch/releases/tag/v0.22.37
 [0.22.36]: https://github.com/lyear12/citevouch/releases/tag/v0.22.36
