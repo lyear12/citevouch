@@ -4151,3 +4151,42 @@ would a person actually have on disk", not by reading the code.
   `draft`'s `no citations were found` line when the citation's own `[`
   is eaten by a two-byte pair.  Both are scan-level messages; each needs
   its own change.
+
+- [x] **P1 - a paper that quotes a replacement character was refused as a file that lost one**
+  - **What was wrong.** The previous two releases taught three readers that a
+    quotation holding U+FFFD was never decoded, and all three asked the text:
+    `"\ufffd" in quote`. That is a different question from "did reading this
+    file replace a byte?". A paper *about* text encodings prints the character
+    on purpose. Measured on a lossless UTF-8 manuscript reading
+    `Notepad wrote <U+FFFD> where the byte could not be decoded.`, with the
+    source page printing the same sentence verbatim: `check` reported
+    `[high] claim-not-decoded … manuscript.md cannot be read as UTF-8 without
+    loss. Convert it first, for example \`iconv -f GBK -t utf-8 manuscript.md >
+    utf8.md\``, `1 claim — 0 verified, 0 moved, 0 missing, 1 skipped`, exit 1;
+    `doctor` reported `[FAIL] claims`; all three claim dialects agreed. Every
+    word was false - the file decoded losslessly, nothing was lost, the advice
+    would mangle it, and `find_in_pages` finds that quote on page 1 at tier
+    `exact`. The guard was blocking the one comparison that would have
+    succeeded.
+  - **What it does now.** The decoder reports what the reading cost.
+    `_decode_text_and_loss()` returns `(text, lost)`; `_decode_text()` is the
+    text half. `read_text_and_loss()` / `read_text()` mirror that pair for
+    files, `read_loses_bytes()` is the flag alone. `lost` is `True` exactly when
+    a strict decode with the chosen codec raised. `verify`, `draft` and
+    `doctor` require the flag **and** the character.
+  - **Why it is now true.** `tests/test_quoted_replacement_character.py` has 15
+    tests: the lossless case in all three dialects, the same case through the
+    recorded pass, `draft` still proposing, `doctor` still passing, the GBK
+    manuscript still refused by both `check` and `doctor`, a genuine miss still
+    a miss, and one test per decoder branch - the BOM-less UTF-16 file the swap
+    branch reads (it lost nothing), a declared-charset file (strict decode, no
+    loss), and a truncated UTF-16 file (a trailing byte, so a loss - a case a
+    replacement character can never reach). 12 mutations all red, including
+    `_lost` always true, `_lost` always false, the flag never measured, one
+    decoder branch reporting another branch's answer, and `read_text` decoding
+    on its own again.
+  - **Not covered.** `scan` still writes a decoded-as-mojibake quotation into
+    the ledger without a word about the file, so an author who only runs
+    `scan` sees a clean exit; and a manuscript with no claim blocks at all
+    still reports `no-claim-blocks` without naming the encoding. Both need the
+    scan-side report, which is a separate change.
