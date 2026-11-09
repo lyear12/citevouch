@@ -6122,3 +6122,37 @@ How to apply:
   (`fresh`, the manuscript digest) - never on "does the result look fine".
 
 Seen 1.
+
+## A pass that re-reads the source must ask every question the first pass asked
+
+`verify` learned to re-parse the manuscript so it could report the claim blocks the
+parser refused (v0.21.3). It stopped there. `scan` asks two things of that text: what
+the parser could not record, and which credibility marks no block covers. The
+recorded pass asked only the first. Measured on a manuscript holding a marked
+sentence and an unrelated claim block:
+
+```text
+check                 -> [low] claim-without-evidence at manuscript.md:1
+check --use-recorded  -> [info] quote-found at manuscript.md:3 (c1)
+```
+
+`action.yml` runs the second one, so the finding existed only on the path nobody
+runs. A mark with no block is the shape this tool exists to catch, and the CI job
+was the one place it could not appear.
+
+The mistake is not "forgot a call". It is that a second pass over the same input
+was written as a copy of *one* earlier question rather than as a copy of the
+question list. Every time a new check is added to the first pass, the second pass
+silently keeps answering the old set.
+
+How to apply:
+
+* When a second code path re-reads the same input, grep the first path for every
+  function it calls on that input and account for each one by name.
+* Prefer sharing one function that returns every finding for a parsed text, so the
+  second pass cannot choose a subset.
+* Measure the disagreement end to end - same tree, both commands - rather than
+  reasoning about which findings "should" differ. Three of the four differences
+  this project has found were invisible in the source.
+
+Seen 1.

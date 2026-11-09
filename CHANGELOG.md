@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A credibility mark with no claim block was invisible on the CI path.**
+  `scan` asks `scan_unbound_markers` about every 【原文】 line no claim block
+  covers, and says so. `verify` - which is all `check --use-recorded` does, and
+  all `action.yml` runs on a pull request - re-parses the manuscript to
+  re-derive the blocks the parser refused, and then never asked about the
+  marks. A manuscript holding a marked sentence and an unrelated claim block
+  therefore produced:
+
+  ```text
+  check                 -> [low] claim-without-evidence at manuscript.md:1
+  check --use-recorded  -> [info] quote-found at manuscript.md:3 (c1)
+  ```
+
+  A mark without a block is the single most common way a manuscript looks
+  verified while nothing on that line can be checked, so the one path that
+  never reported it was the one path that runs on every pull request. The
+  recorded pass now asks the same function with the same spans and claims, so
+  a mark a block covers stays quiet for exactly the reason `scan` keeps it
+  quiet, and a mark it does not cover is reported once.
+* **The demo's own output changes with this fix.**
+  Its two unbound marks at `demo/manuscript.md:52` and `:54` now appear in
+  `verify`'s output, so both README examples show them and `docs/img/` was
+  regenerated. The red line is unchanged: `5 claims — 4 verified, 0 moved, 1
+  missing`, worst `high`, exit 1. Covered by
+  `tests/test_unbound_markers_recorded.py` (13 tests) and four mutations, all
+  red.
+
+## [0.22.33] — 2026-11-09
+
 ## [0.22.33] — 2026-11-09
 ### Fixed
 

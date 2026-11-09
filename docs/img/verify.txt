@@ -1,4 +1,6 @@
 $ citevouch verify manuscript.md
+[low] claim-without-evidence at manuscript.md:52: the 【原文】 mark on this line has no claim block, so nothing ties it to a page in a local source
+[low] claim-without-evidence at manuscript.md:54: the 【推测】 mark on this line has no claim block, so nothing ties it to a page in a local source
 [info] quote-found at manuscript.md:9 (cxn-total): quote found on page 6
 [info] quote-found at manuscript.md:18 (corpus-size): quote found on page 6
 [info] quote-found at manuscript.md:26 (hapax-share): quote found on page 7

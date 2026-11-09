@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .bibtex import field_findings, parse_bib
 from .errors import why_not_a_file
-from .manuscript import ParseResult, parse_manuscript
+from .manuscript import ParseResult, parse_manuscript, scan_unbound_markers
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
 from .scan import ScanOptions, _no_claim_blocks_finding, _resolve
@@ -235,6 +235,27 @@ def verify(
             text = ""
         parsed = parse_manuscript(text, manuscript_path.name)
         result.findings.extend(parsed.findings)
+        # A credibility mark - 【原文】 and its siblings - that no claim block
+        # covers is the shape this tool exists to catch: the manuscript reads
+        # as evidence-backed while nothing on that line can be checked.  `scan`
+        # asks `scan_unbound_markers` for it; this pass re-parsed the same bytes
+        # and then never asked, so `action.yml` - which runs exactly this
+        # command - reported a marked sentence as a green build.  Measured on a
+        # manuscript holding a marked sentence and an unrelated claim block:
+        #
+        #     scan                  -> [low] claim-without-evidence at manuscript.md:1
+        #     check --use-recorded  -> [info] quote-found at manuscript.md:3 (c1)
+        #
+        # The spans and the claims are the parse's own, so a mark that a block
+        # covers stays quiet for exactly the reason `scan` keeps it quiet.
+        result.findings.extend(
+            scan_unbound_markers(
+                text,
+                path=manuscript_path.name,
+                spans=parsed.spans,
+                claims=parsed.claims,
+            )
+        )
         # Blocks the parser found and refused.  A refused block yields a
         # finding and no claim, so it is invisible to the loop below, which
         # walks `ledger.claims`.  Counting the difference here - rather than
