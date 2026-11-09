@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.42] — 2026-11-09
 ### Fixed
 
 - **The recorded pass re-read the bibliography and then judged the copy it remembered.** Since 0.22.33 the recorded pass opens every bibliography the ledger names, so that a file nobody could read is not silently treated as a file nobody mentioned. The parse findings came from that fresh read; the *verdicts* - which keys exist, which entries are unused, which entries are missing required fields - were still computed from `ledger.entries`, the mapping captured when `scan` ran. One run therefore held two opinions about one file, and the stale one was the one that spoke. Measured on a project scanned with a bibliography holding `knuth2020`, then edited so the file holds only `lamport1994`:
@@ -26,7 +27,6 @@ tag and that file disagree.
   The mirror image held for fields: an entry that lacked `publisher` and `year` kept its `bib-field-empty` complaint after the file had replaced it with a complete one, so the author was told about required fields of an entry that no longer existed. `action.yml` runs `check --use-recorded`, so that was the sentence a pull request showed.
 
   The verdicts now come from the entries this run actually read. A file that is missing or unreadable simply yields nothing, so nothing in it is judged: the `source-missing` or `bib-unreadable` finding says why, and a key missing from a file nobody could read is not a missing key. Only two runs still read the recorded mapping, and neither of them opened a file: `scan` already put what it read into the ledger this same run (`fresh`), and a ledger written before the field existed names no file at all. `tests/test_bibliography_fresh_verdicts.py` (10 tests) pins both directions: the recorded pass now agrees with the live one on a replaced bibliography, never reports the two contradictory verdicts together, and stays silent when the bibliography itself could not be read.
-
 ## [0.22.41] — 2026-11-09
 ### Fixed
 
@@ -3614,7 +3614,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.41...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.42...HEAD
+[0.22.42]: https://github.com/lyear12/citevouch/releases/tag/v0.22.42
 [0.22.41]: https://github.com/lyear12/citevouch/releases/tag/v0.22.41
 [0.22.40]: https://github.com/lyear12/citevouch/releases/tag/v0.22.40
 [0.22.39]: https://github.com/lyear12/citevouch/releases/tag/v0.22.39
