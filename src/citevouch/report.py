@@ -215,6 +215,12 @@ def render_json(
             "claims": len(ledger.claims),
             "sources": len(ledger.sources),
             "entries": len(ledger.entries),
+            # The files, not just the count.  A ledger that names a bibliography
+            # nothing could be read from used to be indistinguishable from one
+            # that never had a bibliography: both carried `"entries": 0`.  The
+            # ledger has held the names since 0.22.33; a reader of this payload
+            # can now tell "given and unreadable" from "not given".
+            "bibliographies": list(ledger.bibliographies),
             "tool_version": ledger.tool_version,
             "generated_at": ledger.generated_at,
         }

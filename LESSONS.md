@@ -6408,3 +6408,38 @@ How to apply:
   missing from `_DROP_ARGUMENT`.
 
 Seen 1.
+
+## A ledger field nobody reads is a fact the author cannot see
+
+`Ledger.bibliographies` was added in 0.22.33 so a recorded bibliography
+failure could reach the recorded pass. `verify` reads it. `report` - the
+one command that exists to say what the ledger says - did not, and printed
+the same line for a bibliography that was given and unreadable and one that
+was never given:
+
+```text
+- bibliography: 0 entries      # --bib refs.bib, and refs.bib was binary
+- bibliography: 0 entries      # no --bib at all
+```
+
+The fix was four lines. The reason it was possible is worth keeping: when
+a field is added to a record for one reader, every other reader of that
+record silently keeps answering the old, narrower question - and the
+narrower question is usually still grammatical, so nothing looks broken.
+A missing name and an empty result print the same count.
+
+How to apply:
+
+1. When a field is added to a persisted record, grep for every place that
+   reads that record and ask what each one now under-reports. The compiler
+   cannot help: dataclasses with defaults make the new field optional
+   everywhere, so the old readers keep working and keep being wrong.
+2. Ask which two facts the old output conflated. Here it was "given and
+   unreadable" against "never given" - opposite conclusions from the same
+   line. If a display cannot distinguish two states the record
+   distinguishes, the display is the defect.
+3. Prefer naming the input over adding a status word. `refs.bib (0
+   entries)` needs no vocabulary for the reader to learn; a new word like
+   `unreadable` in a summary line would.
+
+Seen 1.

@@ -720,6 +720,34 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 1 if broken else 0
 
 
+def _bibliography_line(ledger: Ledger) -> str:
+    """Name the bibliography files the ledger recorded, then their size.
+
+    Measured before this existed: a project scanned with ``--bib refs.bib``
+    where that file held no readable entry printed ``- bibliography: 0
+    entries`` - the same line an old project that never passed ``--bib`` at all
+    prints.  The ledger has recorded the file name since 0.22.33
+    (``Ledger.bibliographies``), so the command whose whole job is "what does
+    the ledger say" was answering a narrower question than the one it was
+    asked: a bibliography that was given and could not be read and a
+    bibliography that was never given are opposite facts, and they printed
+    identically.
+
+    ``report`` has no ``--quiet``: it prints a table and nothing else, so the
+    line is the same in every invocation.  A ledger written before the field
+    existed says ``none recorded`` - which is what it means, not that there was
+    no bibliography.  The entry count follows in parentheses because a named
+    file that yielded no entry is the case worth reading carefully: the names
+    say which file, the count says nothing came out of it.  A ledger that has
+    entries but no recorded name still shows the count, so the number is never
+    dropped just because the name is missing.
+    """
+    entries = _count(len(ledger.entries), "entry", "entries")
+    if not ledger.bibliographies:
+        return f"none recorded ({entries})"
+    return f"{_clip(', '.join(ledger.bibliographies), 80)} ({entries})"
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     ledger = _read_ledger(_ledger_path(args))
     lines = [
@@ -727,7 +755,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         "",
         f"- records: {_count(len(ledger.claims), 'claim')} against "
         f"{_count(len(ledger.sources), 'source')}",
-        f"- bibliography: {_count(len(ledger.entries), 'entry', 'entries')}",
+        f"- bibliography: {_bibliography_line(ledger)}",
         f"- written by citevouch {ledger.tool_version} at {ledger.generated_at}",
         "",
         "| claim | source | page | quote |",

@@ -11,6 +11,41 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **`report` printed the same bibliography line for two opposite facts.**
+  A project scanned with `--bib refs.bib` where that file held no readable
+  entry and a project that never passed `--bib` at all both printed
+  `- bibliography: 0 entries`. The ledger has recorded the file name since
+  0.22.33 (`Ledger.bibliographies`); the command whose whole job is "what
+  does the ledger say" simply never read that field. The two runs, before:
+
+  ```text
+  $ citevouch scan manuscript.md --root . --bib refs.bib   # refs.bib is binary
+  [high] bib-unreadable at refs.bib:1: not one entry could be read from refs.bib
+  citevouch: wrote citevouch.lock.json (1 claim)
+  $ citevouch report --root .
+  - bibliography: 0 entries
+
+  $ citevouch scan manuscript.md --root .        # no --bib at all
+  citevouch: wrote citevouch.lock.json (1 claim)
+  $ citevouch report --root .
+  - bibliography: 0 entries
+  ```
+
+  The line now names the files and then their size - `refs.bib (0 entries)`
+  against `none recorded (0 entries)` - so the report distinguishes a
+  bibliography that was given and could not be read from one that was never
+  given. A ledger written before the field existed says `none recorded`,
+  which is what it means rather than a claim about the project. The JSON
+  payload's `ledger` object gained the same list, for the readers that never
+  see the table.
+
+  Proved by `tests/test_report_names_bibliography.py` (10), and by eight
+  mutants that all go red: the line back to counting only, names dropped
+  when nothing could be read, names never printed, `none recorded` replaced
+  by a bare count, no clipping, the count left off, the JSON field removed,
+  the JSON field written empty.
 
 ## [0.22.40] — 2026-11-09
 ### Fixed
