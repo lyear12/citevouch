@@ -2808,6 +2808,48 @@ not what changed, but what proves the change works.
   blocks; the fixtures are hand-written. `--allow-stale` deliberately stays
   silent, because a mark belongs to a paragraph this run has not read.
 
+- [x] **A Markdown container marker was copied into the proposed `claim:` text.**
+  A blockquote, a bullet, a heading and a parenthesised ordinal are four ways of
+  *showing* a sentence; the marker is typography, and no reader of the rendered
+  page sees it. `draft` read the raw line, so `statement_of` returned
+  `> The corpus we used contains …`, the marker was copied into the `claim:`
+  field the author is told to paste, and the same sentence then failed to match
+  its own source verbatim, because the page has no `>` either.
+  *Who was blocked*: anyone who writes a citation inside a blockquote, a list
+  item or a heading - ordinary Markdown, and the shape a "quotable sentence"
+  section usually takes. Measured on one page holding
+  `We collected 154,391 examples from the corpus.` quoted word for word, the
+  plain paragraph gave `confidence: high` and one proposal, while the same
+  sentence behind `> `, `- `, `* `, `+ `, `## ` or `1) ` gave
+  `0 claim block(s) proposed` and left this comment in the proposal:
+
+  ```text
+  <!-- line 1: paper - nothing on any page shares enough terms with the sentence (3 needed) -->
+  ```
+
+  a sentence the page shares four terms with and prints verbatim. The comment
+  blames the author's sentence, so the author's next move is to rewrite the one
+  thing that was already right.
+  *Done when*: a citation in any container is proposed and its confidence is the
+  same as in a plain paragraph.
+  *Done - why it is now true*: `statement_of` in `src/citevouch/draft.py` now
+  runs `_CONTAINER_MARKER` over every line before anything else, so the marker
+  never reaches `_PANDOC`, `_LATEX`, the verbatim comparison or the `claim:`
+  field. `tests/test_draft_container_prefix.py` (30 tests) covers eleven marker
+  spellings, a wrapped blockquote that repeats its marker per line, a
+  continuation line of a list item, the end-to-end proposal and confidence for
+  six of them, and the six lookalikes that must stay (`-- x`, `-3 degrees`,
+  `2.5 million`, `#hashtag`, `a > b`, and a four-space indent, which CommonMark
+  reads as a code block). Eight mutations were run against the fix - marker
+  never stripped, only one of the four families stripped, first line only, the
+  required space dropped, indent unbounded, and a mid-sentence `>` stripped -
+  and every one of them turned the suite red.
+  *Not covered*: a quotation whose own text really does start with a bullet or a
+  `>`. The page cannot distinguish "the author quoted a list" from "the author
+  wrote a list item", and stripping is the common case; the four-space rule is
+  the one nod to the counterexample. Also untested: containers nested deeper
+  than the pattern's repetition covers.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
