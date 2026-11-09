@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.36] — 2026-11-09
 ### Fixed
 
 * **A `--quiet` run that failed handed GitHub code scanning an empty document, and no reason.**
@@ -3419,7 +3421,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.35...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.36...HEAD
+[0.22.36]: https://github.com/lyear12/citevouch/releases/tag/v0.22.36
 [0.22.35]: https://github.com/lyear12/citevouch/releases/tag/v0.22.35
 [0.22.34]: https://github.com/lyear12/citevouch/releases/tag/v0.22.34
 [0.22.33]: https://github.com/lyear12/citevouch/releases/tag/v0.22.33
