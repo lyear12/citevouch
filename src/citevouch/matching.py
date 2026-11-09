@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from .sources import PageText
@@ -195,6 +196,27 @@ class Match:
     #: with every number blanked out, so the page's numbers are exactly the
     #: ones that fell into the quote's blank positions.
     page_numbers: tuple[str, ...] = ()
+
+    #: Every page the quote touches, first to last, for a quote that runs across
+    #: one or more breaks.  ``page`` is ``spanned[0]`` and ``spans_to`` is
+    #: ``spanned[-1]``; the middle members are the pages a two-page stitcher
+    #: could not see.
+    #:
+    #: A quote spanning pages 2-4 is *on* page 3 as much as on the ends, so a
+    #: ledger pointing at any of the three is not a move, and the numbers check
+    #: has to read all three or it reports a figure visible on page 3 as absent.
+    spanned: tuple[int, ...] = ()
+
+    def __post_init__(self) -> None:
+        """A match on one page spans that page.
+
+        ``spanned`` exists so a caller never has to ask "which pages is this
+        quote on?" twice, in two ways.  Every tier that names a page touches at
+        least that page, so the field is filled here rather than at seven call
+        sites that would each have to remember.
+        """
+        if not self.spanned and self.page is not None:
+            self.spanned = (self.page,)
 
     @property
     def found(self) -> bool:
@@ -371,36 +393,71 @@ def _context(page_text: str, needle_index: int, needle_len: int, width: int = 12
     return snippet
 
 
-def _page_pairs(
-    pages: list[PageText], page_hint: int | None = None
-) -> list[tuple[PageText, int]]:
-    """Every adjacent pair of pages, stitched into one readable page.
+#: The longest run of pages stitched into one passage, counting the page the
+#: quote starts on.  A quote that crosses two breaks needs three.
+#:
+#: The number is a cost decision.  A source of n pages offers n - length + 1
+#: runs of each length, so the work grows with ``MAX_STITCHED_PAGES * len(pages)``
+#: and every run re-folds the text it glues together.  Prose running across four
+#: page breaks is already unusual; the alternative to a limit is a quadratic
+#: blow-up on a 900-page book for a case that does not occur.
+#:
+#: A quote longer than the limit is reported missing, which is a false
+#: accusation - so the limit is a correctness parameter, not a tuning knob, and
+#: ``tests/test_cross_page_three.py`` says so in a test.
+MAX_STITCHED_PAGES = 4
 
-    The stitched page keeps the *earlier* page's number, because a reader who
+
+def _page_runs(
+    pages: list[PageText], page_hint: int | None = None
+) -> Iterator[tuple[PageText, int, tuple[int, ...]]]:
+    """Every run of adjacent pages, stitched into one readable page.
+
+    (stitched page, number of the last page, every page number in the run)
+
+    A run of length two is a quote crossing one page break; a run of three is a
+    quote crossing two.  Stitching only *pairs* was measured to report a
+    verbatim three-page quotation as ``quote-missing`` - ``We collected a very
+    large number of examples from the corpus and then filtered them by hand``,
+    printed across pages 2 to 4, was called "quote not found in page.txt".  A
+    reader turning from page 2 to page 4 sees it; only a program reading two
+    pages at a time cannot, and the tool's whole promise is that its sentences
+    are true.
+
+    The stitched text keeps the *first* page's number, because a reader who
     wants to look at the quote starts reading where the quote starts, and a
-    finding that pointed at the later page would send them to text that has the
-    end of the sentence and none of the beginning.  The second element is the
-    number of the page the stitched text runs onto.
+    finding that pointed at the last page would send them to text that has the
+    end of the sentence and none of the beginning.
 
     Whitespace is inserted rather than glued: extractors wrap pages at
     different points, some end a page mid-word with no hyphen at all, and a
     quote reassembled from two halves must match the way it reads on paper, not
     the way two extractor buffers happen to abut.
 
-    The hinted page is put first so a manuscript that already points at the
-    right page is answered by the first pair tried.
+    Length is the outer loop and the hint only breaks ties inside it.  The
+    other way round, a hint pointing at an early page made a four-page run that
+    merely *contains* the quote win over the three pages the quote actually
+    occupies, and the finding said "quote found on page 1 (running onto pages 2,
+    3 and 4)" about a sentence that begins on page 2.  Measured, with the hint
+    on page 1 and the quote on pages 2-4.  A quote that fits in two pages must
+    never be attributed to four for the same reason.
     """
-    order: list[int] = []
-    if page_hint is not None and 1 <= page_hint <= len(pages) - 1:
-        order.append(page_hint - 1)
-    order.extend(i for i in range(len(pages) - 1) if i not in order)
+    limit = min(MAX_STITCHED_PAGES, len(pages))
+    starts: list[int] = []
+    if page_hint is not None and 1 <= page_hint <= len(pages):
+        starts.append(page_hint - 1)
+    starts.extend(index for index in range(len(pages)) if index not in starts)
 
-    stitched: list[tuple[PageText, int]] = []
-    for index in order:
-        first, second = pages[index], pages[index + 1]
-        text = first.text.rstrip() + " " + second.text.lstrip()
-        stitched.append((PageText(number=first.number, text=text), second.number))
-    return stitched
+    for length in range(2, limit + 1):
+        for start in starts:
+            run = pages[start : start + length]
+            if len(run) < length:
+                continue
+            body = run[0].text.rstrip()
+            for page in run[1:]:
+                body += " " + page.text.lstrip()
+            numbers = tuple(page.number for page in run)
+            yield PageText(number=run[0].number, text=body), numbers[-1], numbers
 
 
 def find_in_pages(
@@ -484,7 +541,7 @@ def _find_in_pages(
     # see, because until now it only ever read one page at a time.  Tried only
     # after every single page has missed, so a quote that fits on a page is
     # always reported against that page first.
-    for joined, end_number in _page_pairs(pages, page_hint):
+    for joined, end_number, spanned in _page_runs(pages, page_hint):
         spans = _number_spans(joined.folded)
         hits = [
             hit
@@ -499,6 +556,7 @@ def _find_in_pages(
                 context=_context(joined.folded, hits[0], len(quote_norm)),
                 reason="the quote crosses a page break",
                 spans_to=end_number,
+                spanned=spanned,
             )
 
     # Canonical: the same comparison after both sides spell their numbers one

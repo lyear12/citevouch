@@ -559,13 +559,14 @@ def verify(
 
         match = find_in_pages(claim.quote, pages, usable_page)
         if match.found:
-            # A quote that runs across a break is on both pages it touches, so
-            # a ledger pointing at either one is not a move.  Calling it one
-            # would teach the author to edit a number that was already right.
-            on_the_recorded_page = usable_page is None or usable_page in (
-                match.page,
-                match.spans_to,
-            )
+            # A quote that runs across a break is on every page it touches, so
+            # a ledger pointing at any one of them is not a move.  Calling it
+            # one would teach the author to edit a number that was already
+            # right.  The middle of a three-page run is the case a pair-wise
+            # stitcher got wrong in both directions: it could not find the quote
+            # at all, and had it been handed the answer it would have called the
+            # middle page a move.
+            on_the_recorded_page = usable_page is None or usable_page in match.spanned
             if not on_the_recorded_page:
                 result.moved += 1
                 result.findings.append(
@@ -583,13 +584,15 @@ def verify(
             else:
                 result.verified += 1
                 where = f"page {match.page}"
-                if match.spans_to is not None:
+                if len(match.spanned) == 2:
                     # Say the quote runs onto the next page.  The author is
                     # about to look it up, and a reader told only "page 6"
                     # who finds the sentence ending there and continuing on
                     # page 7 has been told a half-truth by a tool whose whole
                     # promise is that its sentences are true.
-                    where += f" (running onto page {match.spans_to})"
+                    where += f" (running onto page {match.spanned[1]})"
+                elif len(match.spanned) > 2:
+                    where += f" (running onto pages {_and_list(match.spanned[1:])})"
                 result.findings.append(
                     Finding(
                         code="quote-found",
@@ -599,7 +602,7 @@ def verify(
                         line=claim.line,
                     )
                 )
-            result.findings.extend(_number_checks(claim, pages, match.page, match.spans_to))
+            result.findings.extend(_number_checks(claim, pages, match.spanned))
             # The quote is confirmed to be the page's own text here, which is
             # the only point where comparing the claim against it means
             # something: everywhere else the quote itself is in doubt.
@@ -719,9 +722,14 @@ def verify(
     return result
 
 
-def _number_checks(
-    claim, pages, page_number: int | None, spans_to: int | None = None
-) -> list[Finding]:
+def _and_list(numbers: tuple[int, ...]) -> str:
+    """`3`, `3 and 4`, `3, 4 and 5` - the way a person writes it out loud."""
+    if len(numbers) == 1:
+        return str(numbers[0])
+    return ", ".join(str(n) for n in numbers[:-1]) + f" and {numbers[-1]}"
+
+
+def _number_checks(claim, pages, spanned: int | tuple[int, ...] | None) -> list[Finding]:
     """Every number quoted by the manuscript must still be on the cited page.
 
     The check is deliberately narrow: it only sees numbers that appear *inside*
@@ -729,15 +737,24 @@ def _number_checks(
     exists to catch a re-typed statistic, which is the failure mode that reads
     as correct for months.
 
-    A quote that runs onto the next page can carry its numbers on either half,
-    so both pages are read.  Checking only the first half would report a number
-    absent that the author can see with their own eyes on page 7.
+    A quote that runs across a break can carry its numbers on any of the pages
+    it touches, so all of them are read.  Checking only the first half would
+    report a number absent that the author can see with their own eyes on page
+    7; checking only the two ends would do the same thing to the middle page of
+    a three-page run.
+
+    ``spanned`` is every page the quote touches; a bare int means one page,
+    which is what a caller that already knows the quote fits passes.
     """
     out: list[Finding] = []
     if not claim.numbers:
         return out
-    numbers_pages = [page_number] if spans_to is None else [page_number, spans_to]
-    wanted = [n for n in numbers_pages if n is not None]
+    if spanned is None:
+        wanted: list[int] = []
+    elif isinstance(spanned, int):
+        wanted = [spanned]
+    else:
+        wanted = [n for n in spanned if n is not None]
     present: set[str] = set()
     for candidate in pages:
         if candidate.number in wanted:
@@ -746,9 +763,7 @@ def _number_checks(
         return out
     absent = [raw for raw in claim.numbers if canonical_number(raw) not in present]
     if absent:
-        where = "page " + str(page_number)
-        if spans_to is not None:
-            where += f" or {spans_to}"
+        where = "page " + " or ".join(str(n) for n in wanted)
         # One claim yields every one of its findings at the claim's own line, so
         # the duplicate pass kept the first wrong number and hid the rest: the
         # author corrected it, ran again, and met the second.  Measured before

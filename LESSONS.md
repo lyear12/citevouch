@@ -6671,3 +6671,43 @@ How to apply it:
   test can hold on to; "add the same guard" is not.
 
 Seen 1.
+
+## A reader that stitches two pages cannot see a sentence that uses three
+
+The stitcher glued *pairs* of adjacent pages together.  A quote crossing one
+break was found; a quote crossing two was not.  Measured on a source whose
+sentence starts on page 2 and ends on page 4:
+
+    [high] quote-missing at manuscript.md:1 (c1): We collected a very large
+    number of examples from the corpus and then filtered them by ha…
+     — quote not found in page.txt
+
+The words are there, verbatim, in order.  A reader turning from page 2 to page
+4 sees the sentence; only a program that reads two pages at a time cannot.
+
+Two things made this expensive.  The first is that the code looked right: the
+function was named `_page_pairs`, and a pair is a perfectly reasonable unit
+until you remember that prose has no opinion about page boundaries.  The second
+is the shape of the result - `quote-missing` is this tool's loudest and most
+damning finding, the one it exists to produce for fabricated citations, and it
+was pointed at a quotation that a human could verify in four seconds.
+
+The general failure is *picking a window and forgetting it is a window*.  Every
+"look at N at a time" is a claim that nothing interesting spans N+1, and that
+claim is almost never written down, so nothing checks it.
+
+How to apply it:
+
+- When a helper's name contains a quantity (`_page_pairs`, `top_k`, `first_n`),
+  ask what the quantity excludes, and whether anything tests the excluded case.
+  Here the answer was "quotes crossing two breaks" and "no".
+- Make the window a named constant with its cost written beside it
+  (`MAX_STITCHED_PAGES = 4`), so the limit is a decision someone can revisit
+  rather than a `range()` that happens to stop.
+- When the window widens, re-ask every downstream question.  Widening the pair
+  to a run changed four more answers: which pages count as "not a move", what
+  the message says, which pages the numbers check reads, and which run wins when
+  a hint points outside the quote.  A fix that only widened the search would
+  have found the quote and then mis-described it.
+
+Seen 1.

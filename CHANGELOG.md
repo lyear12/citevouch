@@ -11,6 +11,35 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **A quotation that ran across two page breaks was reported missing.**
+  The stitcher glued *pairs* of adjacent pages together, so a quote crossing one
+  break was found and a quote crossing two was not.  Measured on a source whose
+  sentence starts on page 2 and ends on page 4:
+
+  ```text
+  $ citevouch check manuscript.md --root .
+  [high] quote-missing at manuscript.md:1 (c1): We collected a very large
+  number of examples from the corpus and then filtered them by ha…
+   — quote not found in page.txt
+  ```
+
+  The words are there, verbatim, in order.  A reader turning from page 2 to
+  page 4 sees the sentence; only a program that reads two pages at a time
+  cannot - and this tool's whole promise is that its sentences are true.
+
+  `_page_pairs` became `_page_runs`, which stitches every run up to
+  `MAX_STITCHED_PAGES` (4) instead of every pair, and `Match.spanned` records
+  every page the quote touches rather than its two ends.  Four consequences are
+  fixed with it: the "not a move" check now accepts the *middle* page of a run
+  (a ledger saying 3 for a quote on 2-4 is right, and calling it a move would
+  teach the author to edit a correct number); the message says "running onto
+  pages 3 and 4"; the numbers check reads every page of the run, so a figure
+  printed mid-run is no longer reported absent; and the run length is the outer
+  loop, because a hint on an early page otherwise let a four-page run that
+  merely *contained* the quote win over the three pages it occupies
+  (`tests/test_cross_page_three.py`, 19 tests, nine mutants).
 
 ## [0.22.48] — 2026-11-09
 ### Fixed
