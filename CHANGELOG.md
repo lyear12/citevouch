@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.49] — 2026-11-09
 ### Fixed
 
 * **A quotation that ran across two page breaks was reported missing.**
@@ -40,7 +42,6 @@ tag and that file disagree.
   loop, because a hint on an early page otherwise let a four-page run that
   merely *contained* the quote win over the three pages it occupies
   (`tests/test_cross_page_three.py`, 19 tests, nine mutants).
-
 ## [0.22.48] — 2026-11-09
 ### Fixed
 
@@ -3780,7 +3781,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.48...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.49...HEAD
+[0.22.49]: https://github.com/lyear12/citevouch/releases/tag/v0.22.49
 [0.22.48]: https://github.com/lyear12/citevouch/releases/tag/v0.22.48
 [0.22.47]: https://github.com/lyear12/citevouch/releases/tag/v0.22.47
 [0.22.46]: https://github.com/lyear12/citevouch/releases/tag/v0.22.46
