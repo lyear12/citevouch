@@ -56,6 +56,13 @@ CODES = {
     "source-is-manuscript": "high",
     "source-not-text": "medium",
     "source-encoding": "high",
+    # High for the same reason `source-encoding` is: the author believes this
+    # quote was checked against the page, and it was not.  It is the
+    # manuscript-side half of that defect - a manuscript saved in GBK parses
+    # (the fences and attributes are ASCII) with only the quoted words coming
+    # out as replacement characters, so every claim in it used to be answered
+    # `quote-missing`, an accusation about a sentence nobody had read.
+    "claim-not-decoded": "high",
     "bib-key-missing": "high",
     "bib-key-unused": "info",
     "bib-field-empty": "medium",

@@ -12,6 +12,48 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A quote nobody could read was reported as a quote the page does not have.**
+  A manuscript saved in GBK - what a Chinese Windows editor writes by default -
+  reaches `textnorm._decode_text`, which ends in
+  `raw.decode("utf-8", errors="replace")`. A decoder that cannot fail has
+  decided that every file is text. The fence line, the `quote:` label and the
+  attributes are ASCII, so the claim block is still recognised, and only the
+  quoted words become U+FFFD. Measured on a 111-byte GBK manuscript whose
+  quoted sentence is printed verbatim on page 1 of its source:
+
+  ```
+  [high] quote-missing at manuscript.md:3 (c1): ���数据
+  — quote not found in page.txt
+  ```
+
+  with exit 1, and the same byte stream recorded into `citevouch.lock.json`
+  first, so the corrupted quote was also the evidence every later recorded run
+  would check. `source-encoding` could not answer this: it judges a *source*
+  file, and this is the manuscript. Nothing in the tool could: `doctor` printed
+  nine `[ok  ]` lines and exited 0 while the run it explains was accusing the
+  author.
+
+  The bytes that were never decoded are known exactly - they are the positions
+  where the decoder wrote a replacement character - so the claim says so
+  instead of being searched. A claim whose quote holds one is counted as
+  skipped, never as missing, and reported as `claim-not-decoded` (high) with
+  the file and the `iconv` line that fixes it. `doctor`'s `claims` check fails
+  with the same reading, and `draft` no longer answers a zero from such a file
+  with "your citations were written in a form I do not read": it says the file
+  was never decoded, in the stderr line and in the proposals file.
+
+  What must still work, and does: a UTF-8 manuscript quoting a sentence the
+  page does not print is still `quote-missing`; a page that legitimately holds
+  U+FFFD is not the guard, because the guard is about the manuscript; and an
+  eight-bit *source* file is still `source-encoding`, judged by
+  `sources.encoding_problem` as before. A guard on one reader is not a guard on
+  the format, and the two readers answer different nouns.
+
+  17 tests, 11 mutations, all red.
+
+
 ## [0.22.53] — 2026-11-09
 ### Fixed
 

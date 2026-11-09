@@ -40,7 +40,7 @@ from .manuscript import parse_manuscript
 from .model import Finding
 from .scan import _resolve
 from .sources import candidate_files, extract_pages, near_misses, read_source_table
-from .textnorm import count_of, read_text
+from .textnorm import UNDECODED, count_of, read_text
 
 # The versions this package claims to run on, kept next to the check that
 # enforces them rather than only in pyproject, so the two cannot drift apart
@@ -388,6 +388,28 @@ def _claim_blocks(target: Path) -> Report:
             fix="Check the file's permissions, or pass a manuscript this tool can open.",
         )
     if parsed.claims:
+        # A claim whose quoted words are replacement characters was parsed but
+        # never read.  This check used to count it as a claim block and print
+        # `[ok  ] claims 1 claim block` while `check` exited 1 - and the line
+        # under it promised "if quotes are still reported missing, the source
+        # files are the place to look", sending the author to the one place the
+        # problem is not.  Measured on a 111-byte GBK manuscript: nine green
+        # lines and a high-severity finding one command away.
+        undecoded = [claim for claim in parsed.claims if UNDECODED in claim.quote]
+        if undecoded:
+            return Report(
+                name="claims",
+                ok=False,
+                detail=(
+                    f"{count_of(len(undecoded), 'claim block')} in {target.name}: "
+                    "quoted words that were never decoded, because the file is not "
+                    "UTF-8 - those words were replaced and can never be searched for"
+                ),
+                fix=(
+                    "Convert the manuscript first, for example `iconv -f GBK -t "
+                    f"utf-8 {target.name} > utf8.md`, then check the converted file"
+                ),
+            )
         # Three numbers, and the smallest of them is the one that was printed.
         # `spans` holds the blocks the parser consumed, `claims` the ones it
         # accepted, and `claim-block-unread` the fences it walked past because

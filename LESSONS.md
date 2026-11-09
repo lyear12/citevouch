@@ -6892,3 +6892,54 @@ The second half of the fix matters as much as the first and is easy to skip: the
 * Strip the things that *show* a declaration before looking for one: a tutorial page
   that prints `<meta charset="gbk">` inside a comment or an example is not
   declaring anything, and the regex cannot tell the difference on its own.
+
+
+## A failed decode leaves a character, and only the character knows
+
+Three commands were wrong at once about one 111-byte manuscript, each for its
+own reason, and none of them could see the other two.
+
+The manuscript was saved in GBK and quoted, in Chinese, a sentence its source
+prints verbatim on page 1.  Measured:
+
+    [high] quote-missing at manuscript.md:3 (c1): \ufffd\ufffd\ufffd\u6570\u636e
+    \u2014 quote not found in page.txt
+
+* `verify` asked the matcher whether the words were on the page.  The words it
+  asked about were replacement characters, so the honest answer to the question
+  it asked was "no" - and that answer is a lie about the author's sentence.
+* `draft` counted citations, found none (the `[` and `@` of `[@paper]` are
+  eaten by two-byte pairs), and explained the zero with the only reason it knew:
+  the citation syntax.  The author's syntax was correct.
+* `doctor` counted claim blocks the parser accepted.  It was right - there was
+  one - and the line under it said "if quotes are still reported missing, the
+  source files are the place to look", pointing away from the file with the
+  problem in it.
+
+All three survived because the decoder's failure is invisible in its *return
+value*: it is text, it parses, it holds a fence and an ASCII attribute line.  The
+only place the failure survives is the character the decoder wrote instead of
+the bytes it could not read.  So the repair stops treating the return value as
+evidence of success and reads that mark:
+
+    if UNDECODED in claim.quote:
+        result.skipped += 1          # never `missing`
+        ...                          # and name the file, and the command
+
+Three things this is not.  It is not a threshold on how many bad characters a
+file may hold - a big5 manuscript scores 0.232 and a cp1252 French page 0.176, so
+any number either refuses a readable paper or admits an unreadable one.  It is
+not a guess at the encoding - strict `raw.decode()` accepts GBK bytes as
+`cp1252`, `latin-1` and `euc-kr` too, so "it decodes with something" proves
+nothing.  And it is not the same check as `source-encoding`, which judges a
+*source* file by its byte share and is right to: measured, an ASCII-quoted
+manuscript in GBK still verifies, because the only corrupted part is prose
+nobody quoted.  One check owns one noun.
+
+**How to apply.** When a reader takes an `errors=` argument, the mark it writes
+is the only record that it failed - give that character a name (`UNDECODED`) so
+no guard can be written against a different spelling of it.  Ask each command
+separately what it would say if the input had not been read at all, and give each
+one the sentence that names the file.  And when the count of a thing is zero,
+check whether the reader could see the thing before blaming how the author wrote
+it.

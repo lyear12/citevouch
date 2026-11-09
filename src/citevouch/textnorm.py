@@ -475,6 +475,16 @@ def _strip_bom(text: str) -> str:
     return text[1:] if text.startswith(_BOM) else text
 
 
+#: The character a decoder writes where it could not read a byte.
+#:
+#: ``str.decode(..., errors="replace")`` is how this tool reads every text file
+#: it is given, so a byte it cannot decode does not raise - it becomes this.
+#: That makes the character the only record left of a byte that was lost, which
+#: is why anything deciding "was this read at all?" has to look for it rather
+#: than for an exception that never came.
+UNDECODED = "\ufffd"
+
+
 def _noise(text: str) -> int:
     """Count the characters a text file should not contain.
 
@@ -484,7 +494,7 @@ def _noise(text: str) -> int:
     were valid UTF-8 purely because ASCII is a subset of it.  Both are what a
     misread text file is made of, and neither belongs in a manuscript.
     """
-    return sum(1 for ch in text if ch == "\ufffd" or (ch < " " and ch not in "\t\n\r\f"))
+    return sum(1 for ch in text if ch == UNDECODED or (ch < " " and ch not in "\t\n\r\f"))
 
 
 def invalid_utf8_share(raw: bytes) -> float:

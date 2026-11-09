@@ -72,6 +72,7 @@ worst severity: high
 | `source-is-manuscript` | high | claim 把稿件自身当成了出处——同一个文件在为自己的句子作证 |
 | `source-not-text` | medium | 这个文件是别的文档格式（.docx 是压缩包，不是文本）——先转换 |
 | `source-encoding` | high | 文件用的编码这个工具读不了（GBK 或 Big5 的页面不是 UTF-8）——里面的字从没被搜过，先转换 |
+| `claim-not-decoded` | high | 引文里有从没被解码出来的字符（稿件不是 UTF-8）——它从没被搜过，先把稿件转成 UTF-8 |
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
 | `check-unavailable` | high | `doctor` 有一项检查过不去：没有 PDF 库、解释器版本不支持、缓存不可写 |

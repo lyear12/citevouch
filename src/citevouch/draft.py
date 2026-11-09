@@ -38,7 +38,7 @@ from .evidence import is_the_manuscript
 from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
 from .scan import _resolve
-from .textnorm import normalize, numbers_in, read_text
+from .textnorm import UNDECODED, normalize, numbers_in, read_text
 
 # Pandoc's bracket form: `[@key]`, `[@a; @b]`, `[-@key]`, `[see @a, p. 3]`.  This
 # is what people writing Markdown actually use, so it is the primary dialect.
@@ -222,6 +222,18 @@ class Draft:
     # the same five-line file and the same exit 0, so the author whose markers
     # were simply unrecognised was told to go read proposals that did not exist.
     no_citations: bool = False
+    # How many characters of the manuscript were replacement characters.
+    #
+    # A manuscript saved in GBK reaches this module after
+    # ``raw.decode("utf-8", errors="replace")``, so its citation markers are
+    # gone: `[` and `@` are swallowed by two-byte pairs and `[@paper]` never
+    # appears in the text this command searches.  Measured on a GBK manuscript
+    # holding one `[@paper]` citation: ``draft`` exited 0 and said "no citations
+    # were found to propose them for (this command reads `[@key]` and
+    # `\\cite{key}`)" - true about the text it read, and silent about the fact
+    # that made it true.  The author went looking for a citation they had
+    # already written.
+    undecodable: int = 0
 
 
 def line_of(text: str, offset: int) -> int:
@@ -732,6 +744,7 @@ def draft(
     proposed_quotes: set[str] = set()
     sites = citation_sites(text)
     result.no_citations = not sites
+    result.undecodable = text.count(UNDECODED)
     for site in sites:
         sentence, _, _ = sentence_at(text, site.start)
         if (site.start, site.key) in seen:
@@ -884,13 +897,29 @@ def render(
         # Nothing to propose and no way to tell the author why from the counts
         # alone: zero proposals with zero skipped citations means this command
         # never found a citation, not that it found unusable ones.
-        out.append(
-            "<!-- No citations were found in the text, so there was nothing to "
-            "propose. This command reads two forms: Pandoc's `[@key]` and "
-            "LaTeX's `\\cite{key}`. A citation written any other way - "
-            "`(Van Eecke 2026)`, a bare `@key` without brackets, a reference "
-            "typed by hand - is invisible to it. -->"
-        )
+        if result.undecodable:
+            # Two different reasons produce the same zero, and only one of them
+            # is about the author's markers.  A GBK file read as UTF-8 has its
+            # `[` and `@` eaten by two-byte pairs, so it arrives here with no
+            # citations at all - and telling that author "your citations were
+            # written in an unsupported form" sends them to rewrite a line that
+            # was already correct.
+            out.append(
+                "<!-- No citations were found because this file was never "
+                f"decoded: {result.undecodable} character(s) of it are "
+                "replacement characters, which is what a decoder writes where "
+                "it could not read a byte. Convert the file to UTF-8 first, for "
+                "example `iconv -f GBK -t utf-8 " + manuscript_name + " > "
+                "utf8.md`, and run this command on the converted file. -->"
+            )
+        else:
+            out.append(
+                "<!-- No citations were found in the text, so there was nothing to "
+                "propose. This command reads two forms: Pandoc's `[@key]` and "
+                "LaTeX's `\\cite{key}`. A citation written any other way - "
+                "`(Van Eecke 2026)`, a bare `@key` without brackets, a reference "
+                "typed by hand - is invisible to it. -->"
+            )
     if included:
         out.append(
             "<!-- This document pulls text in from "
@@ -935,6 +964,13 @@ def summarize(result: Draft) -> str:
     high = sum(1 for proposal in result.proposals if proposal.confidence == "high")
     missing = len(result.skipped) + len(result.unreadable)
     if result.no_citations:
+        if result.undecodable:
+            return (
+                "0 claim block(s) proposed: this file was never decoded "
+                f"({result.undecodable} character(s) of it are replacement "
+                "characters), so no citation in it could be found - convert it "
+                "to UTF-8 first"
+            )
         return (
             "0 claim block(s) proposed: no citations were found to propose them "
             "for (this command reads `[@key]` and `\\cite{key}`)"

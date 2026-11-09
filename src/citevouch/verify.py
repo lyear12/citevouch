@@ -38,6 +38,7 @@ from .sources import (
 )
 from .textnorm import (
     CANON_PATTERN,
+    UNDECODED,
     canonical_number,
     count_of,
     is_are,
@@ -556,6 +557,40 @@ def verify(
                     line=claim.line,
                 )
             )
+
+        # A quote holding a replacement character was never decoded, so it was
+        # never searched, so nothing can be said about whether it is on the
+        # page.  The fence line, the `quote:` label and every attribute are
+        # ASCII, so a manuscript saved in GBK still parses - only the quoted
+        # words come out as U+FFFD.  Measured on a 111-byte GBK manuscript
+        # whose sentence is printed verbatim on page 1 of its source:
+        #
+        #     [high] quote-missing at manuscript.md:3 (c1): \ufffd\ufffd\ufffd...
+        #     - quote not found in page.txt
+        #
+        # which is a verdict about the author's sentence when the fact is about
+        # the file's encoding.  `source-encoding` answers this for a source
+        # file; nothing answered it for the manuscript, because the manuscript
+        # is read by a different reader that never had a guard.
+        if UNDECODED in claim.quote:
+            result.skipped += 1
+            lost = sum(1 for ch in claim.quote if ch == UNDECODED)
+            result.findings.append(
+                Finding(
+                    code="claim-not-decoded",
+                    message=(
+                        f"claim {claim.id}: {count_of(lost, 'character')} of this quote "
+                        "were never decoded, so the quote was never searched - "
+                        f"{Path(claim.path).name} cannot be read as UTF-8 without loss. "
+                        "Convert it first, for example "
+                        f"`iconv -f GBK -t utf-8 {Path(claim.path).name} > utf8.md`"
+                    ),
+                    claim_id=claim.id,
+                    path=claim.path,
+                    line=claim.line,
+                )
+            )
+            continue
 
         match = find_in_pages(claim.quote, pages, usable_page)
         if match.found:

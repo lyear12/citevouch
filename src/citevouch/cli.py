@@ -802,14 +802,29 @@ def cmd_draft(args: argparse.Namespace) -> int:
         if result.no_citations:
             # Do not send the author to read a file that holds nothing.  The
             # advice below is correct for every other draft and wrong here.
-            _emit(
-                f"citevouch: wrote {output}, but it holds no proposals: no "
-                "citations were found to make them for. This command reads "
-                "Pandoc's `[@key]` and LaTeX's `\\cite{key}`; a citation written "
-                "any other way - `(Van Eecke 2026)`, a bare `@key`, a reference "
-                "typed by hand - is invisible to it\n",
-                sys.stderr,
-            )
+            # A zero from a file that was never decoded is a different zero:
+            # the citations may be there and unreadable, so the sentence has to
+            # name the conversion instead of the two supported syntaxes.
+            if result.undecodable:
+                _emit(
+                    f"citevouch: wrote {output}, but it holds no proposals: "
+                    f"{result.undecodable} character(s) of {manuscript} are "
+                    "replacement characters, which is what a decoder writes "
+                    "where it could not read a byte, so no citation in it could "
+                    "be found. Convert the manuscript to UTF-8 first, for "
+                    f"example `iconv -f GBK -t utf-8 {_shell_word(str(manuscript))} "
+                    f"> utf8.md`, then run this command on utf8.md\n",
+                    sys.stderr,
+                )
+            else:
+                _emit(
+                    f"citevouch: wrote {output}, but it holds no proposals: no "
+                    "citations were found to make them for. This command reads "
+                    "Pandoc's `[@key]` and LaTeX's `\\cite{key}`; a citation written "
+                    "any other way - `(Van Eecke 2026)`, a bare `@key`, a reference "
+                    "typed by hand - is invisible to it\n",
+                    sys.stderr,
+                )
         else:
             advice = _check_advice(output, args.root)
             _emit(

@@ -49,6 +49,7 @@ SARIF_RULES = {
     "source-is-manuscript": "A source file is the manuscript it is supposed to prove.",
     "source-not-text": "A source file is a document format this tool cannot read, so its text was never searched.",
     "source-encoding": "A source file is saved in an encoding this tool cannot read, so its words were never searched.",
+    "claim-not-decoded": "A quoted passage holds characters that were never decoded, so it was never searched.",
     "bib-key-missing": "A cited key is absent from the bibliography.",
     "bib-key-unused": "A bibliography entry is never cited.",
     "bib-field-empty": "A required bibliography field is empty.",

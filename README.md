@@ -75,6 +75,7 @@ rots:
 | `source-is-manuscript` | high | the claim cites the manuscript it is written in, so a file is vouching for its own sentences |
 | `source-not-text` | medium | the file is a document format this tool does not read (a .docx is a zip, not text) - convert it first |
 | `source-encoding` | high | the file is saved in an encoding this tool cannot read (a GBK or Big5 page is not UTF-8) - its words were never searched, so convert it first |
+| `claim-not-decoded` | high | the quote holds characters that were never decoded (the manuscript is not UTF-8) - it was never searched, so convert the manuscript first |
 | `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |
 | `ledger-stale` | high | the manuscript changed since the ledger was recorded |
 | `check-unavailable` | high | `doctor` found a check it cannot pass: no PDF library, an unsupported interpreter, a cache it cannot write |
