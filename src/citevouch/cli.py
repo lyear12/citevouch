@@ -28,7 +28,7 @@ from . import __version__
 from . import doctor as doctor_module
 from . import draft as draft_module
 from . import latex as latex_module
-from .bibtex import parse_bib
+from .bibtex import merge_entries, parse_bib
 from .errors import CitevouchError, UsageError, why_not_a_file
 from .manuscript import parse_manuscript
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
@@ -608,6 +608,17 @@ def cmd_draft(args: argparse.Namespace) -> int:
 
     bib: dict[str, BibEntry] = {}
     bib_paths: list[Path] = []
+    # Everything the parser said about these files, and every key they name
+    # without answering for it.  Both used to be dropped: an unclosed entry, a
+    # binary file or a duplicate key produced no output here at all, and the
+    # key that never parsed then got the sentence "no `file` field in the
+    # bibliography" about an entry that has one.  Measured before this existed:
+    # `draft paper.md --bib refs.bib` on a `.bib` whose entry never closes
+    # printed `0 claim block(s) proposed (0 verbatim), 1 citation(s) left as
+    # comments`, wrote `<!-- line 1: knuth2020 - no local file: not in
+    # sources.toml, no `file` field in the bibliography, and no file named
+    # after the key -->`, and said nothing about the file being unreadable.
+    bib_findings: list[Finding] = []
     for raw in args.bib:
         bib_path = _resolve(root, raw)
         if not bib_path.is_file():
@@ -615,7 +626,13 @@ def cmd_draft(args: argparse.Namespace) -> int:
         bib_paths.append(bib_path)
 
         parsed = parse_bib(read_text(bib_path), recorded_path(root, bib_path))
-        bib.update(parsed.entries)
+        bib_findings.extend(parsed.findings)
+        bib_findings.extend(merge_entries(bib, parsed.entries))
+    # `draft` reads these files for one reason: to answer "where is the local
+    # file for this key".  A key the parser never produced an entry for is a
+    # question this command cannot answer, and it must say that rather than
+    # guess.  A key that did parse is excluded, so the guess cannot invent one.
+    bib_unreadable = draft_module._bib_keys_without_entries(bib_paths, bib)
     # The guard below has to name the same files the run will actually open.
     # It used to join the root unconditionally while ``read_source_table``
     # resolved with the shared rule, so the two disagreed about the spelling
@@ -657,10 +674,16 @@ def cmd_draft(args: argparse.Namespace) -> int:
         # is the only thing this command tells them to do - turned a working
         # project into a high-severity one.
         taken_ids=_existing_claim_ids(text),
+        bib_unreadable=bib_unreadable,
     )
     text = draft_module.render(result, manuscript.name, converted=converted, included=included)
     _write_text_lf(output, text)
     if not args.quiet:
+        # What the parser said about the bibliographies, before the summary:
+        # the author has to know that a file it read was only partly readable
+        # before it can make sense of the keys it could not place.
+        for finding in bib_findings:
+            _emit(f"{finding.one_line()}\n", sys.stderr)
         _emit(f"citevouch: {draft_module.summarize(result)}\n", sys.stderr)
         if result.needed_sources:
             _emit(

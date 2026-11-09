@@ -6475,3 +6475,40 @@ The bug is not in the check; the check was correct and complete for the containe
 How to apply. When a check lives inside a loop over inputs, ask what the function would say if the loop body ran twice. Then make the accumulation a named function (`merge_entries`) instead of `dict.update`, so the rule has somewhere to live and every caller inherits it - both `scan` and the re-reading recorded pass had to be changed, and a helper is what made "both" mechanical rather than remembered. And pin the case where the merge is a no-op: `--bib a.bib --bib a.bib` names one file twice and must stay silent, or the new finding teaches the author about their command line instead of their bibliography.
 
 Seen 1.
+
+## A command that reads a file to answer one question cannot answer it "no"
+
+`draft --bib` opens every bibliography for exactly one purpose: to find the local
+file that backs a citation key. When the parser only half read that file, the
+question "where is the file for `knuth2020`" came back as "the bibliography has
+no `file` field", about a `.bib` that has one on line 5. Measured:
+
+```text
+$ citevouch draft paper.md --root . -o claims.md --bib refs.bib
+citevouch: 0 claim block(s) proposed (0 verbatim), 1 citation(s) left as comments
+$ citevouch scan paper.md --root . --bib refs.bib
+[high] bib-unreadable at refs.bib:1: not one entry could be read ...
+```
+
+Two commands, one file, two answers. The scan path was fixed for this in
+v0.19.63; `draft` kept the old sentence because it never printed the parse
+findings at all, so nothing ever told it the difference between *the
+bibliography does not mention this key* and *the bibliography never got that
+far*. The evidence for "I could not read this" was being computed and dropped
+in the same loop.
+
+A parse finding is not a property of a run; it is a property of a file. Every
+command that opens that file owes the author the same sentence about it.
+
+How to apply:
+
+- When a command reads a file to answer one question, ask what it says when the
+  file did not fully parse. "Not there" and "not readable" are different answers.
+- A finding produced while reading something is owed to every command that
+  reads it. Grep for the parser's return value and check that nobody drops
+  `.findings` on the floor.
+- Carry the *absence of an answer* forward as data (here, the set of keys the
+  file names without defining), rather than re-deriving it later from a map
+  that cannot represent it.
+
+Seen 1.

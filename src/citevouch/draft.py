@@ -37,7 +37,7 @@ from . import matching, sources
 from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
 from .scan import _resolve
-from .textnorm import normalize, numbers_in
+from .textnorm import normalize, numbers_in, read_text
 
 # Pandoc's bracket form: `[@key]`, `[@a; @b]`, `[-@key]`, `[see @a, p. 3]`.  This
 # is what people writing Markdown actually use, so it is the primary dialect.
@@ -55,6 +55,13 @@ from .textnorm import normalize, numbers_in
 # What must still not match: `[contact me at x@y.com]`, where the `@` is inside
 # a word.  Pandoc requires the key to start at a boundary, so the body and the
 # key both carry the same lookbehind.
+# The key of a `@type{key,` header, used to notice a key the bibliography
+# names but never finished defining.  Deliberately loose: this runs on a file
+# the parser already refused, so matching too little is the failure mode that
+# matters (it would leave the author with the generic sentence).  A key that
+# did parse is excluded by the caller, so a loose match cannot invent one.
+_BIB_KEY = re.compile(r"@\w+\s*\{\s*([^,\s{}]+)")
+
 _PANDOC = re.compile(r"\[(?P<body>[^\[\]]*(?<![A-Za-z0-9_.:\-])-?@[A-Za-z0-9_.:\-]+[^\[\]]*)\]")
 _AT_KEY = re.compile(r"(?<![A-Za-z0-9_.:\-])-?@(?P<key>[A-Za-z0-9_.:\-]+)")
 # LaTeX's forms, because much of the audience types Markdown in an editor that
@@ -600,6 +607,7 @@ def _why_no_file(
     key: str,
     table: sources.SourceTable | None,
     bib: dict[str, BibEntry] | None = None,
+    bib_unreadable: set[str] | None = None,
 ) -> str:
     """Say which of the three ways a key can have no local file actually happened.
 
@@ -635,10 +643,48 @@ def _why_no_file(
                 f"no local file: the `file` field for {key!r} in the bibliography "
                 f"names {named!r}, and that file is not there"
             )
+    if bib_unreadable and key in bib_unreadable:
+        # The citation key is in the file, the entry is not.  Saying the
+        # bibliography has no `file` field sends the author to look at the
+        # field they are staring at.
+        return (
+            "no local file: the bibliography could not be fully read, so no "
+            f"entry was parsed for {key!r} - fix the entry and run this again"
+        )
     return (
         "no local file: not in sources.toml, no `file` field in the "
         "bibliography, and no file named after the key"
     )
+
+
+def _bib_keys_without_entries(paths: Sequence[Path], bib: dict[str, BibEntry]) -> set[str]:
+    """Keys the bibliography names but no parsed entry answers for.
+
+    A file that does not fully parse still *names* keys - in the entry header,
+    in a `file` field - while producing no entry for them.  ``draft`` then has
+    a citation key it cannot resolve and, without this set, cannot tell "the
+    bibliography never mentioned it" from "the bibliography never made it that
+    far".  Measured before this existed, with an unclosed entry holding
+    ``file = {page.txt}``::
+
+        <!-- line 1: knuth2020 - no local file: not in sources.toml, no `file`
+        field in the bibliography, and no file named after the key -->
+
+    The author opens the `.bib`, sees the field on line 5, and stops trusting
+    the report.  Only keys already absent from ``bib`` are returned: a key that
+    did parse has an answer and does not need this.
+    """
+    out: set[str] = set()
+    for path in paths:
+        try:
+            text = read_text(path)
+        except OSError:
+            continue
+        for match in _BIB_KEY.finditer(text):
+            key = match.group(1)
+            if key not in bib:
+                out.add(key)
+    return out
 
 
 def draft(
@@ -651,6 +697,7 @@ def draft(
     page_cache: dict | None = None,
     max_terms: int = 0,
     taken_ids: set[str] | None = None,
+    bib_unreadable: set[str] | None = None,
 ) -> Draft:
     """Read `text` and write down what could be proposed for it.
 
@@ -683,7 +730,7 @@ def draft(
             result.skipped.append(
                 Skipped(
                     key=site.key,
-                    reason=_why_no_file(site.key, table, bib),
+                    reason=_why_no_file(site.key, table, bib, bib_unreadable),
                     line=site.line,
                 )
             )

@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`draft --bib` threw away everything the bibliography parser said.** `draft` read every `--bib` file for one reason - to answer "where is the local file for this key" - and the file it was answering for could be one the parser had only half read. An unclosed entry, a binary file or a duplicate key produced no output at all:
+
+  ```text
+  $ citevouch draft paper.md --root . -o claims.md --bib refs.bib
+  citevouch: 0 claim block(s) proposed (0 verbatim), 1 citation(s) left as comments
+  ```
+
+  and because the entry never parsed, the key had no entry to answer with, so the comment written for it said the bibliography had no `file` field - about a `.bib` that has one on line 5:
+
+  ```text
+  <!-- line 1: knuth2020 - no local file: not in sources.toml, no `file` field in the bibliography, and no file named after the key -->
+  ```
+
+  `scan` on the same project reported `bib-unparsed-entry` and `bib-unreadable`; the command whose whole job is to tell the author what it could not look at said nothing. This is the false sentence v0.19.63 fixed for the `scan` path, still standing in the command that reads the file to answer that exact question.
+
+  `cmd_draft` now keeps the parse findings, prints them before its summary, merges entries through `merge_entries` (so a key defined in two `--bib` files is reported here too), and passes `draft` a set of keys the bibliography *named* without producing an entry for. `_why_no_file` says "the bibliography could not be fully read, so no entry was parsed for 'knuth2020'" for those, and keeps the generic sentence for a readable bibliography that simply does not mention the key. `tests/test_draft_bib_findings.py` (14 tests); ten mutations, `survivors: []`.
+
 ## [0.22.43] — 2026-11-09
 ### Fixed
 
