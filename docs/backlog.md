@@ -2941,6 +2941,46 @@ not what changed, but what proves the change works.
   `file`-field fallback still tries the bibliography's folder before the root,
   which is deliberate — Zotero writes paths relative to the `.bib`.
 
+- [x] **A table was prose unless the package was `tabular`.**
+  `_DROP_ENVIRONMENT` named `tabular` and `tabular*` only, so the package a
+  journal template happened to use decided whether the tool read a table as
+  text. `tabularx`, `xltabular`, `tabulary`, `longtable`, `tabu`, `longtabu`
+  and `supertabular` fell through to the prose reader: the column
+  specification arrived as a word and every cell as a sentence.
+
+  ```text
+  \begin{tabularx}{\linewidth}{lX}
+  Baseline \citep{knuth2020} & 90,000 \
+
+  to_text -> 'lX
+              Baseline [@knuth2020] & 90,000'
+  ```
+
+  *Who was blocked*: every author whose publisher asks for a full-width table.
+  `draft` reported `0 claim block(s) proposed (0 verbatim), 1 citation(s) left
+  as comments` and blamed the page for not containing a sentence that is a row
+  of a table, so the one comment the tool asks the author to read was false.
+  The same table written with `tabular` was dropped and the run truthfully said
+  no citations were found - two verdicts for one paper, chosen by a package
+  name.
+
+  *Done when*: no table package's body reaches the converted text, and the
+  decision about math grids is written down rather than implied.
+
+  *Done - why it is now true*: all seven names are in `_DROP_ENVIRONMENT`.
+  `tests/test_table_environments.py` (44 tests) covers the cells, the column
+  spec, a citation in a cell, a table nested in the same environment, an
+  unclosed table, the `\input` inside a table, and `TestMathIsLeftAlone`, which
+  pins that `array`, the `matrix` family and the display-math environments keep
+  their numbers on purpose. Ten mutations: each name removed one at a time,
+  only the two original names kept, `array` wrongly added, and the nesting
+  counter removed - `survivors: []`, `broken mutants: []`.
+
+  *Not covered*: a real journal `.tex` from a template; fixtures are hand
+  written from each package's documented syntax. Tables of *different* packages
+  nested inside each other are not covered either - `_skip_environment` counts
+  one name at a time.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
