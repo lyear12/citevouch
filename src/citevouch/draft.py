@@ -314,9 +314,38 @@ def sentence_at(text: str, start: int) -> tuple[str, int, int]:
     return text[para_start:para_end].strip(), para_start, para_end
 
 
+# A blockquote, a bullet, an ordinal and a heading are four ways of *showing* a
+# sentence, and the marker in front of it is typography rather than words:
+# nobody reading the rendered page sees a `>` between the author's words.
+# `statement_of` read the raw line, so the marker travelled into the `claim:`
+# field it asks the author to paste, and the same sentence then stopped matching
+# its source verbatim - the page has no `>` either.
+#
+# Measured on one page holding `We collected 154,391 examples from the corpus.`
+# and a manuscript quoting it word for word: plain text gave `confidence: high`
+# and one proposal; behind `> `, `- `, `* `, `+ `, `## ` or `1) ` it gave
+# `0 claim block(s) proposed` plus "nothing on any page shares enough terms with
+# the sentence (3 needed)" - about a sentence the page shares four terms with. A
+# false reason attached to a real loss is worse than silence: it sends the
+# author to rewrite the sentence that was already right.
+#
+# `1. ` needs no entry here: `_SENTENCE_END` splits after the full stop, so that
+# marker is already outside the text `statement_of` ever sees.
+#
+# What still must not match, because each one is the sentence's own content:
+# `-- x`, `-3 degrees`, `2.5 million`, `#hashtag` (no space after the marker),
+# and `a > b` (not at the start of a line). The indent is capped at three
+# spaces, like CommonMark: four spaces is a code block, and its text is a
+# quotation of Markdown rather than prose.
+_CONTAINER_MARKER = re.compile(
+    r"(?m)^[ \t]{0,3}(?:(?:>[ \t]?)+|[-*+][ \t]+|\d{1,9}[.)][ \t]+|#{1,6}[ \t]+)+"
+)
+
+
 def statement_of(sentence: str) -> str:
     """The sentence without its citation markers, ready to be a `claim:` line."""
-    text = _PANDOC.sub("", sentence)
+    text = _CONTAINER_MARKER.sub("", sentence)
+    text = _PANDOC.sub("", text)
     # The plural commands go first: `\cites{a}{b}` is four brace groups of
     # citation furniture, and `_LATEX` cannot match it at all (`s` is neither
     # `*`, `[` nor `{`), so leaving this out put the raw command in the middle

@@ -6156,3 +6156,40 @@ How to apply:
   this project has found were invisible in the source.
 
 Seen 1.
+
+## A sentence's typography is not part of the sentence
+
+A Markdown blockquote, bullet, heading and parenthesised ordinal are four ways of
+*showing* a sentence. The marker is the renderer's business: no reader of the
+finished page sees a `>` between the author's words. Code that treats a line of
+source as a sentence has to decide, once, whether it is reading what the reader
+sees or what the author typed - and then be consistent about it, because a
+half-stripped sentence fails both tests.
+
+Measured: one page held `We collected 154,391 examples from the corpus.` and a
+manuscript quoted it word for word. Plain text gave `confidence: high` and one
+proposal; behind `> `, `- `, `* `, `+ `, `## ` or `1) ` the same sentence gave
+`0 claim block(s) proposed` and the comment "nothing on any page shares enough
+terms with the sentence (3 needed)" - about a sentence the page shares four
+terms with and prints verbatim. The confidence drop and the lost proposal had
+one cause: `statement_of` compared `> We collected ...` against a page that has
+no `>`.
+
+What makes this expensive is the second-order effect. The tool did not merely
+lose the proposal; it printed a *reason* for losing it, and the reason was
+false. The author's next move - rewrite the sentence that shares more terms - is
+wrong, and the losing case was the correct one. Silence would have been kinder.
+
+How to apply:
+
+* When reading a line of Markdown as prose, strip the container prefix first
+  (`^[ \t]{0,3}(?:(?:>[ \t]?)+|[-*+][ \t]+|\d{1,9}[.)][ \t]+|#{1,6}[ \t]+)+`,
+  per line, because a wrapped quote repeats its marker).
+* Cap the indent at three spaces: four is a code block, and text there is a
+  sample of Markdown rather than prose.
+* Leave lookalikes alone - `-- x`, `-3 degrees`, `2.5 million`, `#hashtag`,
+  `a > b` - because there the marker is the sentence's own content.
+* When a transformation loses an input, check what the loss message *says*. A
+  false explanation costs more than no explanation at all.
+
+Seen 1.

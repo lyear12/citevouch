@@ -12,6 +12,34 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A Markdown container marker travelled into the `claim:` text `draft` proposes.**
+  A blockquote (`> `), a bullet (`- `, `* `, `+ `), a heading (`## `) and a
+  parenthesised ordinal (`1) `) are ways of *showing* a sentence; the marker is
+  typography, and no reader of the rendered page sees it. `draft` read the raw
+  line, so the marker was copied into the `claim:` field the author is told to
+  paste, and the sentence then failed to match its own source verbatim - the
+  page has no `>` either. Measured on one page holding
+  `We collected 154,391 examples from the corpus.` quoted word for word in the
+  manuscript:
+
+  ```text
+  plain paragraph   -> confidence: high    1 proposal
+  > / - / * / + / # -> 0 claim block(s) proposed
+  ```
+
+  and the comment left in the proposal blamed the author's sentence: "nothing
+  on any page shares enough terms with the sentence (3 needed)" - about a
+  sentence the page shares four terms with and prints word for word. A false
+  reason attached to a real loss is worse than silence, because it sends the
+  author to rewrite the sentence that was already right. `statement_of` now
+  drops the container prefix from every line (a wrapped blockquote loses one
+  marker per line), which fixes both the proposal and the confidence in one
+  place. Marker lookalikes stay: `-- x`, `-3 degrees`, `2.5 million`,
+  `#hashtag`, `a > b`, and a four-space indent, which CommonMark reads as a
+  code block.
+
 ## [0.22.34] — 2026-11-09
 ### Fixed
 
