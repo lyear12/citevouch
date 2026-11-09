@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.32] — 2026-11-09
 ### Fixed
 
 * **A table claim row with an empty cell made the file look empty.**
@@ -68,7 +69,6 @@ tag and that file disagree.
   The child now gets `PYTHONIOENCODING=utf-8` and the parent decodes with
   `encoding="utf-8"`. The product code was never wrong - only the test that
   watched it was reading a byte sequence it had assumed was text.
-
 ## [0.22.31] — 2026-11-09
 ### Fixed
 
@@ -3290,7 +3290,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.31...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.32...HEAD
+[0.22.32]: https://github.com/lyear12/citevouch/releases/tag/v0.22.32
 [0.22.31]: https://github.com/lyear12/citevouch/releases/tag/v0.22.31
 [0.22.30]: https://github.com/lyear12/citevouch/releases/tag/v0.22.30
 [0.22.29]: https://github.com/lyear12/citevouch/releases/tag/v0.22.29
