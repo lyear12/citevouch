@@ -2732,6 +2732,48 @@ not what changed, but what proves the change works.
   into a fixture is input rather than an expectation.  No other Windows-only
   encoding path was hunted - this one was found by a red runner, not by the scan.
 
+- [x] **A bibliography nobody could read was silent on the recorded path.**
+  `scan --bib` reports `bib-unreadable`, `bib-unparsed-entry` and
+  `bib-entry-header-unparsed`; the ledger stored only the *entries* a
+  bibliography yielded, so a file that yielded none recorded as the same empty
+  mapping as a project that named no bibliography. `check --use-recorded` then
+  saw an empty mapping, took the `if not ledger.entries: break` short cut, and
+  said nothing. Measured on a project whose `refs.bib` is a binary:
+
+      scan                  -> 1, [medium] bib-entry-header-unparsed
+                                  [high] bib-unreadable
+      check --use-recorded  -> 0, [info] quote-found
+
+  *Who is blocked*: every contributor. `action.yml` runs `check --use-recorded`
+  on each pull request, so the only run that decides whether a branch is green
+  was the one that could not see the problem. The author's own `scan` said one
+  thing and their CI said another, and CI is the one they are asked to trust.
+  *Done when*: a bibliography that cannot be parsed, or is no longer there,
+  produces the same finding on `check --use-recorded` and on `verify` as it
+  does on `scan`.
+  *Done - why it is now true*: `Ledger.bibliographies` records the files
+  `--bib` named (`scan.py`, appended before the file is judged, so a missing
+  file is recorded too), `to_json`/`from_json` carry the key (absent reads as
+  "no bibliography named", so old ledgers keep their verdict), and
+  `verify.py` re-reads each recorded bibliography and extends the findings -
+  the same treatment the manuscript already gets when its recorded digest
+  matches. A deleted file is reported as `source-missing` by name.
+  `--allow-stale` does not silence it (that flag is about the manuscript; a
+  missing `refs.bib` is missing either way, which is why `source-missing` and
+  `source-changed` already run under it), and `fresh` does, because there
+  `scan` returned the same findings one line earlier.
+  `tests/test_bibliography_recorded.py` (17 tests) covers the binary file, the
+  unclosed entry, the deleted file, the empty file staying quiet, the two verbs
+  agreeing, the live run naming the failure exactly once, and the old ledger
+  without the key still reading. Nine mutations all turn the suite red -
+  including "scan records only the bibliographies it could parse" and "the
+  gate is the manuscript digest instead of `fresh`", the two that would have
+  left the original bug half-fixed.
+  *Not covered*: no real-world `.bib` from a journal export was tried; the
+  fixtures are hand-written from the format. A bibliography reached through a
+  symlinked parent directory is still untested, as is a network share that
+  disappears between the recorded pass and the re-read.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
