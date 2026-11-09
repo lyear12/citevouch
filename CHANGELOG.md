@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.58] — 2026-11-09
 ### Fixed
 
 * **`draft` read a citation the author was displaying as one they were making.**
@@ -35,7 +36,6 @@ tag and that file disagree.
   would vanish. `draft` masks once and reads both citations and sentences from the
   masked text. A `> ` blockquote is still prose, and a `[@ghost]` in an ordinary
   sentence is still reported missing. 28 tests, 11 mutations, all red.
-
 ## [0.22.57] — 2026-11-09
 ### Fixed
 
@@ -4100,7 +4100,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.57...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.58...HEAD
+[0.22.58]: https://github.com/lyear12/citevouch/releases/tag/v0.22.58
 [0.22.57]: https://github.com/lyear12/citevouch/releases/tag/v0.22.57
 [0.22.56]: https://github.com/lyear12/citevouch/releases/tag/v0.22.56
 [0.22.55]: https://github.com/lyear12/citevouch/releases/tag/v0.22.55
