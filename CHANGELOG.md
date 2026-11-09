@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.54] — 2026-11-09
 ### Fixed
 
 * **A quote nobody could read was reported as a quote the page does not have.**
@@ -52,8 +53,6 @@ tag and that file disagree.
   the format, and the two readers answer different nouns.
 
   17 tests, 11 mutations, all red.
-
-
 ## [0.22.53] — 2026-11-09
 ### Fixed
 
@@ -3951,7 +3950,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.53...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.54...HEAD
+[0.22.54]: https://github.com/lyear12/citevouch/releases/tag/v0.22.54
 [0.22.53]: https://github.com/lyear12/citevouch/releases/tag/v0.22.53
 [0.22.52]: https://github.com/lyear12/citevouch/releases/tag/v0.22.52
 [0.22.51]: https://github.com/lyear12/citevouch/releases/tag/v0.22.51
