@@ -431,6 +431,10 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
 
     for raw in options.bib:
         bib_path = _resolve(root, raw)
+        # Recorded before the file is judged: a bibliography that is missing
+        # or unreadable is the one the next run most needs to hear about, and
+        # recording only the ones that parsed would lose exactly that.
+        ledger.bibliographies.append(_ledger_path(root, bib_path))
         if not bib_path.is_file():
             findings.append(
                 Finding(

@@ -451,6 +451,16 @@ class Ledger:
     claims: list[Claim] = field(default_factory=list)
     sources: dict[str, SourceRef] = field(default_factory=dict)
     entries: dict[str, BibEntry] = field(default_factory=dict)
+    # Our task: the bibliography files the recorded entries came from.
+    #
+    # ``entries`` alone cannot tell "the project named no bibliography" from
+    # "the project named one and not a single entry could be read from it":
+    # both record as an empty mapping.  ``scan`` says ``[high] bib-unreadable``
+    # for the second, and used to be the only run that ever did - the finding
+    # never reached the ledger, so ``check --use-recorded`` (every pull
+    # request, through action.yml) reported a green run for a bibliography
+    # nobody had checked anything against.
+    bibliographies: list[str] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -461,6 +471,7 @@ class Ledger:
             "tool_version": self.tool_version,
             "sources": {k: v.to_json() for k, v in sorted(self.sources.items())},
             "entries": {k: v.to_json() for k, v in sorted(self.entries.items())},
+            "bibliographies": list(self.bibliographies),
             "claims": [c.to_json() for c in self.claims],
         }
 
@@ -472,6 +483,9 @@ class Ledger:
             manuscript_sha256=str(blob.get("manuscript_sha256", "")),
             generated_at=str(blob.get("generated_at", "")),
             tool_version=str(blob.get("tool_version", "")),
+            # A ledger written before this key existed names no bibliography,
+            # which is exactly what it recorded: nothing is claimed about one.
+            bibliographies=list(_texts(blob.get("bibliographies"), "bibliographies")),
         )
         for key, raw in _section(blob, "sources").items():
             entry = _object(raw, f"sources[{key!r}]")

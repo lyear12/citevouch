@@ -6079,3 +6079,46 @@ How to apply:
   has no exceptions; "every function that does both" had one per file.
 
 Seen 1.
+
+## A recording of what was read cannot report what could not be read
+
+`scan --bib` reports three findings when a bibliography yields no entries:
+`bib-unreadable`, `bib-unparsed-entry`, `bib-entry-header-unparsed`. The ledger
+records the *entries*, so a file that yielded none records as the same empty
+mapping as a project that named no bibliography at all. Measured:
+
+    scan                  -> 1, [high] bib-unreadable
+    check --use-recorded  -> 0, [info] quote-found
+
+`--use-recorded` is what `action.yml` runs on every pull request, so the one
+run that decides whether the branch is green was the one that could not see the
+problem. The comment inside `bibtex.py` already said the quiet run was "the
+shape of bug this project exists to refuse"; the finding that would have said
+it was refused by the recording itself.
+
+The same shape had already been fixed once for claim blocks (v0.21.3): a block
+the parser rejected has no evidence, so it never entered the ledger, so the
+recorded pass never learned it existed. The general rule this second instance
+teaches:
+
+- A recording holds what the writer *understood*. Anything the writer refused
+  has no representation in it, and "no representation" reads back as "nothing
+  was there". Those are different facts and must not share a spelling.
+- The fix is not to record the refusal as data - that would make the ledger a
+  log. Record the *input that was judged* (`bibliographies`), and let the
+  recorded pass judge it again when the input is still comparable.
+- Ask what state the empty value can also mean. `entries: {}` meant both "no
+  bibliography" and "a bibliography nothing could be read from"; the second is
+  the louder fact and had the quieter behaviour.
+
+How to apply:
+
+- When a summary counts what a reader produced, ask what the summary says when
+  the reader produced nothing, and whether the reader's own failure has any
+  place to live.
+- Prefer recording the input over recording the verdict: the verdict can be
+  recomputed, and a recomputed verdict is right about the files on disk today.
+- Gate the recomputation on "is this the same input the record describes"
+  (`fresh`, the manuscript digest) - never on "does the result look fine".
+
+Seen 1.

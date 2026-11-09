@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A bibliography nobody could read was silent on the recorded path.**
+  `scan --bib` reports `bib-unreadable`, `bib-unparsed-entry` and
+  `bib-entry-header-unparsed`; the ledger stores only the *entries* a
+  bibliography yielded, so a file that yielded none recorded as the same empty
+  mapping as a project that named no bibliography. `check --use-recorded` -
+  which `action.yml` runs on every pull request - then saw an empty mapping and
+  said nothing:
+
+      scan                  -> 1, [high] bib-unreadable
+      check --use-recorded  -> 0, [info] quote-found
+
+  A binary `refs.bib`, an entry left unclosed, a path that is no longer there:
+  all three were findings only the one command that nobody runs in CI produced.
+  The ledger now records the bibliography files it read (`bibliographies`), and
+  the recorded pass re-reads them and reports their findings, exactly as it
+  re-parses the manuscript when the recorded digest matches. A deleted
+  bibliography is reported as `source-missing` by name. `--allow-stale` does not
+  silence it: that flag says the ledger describes an older draft of the
+  manuscript, and it says nothing about the bibliography being gone - the same
+  reason `source-missing` and `source-changed` already run under it. The live
+  `check` still names each failure once, because `fresh` is the one case where
+  `scan` returned the findings a line earlier. Ledgers written before this key
+  existed read as "no bibliography named", so an existing project keeps its
+  current verdict until it runs `scan --bib` again.
+  Proved by `tests/test_bibliography_recorded.py` (17), and by nine mutations -
+  including "scan records only the files it could parse" and "the recorded pass
+  re-reads only when the manuscript digest matches" - each of which turns the
+  suite red.
+
 ## [0.22.32] — 2026-11-09
 ### Fixed
 

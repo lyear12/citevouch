@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .bibtex import field_findings
+from .bibtex import field_findings, parse_bib
 from .errors import why_not_a_file
 from .manuscript import ParseResult, parse_manuscript
 from .matching import excerpt, find_in_pages
@@ -320,6 +320,50 @@ def verify(
     # rather than searched, because searching no pages can only produce a
     # "quote not found" verdict about a PDF nobody managed to read.
     broken_sources: set[str] = set()
+    # `scan` reports what it could not read from a bibliography, and those
+    # findings used to live only in that one run's output: the ledger records
+    # the *entries*, so a file that yielded none left no trace, and the
+    # recorded pass below saw an empty mapping and said nothing at all.
+    # Measured on a project whose refs.bib is a binary:
+    #
+    #     scan                  -> 1, [high] bib-unreadable
+    #     check --use-recorded  -> 0, [info] quote-found
+    #
+    # The findings are re-derived here rather than copied into the ledger,
+    # because they describe a file this run can still open.
+    #
+    # The gate is `fresh`, not the manuscript's digest.  A bibliography that
+    # cannot be read is a fact about the bibliography, not about whether the
+    # manuscript moved on: `--allow-stale` says "the ledger describes an older
+    # draft", and the missing `refs.bib` is missing either way.  The recorded
+    # source checks (`source-missing`, `source-changed`) run under
+    # `--allow-stale` for the same reason.  `fresh` is the one case that must
+    # stay quiet: there `scan` returned these findings a line earlier.
+    if not fresh:
+        for recorded_bib in ledger.bibliographies:
+            bib_path = _resolve(root, recorded_bib)
+            if not bib_path.is_file():
+                result.findings.append(
+                    Finding(
+                        code="source-missing",
+                        message=f"bib file {bib_path} {why_not_a_file(bib_path)}",
+                        path=str(bib_path),
+                    )
+                )
+                continue
+            try:
+                bib_text = read_text(bib_path)
+            except OSError as exc:
+                result.findings.append(
+                    Finding(
+                        code="source-missing",
+                        message=f"bib file {bib_path} cannot be read: {exc}",
+                        path=str(bib_path),
+                    )
+                )
+                continue
+            result.findings.extend(parse_bib(bib_text, str(bib_path)).findings)
+
     entry_keys = set(ledger.entries)
     used_entries: set[str] = set()
 
