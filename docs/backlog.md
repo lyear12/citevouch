@@ -3982,3 +3982,49 @@ would a person actually have on disk", not by reading the code.
   class-based hide is not resolved.  Measured: a page whose only source kept the
   sentence in `<p class="gone">` still verifies with the stylesheet present,
   because the class-to-rule mapping is not read.
+
+- [ ] **P1 - a small non-UTF-8 HTML page is read as mojibake and its quote is reported missing**
+
+  *Found while probing the unpainted-element defect in 0.22.52 (same round,
+  different question).*  `encoding_problem()` in `src/citevouch/sources.py`
+  refuses a text source when `invalid_utf8_share(bytes) >= MAX_UNDECODABLE_SHARE`
+  (0.25).  That share is diluted by the ASCII header a real HTML file carries,
+  so a small GBK page slips under the threshold and `_decode_text` then decodes
+  it with `errors="replace"` - a decoder that cannot fail - and the mojibake is
+  searched as if it were the page.
+
+  Measured:
+
+  - GBK page with `<!DOCTYPE>`, `<meta http-equiv="Content-Type" ... charset=gbk>`,
+    `<link>`, `<title>论文摘要</title>` and one body sentence: 244 bytes,
+    `invalid_utf8_share = 0.168`, **not refused**, extracted text
+    `' ����ժҪ �����ռ� …'`.  End to end:
+    `[high] quote-missing … 本文收集了六万八千个例句。 — quote not found in page.html`
+    with exit 1 - an accusation about a sentence that is verbatim in the file.
+  - The same page with two body sentences: `share = 0.254`, refused with
+    `[high] source-encoding`.  Same file, same encoding, opposite verdict.
+  - Growth: 1 paragraph 0.429/0.562, 10 paragraphs 0.652/0.677, 60 paragraphs
+    0.685/0.690 - large files are always refused, so this only bites small ones.
+  - `<meta charset="gb2312">` and `<?xml encoding="gb2312"?>` are refused
+    correctly (a different code path); the `http-equiv` spelling is the one that
+    slips through.
+  - cp1252 French text scores 0.176 and German 0.075, so lowering the threshold
+    is **not** the fix: it would start refusing files that read perfectly.
+
+  *What is missing.*  Nothing in `sources.py` or `textnorm.py` reads the charset
+  the document declares about itself.  `textnorm._decode_text` (`textnorm.py:582`)
+  only recognises a BOM and a NUL pattern.  For a `.html` source the declaring
+  is right there in the first kilobyte, and honouring it would settle the
+  question that the byte share can only guess at.
+
+  *Direction to try.*  Read `<meta charset=...>` and `<meta http-equiv=...
+  content="...charset=...">` (and `<?xml ... encoding=...?>` for `.xhtml`)
+  before the noise test, and when a declaration exists, decode with it and check
+  the result reads cleanly rather than measuring UTF-8 share.  Keep the share
+  test for files that declare nothing.  The guard must not trust a wrong
+  declaration: measured, a UTF-8 page labelled `gb2312` currently verifies
+  correctly, and must keep doing so.
+
+  *Not covered*: a `.txt` source with no declaration (nothing to read), and
+  Shift-JIS/Big5 pages whose header is also large enough to dilute the share -
+  the same fix applies, but each needs its own fixture.
