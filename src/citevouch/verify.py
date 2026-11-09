@@ -24,7 +24,7 @@ from .bibtex import field_findings, parse_bib
 from .errors import why_not_a_file
 from .manuscript import ParseResult, parse_manuscript, scan_unbound_markers
 from .matching import excerpt, find_in_pages
-from .model import Finding, Ledger
+from .model import BibEntry, Finding, Ledger
 from .scan import ScanOptions, _no_claim_blocks_finding, _resolve, recorded_path
 from .sources import (
     SourceTable,
@@ -360,6 +360,24 @@ def verify(
     # source checks (`source-missing`, `source-changed`) run under
     # `--allow-stale` for the same reason.  `fresh` is the one case that must
     # stay quiet: there `scan` returned these findings a line earlier.
+    # The verdicts below were read off `ledger.entries`, the mapping `scan`
+    # captured - while the block above re-reads the files themselves.  One run
+    # then held two opinions about one file.  Measured on a project scanned
+    # with a bibliography holding `knuth2020`, then edited so the file holds
+    # only `lamport1994`:
+    #
+    #     check --bib refs.bib                -> 1, [high] bib-key-missing 'knuth2020'
+    #     check --use-recorded                -> 0, [info] quote-found
+    #
+    # and the mirror image for fields: an entry that lost `publisher` and `year`
+    # kept its `bib-field-empty` after the file had replaced it with a complete
+    # one.  So the entries actually read this run are the ones to judge.
+    #
+    # The rule is one sentence: judge the entries this run read.  A file the
+    # run could not open yields nothing, so nothing in it is judged - the
+    # `source-missing` or `bib-unreadable` finding above already says why,
+    # and a key missing from a file nobody could read is not a missing key.
+    reread_entries: dict[str, BibEntry] = {}
     if not fresh:
         for recorded_bib in ledger.bibliographies:
             bib_path = _resolve(root, recorded_bib)
@@ -383,9 +401,21 @@ def verify(
                     )
                 )
                 continue
-            result.findings.extend(parse_bib(bib_text, recorded_path(root, bib_path)).findings)
+            parsed_bib = parse_bib(bib_text, recorded_path(root, bib_path))
+            result.findings.extend(parsed_bib.findings)
+            reread_entries.update(parsed_bib.entries)
 
-    entry_keys = set(ledger.entries)
+    # Two runs never read a file at all and still have entries to judge:
+    # `fresh` means `scan` read these files moments ago in this same run and
+    # put what it read into the ledger, so the recorded mapping *is* the fresh
+    # one; and a ledger written before `bibliographies` existed names no file,
+    # so the mapping is the only evidence that exists.
+    if fresh or not ledger.bibliographies:
+        verdict_entries = ledger.entries
+    else:
+        verdict_entries = reread_entries
+
+    entry_keys = set(verdict_entries)
     used_entries: set[str] = set()
 
     for claim in ledger.claims:
@@ -622,7 +652,7 @@ def verify(
         # Without a bibliography in the ledger there is nothing to be missing
         # from; reporting "key not in the bibliography" then is noise that
         # teaches users to ignore the check.
-        if not ledger.entries:
+        if not verdict_entries:
             break
         # The key is looked up in two namespaces: `ref` when the author wrote
         # one, and `source` otherwise, because a project that names its PDF and
@@ -636,16 +666,23 @@ def verify(
         # bibliography the ledger recorded` for a claim writing `source=paper`
         # and no `ref=`.
         ref_key = claim.ref or claim.source
-        if ref_key in ledger.entries:
+        if ref_key in verdict_entries:
             continue
+        # The sentence has to name the file that was actually consulted.  When
+        # the bibliography was re-read this run, saying "the ledger recorded"
+        # points the author at a stale file they cannot inspect.
+        where = (
+            "the bibliography"
+            if verdict_entries is reread_entries
+            else "the bibliography the ledger recorded"
+        )
         message = (
-            f"claim {claim.id} cites {ref_key!r}, which is not in the "
-            "bibliography the ledger recorded"
+            f"claim {claim.id} cites {ref_key!r}, which is not in {where}"
             if claim.ref
             else f"claim {claim.id} names no `ref=`, so it was looked up as "
-            f"{ref_key!r} - the name of its source file - and the bibliography "
-            "the ledger recorded has no such entry. Write `ref=<key>` for the "
-            "entry this quote comes from"
+            f"{ref_key!r} - the name of its source file - and {where} "
+            "has no such entry. Write `ref=<key>` for the entry this quote "
+            "comes from"
         )
         result.findings.append(
             Finding(
@@ -656,7 +693,7 @@ def verify(
                 line=claim.line,
             )
         )
-    result.findings.extend(field_findings(ledger.entries))
+    result.findings.extend(field_findings(verdict_entries))
     return result
 
 
