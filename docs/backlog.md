@@ -4098,3 +4098,56 @@ would a person actually have on disk", not by reading the code.
   true ("this file has none"), it just does not say why, and adding the encoding
   reason to it is a separate change to the scan-level message.  `draft`'s
   "nothing on any page shares enough terms" line has the same shape.
+- [x] **P1 - `draft` compared a sentence whose characters were never
+  decoded, and blamed the page.**
+
+  **What was wrong.** 0.22.54 taught `check` to refuse a quote made of
+  replacement characters.  `draft` is a second reader of the same
+  sentence and kept answering: on a GBK manuscript whose `[@paper]`
+  survives the damage (whether it survives depends on byte alignment - a
+  74-byte sentence swallows the `[` and the `@`), it proposed nothing and
+  wrote
+
+  ```
+  <!-- line 1: paper - nothing on any page shares enough terms with the
+       sentence (3 needed) -->
+  ```
+
+  Every word true except the subject: the comparison did run, and the
+  words it compared were 96 replacement characters.  The source page,
+  which prints the sentence verbatim, was never at fault.
+
+  **What it does now.**  `draft` asks the *sentence*, not the file, before
+  comparing it with any page, and the reason names the sentence, the
+  characters that were its words, the manuscript, and the command:
+
+  ```
+  <!-- line 5: paper - the sentence this cites was never decoded: 67
+       characters of it are replacement characters, so no page was searched
+       for it - manuscript.md is not UTF-8. Convert it first, for example
+       `iconv -f GBK -t utf-8 manuscript.md > utf8.md` -->
+  ```
+
+  **Why it is now true.**  `tests/test_undecoded_quote.py` grew
+  `_cited()` (a manuscript whose citation survives, which is the only way
+  into the branch) and `TestAFileCanBeHalfReadable` (one undamaged ASCII
+  citation beside a destroyed Chinese one: the readable one is still
+  proposed, the destroyed one is the only comment, and the summary line
+  says `1 claim block(s) proposed ... 1 citation(s) left as comments`).
+  Eight mutations were run and all die: no guard, counting the file
+  instead of the sentence, an inverted condition, appending the reason
+  without `continue`, dropping the count, dropping the file name,
+  dropping the command.  A ninth idea was dropped rather than run because
+  it is equivalent to the guard as written (recorded in the mutation
+  script so the next round does not mistake it for a gap).
+
+  Kept deliberately: a UTF-8 sentence that genuinely shares fewer than
+  three terms with every page still gets the old reason, because for that
+  file the page *is* the fact.
+
+  **Not covered.**  A GBK manuscript with no claim block at all still
+  reports `no-claim-blocks` without mentioning the encoding (the
+  sentence is true, it just does not say why), and the same holds for
+  `draft`'s `no citations were found` line when the citation's own `[`
+  is eaten by a two-byte pair.  Both are scan-level messages; each needs
+  its own change.
