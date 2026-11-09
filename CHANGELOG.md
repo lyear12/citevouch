@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A long table's caption was dropped along with its cells.**
+  `table` keeps its caption *outside* the grid, so dropping `tabular` always
+  left the caption alone. `longtable`, `xltabular` and `longtabu` are the other
+  way round - they break across pages and repeat the caption in a running head,
+  so `\caption` is written *inside* the environment. Dropping the body dropped a
+  sentence the author wrote and a reader sees, and with it the citation printed
+  under the table.
+
+  Measured before the fix, `draft` on a paper whose longtable caption cites
+  `knuth2020` in plain sight:
+
+  ```text
+  citevouch: 0 claim block(s) proposed: no citations were found to propose them for
+             (this command reads `[@key]` and `\cite{key}`)
+  ```
+
+  The cells are still dropped - they are data, and a key labelling a row is not
+  a citation of the paper's argument. The caption is prose, so it is converted
+  and appended after the (dropped) table. A `\caption` that appears inside a
+  `verbatim`/`lstlisting` block nested in the table is not lifted: that one is a
+  demonstration of the syntax, not a caption of this table.
+
+  `tests/test_table_caption.py` (21 tests) covers the three packages, the
+  optional short caption (the long one is what a reader sees), `\caption*`, two
+  captions in one table, a caption printed inside a listing, a caption outside
+  the environment not being lifted twice, and the end-to-end `draft` run that
+  used to say no citations were found. Nine mutations, `survivors: []`.
+
 ## [0.22.38] — 2026-11-09
 ### Fixed
 

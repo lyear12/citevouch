@@ -506,6 +506,24 @@ _BRANCH_BARE_TEST: frozenset[str] = frozenset(
 #: Those bodies are formulas, where a number is part of the formula and a
 #: reader does see it - the converter keeps their numbers on purpose, and
 #: ``tests/test_table_environments.py`` writes that decision down as tests.
+#: Table environments that take ``\\caption`` *inside* their own body.
+#:
+#: A ``table`` float keeps its caption outside the grid, so dropping ``tabular``
+#: always left the caption alone.  The long-table packages are the other way
+#: round - they break across pages and repeat the caption in a running head, so
+#: ``\\caption`` is written before ``\\endfirsthead``, inside the environment.
+#: Dropping the body therefore dropped a sentence the author wrote and a reader
+#: sees, including the citation under the table.
+#:
+#: Measured before this set existed, ``draft`` on a paper whose longtable
+#: caption cites ``knuth2020`` said::
+#:
+#:     0 claim block(s) proposed: no citations were found to propose them for
+#:
+#: The caption is prose, so it is converted and appended after the (dropped)
+#: table; the cells stay out.
+_CAPTIONED_ENVIRONMENT = frozenset({"longtable", "xltabular", "longtabu"})
+
 _DROP_ENVIRONMENT = frozenset(
     {
         "thebibliography",
@@ -1038,6 +1056,48 @@ def _environment_close(text: str, start: int, name: str) -> int | None:
     return None if found is None else found.start()
 
 
+_CAPTION = re.compile(r"\\caption\*?")
+
+
+def _shown_not_written(text: str, start: int, end: int) -> list[tuple[int, int]]:
+    """Ranges inside ``text[start:end]`` whose content TeX only displays.
+
+    A paper about writing tables may print ``\\caption{...}`` inside a
+    ``verbatim`` block to show the reader the syntax.  That is an example, not a
+    caption of this table, and lifting it would put a sentence on the page that
+    the author never wrote there.
+    """
+    ranges: list[tuple[int, int]] = []
+    for match in _LITERAL_BEGIN.finditer(text, start, end):
+        close = _environment_close(text, match.end(), match.group("name"))
+        ranges.append((match.start(), end if close is None else min(close, end)))
+    return ranges
+
+
+def _captions_inside(text: str, start: int, end: int, notes: list[str] | None) -> str:
+    """Convert the captions written in ``text[start:end]``, joined by newlines."""
+    shown = _shown_not_written(text, start, end)
+    parts: list[str] = []
+    cursor = start
+    while True:
+        match = _CAPTION.search(text, cursor, end)
+        if match is None:
+            break
+        if any(lo <= match.start() < hi for lo, hi in shown):
+            cursor = match.end()
+            continue
+        group_start = _skip_optional_args(text, match.end())
+        close = _group_end(text, group_start)
+        if close < 0 or close > end:
+            cursor = match.end()
+            continue
+        body = _convert(text[group_start + 1 : close - 1], notes).strip()
+        if body:
+            parts.append(body)
+        cursor = close
+    return ("\n\n".join(parts) + "\n\n") if parts else ""
+
+
 def _skip_environment(text: str, start: int, name: str) -> int:
     """Index just past the matching ``\\end{name}``, counting nesting."""
     depth = 1
@@ -1420,7 +1480,11 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
                         continue
                     environment = text[cursor + 1 : group - 1].strip()
                     if name == "begin" and environment in _DROP_ENVIRONMENT:
-                        index = _skip_environment(text, group, environment)
+                        after = _skip_environment(text, group, environment)
+                        if environment in _CAPTIONED_ENVIRONMENT:
+                            # The cells are data; the caption is a sentence.
+                            out.append(_captions_inside(text, group, after, notes))
+                        index = after
                         continue
                     out.append("\n\n" if environment in _BLOCK_ENVIRONMENT else "")
                     index = group

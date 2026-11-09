@@ -6320,3 +6320,51 @@ How to apply:
   at a time, and let each test use the shape the counter is for.
 
 Seen 1.
+
+## Dropping the body is not the same as dropping what the environment declares
+
+`_DROP_ENVIRONMENT` decides "this body is not prose, so remove it".  That was
+the right call for `tabular`: a grid of cells is data, and a citation written in
+one labels a row rather than supporting a sentence.  It was the wrong call for
+the long-table packages, and the difference is a structural fact about where the
+caption lives:
+
+```
+\begin{table}                          \begin{longtable}{ll}
+\caption{We collected ...}             \caption{We collected ...}\\
+\begin{tabular}{ll}...\end{tabular}    Ours & 90.1 \\
+\end{table}                            \end{longtable}
+```
+
+A float's caption sits outside the grid, so dropping `tabular` never touched it.
+`longtable`/`xltabular`/`longtabu` break across pages and repeat the caption in a
+running head, so the caption is written *inside* the body.  Measured:
+`draft` reported `0 claim block(s) proposed: no citations were found to propose
+them for` about a paper whose caption cites `knuth2020` in plain sight.
+
+The lesson is not "add three names to the set".  It is that an environment can
+hold two kinds of content - data that must not be read as prose, and prose that
+must not be dropped because it happens to be typed inside the same pair of
+braces.  A single "drop it all" rule cannot express that, and the fallthrough was
+silent in both directions: before the previous fix a table was read as prose;
+after it, a caption was deleted.
+
+How to apply:
+
+- When you drop a whole environment, ask what else the environment *declares*
+  besides its body.  Captions, labels, notes and preambles are prose the author
+  wrote in a container that mostly holds data.
+- The structural question is "where does the package put it", not "what is the
+  environment for".  `table` and `longtable` draw the same grid and store their
+  captions on opposite sides of it.  Reading the package documentation for the
+  declaration's position is the whole investigation.
+- A guard written against the body also guards the declaration.  `\caption`
+  printed inside a `verbatim` block nested in the table is a demonstration of the
+  syntax, not a caption - the same "shown, not written" distinction that the
+  include scanner already needed.
+- When one mutant survives because the fixture never exercises the seam, the
+  fixture is the thing to fix, not the mutant's justification.  Here the nested
+  table used a different package than its outer table, so the nesting counter was
+  never reached.
+
+Seen 1.
