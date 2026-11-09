@@ -3015,6 +3015,45 @@ not what changed, but what proves the change works.
   repetitions; the fixtures are written from the package documentation.
   `\captionof` inside a table (the `caption` package) is not handled.
 
+- [x] **Three commands pasted the name they were pointing at into the sentence.**
+  `\captionof{table}{We collected 154,391 examples.}` converted to
+  `tableWe collected 154,391 examples.`, `\rotatebox{90}{...}` leaked `90`, and
+  `\hyperref[sec:data]{...}` leaked `[sec:data]`. Each takes one argument that
+  names something and one that is prose, and none was in `_SKIP_FIRST_ARGUMENT`,
+  so each fell through to the unknown-command branch, which drops the command
+  name and keeps every argument.
+  *Who is blocked*: anyone whose manuscript uses `\captionof` - the caption
+  package's spelling for a table set inside a paragraph, not an exotic input.
+  `draft` on such a paper printed
+  `0 claim block(s) proposed: 0 quoting the sentence verbatim` for a sentence
+  the page holds word for word; the same sentence in a plain paragraph gave
+  `1 claim block(s) proposed: 1 quoting the sentence verbatim` with
+  `confidence: high`. `\nameref` and `\vref` were the mirror case: `\ref`
+  under other names, missing from `_DROP_ARGUMENT`, so
+  `see \nameref{sec:data} for details.` put the label key in the prose as a
+  word.
+  *Done when*: those three commands convert to their text argument alone, a
+  verbatim citation inside them is proposed at `confidence: high`, and
+  `\nameref`/`\vref` drop their key the way `\ref` already did.
+  *Done - why it is now true*: `captionof`, `rotatebox` and `hyperref` are in
+  `_SKIP_FIRST_ARGUMENT`; `nameref`, `vref` and `Vref` are in `_DROP_ARGUMENT`.
+  `hyperref` spells its name in the optional argument in one form and the first
+  braced argument in the other, so `_OPTIONAL_IS_THE_NAME` drops only the
+  bracket when a bracket is there - skipping two arguments unconditionally ate
+  the words, which is worse than the leak. `tests/test_captionof_argument.py`
+  (21 tests) covers the conversion, the braced-form control, the end-to-end
+  `draft` proposal, and a loop over every name in `_SKIP_FIRST_ARGUMENT` that
+  fails if any command keeps a brace. Seven mutants, all red: the three new
+  names back out together, `rotatebox` alone, `hyperref` alone, the
+  optional-argument adjustment removed, `nameref`/`vref`/`Vref` back out of the
+  drop table, the adjustment's bracket test removed, and that test made
+  unconditional.
+  *Not covered*: `\hyperref [label]{text}` with a space before the bracket is
+  read as the braced form, which keeps its words but leaks the label;
+  `\stackrel`, `\overset` and `\underbrace` leak their first argument too and
+  were left alone, because they are math and `_plain_math` already decides what
+  a reader sees.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
