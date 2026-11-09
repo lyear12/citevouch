@@ -2624,6 +2624,25 @@ not what changed, but what proves the change works.
   parent is a symlink to a file; both need an environment this runner does not
   have.
 
+- [x] **A claim block's opening line dropped a `key:` spelling in silence** (P0, 2026-11-09).
+
+  *What was wrong.* A claim block is two half-formats: the body is a mapping (`quote: |`, `id: c1`) and the opening line is a list of `key=value` tokens. An author who learned the format from the body wrote the page hint with a colon, and `_ATTR` never looked for one. Measured on a two-page source whose quote is on page 1, asking for page 9:
+
+  ```text
+  ```claim id=c1 source=paper page=9    -> [high] page-out-of-range
+  ```claim id=c1 source=paper page: 9   -> [info] quote-found page 1, exit 0
+  ```
+
+  The second block asked a question about page 9 and the answer came from page 1, with nothing in the output saying the question had been dropped. The same gap in the id path was worse: `id: c1` became the claim's name `id:`, so every finding read `(id:)` and the ledger stored a name the author never wrote.
+
+  *Who was blocked.* Anyone who copied the body syntax upward - which is the direction the format teaches. The run exits 0 with a verified claim backed by the wrong page, and `action.yml` (which runs `check --use-recorded`) reports the PR green.
+
+  *Done when.* A colon-spelled attribute on the opening line produces a finding that names both spellings, `id: c1` stops becoming a claim id, and a colon inside a value is still one value.
+
+  *Done - why it is now true.* `_OPENING_COLON_KEY` / `_QUOTED` / `_opening_colon_findings()` in `src/citevouch/manuscript.py`; called from both dialects (fence at the `opened_with` site, HTML comment at the `_unknown_attr_findings` site); `_attrs()` no longer turns a `key:` token into the id. `tests/test_opening_line_colons.py` (12 tests) covers both dialects, both verbs, the misspelt key, the quoted value and the `source=weird:name` value. Eight mutations all go red; two of them were only caught after the tests were strengthened (the advice text and the quoted-value blanking).
+
+  *Not covered.* Still a report, not a repair: `page: 9` is not applied, because deciding whether it is a hint or a note is a format change. A colon-spelled key that is neither known nor within one edit of a known one is not reported at all - `foo: 1` stays silent, which is the price of not firing on notes.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
