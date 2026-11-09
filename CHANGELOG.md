@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.46] — 2026-11-09
 ### Fixed
 
 * **`scan --ledger` could write the ledger over the manuscript, the manifest or
@@ -50,7 +51,6 @@ tag and that file disagree.
   mutations of the guard — one of them survived until a test spelled one file
   two ways with `..`, because `Path` discards a leading `./` and the original
   spelling test could not tell a resolved comparison from a textual one.
-
 ## [0.22.45] — 2026-11-09
 ### Fixed
 
@@ -3704,7 +3704,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.45...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.46...HEAD
+[0.22.46]: https://github.com/lyear12/citevouch/releases/tag/v0.22.46
 [0.22.45]: https://github.com/lyear12/citevouch/releases/tag/v0.22.45
 [0.22.44]: https://github.com/lyear12/citevouch/releases/tag/v0.22.44
 [0.22.43]: https://github.com/lyear12/citevouch/releases/tag/v0.22.43
