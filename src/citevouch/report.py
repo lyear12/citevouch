@@ -158,6 +158,7 @@ def render_json(
     ledger: Ledger | None = None,
     result: VerifyResult | None = None,
     everything: Iterable[Finding] | None = None,
+    fail_on: str = "high",
 ) -> str:
     """JSON for another program, so every number has to mean one thing.
 
@@ -182,10 +183,29 @@ def render_json(
     ``--quiet``.  The JSON writer was not touched by that fix, because the fix
     went to the renderer that prints and nobody asked which other writers are
     handed the same shortened list.
+
+    ``hidden`` and ``worst`` still left the reader to work out *why* the run
+    failed, which is one inference more than the other three writers ask for.
+    A consumer seeing ``findings: [], hidden: 2, worst: low`` had to know the
+    ``--fail-on`` threshold to conclude anything, and the threshold is not in
+    this document.  ``failing_hidden`` is how many of the hidden findings are
+    on their own enough to fail the run, and ``fail_on`` is the threshold they
+    were counted at.  Both keys are written only when that count is non-zero,
+    so a quiet run that passed keeps the payload it had, and a run that never
+    used ``--quiet`` gains nothing.
     """
     findings = list(findings)
     run = findings if everything is None else list(everything)
-    hidden = len(run) - len(findings)
+    # By identity, not by subtracting two lengths.  `everything` is the list
+    # `findings` was taken from, and a run may hold the same finding object
+    # twice (two identical lines in one file are two findings the verifier
+    # built from two reads).  Subtracting lengths read that duplicate as one
+    # the writer had left out, and then announced a hidden finding - and, once
+    # `failing_hidden` was added, a reason for a failure - over a payload that
+    # listed it.
+    shown = {id(f) for f in findings}
+    hidden_findings = [f for f in run if id(f) not in shown]
+    hidden = len(hidden_findings)
     payload: dict = {"findings": [f.to_json() for f in findings]}
     if hidden:
         payload["hidden"] = hidden
@@ -220,6 +240,10 @@ def render_json(
         payload["summary"] = {"findings": len(run)}
     if hidden:
         payload["summary"]["hidden"] = hidden
+    failing_hidden = _failing_hidden(hidden_findings, fail_on)
+    if failing_hidden:
+        payload["failing_hidden"] = len(failing_hidden)
+        payload["fail_on"] = fail_on
     payload["worst"] = worst(f.severity for f in run)
     return json.dumps(payload, indent=2, ensure_ascii=False) + chr(10)
 
@@ -262,12 +286,39 @@ def render_sarif(
     findings: Iterable[Finding],
     tool_version: str = "",
     root: str | Path | None = None,
+    everything: Iterable[Finding] | None = None,
+    fail_on: str = "high",
 ) -> str:
     """SARIF 2.1.0 with one rule per finding code.
 
     The URIs are relative to ``root`` when they can be, which is what GitHub
     needs to attach an annotation; a finding without a path becomes a
     run-level notification.
+
+    ``findings`` is what this document lists; ``everything`` is every finding
+    the run produced, when ``--quiet`` has already removed some.  Without it
+    this writer contradicted the exit code: a run at ``--fail-on low --quiet``
+    exited 1 while the document handed to GitHub code scanning held
+    ``results: []`` and no ``invocations`` at all, so the only trace of the
+    failure was the colour of the job that uploaded it.  Measured before the
+    fix, on a manuscript with one good claim and one credibility mark that has
+    no claim block::
+
+        check --fail-on low --quiet --format text     -> 1 finding ... hidden by --quiet
+        check --fail-on low --quiet --format markdown -> **1** finding ... hidden
+        check --fail-on low --quiet --format json     -> findings: [], hidden: 2
+        check --fail-on low --quiet --format sarif    -> results: [], no invocations
+
+    Kept as ``invocations[0]`` rather than by un-hiding the results, because
+    ``--quiet`` is a statement about the report surface and un-hiding would
+    undo it in the one place it was asked for.  SARIF already has a slot for
+    "this run did not succeed, and here is why": ``executionSuccessful`` and
+    ``toolExecutionNotifications``.
+
+    The subtraction is by identity, not by counting.  ``everything`` is the
+    list ``findings`` was taken from, so the same object cannot be both shown
+    and hidden; subtracting counts would read one duplicated finding as one
+    it had left out and announce a failure over a document that lists it.
     """
     findings = list(findings)
     root_path = None if root is None else Path(root)
@@ -310,24 +361,59 @@ def render_sarif(
                 }
             ]
         results.append(result)
+    shown = {id(f) for f in findings}
+    hidden = [f for f in (everything or []) if id(f) not in shown]
+    invocation = _sarif_invocation(_failing_hidden(hidden, fail_on), fail_on)
+    run_document: dict = {
+        "tool": {
+            "driver": {
+                "name": "citevouch",
+                "informationUri": "https://github.com/lyear12/citevouch",
+                "version": tool_version or "0",
+                "rules": rules,
+            }
+        },
+        "results": results,
+    }
+    if invocation is not None:
+        run_document["invocations"] = [invocation]
     doc = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
-        "runs": [
+        "runs": [run_document],
+    }
+    return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+
+
+def _sarif_invocation(failing: list[Finding], fail_on: str) -> dict | None:
+    """The SARIF record of a run whose verdict its own results do not explain.
+
+    ``None`` when nothing that matters was hidden: a document that lists every
+    finding it judged needs no footnote, and adding one would make every clean
+    run carry an ``invocations`` block that says ``executionSuccessful: true``
+    about a run nobody asked about.  The key is absent rather than empty,
+    which is also what keeps the output of a run that never used ``--quiet``
+    byte-for-byte what it was.
+    """
+    if not failing:
+        return None
+    message = (
+        f"{_plural(len(failing), 'finding')} at or above `--fail-on {fail_on}`"
+        f" {_plural_verb(len(failing))} hidden by `--quiet`; that is why this run"
+        " failed"
+    )
+    return {
+        "executionSuccessful": False,
+        # `error`, because this notification is the only thing in the document
+        # that says the run failed: a `note` here would be the same silent
+        # green in a different field.
+        "toolExecutionNotifications": [
             {
-                "tool": {
-                    "driver": {
-                        "name": "citevouch",
-                        "informationUri": "https://github.com/lyear12/citevouch",
-                        "version": tool_version or "0",
-                        "rules": rules,
-                    }
-                },
-                "results": results,
+                "level": "error",
+                "message": {"text": message},
             }
         ],
     }
-    return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
 
 
 def render_markdown(

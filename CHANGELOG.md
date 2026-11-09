@@ -11,7 +11,46 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
 
+* **A `--quiet` run that failed handed GitHub code scanning an empty document, and no reason.**
+  `--quiet` shortens the *display*: info and low findings are held back, and a
+  run can still fail because of them. Three of the four writers said so in
+  words - the text writer and the Markdown writer print "N findings at or above
+  `--fail-on X` were hidden by `--quiet`; that is why this run failed", and the
+  JSON writer at least exposes `hidden` and `worst`. The SARIF writer, which is
+  the one CI actually uploads, was never asked. Measured on a project holding
+  one low `claim-without-evidence` and one info `quote-found`:
+
+  ```text
+  --format text     1 finding at or above --fail-on low was hidden by --quiet ...
+  --format markdown **1** finding at or above `--fail-on low` was hidden ...
+  --format json     findings: [], hidden: 2, worst: low
+  --format sarif    results: [], no "invocations" key at all
+  ```
+
+  All four exited 1. The last line is the failure: code scanning received a
+  document that says a successful analysis found nothing, while the job was
+  red for a reason no reader of that document could see. A gate whose red has
+  no explanation is the same defect as a green tick over an unchecked claim.
+
+  `render_sarif` now takes the whole run and the threshold, and when
+  `--quiet` held back a finding that reaches `--fail-on`, it writes
+  `runs[0].invocations[0]` with `executionSuccessful: false` and one
+  `toolExecutionNotifications` message naming the count and the threshold.
+  `results` is untouched, so `--quiet` still means what it meant. Runs that
+  never hid a failing finding get no `invocations` key at all, so their bytes
+  do not change.
+
+  `render_json` gained the two keys a reader was previously left to infer -
+  `failing_hidden` and `fail_on` - and both are written only when non-zero.
+  Writing them exposed a second defect in the same function: it computed
+  `hidden` by subtracting two lengths, so a run holding the same finding
+  object twice reported one *hidden* finding over a payload that listed it.
+  Both writers now subtract by identity.
+
+  Covered by `tests/test_sarif_quiet.py` (23 tests) and proven by 13 mutations,
+  every one of which turns the suite red.
 ## [0.22.35] — 2026-11-09
 ### Fixed
 

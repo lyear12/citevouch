@@ -6193,3 +6193,42 @@ How to apply:
   false explanation costs more than no explanation at all.
 
 Seen 1.
+
+## A flag that only shortens the display has to be re-asked at every writer
+
+`--quiet` withholds info and low findings from what you read. A run can still
+fail because of them, so every writer has to say why. Three of the four did:
+
+```text
+--format text     1 finding at or above --fail-on low was hidden by --quiet ...
+--format markdown **1** finding at or above `--fail-on low` was hidden ...
+--format json     findings: [], hidden: 2, worst: low
+--format sarif    results: [], no "invocations" key at all
+```
+
+All four exited 1. The SARIF document is the one CI uploads: it told GitHub
+code scanning that a successful analysis found nothing, while the job was red.
+The two earlier fixes in this file's history were the same defect, one writer
+at a time - text, then markdown, then json - and each was described as "the
+writer forgot". It was never a memory problem: the question "does this flag
+still only change the display?" is asked of the *output*, and each new output
+is a new place to ask it.
+
+The distinction that finds it is not "who prints the shortened list" but "who
+consumes the shortened list as if it were the run". The text writer filters at
+the last moment and keeps the whole run in scope; the JSON and SARIF writers
+were handed the already-shortened list and had no way to know it was short.
+
+How to apply:
+
+* When you add a writer, ask what a *failing* run's document says. If the
+  answer is "nothing", the writer is wrong, not the flag.
+* Give the writer both lists and let it decide, rather than handing it the
+  shortlist and a count. A count cannot be turned back into findings, and a
+  shortlist cannot tell you it was shortened.
+* Subtract by identity, not by length. A duplicate is not a hidden finding -
+  and `--quiet` is exactly where duplicates become visible, because the visible
+  list is a subset chosen by severity while the hidden list is chosen by
+  severity too, in a different order.
+
+Seen 1.

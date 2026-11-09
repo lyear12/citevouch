@@ -846,9 +846,16 @@ def _render(
     if fmt == "json":
         # `run` is every finding; the JSON writer needs it to describe the run
         # rather than the shortened list, and to say how many it left out.
-        return render_json(findings, ledger, result, everything=run)
+        return render_json(findings, ledger, result, everything=run, fail_on=args.fail_on)
     if fmt == "sarif":
-        return render_sarif(findings, __version__, args.root)
+        # `run` for the same reason `json` and `markdown` get it: an emptied
+        # document has to say it was emptied, or the only evidence that the
+        # job failed is the job.  Every other caller of this renderer passes no
+        # `everything`, and a document with nothing hidden gets no
+        # `invocations` key at all.
+        return render_sarif(
+            findings, __version__, args.root, everything=run, fail_on=args.fail_on
+        )
     if fmt == "markdown":
         # Markdown does its own filtering, like text does, because it prints a
         # summary line of its own and that line has to describe the run.  It
