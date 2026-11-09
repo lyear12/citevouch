@@ -3054,6 +3054,36 @@ not what changed, but what proves the change works.
   were left alone, because they are math and `_plain_math` already decides what
   a reader sees.
 
+- [x] **`report` printed the same bibliography line for two opposite facts.**
+  `citevouch report` answered "what does the ledger say" and printed
+  `- bibliography: 0 entries` for a project scanned with `--bib refs.bib`
+  where that file held no readable entry, and the identical line for a
+  project that never passed `--bib` at all. `Ledger.bibliographies` has
+  held the file names since 0.22.33 - added so a recorded bibliography
+  failure could reach the recorded pass - and `verify` reads it, but
+  `report` never did.
+
+  *Who was blocked*: anyone auditing a ledger. "Bibliographies were given,
+  and nothing could be read out of them" and "no bibliography was given,
+  so no reference was ever checked against one" lead to opposite next
+  steps, and the report rendered them with one string.
+
+  *Done when*: the line names the recorded files, and a run with no
+  bibliography says so instead of implying an empty one.
+
+  *Done - why it is now true*: `cli._bibliography_line(ledger)` prints
+  `refs.bib (0 entries)` or `none recorded (0 entries)`; the JSON payload's
+  `ledger` object gained `bibliographies`. Proved by
+  `tests/test_report_names_bibliography.py` (10 tests), and by eight
+  mutants that all go red - the line back to counting only, names dropped
+  when nothing could be read, names never printed, `none recorded` replaced
+  by a bare count, no clipping, the count left off, the JSON field removed,
+  the JSON field written empty.
+
+  *Not covered*: a ledger whose recorded bibliography has since been
+  deleted (the line would still name it, and nothing asserts that text);
+  a ledger written by a tool newer than `SUPPORTED_SCHEMA`.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
