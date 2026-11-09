@@ -3886,3 +3886,44 @@ would a person actually have on disk", not by reading the code.
   dropped from the output anyway, and pretending otherwise would only break
   for a document that nests one inside a verbatim block. `\verb` with an
   unbalanced delimiter inside a line is left alone rather than guessed at.
+- [x] **`draft` quoted half of a sentence the source printed across two pages.**
+  The matcher learned, in 0.22.49, to find a quotation running off the bottom of a
+  page: `Match.spanned` now carries every page of the run.  `draft.propose_quote` kept
+  asking the old question, `match.page` - the *first* page of the run - and looked for
+  the author's sentence in that page's own text.  A sentence ending on the next page is
+  not one of that page's sentences, so the verbatim branch missed and the proposal fell
+  back to the medium-confidence path, which quotes whichever part of the sentence the
+  page does print.  Measured on one sentence, one project, two layouts:
+
+    ```
+    whole on page 2:   1 quoting the sentence verbatim   confidence: high    page=2
+    split 2 -> 3:      0 verbatim (1 claim block)        confidence: medium  page=3
+                       quote: filtered them by hand before training the model on
+                              the remaining portion.
+    ```
+
+  The half sentence is a true sentence of page 3, and it is not what the author wrote;
+  the block was written into the file `draft` tells the author to copy from.
+
+  *Who was blocked*: anyone whose sentence begins near the foot of one page and ends
+  near the top of the next, which is the normal shape of a sentence in a two-column
+  paper.  Nothing failed loudly - the author got a weaker claim with a truncated
+  quotation and a comment saying a similar sentence was on the page.
+
+  *Done when*: a sentence the source prints across a break is quoted whole, at high
+  confidence, and the claim still names the page a reader starts on.
+
+  *Done - why it is now true*: `propose_quote` builds `covering` from every page whose
+  number is in `match.spanned`, joins them, and searches that for the verbatim
+  sentence; the returned page stays `match.page`.  Stitching the whole document instead
+  is the one way this branch can say "not verbatim" about a sentence the source prints
+  exactly - a page boundary carries no reliable sentence break, so a page ending "see
+  also" merges into the next page's opening and the real sentence stops being a
+  sentence in the joined text.  `tests/test_draft_cross_page_quote.py` (9 tests) pins
+  the cross-page quote, the single-page control, the two-page case, the page number and
+  a dangling page before the run.  Seven mutants are all red, including
+  `covering = pages`, which survived until the dangling-page fixture existed.
+
+  *Not covered*: real PDFs whose extractor splits a word across a break, and sentences
+  spanning more than `MAX_STITCHED_PAGES` (4) pages - beyond that the matcher itself
+  reports the quote missing, so `draft` never reaches this branch.
