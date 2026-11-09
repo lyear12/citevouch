@@ -3324,6 +3324,44 @@ not what changed, but what proves the change works.
   missing - the limit is a cost decision, pinned by a test on the constant
   but not fixtured; and no real PDF whose extractor splits a word mid-break.
 
+- [x] **A quotation whose figures straddle a page break was called a fabrication.**
+  The numbers tier -- the comparison that blanks out every figure and asks whether the
+  remaining words are the page's -- read one page at a time.  The exact and canonical
+  tiers had already been taught to stitch adjacent pages; this one had not.  Measured on
+  a sentence printed across pages 2 to 4 with page 3 carrying a different total:
+
+    ```
+    [high] quote-missing at manuscript.md:1 (c1): We collected a very large number of
+    examples from the corpus and then filtered the 154,39... — quote not found in page.txt
+    ```
+
+  With the right figure the same words were found across the same pages, so a typo was
+  reported as a fabricated quotation -- about pages the author can open and read -- and
+  the run answered "are these the source's figures?" with "is this the source's
+  sentence?".
+
+  *Who was blocked*: anyone quoting a sentence that runs over two page breaks.  Only
+  that shape was wrong; a quote fitting one page, or one break, was reported correctly,
+  which is why no earlier round caught it.
+
+  *Done when*: a wrong figure on a middle page is reported as a wrong figure, and the
+  sentence names the pages it looked at.
+
+  *Done - why it is now true*: `src/citevouch/matching.py` tries single pages and then
+  every run from `_page_runs`, both through one `_number_match` helper, the same order
+  the exact tier uses so a quote that fits a page is still attributed to it.
+  `_number_checks` is asked about `match.spanned`, so a figure printed on a middle page
+  is not reported absent.  The sentence now says "pages 2, 3 and 4 ... do not contain
+  that number" rather than joining them with " or ", which read as three alternatives.
+  `tests/test_numbers_across_pages.py` (10 tests) pins the code, the wording, the
+  single-page case, the `Match` fields and the recorded path; ten mutants are red once
+  two survivors were re-aimed at a fixture with a page-level match competing against a
+  run-level one.
+
+  *Not covered*: no real PDF whose figures straddle a break -- the fixtures are text
+  pages joined with a form feed.  `MAX_STITCHED_PAGES` is 4, so a quote spanning five
+  pages is still reported missing; that is a cost decision, not a completeness claim.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
