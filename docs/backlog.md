@@ -4273,26 +4273,46 @@ would a person actually have on disk", not by reading the code.
     still read as a real citation by `draft`. That is the same defect in a different
     module and is left as its own entry.
 
-- [ ] **P1 - a LaTeX command shown with `\verb` is still read as a citation the author
-  made**
-  - Measured: a manuscript containing `\verb|\citep{ghost2021}|` and a real
-    `\citep{paper}` gives `draft`: `3 citation(s) left as comments`, and the comment
-    for `ghost2021` is `no local file: not in sources.toml, no `file` field in the
-    bibliography, and no file named after the key`. With a real paragraph inside
-    `\verb`, the statement becomes `The template shows We collected 40,688 examples
-    from the corpus. \citep{paper} here.` and the paragraph loses its verbatim match
-    (`2 citation(s) left as comments`, `nothing on any page shares enough terms with
-    the sentence (3 needed)`) even though the page prints it word for word.
-  - Why it is not the same fix as the Markdown one: `latex.to_text` already drops
-    inline verbatim before converting, but `_restore_dropped` puts the literal
-    characters back afterwards, deliberately - `\verb|%|` must survive as a percent
-    sign and `\verb|\textit{x}|` must survive as visible backslashes. So the
-    restored text cannot simply be blanked; the fix has to mark which restored
-    characters came from a display, and `draft` has to mask those and nothing else.
-  - Direction to try: have `to_text` return the dropped spans (or a sentinel
-    character class that is not LaTeX), let a display-masking helper blank exactly
-    those regions and then substitute the real characters, and assert both that
-    `\verb|%|` still renders as `%` and that `\verb|\citep{ghost}|` produces no
-    `ghost` note in `draft`.
-  - Not covered by this entry: `\lstinline` and `\mintinline` share the same
-    restore path and are expected to need the same fix; check them, do not assume.
+- [x] **P1 - a LaTeX command shown with `\verb` was read as a citation the author made**
+
+  **What was wrong.** `latex.to_text` drops an inline-verbatim body before the
+  citation patterns run and puts the characters back afterwards, because TeX prints
+  them (`50\verb|%|` is a percent sign).  The restored characters come back in LaTeX
+  spelling, and `draft` reads the converted text: `\verb|\citep{ghost2021}|` came
+  back as `\citep{ghost2021}` and `citation_sites` recognised it.  Measured on a
+  manuscript with the example beside a real `\citep{paper}`:
+  `1 claim block(s) proposed (0 verbatim), 3 citation(s) left as comments`, and the
+  comment `line 3: ghost2021 - no local file: not in sources.toml, no file field in
+  the bibliography, and no file named after the key` - an author told their own
+  example has a missing paper.  A specimen in a paragraph above a sentence also
+  stopped that sentence matching, because the restored example text travelled into
+  the sentence `draft` compared.
+
+  **What it does now.** `latex.to_text_and_display()` returns the converted text plus
+  the span of each restored body; `latex.to_text()` is its first half, so the two
+  cannot drift.  `display.blank()` blanks exactly those spans, and `draft` masks
+  them before it reads either the citations or the sentence.  The bodies go back
+  **last**, after the whitespace passes - their markers hold no space and no newline,
+  so no pass touched them and no pass moved them.  Measured after:
+  `1 claim block(s) proposed (1 verbatim), 0 citation(s) left as comments`, one
+  `paper` block at `confidence: high`, no `ghost2021` note.
+
+  **Why it is now true.** `tests/test_latex_displayed_citations.py` (20 tests) covers
+  all five inline-verbatim commands (`\verb`, `\verb*`, `\lstinline`,
+  `\mintinline{tex}`, `\lstinline[language=TeX]`), the literal characters that must
+  still reach the output (`50%`, visible backslashes inside a `\verb` body), the
+  spans pointing at the bodies inside the returned string, the whitespace-collapsing
+  case where a span could drift, and the prose that must keep its real citations.
+  `tests/test_displayed_citations.py` grew four tests for `display.blank` taking
+  spans that do not fit.  12 mutations, all red: 11 died on the new tests and the
+  last (`display.blank` not clamping) only died after those four were added - a
+  negative start wrapped around to the end of the string and blanked prose the
+  author wrote, which no end-to-end fixture happened to exercise.
+
+  **Not covered.** A body inside the very sentence that cites the real page still
+  blanks a hole in that sentence, so the sentence stops matching word for word and
+  falls back to the medium-confidence passage; Markdown inline code has the same
+  behaviour.  Fixing it means comparing against the text with holes rather than
+  against the printed characters, which is a different change.  A `\verb` body
+  inside a claim block's `quote:` is likewise blanked in the claim text.
+
