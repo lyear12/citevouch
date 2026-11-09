@@ -2850,6 +2850,42 @@ not what changed, but what proves the change works.
   the one nod to the counterexample. Also untested: containers nested deeper
   than the pattern's repetition covers.
 
+- [x] **A `--quiet` run that failed handed GitHub code scanning an empty document, and no reason.**
+  `--quiet` shortens the display; it does not shorten the verdict. A run can
+  fail on a finding the display was told to hold back, and then every writer has
+  to say why. Three of the four did. The fourth - SARIF, the one `action.yml`
+  uploads to code scanning - wrote `results: []` and never mentioned
+  `invocations` at all, so code scanning was told that a successful analysis
+  found nothing while the job exited 1.
+  *Who is blocked*: everyone who wired citevouch into a PR gate with the
+  defaults. `action.yml` writes SARIF and passes `--fail-on`; when the author
+  also passes `--quiet` (the combination people reach for once the log gets
+  noisy), the failure has an exit code and no sentence. A red job whose report
+  is empty sends the reader looking for the reason in the wrong place - it is
+  the sibling of a green tick over an unchecked claim.
+  *Done when*: a failing `--quiet` run's SARIF document states that the run
+  failed and why, and a run that hid nothing failing keeps its exact bytes.
+  *Done - why it is now true*: `render_sarif` takes `everything` and `fail_on`;
+  when `--quiet` held back a finding that reaches the threshold it writes
+  `runs[0].invocations[0]` with `executionSuccessful: false` and one
+  `toolExecutionNotifications` message naming the count and the threshold
+  (`_sarif_invocation` returns `None` otherwise, so the key is absent rather
+  than empty). `results` is still only the visible findings, so `--quiet` means
+  what it always meant. `render_json` gained `failing_hidden` and `fail_on`,
+  written only when non-zero - and adding them exposed that `hidden` was
+  computed by subtracting two lengths, which read a duplicated finding as a
+  hidden one and made the payload announce a reason over a finding it listed;
+  both writers now subtract by identity. Proved by
+  `tests/test_sarif_quiet.py` (23 tests, covering the failing shapes, the
+  untouched loud/quiet-passing shapes, the renderers called directly, and all
+  four writers agreeing) and by 13 mutations, every one red.
+  *Not covered*: no real upload to GitHub code scanning, so how that UI renders
+  `toolExecutionNotifications` is unverified; a consumer that ignores
+  `invocations` still sees an empty result set (the exit code is the only
+  signal left, which is the status quo, not a regression); `doctor --format
+  sarif` passes no `everything`, so its document never gains the key - it has
+  no `--quiet` to explain.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
