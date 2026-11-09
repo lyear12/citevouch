@@ -3084,6 +3084,22 @@ not what changed, but what proves the change works.
   deleted (the line would still name it, and nothing asserts that text);
   a ledger written by a tool newer than `SUPPORTED_SCHEMA`.
 
+- [x] **The recorded pass re-read the bibliography and then judged the stale mapping.**  Since 0.22.33 the recorded pass opens every bibliography the ledger names, so that a file nobody could read is not silently treated as a file nobody mentioned.  The parse findings came from that fresh read; the verdicts - which keys exist, which entries are unused, which entries are missing required fields - were still computed from `ledger.entries`, the mapping `scan` captured.  One run held two opinions about one file and the stale one spoke.
+  *What was wrong*: with a project scanned against a bibliography holding `knuth2020` and then edited so the file holds only `lamport1994`,
+
+  ```text
+  $ citevouch check manuscript.md --bib refs.bib
+  [high] bib-key-missing at manuscript.md:1 (c1): claim c1 cites 'knuth2020', which is not in the bibliography the ledger recorded
+  $ citevouch check manuscript.md --use-recorded
+  [info] quote-found at manuscript.md:1 (c1): quote found on page 1
+  ```
+
+  The mirror image is the more expensive half: an entry that lacked `publisher` and `year` kept its `bib-field-empty` complaint after the file had replaced it with a complete one, so the author was told about required fields of an entry that no longer existed.
+  *Who was blocked*: every contributor, because `action.yml` runs `check --use-recorded`.  The green pull request and the red local run were the same tree, and the sentence the PR showed named an entry the file no longer held - which invites the author to add it back.
+  *Done when*: the recorded pass and the live pass report the same verdict on a bibliography that changed after `scan`, and neither ever reports a `bib-key-missing` about a file the run could not read.
+  *Done - why it is now true*: `src/citevouch/verify.py` now judges `verdict_entries`, which are the entries this run re-read; the recorded mapping survives in exactly two runs that opened no file at all - `fresh` (live `check`, where `scan` just wrote these entries) and a ledger written before `bibliographies` existed.  `field_findings`, `entry_keys`, the unused set and the `bib-key-missing` loop all read that one mapping, and the sentence says "the bibliography" rather than "the bibliography the ledger recorded" when the file was re-read.  Proved by `tests/test_bibliography_fresh_verdicts.py` (12 tests) and ten mutations, all red: verdicts back on `ledger.entries`, re-read entries discarded, the no-file case judged empty, unused/key/field all back on the recorded mapping, the sentence reverted, parse findings dropped, and the re-read disabled.
+  *Not covered*: no real journal-exported `.bib`; every fixture is hand- written to the BibTeX subset this tool reads.  Two `--bib` files whose keys collide still merge into one mapping, and that case is untouched.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*

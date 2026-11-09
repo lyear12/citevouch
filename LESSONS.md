@@ -6443,3 +6443,20 @@ How to apply:
    `unreadable` in a summary line would.
 
 Seen 1.
+
+## A re-read that only feeds the messages leaves the judgement stale
+
+0.22.33 taught the recorded pass to open every bibliography the ledger names, so a file nobody could read would stop looking like a file nobody mentioned. The parse findings came from that fresh read. The verdicts did not: which keys exist, which entries are unused, which entries are missing required fields were all still read off `ledger.entries`, the mapping `scan` captured. One run held two opinions about one file, and the stale one spoke:
+
+    $ citevouch check manuscript.md --bib refs.bib
+    [high] bib-key-missing ... cites 'knuth2020', which is not in the bibliography
+    $ citevouch check manuscript.md --use-recorded
+    [info] quote-found ... quote found on page 1
+
+The mirror image is the one that reads as an outright lie: an entry that had lost `publisher` and `year` kept its `bib-field-empty` complaint after the file replaced it with a complete one, so the author was told about required fields of an entry that no longer existed. `action.yml` runs the recorded path, so that was the sentence a pull request showed.
+
+Half a re-read is worse than none. Adding a fresh read and leaving the verdicts on the old data means the run now *knows* two things and reports the wrong one with more confidence than before, because the parse findings next to it are visibly about the file as it is today.
+
+How to apply. When you add a fresh read to a pass that used to trust a cache, grep for every place the old data was consumed and ask of each one: does this sentence describe the file, or the memory of the file? Then write down the rule as one sentence and let the code be that sentence - here it became `judge the entries this run read`, which deleted a three-state flag that no test could reach. And keep the one honest exception explicit: a file that could not be opened yields nothing, so nothing in it is judged, and the `source-missing` / `bib-unreadable` finding says why. A key missing from a file nobody could read is not a missing key.
+
+Seen 1.
