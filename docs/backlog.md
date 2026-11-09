@@ -2981,6 +2981,40 @@ not what changed, but what proves the change works.
   nested inside each other are not covered either - `_skip_environment` counts
   one name at a time.
 
+- [x] **A long table's caption was deleted with its cells.**
+  A `table` float keeps `\caption` outside the grid, so dropping `tabular`
+  always left the caption alone. `longtable`, `xltabular` and `longtabu` break
+  across pages and repeat the caption in a running head, so the caption is
+  written *inside* the environment: dropping the body dropped a sentence the
+  author wrote and a reader sees.
+
+  ```text
+  citevouch: 0 claim block(s) proposed: no citations were found to propose them for
+             (this command reads `[@key]` and `\cite{key}`)
+  ```
+
+  *Who was blocked*: every author with a table longer than a page - which is
+  most empirical papers. The citation printed under the table vanished from the
+  tool's view entirely, and the run blamed the paper for having no citations at
+  all.
+
+  *Done when*: a caption written inside a long table reaches the converted text
+  and its citation can be proposed, while the cells stay out.
+
+  *Done - why it is now true*: `_CAPTIONED_ENVIRONMENT` names the three
+  packages; `_captions_inside()` converts `\caption`/`\caption*` between the
+  opener and `_skip_environment`'s end, joining several with blank lines, and
+  skips any caption that falls inside a `verbatim`/`lstlisting` body nested in
+  the table (`_shown_not_written`). `tests/test_table_caption.py` (21 tests)
+  covers the three packages, the optional short caption (the long one is what a
+  reader sees), `\caption*`, two captions in one table, a caption shown inside a
+  listing, a caption outside the environment not being lifted twice, and the
+  end-to-end `draft` run. Nine mutations, `survivors: []`, `broken mutants: []`.
+
+  *Not covered*: a real published paper using `\endfirsthead`/`\endhead`
+  repetitions; the fixtures are written from the package documentation.
+  `\captionof` inside a table (the `caption` package) is not handled.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
