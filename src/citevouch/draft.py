@@ -406,7 +406,15 @@ def resolve(
     if entry is not None:
         candidate = _bib_file(entry)
         if candidate:
-            base = Path(entry.path).parent if entry.path else Path(root)
+            # `entry.path` is recorded relative to the project root, not
+            # to the shell that ran the command, so it has to be joined
+            # back to the root before it names a directory.  Measured
+            # before this: a `file = {paper.pdf}` beside `sub/refs.bib`
+            # resolved from inside the project and not from one level
+            # above it, which made `draft` a command whose answer
+            # depended on where it was typed - the same defect the
+            # `-o` guard above was written for.
+            base = Path(root) / Path(entry.path).parent if entry.path else Path(root)
             for folder in (base, Path(root)):
                 path = folder / candidate
                 if path.is_file():

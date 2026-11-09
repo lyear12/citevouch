@@ -33,7 +33,7 @@ from .errors import CitevouchError, UsageError, why_not_a_file
 from .manuscript import parse_manuscript
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
-from .scan import ScanOptions, _resolve, scan
+from .scan import ScanOptions, _resolve, recorded_path, scan
 from .sources import MANIFEST_NAMES, read_source_table
 from .textnorm import count_of, read_text
 from .verify import VerifyResult, verify
@@ -614,7 +614,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
             raise UsageError(f"bib file {bib_path} {why_not_a_file(bib_path)}")
         bib_paths.append(bib_path)
 
-        parsed = parse_bib(read_text(bib_path), str(bib_path))
+        parsed = parse_bib(read_text(bib_path), recorded_path(root, bib_path))
         bib.update(parsed.entries)
     # The guard below has to name the same files the run will actually open.
     # It used to join the root unconditionally while ``read_source_table``

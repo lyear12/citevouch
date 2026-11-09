@@ -12,6 +12,41 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A bibliography was recorded two ways in one ledger.**
+  `sources.toml`'s paths and the ledger's own `bibliographies` list are
+  recorded relative to `--root` with forward slashes, so a ledger written on
+  Windows resolves on the Linux job that runs the same commit. The bibliography
+  *entries* were not: they were handed the path exactly as the shell spelled
+  it, so one project produced two ledgers depending on which directory the
+  command was typed in:
+
+  ```text
+  scan proj/manuscript.md --root proj --bib proj/sub/refs.bib
+    entries['knuth2020'].path = 'proj\sub\refs.bib'
+    bibliographies            = ['sub/refs.bib']
+  cd proj && scan manuscript.md --root . --bib sub/refs.bib
+    entries['knuth2020'].path = 'sub\refs.bib'
+  ```
+
+  Whichever shell ran, the other one read a path it had not written, and every
+  finding built on that entry named it back in the author's spelling. The
+  recorded path is now computed in one place (`scan.recorded_path`, renamed
+  from `_ledger_path` because two modules need it and a private name collides
+  with the CLI's own flag resolver), and all four call sites that hand a
+  bibliography to the parser use it: the recording pass, the live `check
+  --bib`, `verify`'s re-read, and `draft --bib`.
+
+  One reader had to move with it: `draft` resolved a bib entry's `file` field
+  against `entry.path`'s folder, which only worked because that path used to
+  be relative to the shell. It is now joined to the root, which is what the
+  ledger's paths have always meant.
+
+  A path outside `--root` still keeps its absolute form — there is no honest
+  relative spelling for it, and inventing one would move a finding onto some
+  other file.
+
 ## [0.22.36] — 2026-11-09
 ### Fixed
 

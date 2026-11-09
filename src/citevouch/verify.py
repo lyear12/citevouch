@@ -25,7 +25,7 @@ from .errors import why_not_a_file
 from .manuscript import ParseResult, parse_manuscript, scan_unbound_markers
 from .matching import excerpt, find_in_pages
 from .model import Finding, Ledger
-from .scan import ScanOptions, _no_claim_blocks_finding, _resolve
+from .scan import ScanOptions, _no_claim_blocks_finding, _resolve, recorded_path
 from .sources import (
     SourceTable,
     explain_unresolved,
@@ -383,7 +383,7 @@ def verify(
                     )
                 )
                 continue
-            result.findings.extend(parse_bib(bib_text, str(bib_path)).findings)
+            result.findings.extend(parse_bib(bib_text, recorded_path(root, bib_path)).findings)
 
     entry_keys = set(ledger.entries)
     used_entries: set[str] = set()

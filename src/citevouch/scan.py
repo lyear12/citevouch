@@ -216,13 +216,16 @@ def _no_claim_blocks_finding(
     )
 
 
-def _ledger_path(root: Path, path: str | Path) -> str:
-    """Store a source path the way a ledger can survive a move.
+def recorded_path(root: Path, path: str | Path) -> str:
+    """Store an input path the way a ledger can survive a move.
 
     An absolute path dies the moment the repository is cloned somewhere else,
     and a Windows path with backslashes does not resolve on the Linux job that
     runs the same ledger.  A path relative to ``root``, with forward slashes,
-    is the same string on every platform.  A file outside ``root`` cannot be
+    is the same string on every platform.  Sources, the manuscript and the
+    bibliography entries all go through here, because one ledger holding two
+    spellings of one file is the same defect as a ledger that only resolves on
+    the machine that wrote it.  A file outside ``root`` cannot be
     made relative meaningfully; it keeps its absolute form and the ledger is
     simply not portable, which is the honest outcome.
     """
@@ -355,7 +358,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
         # manuscript.md` write the same ledger.  Recording the string the user
         # typed made the file depend on where they stood, which turned a
         # regenerable fixture into one that only matched one directory.
-        manuscript=_ledger_path(root, manuscript_path),
+        manuscript=recorded_path(root, manuscript_path),
         manuscript_sha256=sha256_file(manuscript_path),
         generated_at=options.now
         or _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
@@ -393,7 +396,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
                     pages,
                     SourceRef(
                         key=claim.source,
-                        path=_ledger_path(root, path),
+                        path=recorded_path(root, path),
                         sha256=sha256_file(Path(path)),
                         pages=len(pages),
                     ),
@@ -434,7 +437,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
         # Recorded before the file is judged: a bibliography that is missing
         # or unreadable is the one the next run most needs to hear about, and
         # recording only the ones that parsed would lose exactly that.
-        ledger.bibliographies.append(_ledger_path(root, bib_path))
+        ledger.bibliographies.append(recorded_path(root, bib_path))
         if not bib_path.is_file():
             findings.append(
                 Finding(
@@ -444,7 +447,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
                 )
             )
             continue
-        result = parse_bib(read_text(bib_path), str(bib_path))
+        result = parse_bib(read_text(bib_path), recorded_path(root, bib_path))
         findings.extend(result.findings)
         ledger.entries.update(result.entries)
 
