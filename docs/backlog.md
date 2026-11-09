@@ -4239,3 +4239,60 @@ would a person actually have on disk", not by reading the code.
   *and* has an even byte count is still ambiguous, and the reader picks UTF-16;
   the docstring says so. The `scan` pass still records a mojibake quotation in
   the ledger without complaining (the guards live in `check`/`draft`/`doctor`).
+
+- [x] **P1 - `draft` read a citation the author was displaying as one they were making**
+  - What was wrong: `draft` read citations from the raw manuscript, so a `[@key]`
+    inside a fenced block, a code span, an HTML comment or an indented block - a
+    specimen of the syntax - was reported as a real citation. On a manuscript whose
+    page prints the sampled sentence word for word, with `ghost` a key that has no
+    local file, all six shapes produced `line 2: ghost - no local file: not in
+    sources.toml, no `file` field in the bibliography, and no file named after the
+    key`. Two of the shapes did worse: ``` and `<!--` travelled into the
+    sentence compared with the page, so an identical sentence stopped matching and
+    the paragraph dropped from `1 claim block(s) proposed (1 verbatim)` to `0 claim
+    block(s) proposed (0 verbatim)` at medium confidence.
+  - What it does now: `src/citevouch/display.py` blanks every displayed region and
+    keeps the text's length and its newlines exactly. `draft` masks once and reads
+    both the citation sites and the sentences from the masked text, so displayed
+    keys are not cited and display markers are not words. A `> ` blockquote is still
+    prose, and a `[@ghost]` in an ordinary sentence is still reported missing.
+  - Why it is now true: `tests/test_displayed_citations.py` has 28 tests - six
+    displayed shapes produce no note and lose no verbatim match; the mask keeps its
+    length and every newline offset; the fence rules are checked directly on the
+    mask (wrong character, too few characters, a short line inside a long fence, a
+    line with text after the run, an unclosed fence running to the end of the file,
+    the closing line itself); and an indented list continuation stays prose. Eleven
+    mutations were run against this file and all eleven are red. Two of them were
+    only killed after the tests below were added, because the end-to-end fixtures
+    happened to cover the same characters twice: `a fence closes on too few
+    characters` needed a four-backtick fence with no other run of four in the file,
+    and `the last line of a fenced block is left out` needed a closing run longer
+    than the opening one so no code span could pair them.
+  - Not covered: LaTeX `\verb`, `\lstinline` and `\mintinline`. `to_text` restores
+    their literal spelling into the converted text, so `\verb|\citep{ghost}|` is
+    still read as a real citation by `draft`. That is the same defect in a different
+    module and is left as its own entry.
+
+- [ ] **P1 - a LaTeX command shown with `\verb` is still read as a citation the author
+  made**
+  - Measured: a manuscript containing `\verb|\citep{ghost2021}|` and a real
+    `\citep{paper}` gives `draft`: `3 citation(s) left as comments`, and the comment
+    for `ghost2021` is `no local file: not in sources.toml, no `file` field in the
+    bibliography, and no file named after the key`. With a real paragraph inside
+    `\verb`, the statement becomes `The template shows We collected 40,688 examples
+    from the corpus. \citep{paper} here.` and the paragraph loses its verbatim match
+    (`2 citation(s) left as comments`, `nothing on any page shares enough terms with
+    the sentence (3 needed)`) even though the page prints it word for word.
+  - Why it is not the same fix as the Markdown one: `latex.to_text` already drops
+    inline verbatim before converting, but `_restore_dropped` puts the literal
+    characters back afterwards, deliberately - `\verb|%|` must survive as a percent
+    sign and `\verb|\textit{x}|` must survive as visible backslashes. So the
+    restored text cannot simply be blanked; the fix has to mark which restored
+    characters came from a display, and `draft` has to mask those and nothing else.
+  - Direction to try: have `to_text` return the dropped spans (or a sentinel
+    character class that is not LaTeX), let a display-masking helper blank exactly
+    those regions and then substitute the real characters, and assert both that
+    `\verb|%|` still renders as `%` and that `\verb|\citep{ghost}|` produces no
+    `ghost` note in `draft`.
+  - Not covered by this entry: `\lstinline` and `\mintinline` share the same
+    restore path and are expected to need the same fix; check them, do not assume.
