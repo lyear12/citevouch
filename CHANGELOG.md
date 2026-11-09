@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.37] — 2026-11-09
 ### Fixed
 
 * **A bibliography was recorded two ways in one ledger.**
@@ -46,7 +47,6 @@ tag and that file disagree.
   A path outside `--root` still keeps its absolute form — there is no honest
   relative spelling for it, and inventing one would move a finding onto some
   other file.
-
 ## [0.22.36] — 2026-11-09
 ### Fixed
 
@@ -3456,7 +3456,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.36...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.37...HEAD
+[0.22.37]: https://github.com/lyear12/citevouch/releases/tag/v0.22.37
 [0.22.36]: https://github.com/lyear12/citevouch/releases/tag/v0.22.36
 [0.22.35]: https://github.com/lyear12/citevouch/releases/tag/v0.22.35
 [0.22.34]: https://github.com/lyear12/citevouch/releases/tag/v0.22.34
