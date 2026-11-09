@@ -46,14 +46,18 @@ class TestThereIsOneReader:
     with the reason attached.  ``invalid_utf8_share`` is in the list because it
     calls ``.decode`` to *measure* how much of a file is unreadable; it returns a
     number and never hands the decoded text to a reader.  ``declared_charset``
-    only looks at ASCII tag bytes, and ``declared_reading`` is a step of
-    ``_decode_text`` - both are pinned by the test below.
+    only looks at ASCII tag bytes, ``declared_reading`` is a step of
+    ``_decode_text`` and ``_lost`` is the strict-decode probe that answers the
+    same question a different way - all three are pinned by the test below.
+    ``read_text`` and ``_decode_text`` are not in the list because they no
+    longer decode anything: each is its ``..._and_loss`` twin with the flag
+    dropped, and ``test_the_two_readers_are_one_authority`` holds that down.
     """
 
     ALLOWED: ClassVar[frozenset[str]] = frozenset(
         {
-            "_decode_text",
-            "read_text",
+            "_decode_text_and_loss",
+            "_lost",
             "invalid_utf8_share",
             "declared_charset",
             "declared_reading",
@@ -61,7 +65,7 @@ class TestThereIsOneReader:
     )
 
     def test_the_declaration_helpers_are_inside_the_one_reader(self) -> None:
-        """``declared_reading`` decodes, but it is a step of ``_decode_text``.
+        """``declared_reading`` decodes, but it is a step of the decoder.
 
         It is here rather than in the list above without a reason: a function
         that returns text and is called by something other than the one reader
@@ -70,8 +74,8 @@ class TestThereIsOneReader:
         reader, and a refusal that only asks whether the answer is ``None``.
         """
         source = (PACKAGE / "textnorm.py").read_text(encoding="utf-8")
-        start = source.index("def _decode_text(")
-        end = source.index("\ndef read_text(", start)
+        start = source.index("def _decode_text_and_loss(")
+        end = source.index("\ndef _decode_text(", start)
         assert "declared_reading(raw)" in source[start:end]
 
         sources = (PACKAGE / "sources.py").read_text(encoding="utf-8")
@@ -94,8 +98,28 @@ class TestThereIsOneReader:
 
     def test_the_one_reader_is_the_one_that_flattens(self) -> None:
         source = (PACKAGE / "textnorm.py").read_text(encoding="utf-8")
-        start = source.index("def read_text(")
+        start = source.index("def read_text_and_loss(")
         end = source.index("\ndef ", start + 1)
         body = source[start:end]
         assert 'replace("\\r\\n", "\\n")' in body
         assert 'replace("\\r", "\\n")' in body
+
+    def test_the_two_readers_are_one_authority(self) -> None:
+        """``read_text`` must be ``read_text_and_loss`` with the flag dropped.
+
+        Two names for one reader is only safe while one of them is a call into
+        the other.  A copy of the flattening in both places is the shape of the
+        bug this file exists for: the two drift, and the path that reads through
+        the older copy keeps the misreading.  Measured, the drift is one edit
+        away - the same body appears twice, so "fix it in the reader" fixes
+        whichever one the editor had open.
+        """
+        source = (PACKAGE / "textnorm.py").read_text(encoding="utf-8")
+        start = source.index("def read_text(path")
+        end = source.index("\ndef ", start + 1)
+        body = source[start:end]
+        assert "read_text_and_loss(path)[0]" in body
+        assert "replace(" not in body, (
+            "read_text flattens line endings itself; the flattening belongs in "
+            "read_text_and_loss, or the two readings can drift apart"
+        )

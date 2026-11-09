@@ -40,7 +40,7 @@ from .manuscript import parse_manuscript
 from .model import Finding
 from .scan import _resolve
 from .sources import candidate_files, extract_pages, near_misses, read_source_table
-from .textnorm import UNDECODED, count_of, read_text
+from .textnorm import UNDECODED, count_of, read_text, read_text_and_loss
 
 # The versions this package claims to run on, kept next to the check that
 # enforces them rather than only in pyproject, so the two cannot drift apart
@@ -379,7 +379,8 @@ def _claim_blocks(target: Path) -> Report:
     in the one check whose job is to stop false statements.
     """
     try:
-        parsed = parse_manuscript(read_text(target), path=target.name)
+        text, lost = read_text_and_loss(target)
+        parsed = parse_manuscript(text, path=target.name)
     except OSError as problem:
         return Report(
             name="claims",
@@ -395,7 +396,12 @@ def _claim_blocks(target: Path) -> Report:
         # files are the place to look", sending the author to the one place the
         # problem is not.  Measured on a 111-byte GBK manuscript: nine green
         # lines and a high-severity finding one command away.
-        undecoded = [claim for claim in parsed.claims if UNDECODED in claim.quote]
+        # `lost` is the reader's answer, and it is the one that counts: the
+        # character alone refused a lossless UTF-8 manuscript that quotes a
+        # replacement character on purpose, which `check` finds on the page.
+        undecoded = (
+            [claim for claim in parsed.claims if UNDECODED in claim.quote] if lost else []
+        )
         if undecoded:
             return Report(
                 name="claims",

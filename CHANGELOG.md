@@ -12,6 +12,58 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A paper that quotes a replacement character was refused as a file that
+  lost one.**
+  Two releases ago the tool learned that a quotation holding U+FFFD was a
+  quotation whose bytes were never decoded, and three readers - `check`,
+  `draft` and `doctor` - asked that question of the text: is this character
+  there? That is not the same question. U+FFFD says a byte *could* have been
+  lost; only the decoder knows whether one *was*.
+
+  A paper about text encodings prints one on purpose. Measured on a lossless
+  UTF-8 manuscript reading `Notepad wrote <U+FFFD> where the byte could not be
+  decoded.`, with its source page printing the same sentence verbatim:
+
+  ```
+  [high] claim-not-decoded at manuscript.md:3 (c1): 1 character of this quote
+  were never decoded, so the quote was never searched - manuscript.md cannot be
+  read as UTF-8 without loss. Convert it first, for example
+  `iconv -f GBK -t utf-8 manuscript.md > utf8.md`
+  citevouch: 1 claim - 0 verified, 0 moved, 0 missing, 1 skipped
+  ```
+
+  Every word of that is false. The file decodes losslessly, nothing was lost,
+  the `iconv` advice would mangle it, and the quote is on page 1 - the matcher
+  finds it at tier `exact`. `doctor` called the claims check failed. All three
+  claim dialects agreed, so the wrong answer was not a parsing accident. A tool
+  that refuses a correct quotation and sends the author to convert a healthy
+  file is the failure mode this project exists to prevent, one step over from
+  the one it fixed last.
+
+  The decoder now reports what the reading cost. `_decode_text_and_loss()`
+  returns the text and a flag; `_decode_text()` is the text half.
+  `read_text_and_loss()` and `read_text()` mirror that pair for files, and
+  `read_loses_bytes()` is the flag alone. The flag is `True` when the chosen
+  reading had to replace a byte, which is exactly "a strict decode of these
+  bytes with this codec raised". `check`, `draft` and `doctor` now require the
+  flag **and** the character; a lossless file's U+FFFD is a character the
+  author wrote, which is what a paper about encodings contains.
+
+  Each branch of the decoder reports its own loss: the declared charset (read
+  only after a strict decode succeeded) reports none, the UTF-16 swap reports
+  none because a noise-free reading wrote no replacement character, and a
+  truncated UTF-16 file reports the trailing byte it had to drop even though
+  the text it produced is otherwise perfect.
+
+  15 tests in `tests/test_quoted_replacement_character.py`, in all three claim
+  dialects, plus the reverse cases: a GBK manuscript is still refused by
+  `check` and by `doctor`, a genuine miss is still a miss, and a lossless file
+  is still proposed for by `draft`. 12 mutations, all red - including the one
+  that made the flag always `True`, the one that made it always `False`, and
+  the four that gave one decoder branch another branch's answer.
+
 ## [0.22.55] — 2026-11-09
 ### Fixed
 

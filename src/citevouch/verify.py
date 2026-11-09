@@ -43,6 +43,7 @@ from .textnorm import (
     count_of,
     is_are,
     numbers_in,
+    read_loses_bytes,
     read_text,
 )
 
@@ -147,6 +148,12 @@ def verify(
     # identity alone would let it through.  An absent manuscript hashes to "",
     # which makes the copy check fall back to comparing paths.
     manuscript_digest = sha256_file(manuscript_path) if manuscript_path.is_file() else ""
+    # Whether the reading this tool gives this manuscript had to replace a
+    # byte.  The claim guard below asks this instead of asking whether the
+    # quote holds a replacement character: a paper *about* encodings quotes
+    # one on purpose, and a lossless file's character is not evidence of a
+    # failed decode.
+    manuscript_lost = read_loses_bytes(manuscript_path) if manuscript_path.is_file() else False
 
     # The ledger is a claim about a specific text.  If the text changed, the
     # ledger is not wrong, it is stale — and saying so beats silently verifying
@@ -572,7 +579,16 @@ def verify(
         # the file's encoding.  `source-encoding` answers this for a source
         # file; nothing answered it for the manuscript, because the manuscript
         # is read by a different reader that never had a guard.
-        if UNDECODED in claim.quote:
+        #
+        # The flag is the reader's, not the character's.  Asking only whether
+        # the quote holds a replacement character refused a paper *about*
+        # encodings - a lossless UTF-8 manuscript that quotes one on purpose
+        # - with this same high-severity sentence in all three claim
+        # dialects, told the author to convert a file that had lost nothing,
+        # and skipped the one comparison that would have succeeded: the
+        # matcher finds that quote on page 1 at tier `exact`.  A character
+        # says a byte could have been lost; the reader says one was.
+        if manuscript_lost and UNDECODED in claim.quote:
             result.skipped += 1
             lost = sum(1 for ch in claim.quote if ch == UNDECODED)
             result.findings.append(

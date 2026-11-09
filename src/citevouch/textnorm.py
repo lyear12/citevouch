@@ -666,7 +666,23 @@ def declared_reading(raw: bytes) -> str | None:
     return _strip_bom(text)
 
 
-def _decode_text(raw: bytes) -> str:
+def _lost(raw: bytes, codec: str) -> bool:
+    """Whether ``codec`` has to throw a byte away to read these bytes.
+
+    A strict decode either succeeds or raises; there is no third outcome to
+    argue about, and no character to count afterwards.  Counting decoded
+    replacement characters instead is what shipped as a false accusation, so
+    the question is asked here, once, and every reader that wants it asks
+    this function rather than re-deriving an answer from the text.
+    """
+    try:
+        raw.decode(codec)
+    except (UnicodeDecodeError, LookupError):
+        return True
+    return False
+
+
+def _decode_text_and_loss(raw: bytes) -> tuple[str, bool]:
     """Decode text bytes the way the program that wrote them meant them.
 
     Files reach this tool from editors, not from a protocol.  On Windows the
@@ -739,20 +755,52 @@ def _decode_text(raw: bytes) -> str:
     tenth of them is small.  Together they kept every one of twelve adversarial
     8-bit files on the UTF-8 reading and moved every one of twelve genuine
     UTF-16-LE files, in both single-script and mixed-script shapes.
+
+    The second half of the answer is whether the reading this function chose
+    had to throw a byte away.  That is a different question from "does the
+    text contain a replacement character", and shipping the second as if it
+    were the first produced a false accusation: a paper *about* encodings
+    quotes one on purpose, so a lossless UTF-8 manuscript reading
+
+        Notepad wrote <U+FFFD> where the byte could not be decoded.
+
+    was refused as never-decoded at high severity - in all three claim
+    dialects - for a sentence its source prints verbatim on page 1, told the
+    author to ``iconv`` a file that had lost nothing, and skipped the one
+    comparison that would have succeeded: the matcher finds that quote on
+    that page at tier ``exact``.  Only the decoder knows that a byte was
+    replaced, because that is the difference between a strict decode
+    succeeding and failing; a character in the text only says where a byte
+    *could* have been lost.
     """
     named = proven_codec(raw)
     if named is not None:
-        return _strip_bom(raw.decode(named, errors="replace"))
+        return _strip_bom(raw.decode(named, errors="replace")), _lost(raw, named)
     named = declared_reading(raw)
     if named is not None:
-        return named
+        # `declared_reading` only answers when a strict decode succeeded.
+        return named, False
     decoded = _strip_bom(raw.decode("utf-8", errors="replace"))
+    lost = _lost(raw, "utf-8")
     noise = _noise(decoded)
     if noise >= max(4, len(decoded) // 50) and noise * 10 >= len(decoded):
         candidate = _strip_bom(raw.decode("utf-16-le", errors="replace"))
         if _noise(candidate) == 0:
-            decoded = candidate
-    return decoded
+            # A reading with no noise wrote no replacement character, so it
+            # lost nothing - whatever the UTF-8 reading had to throw away.
+            return candidate, False
+    return decoded, lost
+
+
+def _decode_text(raw: bytes) -> str:
+    """Decode text bytes the way the program that wrote them meant them.
+
+    This is the text half of :func:`_decode_text_and_loss`, kept as a plain
+    string because most callers only want the words.  Anything deciding
+    "was this read at all?" wants the pair instead - the flag is the only
+    witness to a byte that had to be replaced.
+    """
+    return _decode_text_and_loss(raw)[0]
 
 
 def read_text(path: Path | str) -> str:
@@ -798,8 +846,33 @@ def read_text(path: Path | str) -> str:
     alive.  Nothing is written back: this changes what the tool reads, not the
     author's file.
     """
-    text = _decode_text(Path(path).read_bytes())
-    return text.replace("\r\n", "\n").replace("\r", "\n")
+    return read_text_and_loss(path)[0]
+
+
+def read_text_and_loss(path: Path | str) -> tuple[str, bool]:
+    """Read a text file the way :func:`read_text` does, and report the cost.
+
+    ``True`` means the reading this tool chose had to replace at least one
+    byte, so characters are missing from the text and a quotation holding a
+    replacement character may be quoting one of them.  ``False`` means the
+    file was read losslessly, and a replacement character in it is a
+    character the author wrote - which is what a paper about encodings
+    contains on purpose.
+
+    Every refusal that reads a replacement character as evidence of a failed
+    decode has to ask this rather than ask whether the character is there:
+    the character says a byte could have been lost, this says one was.  The
+    flattening lives here rather than in :func:`read_text` so that the two
+    callers cannot drift - there is still one reader, it just answers one
+    more question.
+    """
+    text, lost = _decode_text_and_loss(Path(path).read_bytes())
+    return text.replace("\r\n", "\n").replace("\r", "\n"), lost
+
+
+def read_loses_bytes(path: Path | str) -> bool:
+    """Whether reading ``path`` this tool's way has to throw a byte away."""
+    return read_text_and_loss(path)[1]
 
 
 def count_of(count: int, noun: str, plural: str = "") -> str:

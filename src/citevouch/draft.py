@@ -723,6 +723,11 @@ def draft(
     bib_unreadable: set[str] | None = None,
     manuscript: str = "",
     manuscript_digest: str = "",
+    # Whether reading the manuscript this tool's way had to replace a byte.
+    # It travels beside the text because the sentences judged below came out
+    # of that read: in a lossless file a replacement character is one the
+    # author wrote, and a paper about encodings is full of them.
+    manuscript_lost: bool = False,
 ) -> Draft:
     """Read `text` and write down what could be proposed for it.
 
@@ -744,7 +749,10 @@ def draft(
     proposed_quotes: set[str] = set()
     sites = citation_sites(text)
     result.no_citations = not sites
-    result.undecodable = text.count(UNDECODED)
+    # Only a reading that lost bytes explains missing characters; in a lossless
+    # file every replacement character is the author's, so nothing here is a
+    # decoding problem and the summary must not call it one.
+    result.undecodable = text.count(UNDECODED) if manuscript_lost else 0
     for site in sites:
         sentence, _, _ = sentence_at(text, site.start)
         if (site.start, site.key) in seen:
@@ -758,7 +766,7 @@ def draft(
         # needed)` - a true sentence about a comparison nobody should have run,
         # because the sentence it compared was 96 replacement characters.  The
         # page was never the problem, so it is not named.
-        undecoded = sentence.count(UNDECODED)
+        undecoded = sentence.count(UNDECODED) if manuscript_lost else 0
         if undecoded:
             name = Path(manuscript).name if manuscript else "the manuscript"
             result.skipped.append(

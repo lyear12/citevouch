@@ -35,7 +35,7 @@ from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
 from .report import render_json, render_markdown, render_sarif, render_text
 from .scan import ScanOptions, _resolve, recorded_path, scan
 from .sources import MANIFEST_NAMES, read_source_table, sha256_file
-from .textnorm import count_of, read_text
+from .textnorm import count_of, read_text, read_text_and_loss
 from .verify import VerifyResult, verify
 
 DEFAULT_LEDGER = "citevouch.lock.json"
@@ -730,7 +730,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
     # ``paper/paper/page.txt``, which is not a file, and ``--force`` could
     # write proposals over the source the run had just read a quote out of.
     extra_sources = [_resolve(root, raw) for raw in args.source]
-    text = read_text(manuscript)
+    text, manuscript_lost = read_text_and_loss(manuscript)
     table = read_source_table(root, args.source)
     known = table.found
     # Bound by the manifest at line 2 of sources.toml, so the author never
@@ -782,6 +782,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         # is the only thing this command tells them to do - turned a working
         # project into a high-severity one.
         taken_ids=_existing_claim_ids(text),
+        manuscript_lost=manuscript_lost,
         bib_unreadable=bib_unreadable,
     )
     text = draft_module.render(result, manuscript.name, converted=converted, included=included)
