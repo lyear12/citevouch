@@ -12,6 +12,45 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`scan --ledger` could write the ledger over the manuscript, the manifest or
+  a source page.** The ledger is the one file this tool is meant to write, so
+  the flag looks like an ordinary destination and nothing about it looks
+  dangerous. Measured, on a project holding one claim:
+
+  ```text
+  $ citevouch scan paper.md --root . --ledger paper.md
+  citevouch: wrote paper.md (1 claim)                          ->  exit 0
+  ```
+
+  The manuscript was 97 bytes of Markdown and 753 bytes of JSON afterwards.
+  `--ledger sources.toml` replaced the manifest and `--ledger page.txt`
+  replaced the page the quote came from; every one of them exited 0 and said
+  what it had written, so the run reported success while deleting the evidence
+  it had just recorded.
+
+  `draft -o` had refused outputs like these since v0.19.52, but its list was
+  built from the command line, so it missed the same class of file from the
+  other end: `draft -o page.txt --force` wrote 511 bytes of proposals over the
+  page `sources.toml` binds to `paper`, because that path is never typed on the
+  command line.
+
+  Both writers now ask one list, `cli._project_inputs`, built from what the run
+  actually read rather than from its flags: the manuscript, both manifest
+  names, every source the manifest or `--source` bound, every `--bib` file, and
+  the ledger. The comparison is by resolved path, and the sentence names the
+  file *and* what it is to the project — an author who typed only `--ledger
+  page.txt` has never seen the manifest line that binds it, so echoing the path
+  back leaves them asking where it came from. `scan --dry-run` is not refused,
+  because it writes nothing.
+
+  Proved by `tests/test_ledger_overwrites_input.py` (13), which asserts the
+  bytes of every protected file rather than only the exit code, and by nine
+  mutations of the guard — one of them survived until a test spelled one file
+  two ways with `..`, because `Path` discards a leading `./` and the original
+  spelling test could not tell a resolved comparison from a textual one.
+
 ## [0.22.45] — 2026-11-09
 ### Fixed
 

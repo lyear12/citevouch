@@ -292,7 +292,40 @@ def _read_ledger(path: Path) -> Ledger:
 def cmd_scan(args: argparse.Namespace) -> int:
     ledger, findings = scan(_options(args))
     out = _ledger_path(args)
+    root = Path(args.root)
     if not args.dry_run:
+        # The ledger is asked from what the run read, not from the flags: the
+        # page a quote comes from is bound by `sources.toml`, so `--ledger
+        # page.txt` names a file the command line never mentioned.
+        manifest = _manifest_files(root)
+        bound = [
+            (
+                path,
+                f"the source bound to {key!r} by the sources manifest"
+                + (f" ({manifest})" if manifest else ""),
+            )
+            for key, recorded in ledger.sources.items()
+            for path in [_resolve(root, recorded.path)]
+        ]
+        # `--source` files are read and validated by the scan even when no claim
+        # ends up using them, so they are in the run without being in
+        # `ledger.sources`. Measured: `--source extra.txt --ledger extra.txt`
+        # replaced the source and exited 0.
+        bound += [
+            (path, f"the source you gave as {path.stem!r} with --source")
+            for path in (_resolve(root, raw) for raw in args.source or [])
+        ]
+        _refuse_an_output_over_an_input(
+            out,
+            _project_inputs(
+                root,
+                _resolve(root, ledger.manuscript),
+                bound,
+                [_resolve(root, bib) for bib in ledger.bibliographies],
+                None,
+            ),
+            "another --ledger (citevouch.lock.json is the default)",
+        )
         _write_ledger(ledger, out)
     payload = _render(findings, ledger, args)
     _emit(payload)
@@ -476,86 +509,99 @@ def _existing_claim_ids(text: str) -> set[str]:
     return {claim.id for claim in parsed.claims if claim.id}
 
 
-def _refuse_an_output_that_is_an_input(
-    output: Path,
+#: What both manifest names are, in a sentence about refusing to write over one.
+#:
+#: Worded for the author who asked: whatever this tool writes is Markdown
+#: proposals or a JSON ledger, so a file replaced here could never be read back
+#: as a manifest - and a project holding both manifest names is refused rather
+#: than guessed between, which is what any second name becomes.
+MANAGED_NAME = (
+    "a name citevouch reads as the sources manifest - what would be written here "
+    "is Markdown or a ledger, so this file could never be a manifest, and a "
+    "project holding both manifest names is refused rather than guessed between"
+)
+
+
+def _project_inputs(
     root: Path,
+    manuscript: Path | None,
+    bound: list[tuple[Path, str]],
     bib_paths: list[Path],
-    extra_sources: list[Path],
-    ledger: Path,
-) -> None:
-    """Refuse an ``-o`` that names a file this project already reads.
+    ledger: Path | None,
+) -> list[tuple[Path, str]]:
+    """Every file this run reads, and what it is to the project.
 
-    ``draft`` guarded its output against the manuscript and against nothing
-    else, so ``-o sources.toml --force`` wrote proposals over the manifest: the
-    command reported success, and from then on `check` answered
-    `[high] source-missing ... the manifest could not be read: sources.toml
-    could not be read as TOML` for every claim in the project, `doctor` failed
-    its manifest check, and ``scan`` could not rebuild the binding because the
-    key-to-file table was the file that had been replaced.  ``-o
-    citevouch.lock.json --force`` did the same to the ledger, and ``verify``
-    then said the ledger is not readable JSON - so the recorded evidence for
-    the whole manuscript was gone, which is the one thing this tool exists to
-    keep.
+    The two writers this feeds - ``draft -o`` and ``scan --ledger`` - had their
+    own idea of which files matter, and each idea was a subset of the truth.
 
-    A name that does *not* exist yet is refused too, when it is the other
-    spelling of a manifest that is present.  Writing ``sources.json`` beside a
-    live ``sources.toml`` overwrote nothing at all, which is why it looked
-    harmless; a project holding both is refused rather than guessed between, so
-    every claim went from `verified` to `[high] source-missing ... both
-    sources.toml and sources.json exist, and only one of them is read`.
+    Measured before this existed, on a project holding one claim::
 
-    The comparison is by resolved path, and it protects the files this run
-    actually reads rather than the ones a docstring says it reads: a
-    bibliography named with ``--bib``, a source named with ``--source``, the
-    ledger, and both manifest names.  ``--force`` does not reach here because it
-    cannot: replacing one of these does not write a proposal, it deletes the
-    project's ability to check the proposals.
+        $ citevouch scan paper.md --root . --ledger paper.md
+        citevouch: wrote paper.md (1 claim)                       ->  exit 0
+
+    The manuscript was 97 bytes of Markdown and 753 bytes of JSON afterwards.
+    ``--ledger sources.toml`` replaced the manifest and ``--ledger page.txt``
+    replaced the page the quote came from; every one of them exited 0, so the
+    run reported success while deleting the evidence it had just recorded.
+    ``draft -o page.txt`` did the same thing to a source the *manifest* binds,
+    which the draft guard missed because it was built from the command line
+    alone and that path never appears there.
+
+    Hence one list, and it is built from what the run actually read rather than
+    from the flags: the manuscript, both manifest names, every source the
+    manifest or ``--source`` bound, every ``--bib`` file, and the ledger. A
+    guard that answers from its own flags cannot protect a file a flag never
+    named.
     """
-    protected: list[tuple[Path, str]] = []
+    out: list[tuple[Path, str]] = []
     for name in MANIFEST_NAMES:
-        protected.append(
-            (
-                root / name,
-                f"{output} is a name citevouch reads as the sources manifest; choose "
-                "another -o (claims.md is the default). Proposals are Markdown, so this "
-                "file could never be a manifest, and a project holding both manifest "
-                "names is refused rather than guessed between - either way every claim "
-                "stops resolving, which --force cannot make safe",
-            )
-        )
+        out.append((root / name, MANAGED_NAME))
+    if manuscript is not None:
+        out.append((manuscript, "the manuscript this command is reading"))
+    out.extend(bound)
     for path in bib_paths:
-        protected.append(
-            (
-                path,
-                f"{output} is a bibliography this run is reading; choose another -o "
-                "(claims.md is the default). citevouch reads each claim's fields from "
-                "it, so writing proposals over it would leave the project unable to "
-                "check anything, which --force cannot make safe",
-            )
-        )
-    for path in extra_sources:
-        protected.append(
-            (
-                path,
-                f"{output} is a source this run was given; choose another -o "
-                "(claims.md is the default). citevouch reads quotes out of it, so "
-                "writing proposals over it would leave the project unable to check "
-                "anything, which --force cannot make safe",
-            )
-        )
-    protected.append(
-        (
-            ledger,
-            f"{output} is the ledger; choose another -o (claims.md is the default). "
-            "citevouch records what each quote was checked against in it, so writing "
-            "proposals over it would leave the project unable to check anything, "
-            "which --force cannot make safe",
-        )
-    )
+        out.append((path, "a bibliography this run is reading"))
+    if ledger is not None:
+        out.append((ledger, "the ledger this command reads"))
+    return out
+
+
+def _manifest_files(root: Path) -> str:
+    """The manifest files this project has, for a sentence about a binding.
+
+    The manifest is what binds a key to a file, so a message about that binding
+    should name the file the author can go and look at.  It is not a guess: the
+    names are reported from disk, and an empty string when there is no manifest
+    is what makes the caller say "the sources manifest" instead of inventing
+    one.
+    """
+    present = [name for name in MANIFEST_NAMES if (root / name).exists()]
+    if not present:
+        return ""
+    return " and ".join(present)
+
+
+def _refuse_an_output_over_an_input(
+    output: Path,
+    protected: list[tuple[Path, str]],
+    alternative: str,
+) -> None:
+    """Refuse a path that names a file this project already reads.
+
+    The comparison is by resolved path, so ``page.txt`` and ``./page.txt`` are
+    one file. The sentence names the file *and* what it is to the project: an
+    author who typed only ``--ledger page.txt`` has never seen the manifest
+    line that binds it, so a message that echoes the path back leaves them
+    asking where it came from.
+    """
     target = output.resolve()
-    for path, message in protected:
+    for path, what in protected:
         if path.resolve() == target:
-            raise UsageError(message)
+            raise UsageError(
+                f"{output} is {what}; choose {alternative}. Writing it there "
+                "would leave the project unable to check anything, which is not "
+                "something --force can make safe"
+            )
 
 
 def _shell_word(value: str) -> str:
@@ -684,17 +730,29 @@ def cmd_draft(args: argparse.Namespace) -> int:
     # ``paper/paper/page.txt``, which is not a file, and ``--force`` could
     # write proposals over the source the run had just read a quote out of.
     extra_sources = [_resolve(root, raw) for raw in args.source]
-    # ``draft`` has no ``--ledger`` flag, so the path worth protecting is the
-    # default one the other four commands read: a draft that replaced it left
-    # `verify` saying the ledger is not readable JSON, and the recorded evidence
-    # for the whole manuscript was gone.
-    _refuse_an_output_that_is_an_input(
-        output, root, bib_paths, extra_sources, root / DEFAULT_LEDGER
-    )
-
     text = read_text(manuscript)
     table = read_source_table(root, args.source)
     known = table.found
+    # Bound by the manifest at line 2 of sources.toml, so the author never
+    # typed this path: `draft -o page.txt --force` wrote 511 bytes of proposals
+    # over the page the quotes came from and exited 0.  A guard built from the
+    # flags cannot protect a file no flag names.
+    bound = [
+        (path, f"the source bound to {key!r} by the sources manifest")
+        for key, path in ((key, _resolve(root, value)) for key, value in known.items())
+    ]
+    bound += [
+        (path, f"the source you gave as {path.stem!r} with --source") for path in extra_sources
+    ]
+    _refuse_an_output_over_an_input(
+        output,
+        # ``draft`` has no ``--ledger`` flag, so the path worth protecting is the
+        # default one the other four commands read: a draft that replaced it left
+        # `verify` saying the ledger is not readable JSON, and the recorded
+        # evidence for the whole manuscript was gone.
+        _project_inputs(root, manuscript, bound, bib_paths, root / DEFAULT_LEDGER),
+        "another -o (claims.md is the default)",
+    )
     converted = latex_module.looks_like_latex(manuscript)
     included: list[str] = []
     if converted:

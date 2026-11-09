@@ -6556,3 +6556,40 @@ How to apply:
   sentence that only looks like a command.
 
 Seen 1.
+
+## An output flag is a promise about a path, and the path may be an input
+
+Two writers in this tool take a path they are meant to create, and both of them
+checked that path against a list they built from their own command line. That
+list is a subset of the truth, because the file most worth protecting is
+usually one the author never typed:
+
+    $ citevouch scan paper.md --root . --ledger paper.md
+    citevouch: wrote paper.md (1 claim)                        ->  exit 0
+
+The manuscript was 97 bytes of Markdown and 753 bytes of JSON afterwards.
+`--ledger sources.toml` replaced the manifest and `--ledger page.txt` replaced
+the page the quote came from. Nothing crashed; every run reported what it had
+written, which is exactly why it read as success.
+
+`draft -o` had guarded its output since v0.19.52, against a list of the files
+passed on the command line. That list missed `page.txt` for a reason worth
+naming: the file was bound by `sources.toml`, so no flag ever mentioned it.
+
+The fix is not a longer list. It is a list built from the run: the manuscript,
+both manifest names, every source the manifest or `--source` bound, every `--bib`
+file, and the ledger. One function, called by both writers, so the next writer
+that needs it inherits the whole set instead of copying the visible half.
+
+*How to apply*
+
+- When a command takes an output path, ask which files it read to do the work.
+  Every one of them is a path the output must not be.
+- A guard built from flags is a guard on the flags. Bindings recorded in a
+  project file are inputs too, and they are the ones an author cannot see while
+  typing the command.
+- Compare resolved paths, and test it with `..` — `Path` discards a leading
+  `./`, so a spelling test cannot tell a resolved comparison from a textual one.
+  One mutation survived on exactly this until a test named one file two ways.
+
+Seen 1.
