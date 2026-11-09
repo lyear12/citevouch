@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.47] — 2026-11-09
 ### Fixed
 
 * **A manuscript could be its own source of evidence.** `sources.toml` is the
@@ -37,7 +39,6 @@ tag and that file disagree.
   the run fails instead of passing. The rule is about the file, not the text:
   a different file that happens to hold the same sentence still verifies, which
   is the ordinary case and is covered by a test.
-
 ## [0.22.46] — 2026-11-09
 ### Fixed
 
@@ -3730,7 +3731,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.46...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.47...HEAD
+[0.22.47]: https://github.com/lyear12/citevouch/releases/tag/v0.22.47
 [0.22.46]: https://github.com/lyear12/citevouch/releases/tag/v0.22.46
 [0.22.45]: https://github.com/lyear12/citevouch/releases/tag/v0.22.45
 [0.22.44]: https://github.com/lyear12/citevouch/releases/tag/v0.22.44
