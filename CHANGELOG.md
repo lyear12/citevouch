@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.33] — 2026-11-09
 ### Fixed
 
 * **A bibliography nobody could read was silent on the recorded path.**
@@ -42,7 +43,6 @@ tag and that file disagree.
   including "scan records only the files it could parse" and "the recorded pass
   re-reads only when the manuscript digest matches" - each of which turns the
   suite red.
-
 ## [0.22.32] — 2026-11-09
 ### Fixed
 
@@ -3321,7 +3321,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.32...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.33...HEAD
+[0.22.33]: https://github.com/lyear12/citevouch/releases/tag/v0.22.33
 [0.22.32]: https://github.com/lyear12/citevouch/releases/tag/v0.22.32
 [0.22.31]: https://github.com/lyear12/citevouch/releases/tag/v0.22.31
 [0.22.30]: https://github.com/lyear12/citevouch/releases/tag/v0.22.30
