@@ -3114,6 +3114,45 @@ not what changed, but what proves the change works.
   *Done - why it is now true*: `src/citevouch/bibtex.py` has `merge_entries(into, entries) -> list[Finding]`, which reports the clash as `bib-duplicate-key` (high) naming both `earlier.path` and `entry.path`, and still lets the later entry win.  `scan.py` calls it instead of `ledger.entries.update(...)`; `verify.py` calls it instead of `reread_entries.update(...)`.  Proved by `tests/test_bib_cross_file_keys.py` (14 tests): both orders, three files defining one key, `scan` / `check` / `verify`, and the silent cases - two files with different keys, one entry, one file naming a key twice (still one finding), and one file passed twice.  Nine mutations, all red; one survived the first round and the `--bib a.bib --bib a.bib` test is what killed it, which is why that case is pinned.
   *Not covered*: no real Zotero or JabRef export split across two files.  `citevouch draft --bib` reads the same files but prints none of their parse findings - not this one and not the older ones - so the finding reaches `scan`, `check` and `verify` only.  That silence predates this change and is left alone here.
 
+- [x] **`draft --bib` dropped the bibliography parser's findings and then lied about the entry.**
+  `draft` reads every `--bib` file for one reason - to answer "where is the
+  local file for this key" - and threw away `parse_bib`'s findings, so a file
+  it could only half read produced no output at all:
+
+  ```text
+  $ citevouch draft paper.md --root . -o claims.md --bib refs.bib
+  citevouch: 0 claim block(s) proposed (0 verbatim), 1 citation(s) left as comments
+  $ citevouch scan paper.md --root . --bib refs.bib
+  [high] bib-unparsed-entry at refs.bib:1: an entry was never closed ...
+  [high] bib-unreadable at refs.bib:1: not one entry could be read ...
+  ```
+
+  Because the entry never parsed, the key had no entry to answer with, and the
+  comment written for it said the bibliography had no `file` field - about a
+  `.bib` that has `file = {page.txt}` on line 5. That is the false sentence
+  v0.19.63 fixed for the `scan` path, still standing in the command that reads
+  the file to answer that exact question.
+  *Who is blocked*: anyone whose `.bib` came out of a reference manager with
+  one malformed entry. `draft` is the first command a new user runs against
+  their own paper, and the sentence sends them looking for a field that is
+  right there.
+  *Done when*: `draft --bib` reports the same parse findings `scan` does, and
+  a key the bibliography names without defining gets a sentence that says so.
+  *Done - why it is now true*: `cmd_draft` keeps `parsed.findings`, prints them
+  before its summary, merges entries through `merge_entries` (so a key defined
+  in two `--bib` files is reported from here too), and passes `draft` a
+  `bib_unreadable` set built by `draft._bib_keys_without_entries` - the keys a
+  file names in an entry header while producing no entry for them. `_why_no_file`
+  says "the bibliography could not be fully read, so no entry was parsed for
+  'knuth2020'" for those and keeps the generic sentence for a readable
+  bibliography that simply does not mention the key.
+  `tests/test_draft_bib_findings.py` (14 tests); ten mutations, `survivors: []`
+  (two needed a tighter test: one asserted the key was anywhere on the line when
+  the comment prefix already carries it, and one needed a readable entry with no
+  `file` field to show the set must exclude keys that parsed).
+  *Not covered*: no real reference-manager export; a key regex that is
+  deliberately loose and only ever runs on a file the parser already refused.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
