@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.35] — 2026-11-09
 ### Fixed
 
 * **A Markdown container marker travelled into the `claim:` text `draft` proposes.**
@@ -39,7 +40,6 @@ tag and that file disagree.
   place. Marker lookalikes stay: `-- x`, `-3 degrees`, `2.5 million`,
   `#hashtag`, `a > b`, and a four-space indent, which CommonMark reads as a
   code block.
-
 ## [0.22.34] — 2026-11-09
 ### Fixed
 
@@ -3380,7 +3380,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.34...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.35...HEAD
+[0.22.35]: https://github.com/lyear12/citevouch/releases/tag/v0.22.35
 [0.22.34]: https://github.com/lyear12/citevouch/releases/tag/v0.22.34
 [0.22.33]: https://github.com/lyear12/citevouch/releases/tag/v0.22.33
 [0.22.33]: https://github.com/lyear12/citevouch/releases/tag/v0.22.33
