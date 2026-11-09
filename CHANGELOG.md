@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.57] — 2026-11-09
 ### Fixed
 
 * **A manuscript whose length happened to be even lost its claim fences.**
@@ -40,7 +41,6 @@ tag and that file disagree.
   of the new rule - the veto removed, made constant, the threshold moved to one
   and to forty, the escape dropped, the counter zeroed, the class widened, and
   the loss flag re-attached to the swap - are all caught.
-
 ## [0.22.56] — 2026-11-09
 ### Fixed
 
@@ -4076,7 +4076,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.56...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.57...HEAD
+[0.22.57]: https://github.com/lyear12/citevouch/releases/tag/v0.22.57
 [0.22.56]: https://github.com/lyear12/citevouch/releases/tag/v0.22.56
 [0.22.55]: https://github.com/lyear12/citevouch/releases/tag/v0.22.55
 [0.22.54]: https://github.com/lyear12/citevouch/releases/tag/v0.22.54
