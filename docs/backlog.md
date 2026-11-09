@@ -3295,6 +3295,35 @@ not what changed, but what proves the change works.
   source page; `draft` also still prints no bibliography parse findings
   (that was v0.22.44's separate fix for `scan`, and `draft` shares it).
 
+- [x] **A quotation that ran across two page breaks was reported missing.**
+  The stitcher glued *pairs* of adjacent pages together, so a quote crossing
+  one break was found and one crossing two was not. Measured on a source
+  whose sentence starts on page 2 and ends on page 4:
+
+      [high] quote-missing at manuscript.md:1 (c1): We collected a very
+      large number of examples from the corpus and then filtered them by ha…
+       — quote not found in page.txt
+
+  The words are there, verbatim, in order. *Who is blocked*: every author
+  quoting a long sentence from a paper that sets prose in a narrow column;
+  two-page quotes were already handled, so the failure looked random.
+  *Done when* a quote touching three or four pages is found, and every
+  downstream answer agrees with the wider window.
+  *Done - why it is now true*: `src/citevouch/matching.py` replaced
+  `_page_pairs` with `_page_runs` (every run up to `MAX_STITCHED_PAGES = 4`),
+  `Match.spanned` records every page a quote touches, and
+  `src/citevouch/verify.py` reads that field in four places: the not-a-move
+  check, the message, the numbers check, and the run ordering (length is the
+  outer loop, so a shorter run always beats a longer one that merely
+  contains the quote). `tests/test_cross_page_three.py` (19 tests) pins each;
+  nine mutants, `survivors: []`. One mutant survived two rounds - "the
+  numbers check reads only the ends" - because `_number_checks` returns
+  early when no page it was given has any number, so the fixture needed a
+  figure on an end *and* one in the middle.
+  *Not covered*: a quote spanning more than four pages is still reported
+  missing - the limit is a cost decision, pinned by a test on the constant
+  but not fixtured; and no real PDF whose extractor splits a word mid-break.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
