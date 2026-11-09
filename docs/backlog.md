@@ -2774,6 +2774,40 @@ not what changed, but what proves the change works.
   symlinked parent directory is still untested, as is a network share that
   disappears between the recorded pass and the re-read.
 
+- [x] **A credibility mark with no claim block was invisible on the CI path.**
+  `scan` asks `scan_unbound_markers` about every 【原文】 line no claim block
+  covers. `verify` re-parses the manuscript to re-derive the claim blocks the
+  parser refused (v0.21.3), and then never asked the marker question - so
+  `check --use-recorded`, which is all `action.yml` runs on a pull request,
+  printed a marked sentence as a green build. Measured on a manuscript holding a
+  marked sentence and an unrelated claim block:
+
+  ```
+  check                 -> [low] claim-without-evidence at manuscript.md:1
+  check --use-recorded  -> [info] quote-found at manuscript.md:3 (c1)
+  ```
+
+  *Who was blocked*: every author who marks a sentence 【原文】 and leaves it
+  without a claim block - the single most common way a manuscript looks
+  verified while nothing on that line can be checked. The one path that never
+  said so was the one path every pull request runs.
+  *Done when*: `check --use-recorded` reports the same `claim-without-evidence`
+  findings as live `check` on the same tree, once each.
+  *Done - why it is now true*: `src/citevouch/verify.py` calls
+  `scan_unbound_markers(text, path=manuscript_path.name, spans=parsed.spans,
+  claims=parsed.claims)` inside the block that already re-parses the manuscript,
+  so both paths ask the same question with the same parse. Covered by
+  `tests/test_unbound_markers_recorded.py` (13 tests: a mark with no block is
+  reported, the two paths agree, two marks are both named, `verify` agrees, a
+  block that names the mark silences it, the live run does not say it twice,
+  `--allow-stale` says nothing about marks, every default marker reaches the
+  recorded pass, a mark inside a fence is not reported). Four mutations, all red:
+  the recorded pass never asks, the spans are not passed, the claims are not
+  passed, an empty text is scanned.
+  *Not covered*: no real manuscript that mixes marks with table-dialect claim
+  blocks; the fixtures are hand-written. `--allow-stale` deliberately stays
+  silent, because a mark belongs to a paragraph this run has not read.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
