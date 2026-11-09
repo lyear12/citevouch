@@ -3983,48 +3983,64 @@ would a person actually have on disk", not by reading the code.
   sentence in `<p class="gone">` still verifies with the stylesheet present,
   because the class-to-rule mapping is not read.
 
-- [ ] **P1 - a small non-UTF-8 HTML page is read as mojibake and its quote is reported missing**
+- [x] **P1 - a small non-UTF-8 HTML page was read as mojibake and its quote reported missing**
 
-  *Found while probing the unpainted-element defect in 0.22.52 (same round,
-  different question).*  `encoding_problem()` in `src/citevouch/sources.py`
-  refuses a text source when `invalid_utf8_share(bytes) >= MAX_UNDECODABLE_SHARE`
-  (0.25).  That share is diluted by the ASCII header a real HTML file carries,
-  so a small GBK page slips under the threshold and `_decode_text` then decodes
-  it with `errors="replace"` - a decoder that cannot fail - and the mojibake is
-  searched as if it were the page.
+  *What was wrong.* `encoding_problem()` in `src/citevouch/sources.py` refused a
+  text source when `invalid_utf8_share(bytes) >= MAX_UNDECODABLE_SHARE` (0.25),
+  and that share is measured over the whole file while an HTML header is ASCII.
+  Measured on a one-claim project whose only source was a 239-byte GBK page with
+  `<!DOCTYPE>`, `<meta http-equiv="Content-Type" content="text/html; charset=gbk">`,
+  `<link>`, `<title>论文摘要</title>` and one body sentence:
 
-  Measured:
+  - `invalid_utf8_share = 0.172`, so it was **not** refused;
+  - `_decode_text` decoded it with `errors="replace"` - a decoder that cannot
+    fail - and the extracted text was `' ����ժҪ �����ռ� …'`;
+  - end to end: `[high] quote-missing … 本文收集了六万八千个例句，全部来自语料库中的真实文本。
+    — quote not found in page.html`, exit 1, about a sentence printed verbatim in
+    that file;
+  - the same page with one more sentence scores 0.254 and is refused correctly,
+    so the defect only ever appeared on short documents.
 
-  - GBK page with `<!DOCTYPE>`, `<meta http-equiv="Content-Type" ... charset=gbk>`,
-    `<link>`, `<title>论文摘要</title>` and one body sentence: 244 bytes,
-    `invalid_utf8_share = 0.168`, **not refused**, extracted text
-    `' ����ժҪ �����ռ� …'`.  End to end:
-    `[high] quote-missing … 本文收集了六万八千个例句。 — quote not found in page.html`
-    with exit 1 - an accusation about a sentence that is verbatim in the file.
-  - The same page with two body sentences: `share = 0.254`, refused with
-    `[high] source-encoding`.  Same file, same encoding, opposite verdict.
-  - Growth: 1 paragraph 0.429/0.562, 10 paragraphs 0.652/0.677, 60 paragraphs
-    0.685/0.690 - large files are always refused, so this only bites small ones.
-  - `<meta charset="gb2312">` and `<?xml encoding="gb2312"?>` are refused
-    correctly (a different code path); the `http-equiv` spelling is the one that
-    slips through.
-  - cp1252 French text scores 0.176 and German 0.075, so lowering the threshold
-    is **not** the fix: it would start refusing files that read perfectly.
+  cp1252 French scores 0.176 and German 0.075, so the one obvious alternative -
+  lower the threshold - would have started refusing files that read perfectly.
+  The share was a guess standing in for a question the file answers directly.
 
-  *What is missing.*  Nothing in `sources.py` or `textnorm.py` reads the charset
-  the document declares about itself.  `textnorm._decode_text` (`textnorm.py:582`)
-  only recognises a BOM and a NUL pattern.  For a `.html` source the declaring
-  is right there in the first kilobyte, and honouring it would settle the
-  question that the byte share can only guess at.
+  *What it does now.* `textnorm.declared_charset()` reads `<meta charset>`, the
+  `<meta http-equiv ... content="...charset=...">` spelling and the XML
+  declaration from the first 4 KiB, after stripping comments so a tutorial page
+  that *shows* the tag declares nothing, and returns the name only when
+  `codecs.lookup` knows it (so `gb2312`, `GBK` and `gbk` arrive as one spelling,
+  and a misspelt name falls back to the old guess instead of raising).
+  `textnorm.declared_reading()` returns the text only when those exact bytes
+  decode with that codec without error.  `_decode_text` tries it as one more
+  proof before the byte-share guess, and `sources.encoding_problem()` asks the
+  same function - because a refusal that disagrees with the reader is the same
+  mistake pointing the other way: a long GBK page scores 0.643 and would
+  otherwise be refused as unreadable by a reader that now reads it fine.
 
-  *Direction to try.*  Read `<meta charset=...>` and `<meta http-equiv=...
-  content="...charset=...">` (and `<?xml ... encoding=...?>` for `.xhtml`)
-  before the noise test, and when a declaration exists, decode with it and check
-  the result reads cleanly rather than measuring UTF-8 share.  Keep the share
-  test for files that declare nothing.  The guard must not trust a wrong
-  declaration: measured, a UTF-8 page labelled `gb2312` currently verifies
-  correctly, and must keep doing so.
+  *Done - why it is now true.* `tests/test_declared_charset.py` (20 tests)
+  covers the measured defect end to end (the GBK page verifies, `codes ==
+  ["quote-found"]`, exit 0, where it used to be `quote-missing`/1), a fixture
+  assertion that the byte share really was under the line, the same bytes with
+  the declaration removed still refused as `source-encoding`, Big5 and
+  Shift-JIS pages, five declaration spellings, the four things that are not
+  declarations (no tag, inside a comment, an unknown codec name, past the
+  window), the wrong-declaration direction (UTF-8 bytes labelled `gbk` still
+  read as UTF-8; `declared_reading` returns `None`; `charset=utf-8` is left to
+  the normal reader), and the two-reader agreement in both directions.
+  `tests/test_one_reader.py` now names the two new helpers and pins their call
+  sites, so a `declared_reading` used anywhere but inside the one reader fails
+  that guard.  Nine mutations all go red - "the declaration is never read",
+  "comments are not stripped", "the window is 1 KiB", "the whole file is
+  searched", "an unknown codec name is returned anyway", "the declaration is
+  believed without decoding cleanly", "a utf-8 declaration is acted on", "the
+  reader ignores the declaration", "the refusal check ignores the declaration".
+  The 1 KiB and whole-file mutations survived the first run because nothing
+  pinned the window from either side; a 3 KiB-plus-header test and a
+  past-the-first-kilobyte test were added until both died.
 
-  *Not covered*: a `.txt` source with no declaration (nothing to read), and
-  Shift-JIS/Big5 pages whose header is also large enough to dilute the share -
-  the same fix applies, but each needs its own fixture.
+  *Not covered*: a document whose declaration is right but whose bytes are a
+  mixture of two encodings (it fails the clean-decode test and falls back to the
+  share); a `.txt` source, which has no declaration to read; and a `.bib`,
+  deliberately left on the byte-share rule because a bibliography is mostly
+  ASCII and a readable one must not be refused.
