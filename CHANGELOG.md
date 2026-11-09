@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A colon on a claim block's opening line was parsed away in silence.**
+
+  The body of a claim block writes its fields as a mapping - `quote: |`, `id: c1` -
+  and the opening line only understands `key=value`. An author who wrote the
+  page hint one line up the same way was doing what the format taught them.
+
+  Measured on a two-page source whose quote is on page 1, asking for page 9:
+
+  ```text
+  ```claim id=c1 source=paper page=9     -> [high] page-out-of-range
+  ```claim id=c1 source=paper page: 9    -> [info] quote-found page 1, exit 0
+  ```
+
+  The second block asked a question about page 9 and the answer came from page 1,
+  with no line saying the hint had been dropped. `id: c1` was worse: the bare
+  token became the claim's name, so every finding in the run read `(id:)` - a
+  name the author never wrote - and the ledger recorded it.
+
+  Now the opening line reports a `key:` spelling as `claim-field-unknown`,
+  naming the attribute and the `=` spelling that would have worked. It still
+  does **not** apply the key: deciding whether `page: 9` is a hint or a note is
+  a format decision, and a wrong guess is worse than the silence this replaces.
+  A colon inside a quoted value is not a field, and a colon inside a bare value
+  (`source=weird:name`) is still one value, not one either.
+
+  Covered by `tests/test_opening_line_colons.py` (12 tests) across both dialects
+  and both verbs; eight mutations of the new code all go red.
+
 ## [0.22.30] — 2026-11-08
 ### Fixed
 

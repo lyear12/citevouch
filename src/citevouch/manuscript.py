@@ -95,6 +95,28 @@ _ATTR = re.compile(
     r"|(?P<loose>[A-Za-z_][A-Za-z0-9_-]*)\s*=\s*"
     r"(?P<lvalue>\"[^\"]*\"|'[^']*'|(?![A-Za-z_][A-Za-z0-9_-]*\s*=)\S+)"
 )
+# A `key:` spelling on the opening line.  The body of a claim block writes its
+# fields with colons - `quote: |`, `id: c1` - so an author who writes the page
+# hint one line up the same way is doing what the format taught them, and the
+# opening line only understands `key=value`.  Before this pattern the hint was
+# parsed away and dropped in silence.
+#
+# Measured on a two-page source whose quote is on page 1, asking for page 9:
+#
+#     ```claim id=c1 source=paper page=9    -> [high] page-out-of-range
+#     ```claim id=c1 source=paper page: 9   -> [info] quote-found page 1, exit 0
+#
+# The second block asked about page 9 and got an answer from page 1, with no
+# line saying the question had been dropped.  `id: c1` was worse: the bare
+# token became the claim's name, so findings said `(id:)` - a name the author
+# never wrote - and the ledger recorded it.
+#
+# Anchored on a token start so a colon inside a value is not a field:
+# `source=weird:name` keeps its colon and `10:30` is not a key.  Quoted values
+# are blanked before the scan, because `source="a file: 2.txt"` is one value.
+_OPENING_COLON_KEY = re.compile(r"(?:^|\s)(?P<key>[A-Za-z][A-Za-z0-9_-]*)\s*:")
+_QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
+
 # A line a human would read as "here begins a claim block", in any of the
 # spellings close enough to the real one to be a mistake rather than prose.
 # Used only to explain a file that yielded no claims: naming the line that was
@@ -292,9 +314,64 @@ def _attrs(blob: str) -> dict[str, str]:
         head = (blob or "").strip().split()
         if head and "=" not in head[0] and head[0] not in (":", "-"):
             token = head[0].lstrip(":")
-            if token:
+            # `id: c1` is a field written with a colon, not a positional id.
+            # Reading it as one made the claim's name the literal `id:`, so the
+            # report said `(id:)` and the ledger stored a name nobody wrote.
+            if token and not _KEYISH.match(head[0]):
                 out["id"] = token
     return out
+
+
+def _opening_colon_findings(blob: str, path: str, line: int) -> list[Finding]:
+    """Name a field on the opening line that is spelled with a colon.
+
+    The body of a claim block is a mapping - ``quote:``, ``id:``, ``page:`` -
+    and the opening line is a list of ``key=value`` tokens. Two spellings of
+    the same statement in one construct is a format an author will get wrong
+    exactly once, in the direction the body taught them.
+
+    Measured on a two-page source whose quote is on page 1:
+
+    ```text
+    ```claim id=c1 source=paper page=9    -> [high] page-out-of-range
+    ```claim id=c1 source=paper page: 9   -> [info] quote-found page 1, exit 0
+    ```
+
+    So this reports; it does not guess. Applying the key would be a format
+    decision (is ``page: 9`` a hint or a note?), and a wrong guess is worse
+    than the silence this replaces. The sentence names both spellings, since
+    the author cannot tell from ``page`` alone whether the key or the
+    separator was wrong.
+    """
+    scanned = _QUOTED.sub(" ", blob or "")
+    known = ", ".join(sorted(_KNOWN_ATTRIBUTES))
+    found: list[Finding] = []
+    seen: set[str] = set()
+    for m in _OPENING_COLON_KEY.finditer(scanned):
+        key = m.group("key").lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if key in _KNOWN_ATTRIBUTES:
+            advice = f"{key}= (not {key}:)"
+        else:
+            near = _nearest_attribute(key)
+            if near is None:
+                continue
+            advice = f"{key}=, if {near}= was meant"
+        found.append(
+            Finding(
+                code="claim-field-unknown",
+                message=(
+                    f"this claim block's opening line writes {key}: like a body "
+                    f"field, but the opening line only reads key=value; it was "
+                    f"ignored, so write {advice} - the attributes are " + known
+                ),
+                path=path,
+                line=line,
+            )
+        )
+    return found
 
 
 def _unknown_attr_findings(blob: str, path: str, line: int) -> list[Finding]:
@@ -633,6 +710,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
         if m:
             attrs = _attrs(m.group("attrs"))
             opened_with = _unknown_attr_findings(m.group("attrs"), path, start_line)
+            opened_with.extend(_opening_colon_findings(m.group("attrs"), path, start_line))
             body: list[str] = []
             j = i + 1
             nested_at: int | None = None
@@ -803,6 +881,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             quote, claim_text, in_body, unknown = _split_body(body)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
             more.extend(_unknown_attr_findings(head, path, start_line))
+            more.extend(_opening_colon_findings(head, path, start_line))
             more.extend(_unknown_field_findings(unknown, path, start_line))
             if not closed and claim is not None:
                 more.append(

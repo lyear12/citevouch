@@ -5974,3 +5974,44 @@ sentence: two copies drift, and here the drift was the bug. Keep the direction i
 and the other one is a wild goose chase.
 
 Seen 1.
+
+## A construct that teaches one spelling cannot silently refuse the other
+
+A `citevouch` claim block is two half-formats glued together. The opening line
+(`​```claim id=c1 source=paper page=9`) is a list of `key=value` tokens; the body
+below it (`quote: |`, `id: c1`) is a mapping written with colons. An author who
+learns the format from the body will write the page hint with a colon, and the
+opening-line regex never looked for one:
+
+```text
+```claim id=c1 source=paper page=9     -> [high] page-out-of-range
+```claim id=c1 source=paper page: 9    -> [info] quote-found page 1, exit 0
+```
+
+Two lines apart in the same construct, and the second one asks a question about
+page 9 that the tool answers from page 1 without a word. `id: c1` was worse: the
+"leading bare token becomes the id" rule read `id:` as the name, so every finding
+in the run said `(id:)` - a name the author never wrote - and the ledger stored
+it.
+
+The rule this is an instance of: **when one construct contains two spellings of
+the same statement, the reader must either accept both or say which one it
+refused.** Silence is not the third option, because the author's evidence that
+they wrote it correctly is that they wrote it the way the other half works.
+
+The fix reports instead of applying. Applying is the tempting move - the key is
+right there - but `page: 9` could be a hint or a note, and a guess that is wrong
+is worse than a sentence that tells the author to write `page=9`. The finding
+must name **both** spellings for the same reason: `page` alone leaves the author
+unable to tell whether the key or the separator was the problem.
+
+How to apply:
+
+* Find every construct with a documented spelling and a neighbouring construct
+  with a different one. The gap between them is where the author's mistake goes.
+* When the reader refuses a spelling, the message must contain the spelling that
+  would have worked - not just the token that failed.
+* Anchor the detector so the same text inside a value is not a field: quoted
+  values get blanked first, and `source=weird:name` is one value.
+
+Seen 1.
