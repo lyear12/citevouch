@@ -46,6 +46,7 @@ SARIF_RULES = {
     "source-changed": "A source file differs from the recorded copy.",
     "source-unreadable": "A source file could not be read.",
     "source-no-text": "A source file was read and held no text at all.",
+    "source-is-manuscript": "A source file is the manuscript it is supposed to prove.",
     "source-not-text": "A source file is a document format this tool cannot read, so its text was never searched.",
     "source-encoding": "A source file is saved in an encoding this tool cannot read, so its words were never searched.",
     "bib-key-missing": "A cited key is absent from the bibliography.",

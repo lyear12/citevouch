@@ -72,6 +72,7 @@ rots:
 | `source-missing` | high | the PDF the claim names cannot be found |
 | `source-unreadable` | high | the PDF exists but no text could be extracted |
 | `source-no-text` | high | the PDF was read and held no text at all - it is a scan, and OCR is what it needs |
+| `source-is-manuscript` | high | the claim cites the manuscript it is written in, so a file is vouching for its own sentences |
 | `source-not-text` | medium | the file is a document format this tool does not read (a .docx is a zip, not text) - convert it first |
 | `source-encoding` | high | the file is saved in an encoding this tool cannot read (a GBK or Big5 page is not UTF-8) - its words were never searched, so convert it first |
 | `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |

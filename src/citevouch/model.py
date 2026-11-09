@@ -53,6 +53,7 @@ CODES = {
     "source-changed": "medium",
     "source-unreadable": "high",
     "source-no-text": "high",
+    "source-is-manuscript": "high",
     "source-not-text": "medium",
     "source-encoding": "high",
     "bib-key-missing": "high",

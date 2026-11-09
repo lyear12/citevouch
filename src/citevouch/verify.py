@@ -22,6 +22,7 @@ from pathlib import Path
 
 from .bibtex import field_findings, merge_entries, parse_bib
 from .errors import why_not_a_file
+from .evidence import is_the_manuscript, source_is_manuscript_finding
 from .manuscript import ParseResult, parse_manuscript, scan_unbound_markers
 from .matching import excerpt, find_in_pages
 from .model import BibEntry, Finding, Ledger
@@ -138,6 +139,13 @@ def verify(
     result = VerifyResult()
     root = Path(options.root)
     manuscript_path = _resolve(root, options.manuscript)
+    # Hashed once, used by two checks: the stale-manuscript comparison below and
+    # the guard that refuses a source which is a *copy* of this manuscript.  A
+    # copy has the same problem as the original - the sentence in the claim
+    # block is on its page because the claim block is on its page - so path
+    # identity alone would let it through.  An absent manuscript hashes to "",
+    # which makes the copy check fall back to comparing paths.
+    manuscript_digest = sha256_file(manuscript_path) if manuscript_path.is_file() else ""
 
     # The ledger is a claim about a specific text.  If the text changed, the
     # ledger is not wrong, it is stale — and saying so beats silently verifying
@@ -188,7 +196,7 @@ def verify(
             )
             result.skipped = len(ledger.claims)
             return result
-        current = sha256_file(manuscript_path)
+        current = manuscript_digest
         if current != ledger.manuscript_sha256:
             result.findings.append(
                 Finding(
@@ -443,6 +451,20 @@ def verify(
                 # "crash". A directory recorded as a source is a project
                 # mistake; it should read as source-missing.
                 path = str(recorded) if recorded.is_file() else None
+        # The same rule `scan` applies: the file a claim cites has to be a
+        # different file from the one the claim is written in.  It has to be
+        # repeated here because a ledger written by an older build - or edited
+        # by hand - can name the manuscript, and `check --use-recorded` reads
+        # the ledger rather than the manifest, so `scan`'s guard never runs.
+        if path is not None and is_the_manuscript(path, manuscript_path, manuscript_digest):
+            result.skipped += 1
+            result.findings.append(
+                source_is_manuscript_finding(
+                    claim.source, path, claim.id, claim.path, claim.line
+                )
+            )
+            continue
+
         if path is None:
             result.missing += 1
             # The same table that failed to resolve the key can say why. Saying

@@ -16,6 +16,7 @@ from pathlib import Path
 from . import __version__
 from .bibtex import merge_entries, parse_bib
 from .errors import UsageError, why_not_a_file
+from .evidence import is_the_manuscript, source_is_manuscript_finding
 from .latex import looks_like_latex
 from .manuscript import (
     _CLAIMISH,
@@ -352,6 +353,11 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
 
     table = read_source_table(root, options.sources)
     known = table.found
+    # The digest the ledger will record, computed once.  It is what lets the
+    # guard below recognise a *copy* of the manuscript, which has exactly the
+    # same problem as the original: the sentence in the claim block is on its
+    # page because the claim block is on its page.
+    manuscript_digest = sha256_file(manuscript_path)
     ledger = Ledger(
         # Stored relative to ``root``, like the source paths below, so that
         # `scan demo/manuscript.md --root demo` and `cd demo && scan
@@ -359,7 +365,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
         # typed made the file depend on where they stood, which turned a
         # regenerable fixture into one that only matched one directory.
         manuscript=recorded_path(root, manuscript_path),
-        manuscript_sha256=sha256_file(manuscript_path),
+        manuscript_sha256=manuscript_digest,
         generated_at=options.now
         or _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         tool_version=__version__,
@@ -381,6 +387,21 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
                     claim_id=claim.id,
                     path=claim.path,
                     line=claim.line,
+                )
+            )
+            ledger.claims.append(claim)
+            continue
+
+        # A file cannot be the evidence for its own sentences.  The manifest
+        # route and the ``--source`` route both arrive here with a key already
+        # bound to a path, and neither asked what that path was: measured on a
+        # project mapping ``paper`` to ``paper.md``, a sentence invented in the
+        # claim block was reported as ``quote-found`` on page 1 - the tool
+        # certifying its own input.
+        if is_the_manuscript(path, manuscript_path, manuscript_digest):
+            findings.append(
+                source_is_manuscript_finding(
+                    claim.source, path, claim.id, claim.path, claim.line
                 )
             )
             ledger.claims.append(claim)

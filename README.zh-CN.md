@@ -69,6 +69,7 @@ worst severity: high
 | `source-missing` | high | 账本要的那份 PDF 找不到了 |
 | `source-unreadable` | high | PDF 在，但抽不出文本 |
 | `source-no-text` | high | PDF 读成功但一个字的文本都没有——它是扫描件，需要 OCR |
+| `source-is-manuscript` | high | claim 把稿件自身当成了出处——同一个文件在为自己的句子作证 |
 | `source-not-text` | medium | 这个文件是别的文档格式（.docx 是压缩包，不是文本）——先转换 |
 | `source-encoding` | high | 文件用的编码这个工具读不了（GBK 或 Big5 的页面不是 UTF-8）——里面的字从没被搜过，先转换 |
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |

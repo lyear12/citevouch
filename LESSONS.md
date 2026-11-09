@@ -6593,3 +6593,45 @@ that needs it inherits the whole set instead of copying the visible half.
   One mutation survived on exactly this until a test named one file two ways.
 
 Seen 1.
+
+## A tool whose premise is "the evidence is elsewhere" has to check where
+
+`sources.toml` says where a claim's proof lives. Nothing asked whether the place
+it named was the manuscript being checked, so this went through with exit 0:
+
+```text
+$ citevouch check paper.md --root .     # sources.toml: paper = "paper.md"
+[info] quote-found at paper.md:5 (c1): quote found on page 1
+```
+
+The sentence being looked for was inside the claim block that asserted it. The
+tool searched its own input and reported it as independent evidence - the
+loudest false statement this project can make, since verifying that a quote
+exists somewhere other than the manuscript *is* the product.
+
+The premise of a citation checker is a direction: the words come from outside.
+That premise is not a comment or a docstring anywhere - it is the thing the
+whole design is for - so no line of code was guarding it. Three routes reached
+the same green: the manifest mapping a key to `paper.md`, `--source paper.md`,
+and a byte-for-byte copy under another name. The third was the one that made
+the shape clear: the rule is about the *file*, not the path string and not the
+text, so both identity by resolved path and a digest comparison are needed, and
+a different file that happens to hold the same sentence must still verify.
+
+Two guards were needed, not one, because the two passes reach the conclusion
+along different roads: `scan` for a live run, and the recorded pass for
+`check --use-recorded`, which reads the ledger and never consults the manifest
+at all. A guard in one caller is not a guard in the other - and the first run
+of the mutation campaign proved it, not by reasoning but by surviving: removing
+one side's guard left every test green, because the other side caught the claim
+on the way past.
+
+**How to apply.** For every tool, write down its direction as a sentence
+("evidence comes from outside the document"), then ask which input can be made
+to point inward; if nothing answers, the sentence is decoration. Compare by
+identity - resolved path plus digest - and let a digest you already computed be
+passed in rather than hashed twice. And when a test cannot tell two guards
+apart, that is not a passing test: run the one entry point that only has one of
+them, which is the case a user actually hits.
+
+Seen 1.

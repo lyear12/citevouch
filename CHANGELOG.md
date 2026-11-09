@@ -11,6 +11,32 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **A manuscript could be its own source of evidence.** `sources.toml` is the
+  file that says where a claim's proof lives, and it was never asked whether
+  the place it named was the manuscript being checked. Measured on a project
+  whose manifest maps `paper` to `paper.md`, with a sentence that exists
+  nowhere except inside the claim block that asserts it:
+
+  ```text
+  $ citevouch check paper.md --root .
+  [info] quote-found at paper.md:5 (c1): quote found on page 1
+
+  citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+  worst severity: info
+  ```
+
+  The quote was searched for on page 1 of the file that contains it, so the
+  tool certified its own input as independent evidence. It was not one route
+  but three: the manifest, `--source paper.md`, and a byte-for-byte copy of the
+  manuscript saved under another name all reached the same `quote-found`, while
+  the same quote against a real page was correctly `quote-missing`. `scan` and
+  the recorded pass now refuse a source that is the manuscript, by resolved
+  path or by digest, and report the new `source-is-manuscript` code at `high` —
+  the run fails instead of passing. The rule is about the file, not the text:
+  a different file that happens to hold the same sentence still verifies, which
+  is the ordinary case and is covered by a test.
 
 ## [0.22.46] — 2026-11-09
 ### Fixed
