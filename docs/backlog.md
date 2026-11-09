@@ -3227,6 +3227,47 @@ not what changed, but what proves the change works.
   case-insensitive checkout on a case-sensitive runner); a source bound by a
   manifest that lives outside `--root`.
 
+- [x] **A manuscript could be its own source of evidence.**
+  *Done 2026-11-09.*
+  *What was wrong.* `sources.toml` says where a claim's proof lives; nothing
+  asked whether the place it named was the manuscript being checked. On a
+  project whose manifest maps `paper` to `paper.md`, with a sentence that
+  exists nowhere except inside the claim block asserting it:
+
+  ```text
+  $ citevouch check paper.md --root .
+  [info] quote-found at paper.md:5 (c1): quote found on page 1
+
+  citevouch: 1 claim — 1 verified, 0 moved, 0 missing
+  worst severity: info
+  ```
+  `1 verified` for a fabricated quote, because the quote was searched for on
+  page 1 of the file that contains it. Three routes reached the same green: the
+  manifest, `--source paper.md`, and a byte-for-byte copy under another name.
+  *Who is blocked.* Everyone, silently: this is the one claim the tool exists
+  to refuse, and it is the loudest possible false statement - certifying the
+  author's own draft as external evidence. `action.yml` accepts `--source` too,
+  so a pull request could go green on it.
+  *Done when.* All three routes exit 1 with a `source-is-manuscript` finding at
+  `high`, `scan` and `check --use-recorded` both report it, the ledger does not
+  record the manuscript as a source, and a real page holding the same sentence
+  still verifies.
+  *Done - why it is now true.* New `src/citevouch/evidence.py` holds
+  `is_the_manuscript()` (resolved path, then digest) and
+  `source_is_manuscript_finding()`; `scan.py` calls it after `resolve_source`
+  and skips the claim without recording `ledger.sources`; `verify.py` calls it
+  in the recorded pass, which never reads the manifest at all. `CODES`,
+  `SARIF_RULES` and both README tables gained `source-is-manuscript` (high).
+  `tests/test_manuscript_is_not_a_source.py` (13). The mutation campaign's
+  first round left two mutants alive - removing the scan-side digest, and
+  searching the claim anyway - because `check` runs both passes and the other
+  one caught it; `test_scan_alone_catches_a_copy` (runs `scan` on its own) and
+  `test_the_ledger_does_not_record_the_manuscript_as_a_source` killed them,
+  then all eight died.
+  *Not covered.* A case-insensitive filesystem, where two spellings resolve to
+  one file only sometimes; the digest comparison is what covers that and no
+  test here can exercise both filesystems at once.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
