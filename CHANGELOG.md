@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A manuscript whose length happened to be even lost its claim fences.**
+  The UTF-16 fallback in `textnorm._decode_text_and_loss` moved a file to the
+  sixteen-bit reading whenever that reading had no replacement characters and
+  the UTF-8 reading had enough of them.  A 114-byte GBK manuscript satisfied
+  both: re-pairing its bytes produces clean-looking text in the same script, so
+  the swap went through.  Its two claim fences, its `quote:` keys and its
+  `id=`/`source=` attributes are ASCII and had survived the UTF-8 reading; the
+  sixteen-bit reading made every one of them disappear.  `check` then said the
+  manuscript held no claim blocks, `draft` said no citations had been written in
+  the style it reads, and `doctor` blamed the claim blocks - three readings of
+  one file, not one of them about the encoding.  A 113-byte twin of the same
+  file, one byte shorter, was read correctly, so appending a single byte
+  changed all three verdicts.
+
+  The rule is now structure rather than cleanliness: the swap is refused when it
+  would shorten the longest run of printable ASCII, because claim fences,
+  `quote:` keys and `[@key]` citations are such runs in every encoding an
+  author saves them in, and re-pairing those bytes erases all of them.  A
+  genuine UTF-16-LE file never shows a run that long, since its letters sit
+  between zero bytes.  One shape stays undecidable and is documented: an 8-bit
+  file of pure two-byte script with no ASCII at all and an even number of bytes.
+
+  `tests/test_even_length_manuscript.py` covers both halves, and ten mutations
+  of the new rule - the veto removed, made constant, the threshold moved to one
+  and to forty, the escape dropped, the counter zeroed, the class widened, and
+  the loss flag re-attached to the swap - are all caught.
+
 ## [0.22.56] — 2026-11-09
 ### Fixed
 

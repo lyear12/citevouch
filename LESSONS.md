@@ -7039,3 +7039,47 @@ How to apply:
 * After narrowing a guard, re-run the mutations that made it fire before, plus
   the two constants.  A guard that never fires and a guard that always fires
   are both one-line mistakes.
+
+## A verdict that changes when you append one byte was never a reading
+
+A 113-byte GBK manuscript was read correctly: its fences parsed, its quotation
+was reported as never decoded, and all three commands agreed about the encoding.
+Its 114-byte twin - the same file with one ASCII byte appended - was read as
+sixteen-bit text.  The fences went, the `quote:` keys went, `check` said the
+file held no claim blocks, `draft` said no citations had been written in the
+style it reads, and `doctor` blamed the claim blocks.  Three commands, one file,
+and not one of them about the thing that was wrong.
+
+The old test for "is this really UTF-16?" was cleanliness: the swapped text had
+no replacement characters, therefore the swap was right.  Cleanliness is not
+evidence about the reading - it is evidence about the code points.  For a
+document written entirely in one two-byte script, both readings land on assigned
+characters, so both are spotless and the score cannot tell them apart.  What
+cleanliness also fails to notice is what the swap destroys: the ASCII the file
+carries on purpose.
+
+The usable question was not "which reading is cleaner" but "which reading
+preserves what the rest of the program reads through".  Claim fences, `quote:`
+keys and `[@key]` citations are printable ASCII in every encoding an author
+saves them in, and re-pairing those bytes erases every one of them; a genuine
+UTF-16-LE file has no run that long, because its letters sit between zero bytes.
+So the veto is "refuse the swap when it would shorten the longest printable
+run", which is a claim about what must survive rather than a threshold on how
+the result looks.  Two earlier candidates - newline conservation, and an ASCII
+word-count comparison - each had a counterexample inside the same afternoon.
+
+How to apply:
+
+* When a heuristic decides which of two readings to believe, ask what the wrong
+  choice would destroy, and make that the test.  A score over the *result*
+  cannot see the damage; a comparison over the *inputs* can.
+* Treat "clean output" as an observation about characters, never as a statement
+  about decoding.  A decoding that cannot fail has said nothing, and a decoding
+  whose failure leaves no mark has said it twice.
+* Try the smallest perturbation of a fixture before trusting either verdict:
+  appending one byte, changing its length parity, adding one space.  A verdict
+  that flips is a verdict that was guessed.  Write the twin down as a test.
+* Every heuristic has a shape it cannot separate.  Name it in the docstring -
+  "an 8-bit file of pure two-byte script, no ASCII, even length" - so the next
+  reader knows the boundary is known rather than missed.
+

@@ -682,6 +682,51 @@ def _lost(raw: bytes, codec: str) -> bool:
     return False
 
 
+#: Printable ASCII, the alphabet every claim fence and attribute is written in.
+_PRINTABLE_RUN = re.compile(r"[\x20-\x7e]+")
+
+#: How long a printable run has to be before it is structure rather than a word
+#: or a figure: eight characters is longer than the incidental ASCII - a number,
+#: a space, a full stop - that a non-Latin page carries on its own.
+STRUCTURE_RUN = 8
+
+
+def _longest_printable_run(text: str) -> int:
+    """The longest run of printable ASCII in ``text``, or zero."""
+    return max((len(found) for found in _PRINTABLE_RUN.findall(text)), default=0)
+
+
+def _keeps_the_structure(decoded: str, candidate: str) -> bool:
+    """Whether the UTF-16 reading keeps the ASCII structure the UTF-8 reading shows.
+
+    A clean UTF-16 reading was the whole test, and it is necessary but not
+    sufficient.  Measured: a 114-byte GBK manuscript whose length happens to be
+    even re-pairs into clean-looking Hakka text, so the swap went through, its
+    two claim fences and its ``quote:`` keys disappeared, ``check`` said the
+    manuscript held no claim blocks, ``draft`` said no citations had been
+    written in the style it reads, and ``doctor`` blamed the claim blocks -
+    three readings of one file, not one of them about the encoding.  Appending a
+    single byte made all three correct, which is the tell: a file whose verdict
+    changes when a byte is appended is not being read, it is being guessed at.
+
+    The separating fact is structure, and it is argued rather than tuned.  A run
+    of printable ASCII proves those bytes are really in the file, and claim
+    fences, ``quote:`` keys and ``[@key]`` citations are such runs in every
+    encoding an author saves them in.  Re-pairing those bytes into 16-bit
+    characters erases every one of them.  A genuine UTF-16-LE file never shows a
+    run that long: its letters sit between zero bytes, so read as UTF-8 they
+    appear as single letters, and its own reading keeps whatever ASCII it holds.
+
+    So: refuse the swap when it would shorten the longest printable run.  That
+    leaves one genuinely undecidable shape - an 8-bit file of pure two-byte
+    script, holding no ASCII at all and an even number of bytes - where both
+    readings are clean and equally plausible.  It is the same limit as
+    big-endian without a mark, and it is stated here rather than papered over.
+    """
+    run = _longest_printable_run(decoded)
+    return run < STRUCTURE_RUN or _longest_printable_run(candidate) >= run
+
+
 def _decode_text_and_loss(raw: bytes) -> tuple[str, bool]:
     """Decode text bytes the way the program that wrote them meant them.
 
@@ -785,7 +830,7 @@ def _decode_text_and_loss(raw: bytes) -> tuple[str, bool]:
     noise = _noise(decoded)
     if noise >= max(4, len(decoded) // 50) and noise * 10 >= len(decoded):
         candidate = _strip_bom(raw.decode("utf-16-le", errors="replace"))
-        if _noise(candidate) == 0:
+        if _noise(candidate) == 0 and _keeps_the_structure(decoded, candidate):
             # A reading with no noise wrote no replacement character, so it
             # lost nothing - whatever the UTF-8 reading had to throw away.
             return candidate, False
