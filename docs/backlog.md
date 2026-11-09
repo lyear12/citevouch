@@ -4190,3 +4190,52 @@ would a person actually have on disk", not by reading the code.
     `scan` sees a clean exit; and a manuscript with no claim blocks at all
     still reports `no-claim-blocks` without naming the encoding. Both need the
     scan-side report, which is a separate change.
+
+- [x] **P1 - a manuscript whose byte count is even is read as UTF-16 and loses
+  its claim fences**
+
+  **What was wrong.** `textnorm._decode_text_and_loss` tried the sixteen-bit
+  reading when `_noise(utf8_reading)` cleared two thresholds and
+  `_noise(candidate) == 0`. A 114-byte GBK manuscript clears both: re-pairing
+  its bytes produces clean-looking text in the same script, so the swap went
+  through. Its two claim fences, its `quote:` keys and its `id=`/`source=`
+  attributes are ASCII and were intact in the UTF-8 reading; the sixteen-bit
+  reading erased every one of them. Measured on the built project:
+
+  ```
+  $ citevouch check manuscript.md
+  [high] no-claim-blocks at manuscript.md: manuscript.md contains no claim
+  blocks, so nothing was checked ... This file has none.
+  ```
+  `draft` on the same file said `0 claim block(s) proposed: no citations were
+  found to propose them for (this command reads `[@key]` and `\cite{key}`)` -
+  the author's citation style was correct - and `doctor` failed the `claims`
+  check while blaming the claim blocks. A 113-byte twin of the same file, one
+  byte shorter, was read correctly, so appending a single byte changed all three
+  verdicts.
+
+  **What it does now.** The swap is refused when it would shorten the longest
+  run of printable ASCII (`_longest_printable_run` / `_keeps_the_structure` /
+  `STRUCTURE_RUN = 8`). Claim fences, `quote:` keys and `[@key]` citations are
+  such runs in every encoding an author saves them in, and re-pairing those
+  bytes erases all of them. A genuine UTF-16-LE file never shows a run that
+  long, because its letters sit between zero bytes. One shape stays undecidable
+  and is written into the docstring rather than papered over: an 8-bit file of
+  pure two-byte script, holding no ASCII at all, with an even byte count.
+
+  **Why it is now true.** `tests/test_even_length_manuscript.py` (20 tests)
+  pins both halves: the fences survive at both length parities, the two parities
+  decode to the same text plus the appended byte, no other 8-bit family
+  (big5 / shift_jis / cp1251 / cp1252) is swapped, and genuine UTF-16-LE
+  manuscripts - Chinese, Russian, single-line, fenced - still decode. The
+  end-to-end tests assert the even-length project reports `claim-not-decoded`
+  and never `no-claim-blocks`. Ten mutations all go red: the veto removed, made
+  always-refusing, made always-accepting, the threshold moved to 1 and to 40,
+  the short-run escape dropped, the comparison ignoring the candidate, the run
+  counter zeroed, the character class widened to all bytes, and the loss flag
+  re-attached to the swap.
+
+  **Not covered.** A manuscript that is not UTF-8 *and* writes no ASCII at all
+  *and* has an even byte count is still ambiguous, and the reader picks UTF-16;
+  the docstring says so. The `scan` pass still records a mojibake quotation in
+  the ledger without complaining (the guards live in `check`/`draft`/`doctor`).
