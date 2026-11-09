@@ -3100,6 +3100,20 @@ not what changed, but what proves the change works.
   *Done - why it is now true*: `src/citevouch/verify.py` now judges `verdict_entries`, which are the entries this run re-read; the recorded mapping survives in exactly two runs that opened no file at all - `fresh` (live `check`, where `scan` just wrote these entries) and a ledger written before `bibliographies` existed.  `field_findings`, `entry_keys`, the unused set and the `bib-key-missing` loop all read that one mapping, and the sentence says "the bibliography" rather than "the bibliography the ledger recorded" when the file was re-read.  Proved by `tests/test_bibliography_fresh_verdicts.py` (12 tests) and ten mutations, all red: verdicts back on `ledger.entries`, re-read entries discarded, the no-file case judged empty, unused/key/field all back on the recorded mapping, the sentence reverted, parse findings dropped, and the re-read disabled.
   *Not covered*: no real journal-exported `.bib`; every fixture is hand- written to the BibTeX subset this tool reads.  Two `--bib` files whose keys collide still merge into one mapping, and that case is untouched.
 
+- [x] **Two `--bib` files that define one key silently overwrote each other.**  `parse_bib` reports a key defined twice *inside one file* (`bib-duplicate-key`, high).  Two files each defining it once produced no finding at all, because both merges were `dict.update`: `scan`'s loop over `--bib`, and the recorded pass's re-read of `Ledger.bibliographies`.
+  *What was wrong*: with `a.bib` calling `knuth2020` a book and `b.bib` calling the same key a different article,
+
+  ```text
+  $ citevouch scan manuscript.md --bib a.bib --bib b.bib
+  citevouch: wrote citevouch.lock.json (1 claim)      # exit 0, no finding
+  ```
+
+  The later file silently replaced the earlier one, so which work a claim rested on was decided by the order of the `--bib` flags - an accident of the command line, not a statement about the paper.
+  *Who was blocked*: anyone with a bibliography split across files, which is the normal shape of a multi-project Zotero export.  `action.yml` runs `check --use-recorded`, which merged the re-read files the same way, so the pull request was green whichever entry won.
+  *Done when*: a key defined in two different `--bib` files is reported on every verb that reads bibliographies, names both files, and does not change which entry the run judges.
+  *Done - why it is now true*: `src/citevouch/bibtex.py` has `merge_entries(into, entries) -> list[Finding]`, which reports the clash as `bib-duplicate-key` (high) naming both `earlier.path` and `entry.path`, and still lets the later entry win.  `scan.py` calls it instead of `ledger.entries.update(...)`; `verify.py` calls it instead of `reread_entries.update(...)`.  Proved by `tests/test_bib_cross_file_keys.py` (14 tests): both orders, three files defining one key, `scan` / `check` / `verify`, and the silent cases - two files with different keys, one entry, one file naming a key twice (still one finding), and one file passed twice.  Nine mutations, all red; one survived the first round and the `--bib a.bib --bib a.bib` test is what killed it, which is why that case is pinned.
+  *Not covered*: no real Zotero or JabRef export split across two files.  `citevouch draft --bib` reads the same files but prints none of their parse findings - not this one and not the older ones - so the finding reaches `scan`, `check` and `verify` only.  That silence predates this change and is left alone here.
+
 ## P1 — nobody can start using it
 
 - [x] **`draft` proposed a quote for the sentence after the one the author cited.** *Done 2026-11-02.*
