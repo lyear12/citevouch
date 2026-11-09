@@ -4044,3 +4044,57 @@ would a person actually have on disk", not by reading the code.
   share); a `.txt` source, which has no declaration to read; and a `.bib`,
   deliberately left on the byte-share rule because a bibliography is mostly
   ASCII and a readable one must not be refused.
+
+- [x] **P1 - a quotation that was never decoded was reported as a quotation the page does not have**
+
+  **What was wrong.** A manuscript saved in GBK (what a Chinese Windows editor
+  writes by default) is decoded by `textnorm._decode_text`, whose last line is
+  `raw.decode("utf-8", errors="replace")`.  The fence line, the `quote:` label
+  and every attribute are ASCII, so the block is still parsed; only the quoted
+  words become U+FFFD.  Measured on a 111-byte GBK manuscript quoting a
+  sentence its source prints verbatim on page 1:
+
+      [high] quote-missing at manuscript.md:3 (c1): <replacement characters>
+      -- quote not found in page.txt
+
+  exit 1, after `scan` had already recorded the corrupted quote into
+  `citevouch.lock.json`.  `check --use-recorded` - the command `action.yml`
+  runs on every pull request - reported exactly the same thing.  `source-encoding`
+  could not answer it: that check judges a *source* file, and this is the
+  manuscript.  Two neighbours were silent in the same direction: `draft` said
+  "no citations were found to propose them for (this command reads `[@key]` and
+  `\cite{key}`)", pointing at the author's syntax when the syntax was correct,
+  and `doctor` printed nine `[ok  ]` lines and exited 0 while the run it
+  explains was accusing the author.
+
+  **What it does now.** `textnorm.UNDECODED` names the character a decoder
+  writes where it could not read a byte.  `verify` counts a claim whose quote
+  holds one as **skipped, never missing**, reports `claim-not-decoded` (high)
+  naming the file and the `iconv` line that fixes it, and does not search the
+  page at all.  `doctor`'s `claims` check fails with the same reading and the
+  same fix line.  `draft` says the file was never decoded, in the stderr line
+  and in the proposals file, instead of blaming the citation syntax.
+  `model.CODES`, `report.SARIF_RULES` and both README code tables carry the new
+  code.
+
+  **Why it is now true.** 17 tests in `tests/test_undecoded_quote.py`: the
+  quote is not accused, the new code appears, the message names the file and
+  `iconv`, the severity is `[high]`, the tally reads `1 claim — 0 verified, 0
+  moved, 0 missing, 1 skipped`, and the recorded pass produces the identical
+  code list.  Eleven mutations, all red: no guard, guard that refuses
+  everything, missing skip count, missing finding, severity lowered, no
+  `continue`, doctor ignoring the claims, draft counting zero, draft file
+  keeping the old sentence, stderr keeping the old sentence, and a guard that
+  also fires on U+FFFD in a *page*.
+
+  Kept deliberately: a UTF-8 manuscript quoting a sentence the page does not
+  print is still `quote-missing`; a page that legitimately holds U+FFFD does not
+  trip the guard, because the guard is about the manuscript; and an eight-bit
+  *source* file is still `source-encoding`, judged by
+  `sources.encoding_problem`.
+
+  **Not covered.** A GBK manuscript that holds **no** claim block still reports
+  `no-claim-blocks` with no mention of the encoding - that sentence is already
+  true ("this file has none"), it just does not say why, and adding the encoding
+  reason to it is a separate change to the scan-level message.  `draft`'s
+  "nothing on any page shares enough terms" line has the same shape.
