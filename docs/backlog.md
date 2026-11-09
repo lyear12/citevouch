@@ -3927,3 +3927,58 @@ would a person actually have on disk", not by reading the code.
   *Not covered*: real PDFs whose extractor splits a word across a break, and sentences
   spanning more than `MAX_STITCHED_PAGES` (4) pages - beyond that the matcher itself
   reports the quote missing, so `draft` never reaches this branch.
+
+- [x] **P1 - a sentence the browser never paints was verified as a quotation**
+
+  *What was wrong.* The HTML reader dropped inert elements by tag name
+  (`script`, `style`, `template`, `textarea`, `iframe`) and that list was the
+  whole rule.  A browser has a second, larger vocabulary for "do not paint
+  this" and none of it is a tag name.  Measured on a one-claim project whose
+  only source held the sentence in each layout:
+
+  - `<div style="display:none">We collected 40,688 examples from the corpus.</div>`
+  - `<div style="visibility:hidden">` around the same sentence
+  - `<p hidden>`
+  - `<span aria-hidden="true">`
+  - a `<title>` in `<head>`
+  - a `<datalist>` `<option>`
+
+  Every one answered `[info] quote-found … quote found on page 1` and exited 0.
+  Every other HTML defect this reader has had turned a visible quote into
+  `quote-missing` - annoying, but the author checks and finds the tool wrong.
+  This one certified words nobody can see, which is the only thing the tool
+  exists to prevent.
+
+  *What it does now.* `_without_unpainted()` reads the opening tag instead of
+  the tag name: `_attributes()` is a tokeniser, `_style_hides()` recognises
+  `display: none` and `visibility: hidden|collapse`, `_paints_nothing()` adds
+  the `hidden` attribute unless it is `until-found`, and `_end_of_element()`
+  counts depth so a nested `<div>` goes with its parent while a sibling stays.
+
+  *Done - why it is now true.* `tests/test_unpainted_html.py` (37 tests) covers
+  the six layouts end to end (each must fail `check`), a nested element going
+  with its parent, a sibling surviving, an unclosed element running to the end,
+  a void element (`<img hidden>`) hiding only itself, and the four shapes that
+  must keep verifying: `aria-hidden`, `<title>`, `<datalist>` and
+  `hidden="until-found"`.  Thirteen mutations all go red - the ones that matter
+  are "no normalisation of the style's spelling", "the attribute reader falls
+  back to searching for the word", "the end of the element is the first closing
+  tag", "an unclosed element ends where it started" and "the pass is not run at
+  all".
+
+  *The first fix was wrong in the same way twice.* Searching the tag for
+  `\bhidden\b` dropped five elements nothing had hidden
+  (`title="hidden"`, `data-hidden="true"`, `class="hidden"`, `id="hidden"`,
+  `aria-label="hidden"`), and a lookbehind fixing `aria-hidden` still ate
+  `title="hidden"`.  The question was "is `hidden` an attribute name here", and
+  the answer is a tokeniser, not a better regex.
+
+  *Not covered*: `color: white`, `font-size: 0`, `opacity: 0` and
+  `position: absolute; left: -9999px` are all ways an author hides text and all
+  also ordinary styling, so they are deliberately left in the page text -
+  documented in `_style_hides`'s docstring, because the false `quote-missing`
+  they would cause costs more.  Nor does this read a stylesheet: `<style>
+  .gone { display: none }` is dropped by `_UNRENDERED_TAGS` as raw text, so a
+  class-based hide is not resolved.  Measured: a page whose only source kept the
+  sentence in `<p class="gone">` still verifies with the stylesheet present,
+  because the class-to-rule mapping is not read.
