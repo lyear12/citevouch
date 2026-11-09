@@ -79,7 +79,7 @@ rots:
 | `check-unavailable` | high | `doctor` found a check it cannot pass: no PDF library, an unsupported interpreter, a cache it cannot write |
 | `bib-key-missing` | high | the claim cites no bibliography key that is there (with no `ref=`, its source file's name was looked up instead) |
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
-| `bib-duplicate-key` | high | two entries share a key |
+| `bib-duplicate-key` | high | two entries share a key, in one file or across two |
 | `bib-unparsed-entry` | high | an entry never closes, so everything after it was not read |
 | `bib-unreadable` | high | not one entry could be read, so no reference was checked against it |
 | `bib-entry-header-unparsed` | medium | text between entries, or an `@` header that is not a usable entry |

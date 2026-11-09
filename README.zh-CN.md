@@ -76,7 +76,7 @@ worst severity: high
 | `check-unavailable` | high | `doctor` 有一项检查过不去：没有 PDF 库、解释器版本不支持、缓存不可写 |
 | `bib-key-missing` | high | claim 引用的书目键不在库里（没写 `ref=` 时，拿来查的是它源文件的名字） |
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
-| `bib-duplicate-key` | high | 两个条目共用一个键 |
+| `bib-duplicate-key` | high | 两个条目共用一个键（同一个文件里，或分处两个文件） |
 | `bib-unparsed-entry` | high | 有条目定界符始终未闭合，它之后的条目全部读不到 |
 | `bib-unreadable` | high | 一条条目都读不出来，所有引用都没能跟文献库核对 |
 | `bib-entry-header-unparsed` | medium | 条目之间残留了读不到的文本，或 `@` 头不是可用条目 |

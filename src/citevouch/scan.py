@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import __version__
-from .bibtex import parse_bib
+from .bibtex import merge_entries, parse_bib
 from .errors import UsageError, why_not_a_file
 from .latex import looks_like_latex
 from .manuscript import (
@@ -449,6 +449,9 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             continue
         result = parse_bib(read_text(bib_path), recorded_path(root, bib_path))
         findings.extend(result.findings)
-        ledger.entries.update(result.entries)
+        # Merged through `merge_entries`, not `dict.update`: two files that
+        # define one key used to overwrite each other silently, so the entry a
+        # claim was judged against depended on the order of the --bib flags.
+        findings.extend(merge_entries(ledger.entries, result.entries))
 
     return ledger, findings

@@ -444,6 +444,48 @@ REQUIRED_FIELDS = {
 }
 
 
+def merge_entries(into: dict[str, BibEntry], entries: dict[str, BibEntry]) -> list[Finding]:
+    """Merge ``entries`` into ``into``, reporting a key that both sides define.
+
+    ``parse_bib`` reports a key defined twice *inside one file*.  Two files
+    each defining it once produced no finding at all, because the merge was
+    ``dict.update``: the later file silently replaced the earlier one, so which
+    entry a claim was judged against depended on the order of the ``--bib``
+    flags.  That order is an accident of the command line, not a statement
+    about the work.
+
+    Measured before this existed, with ``a.bib`` defining ``knuth2020`` as a
+    book and ``b.bib`` defining the same key as a different article::
+
+        $ citevouch scan manuscript.md --bib a.bib --bib b.bib
+        (no finding, exit 0, and the ledger kept b.bib's entry)
+
+    The finding is keyed to the file that won, so two clashes against two
+    different files stay two findings rather than collapsing into one.  The
+    later entry still wins - reporting the clash must not change the verdict,
+    or the fix would decide the answer instead of the evidence.
+    """
+    findings: list[Finding] = []
+    for key, entry in entries.items():
+        earlier = into.get(key)
+        if earlier is not None and earlier.path != entry.path:
+            findings.append(
+                Finding(
+                    code="bib-duplicate-key",
+                    message=(
+                        f"cite key {key!r} is defined in {earlier.path} and again "
+                        f"in {entry.path}; the entry from {entry.path} is the one "
+                        "that was kept, so which work this claim rests on depends "
+                        "on the order of the --bib flags"
+                    ),
+                    path=entry.path,
+                    line=entry.line,
+                )
+            )
+        into[key] = entry
+    return findings
+
+
 def field_findings(entries: dict[str, BibEntry]) -> list[Finding]:
     """Report required fields that are empty or absent.
 

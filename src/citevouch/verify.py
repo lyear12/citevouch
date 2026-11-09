@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .bibtex import field_findings, parse_bib
+from .bibtex import field_findings, merge_entries, parse_bib
 from .errors import why_not_a_file
 from .manuscript import ParseResult, parse_manuscript, scan_unbound_markers
 from .matching import excerpt, find_in_pages
@@ -403,7 +403,7 @@ def verify(
                 continue
             parsed_bib = parse_bib(bib_text, recorded_path(root, bib_path))
             result.findings.extend(parsed_bib.findings)
-            reread_entries.update(parsed_bib.entries)
+            result.findings.extend(merge_entries(reread_entries, parsed_bib.entries))
 
     # Two runs never read a file at all and still have entries to judge:
     # `fresh` means `scan` read these files moments ago in this same run and

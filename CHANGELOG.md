@@ -12,6 +12,23 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **Two `--bib` files that define one key silently overwrote each other.**  `parse_bib` reports a key defined twice *inside one file* (`bib-duplicate-key`, high). Two files each defining it once produced no finding at all, because `scan` merged them with `dict.update`: the later file replaced the earlier one, so which work a claim rested on was decided by the order of the `--bib` flags.
+
+  ```text
+  $ citevouch scan manuscript.md --bib a.bib --bib b.bib
+  citevouch: wrote citevouch.lock.json (1 claim)      # exit 0, no finding
+  ```
+
+  `a.bib` called `knuth2020` a book and `b.bib` called the same key a different article; the ledger kept whichever file came last on the command line, and the run was green either way. The `check --use-recorded` path that `action.yml` runs had the same silence, because it merged the re-read files the same way.
+
+  Both merges now go through `bibtex.merge_entries`, which reports the clash as `bib-duplicate-key` (high) and names **both** files and the key. The later entry still wins, so reporting the clash does not change the verdict: the fix must not decide the answer instead of the evidence. The same file named twice is not a clash - both passes read the same bytes.
+
+  `tests/test_bib_cross_file_keys.py` (14 tests) covers both orders, three files defining one key, the recorded and live passes, and the cases that must stay silent: two files with different keys, one entry, one file naming a key twice (still one finding), and one file passed twice. Nine mutations, all red - including one that replaced the newly added test, which is how the `--bib a.bib --bib a.bib` case got pinned.
+
+  *Not covered*: `citevouch draft --bib` reads the same files but never prints their parse findings at all - not this one, and not the ones that already existed - so the clause above applies to `scan`, `check` and `verify` only. That silence is older than this change and is left alone here.
+
 ## [0.22.42] — 2026-11-09
 ### Fixed
 

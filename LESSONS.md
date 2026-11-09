@@ -6460,3 +6460,18 @@ Half a re-read is worse than none. Adding a fresh read and leaving the verdicts 
 How to apply. When you add a fresh read to a pass that used to trust a cache, grep for every place the old data was consumed and ask of each one: does this sentence describe the file, or the memory of the file? Then write down the rule as one sentence and let the code be that sentence - here it became `judge the entries this run read`, which deleted a three-state flag that no test could reach. And keep the one honest exception explicit: a file that could not be opened yields nothing, so nothing in it is judged, and the `source-missing` / `bib-unreadable` finding says why. A key missing from a file nobody could read is not a missing key.
 
 Seen 1.
+
+## A rule enforced inside one container is not enforced across two
+
+`parse_bib` reports a key defined twice inside one file (`bib-duplicate-key`, high). Two files each defining it once produced no finding at all: `scan` merged the mappings with `dict.update`, so the later file silently replaced the earlier one and the run stayed green.
+
+    $ citevouch scan manuscript.md --bib a.bib --bib b.bib
+    citevouch: wrote citevouch.lock.json (1 claim)      # exit 0, no finding
+
+`a.bib` called `knuth2020` a book, `b.bib` called the same key a different article. Which work the claim rested on was decided by the order of the `--bib` flags - an accident of the command line, not a statement about the paper. The recorded pass `action.yml` runs had the same silence, because it merged the re-read files the same way.
+
+The bug is not in the check; the check was correct and complete for the container it was written in. It is in the assumption that a container is the whole input. Whenever a rule is stated over a collection that the code can also receive in pieces, ask which object the rule is really about - here it is "the bibliography", and the run can hold several files, so the rule has to live at the merge, not at the parser.
+
+How to apply. When a check lives inside a loop over inputs, ask what the function would say if the loop body ran twice. Then make the accumulation a named function (`merge_entries`) instead of `dict.update`, so the rule has somewhere to live and every caller inherits it - both `scan` and the re-reading recorded pass had to be changed, and a helper is what made "both" mechanical rather than remembered. And pin the case where the merge is a no-op: `--bib a.bib --bib a.bib` names one file twice and must stay silent, or the new finding teaches the author about their command line instead of their bibliography.
+
+Seen 1.
