@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.48] — 2026-11-09
 ### Fixed
 
 * **`draft` proposed a claim block that `check` would refuse on sight.**
@@ -30,7 +32,6 @@ tag and that file disagree.
   The three paths are now asked the same question the other two readers ask, and
   the skip note says which file is the problem and what to do about it
   (`tests/test_draft_source_is_manuscript.py`, 10 tests, six mutants).
-
 ## [0.22.47] — 2026-11-09
 ### Fixed
 
@@ -3750,7 +3751,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.47...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.48...HEAD
+[0.22.48]: https://github.com/lyear12/citevouch/releases/tag/v0.22.48
 [0.22.47]: https://github.com/lyear12/citevouch/releases/tag/v0.22.47
 [0.22.46]: https://github.com/lyear12/citevouch/releases/tag/v0.22.46
 [0.22.45]: https://github.com/lyear12/citevouch/releases/tag/v0.22.45
