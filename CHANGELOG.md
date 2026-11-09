@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.34] — 2026-11-09
 ### Fixed
 
 * **A credibility mark with no claim block was invisible on the CI path.**
@@ -40,7 +41,6 @@ tag and that file disagree.
   missing`, worst `high`, exit 1. Covered by
   `tests/test_unbound_markers_recorded.py` (13 tests) and four mutations, all
   red.
-
 ## [0.22.33] — 2026-11-09
 
 ## [0.22.33] — 2026-11-09
@@ -3352,7 +3352,9 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.33...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.34...HEAD
+[0.22.34]: https://github.com/lyear12/citevouch/releases/tag/v0.22.34
+[0.22.33]: https://github.com/lyear12/citevouch/releases/tag/v0.22.33
 [0.22.33]: https://github.com/lyear12/citevouch/releases/tag/v0.22.33
 [0.22.32]: https://github.com/lyear12/citevouch/releases/tag/v0.22.32
 [0.22.31]: https://github.com/lyear12/citevouch/releases/tag/v0.22.31
