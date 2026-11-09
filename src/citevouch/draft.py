@@ -33,7 +33,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import matching, sources
+from . import display, matching, sources
 from .evidence import is_the_manuscript
 from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
@@ -747,14 +747,26 @@ def draft(
     used_ids: set[str] = set(taken_ids or ())
     seen: set[tuple[int, str]] = set()
     proposed_quotes: set[str] = set()
-    sites = citation_sites(text)
+    # What a Markdown reader sees as a *specimen* rather than as prose is not
+    # something the author is citing.  Measured before this line existed, on a
+    # manuscript whose page prints the sampled sentence word for word and whose
+    # example key has no local file: a `[@ghost]` inside a fenced block, a code
+    # span, an HTML comment or an indented block made `draft` write
+    # "line 2: ghost - no local file: not in sources.toml ..." - the author told
+    # their own example has a missing paper.  Two of those shapes also dropped
+    # the paragraph underneath from `1 claim block(s) proposed (1 verbatim)` to
+    # `0 claim block(s) proposed (0 verbatim)`, because the fence or comment
+    # markers travelled into the sentence compared with the page.  Blanking the
+    # display keeps every offset and newline, so line numbers do not move.
+    masked = display.mask(text)
+    sites = citation_sites(masked)
     result.no_citations = not sites
     # Only a reading that lost bytes explains missing characters; in a lossless
     # file every replacement character is the author's, so nothing here is a
     # decoding problem and the summary must not call it one.
     result.undecodable = text.count(UNDECODED) if manuscript_lost else 0
     for site in sites:
-        sentence, _, _ = sentence_at(text, site.start)
+        sentence, _, _ = sentence_at(masked, site.start)
         if (site.start, site.key) in seen:
             continue
         seen.add((site.start, site.key))

@@ -12,6 +12,30 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`draft` read a citation the author was displaying as one they were making.**
+  Markdown has four ways to show a passage instead of writing it - a fenced block,
+  a code span, an HTML comment, an indented block - and a `[@key]` inside one is a
+  specimen of the syntax, not a citation. Measured on a manuscript whose page prints
+  the sampled sentence word for word, with `ghost` a key that has no local file, all
+  six shapes made `draft` write `line 2: ghost - no local file: not in sources.toml`:
+  the author told their own example has a missing paper. Two of the shapes lost more:
+  the paragraph underneath came back as `0 claim block(s) proposed (0 verbatim)` with a
+  medium-confidence passage, because ``` and `<!--` travelled into the sentence
+  compared with the page.
+  
+  The new `src/citevouch/display.py` blanks every displayed region while keeping the
+  text's length and its newlines exactly, so a position in it is the same position in
+  the manuscript. A closing fence carries at least as many of its own character as
+  opened it and nothing after them; a span closes on a run of exactly as many
+  backticks; an unterminated fence or comment runs to the end of the file, which
+  `manuscript` reports separately; and an indented block has to start a paragraph, or
+  an indented continuation of a list item would be read as sample text and its prose
+  would vanish. `draft` masks once and reads both citations and sentences from the
+  masked text. A `> ` blockquote is still prose, and a `[@ghost]` in an ordinary
+  sentence is still reported missing. 28 tests, 11 mutations, all red.
+
 ## [0.22.57] — 2026-11-09
 ### Fixed
 

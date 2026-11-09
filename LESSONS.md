@@ -7083,3 +7083,41 @@ How to apply:
   "an 8-bit file of pure two-byte script, no ASCII, even length" - so the next
   reader knows the boundary is known rather than missed.
 
+
+## How a passage is set decides whether it is a claim
+
+A manuscript holds two kinds of text that look alike: sentences the author is
+asserting, and passages the author is *showing*. A fenced block, a code span, an
+HTML comment and an indented block all render as specimens; a `[@key]` inside one
+is an example of the notation, not a place the author cites that key. Both are the
+same characters to a regex, so a reader that only knows the notation cannot tell
+them apart - and the answer it gives is about the author, not about the text.
+
+The same mistake has two shapes, and the quiet one is worse:
+
+* a specimen citation is reported as a **missing paper**: `draft` wrote `line 2:
+  ghost - no local file`, telling the author their own example needs a file;
+* the *markers* of the display are counted as **words** of the neighbouring
+  sentence: ``` and `<!--` travelled into the statement compared
+  with the page, so a sentence the page prints word for word stopped matching and
+  the passage dropped from `1 verbatim` to `0 verbatim` with medium confidence.
+
+A fix has to answer both, which means masking rather than filtering: replace every
+displayed character with a space, keep the length and the newlines, and let every
+downstream question - where is the citation, where does the sentence start - be
+asked of the masked text. Masking also keeps the marker's own offsets, so the line
+number a reader is given still points at the line in their file.
+
+How to apply:
+
+* when a rule is about what a *reader* sees, ask which rendering it is about, and
+  make the display rules a named module instead of a condition inside one caller;
+* a mask that changes length or newlines silently moves every line number the tool
+  reports - assert length and newline offsets directly, not only through an
+  end-to-end run that can pass because two neighbouring regions happen to cover the
+  same characters;
+* write the closing rule for each delimiter in terms of its own character: a tilde
+  fence is not closed by backticks, a long fence is not closed by a short one, and a
+  line with text after the run does not close anything;
+* masking is only half the fix - the same distinction usually exists in every other
+  input format, so write down which ones are still open.
