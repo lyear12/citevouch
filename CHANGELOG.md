@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.76] — 2026-11-10
 ### Fixed
 
 * **An unknown field's value was searched as part of the quote, and the message said it was not.**  A claim body reads as a YAML mapping, so a `text: |` line under `quote:` is a sibling key with a block scalar.  The key is not one this format has, and that was already reported - but the reader never cleared the collection target, so the indented lines after it fell through to `if current:` and joined whatever field was open.  Measured on a quote verbatim on page 1:
@@ -30,7 +31,6 @@ tag and that file disagree.
       [high]   quote-missing … — quote not found in page.txt
 
   The finding promised the value was not searched, and the run searched it; the accusation that followed was against a passage that is on the page.  The known-attribute branch two lines above had cleared `current` since the day it was written, and the unknown-key branch was the copy of that branch that forgot the line.  `13 tests, 5 mutations, all red` - and a sixth that is equivalent by construction, recorded as such in the script rather than counted.
-
 ## [0.22.75] — 2026-11-10
 ### Fixed
 
@@ -4664,7 +4664,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.75...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.76...HEAD
+[0.22.76]: https://github.com/lyear12/citevouch/releases/tag/v0.22.76
 [0.22.75]: https://github.com/lyear12/citevouch/releases/tag/v0.22.75
 [0.22.74]: https://github.com/lyear12/citevouch/releases/tag/v0.22.74
 [0.22.73]: https://github.com/lyear12/citevouch/releases/tag/v0.22.73
