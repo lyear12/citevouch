@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.65] — 2026-11-10
 ### Fixed
 
 * **A `macros.bib` passed beside `refs.bib` did nothing, and the message said
@@ -42,7 +43,6 @@ tag and that file disagree.
   definitions-only file is still `[low] bib-no-entries`.
 
   9 tests, 9 mutations, all red.
-
 ## [0.22.64] — 2026-11-10
 ### Fixed
 
@@ -4307,7 +4307,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.64...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.65...HEAD
+[0.22.65]: https://github.com/lyear12/citevouch/releases/tag/v0.22.65
 [0.22.64]: https://github.com/lyear12/citevouch/releases/tag/v0.22.64
 [0.22.63]: https://github.com/lyear12/citevouch/releases/tag/v0.22.63
 [0.22.62]: https://github.com/lyear12/citevouch/releases/tag/v0.22.62
