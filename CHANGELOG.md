@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.70] — 2026-11-10
 ### Fixed
 
 * **A table header row was certified as a quotation.**
@@ -59,7 +60,6 @@ tag and that file disagree.
   `_PAGE_CELL` says what a page cell may contain.
 
   20 tests, 12 mutations, all red.
-
 ## [0.22.69] — 2026-11-10
 ### Fixed
 
@@ -4479,7 +4479,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.69...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.70...HEAD
+[0.22.70]: https://github.com/lyear12/citevouch/releases/tag/v0.22.70
 [0.22.69]: https://github.com/lyear12/citevouch/releases/tag/v0.22.69
 [0.22.68]: https://github.com/lyear12/citevouch/releases/tag/v0.22.68
 [0.22.67]: https://github.com/lyear12/citevouch/releases/tag/v0.22.67
