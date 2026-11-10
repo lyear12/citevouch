@@ -12,6 +12,33 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A bibliography message named a ledger that no run had written.**
+
+  `verify` decided how to name the bibliography behind a `bib-key-missing`
+  finding from two branches: the file it had just re-read, or the file the
+  ledger recorded.  `check --bib` is a third path - it scans the manuscript
+  and the bibliography to answer this one run, and writes no ledger at all -
+  so on a project that has never been scanned it reported
+
+  ```text
+  [high] bib-key-missing at manuscript.md:1 (c1): claim c1 cites
+        'knuth2020', which is not in the bibliography the ledger recorded
+  ```
+
+  while `ls citevouch.lock.json` said the file does not exist - before the
+  run or after it.  The sentence named a document that never existed, and a
+  reader told to look for it would find nothing there.
+
+  The sentence now has three cases: `the bibliography` for the re-read file,
+  `the bibliography this run read` for a fresh scan, and `the bibliography
+  the ledger recorded` only for a ledger old enough to carry entries without
+  the file that produced them.
+
+  5 tests, 4 mutations and 1 measured equivalent, all red or proved
+  equivalent.
+
 ## [0.22.62] — 2026-11-10
 ### Fixed
 

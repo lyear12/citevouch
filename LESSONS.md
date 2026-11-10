@@ -7258,3 +7258,30 @@ How to apply:
 * A mutation that changes no observable behaviour is not a hole in the tests.
   Measure it over the whole table before reporting it as a survivor, and say
   so in the harness so the next run does not chase it again.
+## The number of branches a variable has is the number of facts behind it
+
+`verify` named the bibliography in a `bib-key-missing` sentence from one
+variable with two possible values: the file it had just re-read, or the file
+the ledger recorded.  A third caller had a third source - `check --bib` scans
+the manuscript and the bibliography for this run and writes no ledger - and it
+was handed one of the two sentences that were already written.  On a project
+that had never been scanned it told the author
+
+```text
+[high] bib-key-missing at manuscript.md:1 (c1): claim c1 cites 'knuth2020',
+      which is not in the bibliography the ledger recorded
+```
+
+and `citevouch.lock.json` did not exist before the run and did not exist after
+it.  Nothing about the finding was wrong; the noun was.
+
+* A message that names a document is a claim about the filesystem, and the
+  filesystem can be asked.  When a branch picks a noun, run every branch and
+  `ls` the noun.
+* Two spelled-out alternatives read like a complete set because they are
+  spelled out.  Count the callers that reach the line, not the strings in the
+  expression.
+* The test that killed this one asserted both halves: the sentence, and that
+  the file it used to name is absent.  Asserting only the wording would have
+  left the premise free to change.
+

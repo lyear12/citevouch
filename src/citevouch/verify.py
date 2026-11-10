@@ -747,11 +747,26 @@ def verify(
         # The sentence has to name the file that was actually consulted.  When
         # the bibliography was re-read this run, saying "the ledger recorded"
         # points the author at a stale file they cannot inspect.
-        where = (
-            "the bibliography"
-            if verdict_entries is reread_entries
-            else "the bibliography the ledger recorded"
-        )
+        #
+        # The middle case is the mirror image: a plain `check --bib` reads the
+        # bibliography and never writes a ledger, so on a project that has
+        # never been scanned the old wording named a file that does not
+        # exist.  Measured on a fresh project:
+        #
+        #     check --bib refs.bib  -> 1, [high] bib-key-missing ...
+        #                              "not in the bibliography the ledger recorded"
+        #     citevouch.lock.json    -> absent, before and after
+        #
+        # `verdict_entries is ledger.entries` with `fresh` therefore means
+        # "the bibliography this run read"; only a ledger written before
+        # `bibliographies` existed has entries no file backs, and that is the
+        # one case where the recorded mapping is the only evidence there is.
+        if verdict_entries is reread_entries:
+            where = "the bibliography"
+        elif fresh:
+            where = "the bibliography this run read"
+        else:
+            where = "the bibliography the ledger recorded"
         message = (
             f"claim {claim.id} cites {ref_key!r}, which is not in {where}"
             if claim.ref
