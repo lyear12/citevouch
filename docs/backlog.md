@@ -4875,15 +4875,31 @@ would a person actually have on disk", not by reading the code.
   this item closed, left open because there is no rule here that both dialects
   would agree on.
 
-- [ ] **P2 - a roman-numeral page hint deletes a table claim row**
+- [x] **P2 - a roman-numeral page hint deletes a table claim row**
 
-  `| c1 | paper | iv | We collected ... | note |` matches no claim at all: the
-  file reports `no-claim-blocks ... This file has none` when that is its only
-  row, and silently drops the row when it has company. The fence dialect has
-  the same hole from the other side - `page=iv` parses, `int()` refuses it, and
-  `page-unreadable` names the ignored hint - so the fence answer is honest and
-  the table answer is silence. Direction to try: admit `[ivxlcdm]+` runs in the
-  page cell, let `int()` refuse them, and confirm a results table's third column
-  cannot be a bare roman numeral often enough to matter. Not done here because
-  it wants a decision about which of `iv`, `iv-vii`, `IV` are hints and which
-  are words, and a wrong answer deletes rows in the other direction.
+  What was wrong: `| c1 | paper | iv | We collected ... | note |` matched no
+  claim at all. The file reported `no-claim-blocks ... This file has none` when
+  that was its only row, and silently dropped the row when it had company. The
+  fence dialect answered `page=iv` with `page-unreadable`, medium, and verified
+  the quote anyway - so one dialect named an ignored hint and the other said the
+  file was empty.
+
+  What it does now: the page cell admits a roman numeral and lets `int()` refuse
+  it, exactly the way it already refuses `p. 3` and `1,2`. The alphabet is i, v,
+  x and l, each run has to be a canonical numeral, and a run joined by a dash, an
+  en dash, an em dash or a comma is one hint - so `iv`, `IV`, `iv-vii`,
+  `iv, vii`, `p. iv` and `pp. iv-vii` are all read, while `ill`, `mix`, `class`,
+  `civic`, `live`, `x-ray`, `iv.` and a cell holding `m` or `c` stay words.
+
+  Why it is now true: `tests/test_table_roman_page.py`, 42 tests, and 9
+  mutations, all red - no roman branch, any letters, any run of i/v/x/l,
+  lowercase only, no comma separator, one numeral never a run, m and c admitted,
+  non-canonical numerals, branch unreachable. One test asserts the fence and
+  table dialects return the same code for the same value, which is the property
+  whose absence caused three defects in a row (numbers, then the prose around
+  them, then numerals).
+
+  Not covered: a page numbered in the hundreds in roman numerals. `m` and `c`
+  are left out on purpose, because a table's third column is far more likely to
+  say `class` or `done` than to be page `mcmxc`; that cell is still silently
+  dropped, and it is the same shape as the defect this item closed.
