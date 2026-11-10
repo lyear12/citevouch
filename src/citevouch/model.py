@@ -69,6 +69,7 @@ CODES = {
     "bib-field-malformed": "medium",
     "bib-field-duplicate": "medium",
     "bib-duplicate-key": "high",
+    "bib-macro-redefined": "high",
     "bib-macro-unknown": "medium",
     "bib-entry-header-unparsed": "medium",
     "bib-unparsed-entry": "high",

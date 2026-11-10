@@ -79,6 +79,7 @@ worst severity: high
 | `bib-key-missing` | high | claim 引用的书目键不在库里（没写 `ref=` 时，拿来查的是它源文件的名字） |
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
 | `bib-duplicate-key` | high | 两个条目共用一个键（同一个文件里，或分处两个文件） |
+| `bib-macro-redefined` | high | 两个 `--bib` 文件给同一个 `@string` 定义了不同的值，于是 flag 的顺序决定了字段指的是哪一份文献 |
 | `bib-unparsed-entry` | high | 有条目定界符始终未闭合，它之后的条目全部读不到 |
 | `bib-unreadable` | high | 一条条目都读不出来，所有引用都没能跟文献库核对 |
 | `bib-no-entries` | low | 书目只有定义（`@string`/`@preamble`），没有条目可回答任何键 |

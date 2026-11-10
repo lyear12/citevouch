@@ -56,6 +56,10 @@ SARIF_RULES = {
     "bib-field-malformed": "A bibliography field could not be read.",
     "bib-field-duplicate": "A bibliography field is given twice.",
     "bib-duplicate-key": "A bibliography key appears twice.",
+    "bib-macro-redefined": (
+        "Two bibliographies in one run define one @string differently, so the "
+        "work an entry names depends on the order of the --bib flags."
+    ),
     "bib-macro-unknown": "A @string macro used by a field is not defined.",
     "bib-entry-header-unparsed": "An @ header is not a usable entry.",
     "bib-unparsed-entry": "An entry never closes, so the entries after it could not be read.",

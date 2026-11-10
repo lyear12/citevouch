@@ -517,11 +517,51 @@ def parse_bib_group(files: list[tuple[str, str]]) -> list[BibResult]:
     beside `refs.bib` reported `journal = acm` as an undefined macro for all
     three orders (macros first, refs first, refs alone), with the definition
     on line 1 of the other file.
+
+    Two files that define one macro *differently* are a different fact and now
+    get their own finding.  Measured before it existed, on `a.bib` defining
+    `j = "Journal A"` and `c.bib` defining `j = "Journal C"`:
+
+        a.bib c.bib e.bib -> journal = 'Journal C'   (no finding)
+        c.bib a.bib e.bib -> journal = 'Journal A'   (no finding)
+
+    So which work the entry named depended on the order of two flags and
+    nothing said so.  `bib-duplicate-key` already refuses that shape for
+    entries; a macro is the same fact one level up, so the message says what
+    the entry resolved to and that the group disagreed.
     """
     known: dict[str, str] = {}
+    where: dict[str, tuple[str, str]] = {}
+    conflicts: list[Finding] = []
     for text, path in files:
-        known.update(parse_bib(text, path).strings)
-    return [parse_bib(text, path, known) for text, path in files]
+        for name, value in parse_bib(text, path).strings.items():
+            if name in known:
+                if known[name] == value:
+                    continue
+                earlier_path, earlier_value = where[name]
+                conflicts.append(
+                    Finding(
+                        code="bib-macro-redefined",
+                        message=(
+                            f"@string {name!r} is defined as {earlier_value!r} in "
+                            f"{earlier_path} and as {value!r} in {path}; the "
+                            f"definition from {path} is the one used, so which "
+                            "work a field built from this macro names depends on "
+                            "the order of the --bib flags"
+                        ),
+                        path=path,
+                        line=1,
+                    )
+                )
+            where[name] = (path, value)
+            known[name] = value
+    parsed = [parse_bib(text, path, known) for text, path in files]
+    if conflicts:
+        # Attached to the first result so every caller already gathers findings
+        # from the group sees it; the alternative was a fifth return value that
+        # three readers would each have to remember to collect.
+        parsed[0].findings.extend(conflicts)
+    return parsed
 
 
 REQUIRED_FIELDS = {

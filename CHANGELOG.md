@@ -12,6 +12,31 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **Two `--bib` files that define one macro differently chose a winner
+  silently.** The group of files shares one `@string` table now, and a repeated
+  name was simply overwritten.  Measured on `a.bib` defining
+  `j = "Journal A"` and `c.bib` defining `j = "Journal C"`, with `e.bib` using
+  `j`:
+
+  ```text
+  a.bib c.bib e.bib -> journal = 'Journal C'   (no finding)
+  c.bib a.bib e.bib -> journal = 'Journal A'   (no finding)
+  ```
+
+  So which work the entry named depended on the order of two flags, and nothing
+  said so.  `bib-duplicate-key` already refuses that shape for entries; a macro
+  is the same fact one level up.
+
+  `bibtex.parse_bib_group` now compares the definitions as it collects them and
+  reports `bib-macro-redefined` (high) naming the macro, both values and both
+  files, instead of quietly keeping the last one.  An identical repeat is still
+  not a conflict, and a file that redefines its own macro is unchanged -- that
+  shape had an answer before `--bib` could be given twice.
+
+  11 tests, 7 mutations, all red.
+
 ## [0.22.65] — 2026-11-10
 ### Fixed
 

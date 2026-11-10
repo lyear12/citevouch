@@ -82,6 +82,7 @@ rots:
 | `bib-key-missing` | high | the claim cites no bibliography key that is there (with no `ref=`, its source file's name was looked up instead) |
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
 | `bib-duplicate-key` | high | two entries share a key, in one file or across two |
+| `bib-macro-redefined` | high | two `--bib` files define one `@string` differently, so the order of the flags decides which work a field names |
 | `bib-unparsed-entry` | high | an entry never closes, so everything after it was not read |
 | `bib-unreadable` | high | not one entry could be read, so no reference was checked against it |
 | `bib-no-entries` | low | a bibliography holds only definitions (`@string`/`@preamble`), so no key can be answered from it |

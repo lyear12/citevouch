@@ -7366,3 +7366,33 @@ How to apply:
 
 Oldest first: keep this entry last.
 
+## Two answers to one question are a conflict, and picking one is not an answer
+
+`--bib` may be given more than once, so the files are one bibliography with one
+`@string` table.  When two of them defined the same macro differently, the table
+was overwritten in flag order and the run said nothing:
+
+```text
+a.bib c.bib e.bib -> journal = 'Journal A'/'Journal C'   (no finding, order decides)
+```
+
+`bib-duplicate-key` had already refused this shape for entries -- "which work
+this claim rests on depends on the order of the --bib flags" -- and the macro
+case is the same fact one level up.  Two files that both answer "what is `j`"
+are not a merge, they are a disagreement, and the tool's job is to say so rather
+than to have an order.
+
+How to apply:
+
+- Whenever a later definition overwrites an earlier one, ask whether the two
+  are equal.  `dict.update` and `x[k] = v` both answer "yes, they agree"
+  without checking, and that is the silent case.
+- An identical repeat is not a conflict.  The test that matters is
+  disagreement, not repetition -- otherwise every `\input` of the same macros
+  file reports twice.
+- Reach for the existing refusal first.  `bib-duplicate-key` already had the
+  wording, the severity and the argument; copying it kept the two findings
+  consistent and made the new one explicable in one sentence.
+
+Oldest first: keep this entry last.
+
