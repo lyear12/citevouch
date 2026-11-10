@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.60] — 2026-11-10
 ### Fixed
 
 * **The markdown report left out the claims it skipped.**
@@ -37,8 +38,6 @@ tag and that file disagree.
   The clause is conditional on `result.skipped`, exactly as the text tally is,
   so a clean report keeps the row it has always had: 6 tests, 6 mutations, all
   red.
-
-
 ## [0.22.59] — 2026-11-09
 ### Fixed
 
@@ -4149,7 +4148,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.59...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.60...HEAD
+[0.22.60]: https://github.com/lyear12/citevouch/releases/tag/v0.22.60
 [0.22.59]: https://github.com/lyear12/citevouch/releases/tag/v0.22.59
 [0.22.58]: https://github.com/lyear12/citevouch/releases/tag/v0.22.58
 [0.22.57]: https://github.com/lyear12/citevouch/releases/tag/v0.22.57
