@@ -4903,3 +4903,39 @@ would a person actually have on disk", not by reading the code.
   are left out on purpose, because a table's third column is far more likely to
   say `class` or `done` than to be page `mcmxc`; that cell is still silently
   dropped, and it is the same shape as the defect this item closed.
+
+- [x] **P1 - an HTML block under a one-line claim comment was read as the quote**
+
+  What was wrong: the one-line comment dialect ends where the next construct
+  starts, and that list held a blank line, a fence, another comment opener, a
+  table row, an ATX heading and a thematic break.  HTML was missing, so a claim
+  comment written directly above a closing tag was read with the tag as its
+  quote.  Measured in a project whose page prints the quoted sentence:
+
+      <!-- claim: c1 source=paper page=1 -->
+      </div>
+      -> [high] quote-missing at manuscript.md:1 (c1): </div> - quote not found
+         (too short for a fuzzy comparison) in page.txt
+
+  The same for `<div class="note">`, `<br>`, `<hr>`, `<table>`, `<details>` and
+  an image line.  Each one sent the author to their PDF looking for a tag their
+  source never printed, when the block holds no quote at all and the honest
+  finding is `claim-uncheckable`.
+
+  What it does now: the boundary rule is CommonMark's HTML block types - a
+  block-level tag name opens a block whether or not prose follows it on the
+  line, a complete tag alone on a line opens a block, and
+  `<script>`/`<pre>`/`<style>`/`<textarea>` open a block.  A tag inside a
+  sentence stays in the sentence: `a <b>bold</b> word` is prose, `<divs>` is not
+  a tag name, and `5 < 7 and 8 > 2` is arithmetic.
+
+  Why it is now true: `tests/test_html_block_boundary.py`, 46 tests, and 10
+  mutations, all red.  Three of the ten survived the first suite and only died
+  after fixtures with prose after the tag were added - the alone-on-a-line form
+  and the block-level name list look identical until a line puts text after the
+  tag.
+
+  Not covered: treating every angle bracket as a boundary would chop a legitimate
+  quote in half, so a tag that starts a line and is not in CommonMark's list
+  stays content.  That is the same trade the whole dialect makes: erring short
+  drops a quote, erring long invents one.
