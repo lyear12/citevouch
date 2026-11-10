@@ -12,6 +12,42 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A file whose only table row was the table's header checked nothing, and said so with exit 0.**
+
+  The header row was recognised in 0.22.70: a table row directly above the `|---|`
+  delimiter is the table's header, its cells are column labels, and it is not a claim.
+  That much was right. What it also did, without anyone asking, was let the run pass.
+
+  `scan` and `verify` decide whether a run checked nothing with
+  `ParseResult.nothing_to_check`, which asks whether any finding's code starts with
+  `claim-`. Every such code used to describe a block the author wrote and the parser
+  could not use, so the reader already knows why nothing was checked. A header row is
+  not a block at all, and the new code broke the premise quietly:
+
+  ```
+  | model | setting | 84 | We report the mean over five seeds. | note |
+  |-------|---------|----|------------------------------------|------|
+  -> [medium] claim-table-header at manuscript.md:1 (model): ...
+  -> citevouch: 0 claims — 0 verified, 0 moved, 0 missing
+  -> worst severity: medium, exit 0
+  ```
+
+  while the same project with an empty manuscript exited 1 with `no-claim-blocks`. A CI
+  gate over a manuscript whose header happened to be claim-shaped passed while nothing
+  at all was verified. `nothing_to_check` now excludes `claim-table-header` by name,
+  with the reason written beside it: a code earns its place in that exclusion by
+  explaining a block, and this one explains that there is no block.
+
+  The second half was the sentence that followed. With the exit code fixed, the
+  `no-claim-blocks` near-miss list still pointed at the header row and said the row was
+  "inside a blockquote, a list item or an indent, where Markdown renders it as a code
+  sample rather than a table" - about a row at the left margin. `scan` now skips header
+  rows in that list too, so both readers of the same lines agree.
+
+  `tests/test_header_only_file.py`, 10 tests, 5 mutations, all red.
+
 ## [0.22.70] — 2026-11-10
 ### Fixed
 

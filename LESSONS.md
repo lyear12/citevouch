@@ -7537,3 +7537,53 @@ How to apply:
 - When a parser skips a line without recording anything, ask what that line could have told the parser about its neighbours.  A delimiter row is pure metadata about the row above it, and metadata is exactly what a reader stops seeing first.
 - A rule that decides "is this a datum" has to decide "is this a label" too, because the two shapes are chosen by the *author's* formatting, not by the tool's grammar.  Markdown makes them identical.
 - Two narrowings in a row (0.22.68 widened a page cell to stop a row vanishing; this narrowed a row to stop a label being believed) can both be right.  Write down what each one is a statement about - a cell's contents, or a line's role - so the next fix knows which question it is answering.
+
+## A code that explains why nothing was checked is not a code that something was
+
+`scan` and `verify` ask `ParseResult.nothing_to_check` whether a run verified
+anything. The property was written as "no claims, and no finding whose code
+starts with `claim-`", and the `claim-` prefix meant something: every code that
+starts with it describes a block the author wrote and the parser could not use,
+so the reader is told why there are no claims and a second sentence saying
+"and there are none" would repeat the first.
+
+Then a new code arrived whose prefix was right and whose meaning was inverted.
+`claim-table-header` says a row is *not* a block. Under the prefix rule it
+counted as an explanation, so this file:
+
+```
+| model | setting | 84 | We report the mean over five seeds. | note |
+|-------|---------|----|------------------------------------|------|
+```
+
+exited 0 with `0 claims — 0 verified, 0 moved, 0 missing`, while an empty
+manuscript exited 1 with `no-claim-blocks`. Both files checked nothing. A CI
+gate over the first one passed.
+
+The prefix was a shorthand for a property nobody had written down, and the
+shorthand outlived the reason for it. Writing the reason down - in the property
+itself, by name, with a comment - is what lets the next code be classified
+instead of inherited.
+
+Two more things came out of the same fix:
+
+* The second reader of the same lines disagreed. `scan`'s near-miss list still
+  pointed at the header row and called it "inside a blockquote, a list item or
+  an indent", about a row at the left margin. One fact, two readers, and the fix
+  reached only the first.
+* The way this was found was not a new test on the new code - the new code was
+  fully tested. It was asking what the *old* code would do with it, by running
+  an unrelated shape through the same door.
+
+How to apply:
+
+* When a set of codes, severities or names is used as a proxy for a property,
+  write the property down and classify by it. A prefix is a naming convention;
+  it cannot know that a later member means the opposite of its siblings.
+* After adding a code, run the shapes that already produced an answer and check
+  the answer did not change. The regression here was not in the new path, it was
+  in the old path's opinion of the new path.
+* "Zero of the thing being counted" and "the thing could not be counted" are
+  different states, and only one of them is a failure. If they share a branch,
+  find out which one the branch was written for.
+

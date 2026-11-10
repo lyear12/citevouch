@@ -345,7 +345,19 @@ class ParseResult:
         came to be written without it and to report an empty manuscript as a
         project with nothing wrong.
         """
-        return not self.claims and not any(f.code.startswith("claim-") for f in self.findings)
+        # `claim-table-header` does not belong here. Every other `claim-` code
+        # describes a block the author wrote and the parser could not use, so
+        # the reader already knows why nothing was checked. A header row is not
+        # a block at all, and a file whose only table row is its header checked
+        # nothing at all - exactly like an empty file, which exits 1 with
+        # `no-claim-blocks`. Counting the header as an explanation made that
+        # file exit 0 with `0 claims`, so a CI gate over a manuscript whose
+        # header happened to be claim-shaped passed while nothing was verified.
+        explained = any(
+            f.code.startswith("claim-") and f.code != "claim-table-header"
+            for f in self.findings
+        )
+        return not self.claims and not explained
 
 
 def _unquote(value: str) -> str:

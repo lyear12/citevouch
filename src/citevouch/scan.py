@@ -21,6 +21,7 @@ from .latex import looks_like_latex
 from .manuscript import (
     _CLAIMISH,
     _UNREAD_REASON,
+    _is_header_row,
     _unread_opener,
     parse_manuscript,
     scan_unbound_markers,
@@ -128,11 +129,20 @@ def _no_claim_blocks_finding(
     # sentence about a line the author is looking at.  `_WRAPPED` is the
     # parser's own table, so this path and a run that does accept claims name
     # the construct the same way.
-    wrapped = [
-        (number, hit[0])
-        for number, line in enumerate(lines, start=1)
-        if (hit := _unread_opener(line)) is not None
-    ]
+    # A table row directly above the `|---|` delimiter is the table's header,
+    # not a claim the parser refused, so it is not the line to point the author
+    # at.  Measured before this check: a manuscript whose only table row was
+    # its header reported `1 claim block in the file ... the table row is
+    # inside a blockquote, a list item or an indent` while the row sat at the
+    # left margin.  The same fact was already answered in `_unread_findings`;
+    # this is the second reader of the same lines and it has to agree.
+    wrapped: list[tuple[int, str]] = []
+    for index, line in enumerate(lines):
+        if _is_header_row(lines, index):
+            continue
+        hit = _unread_opener(line)
+        if hit is not None:
+            wrapped.append((index + 1, hit[0]))
     if near is None:
         if wrapped:
             number, dialect = wrapped[0]
