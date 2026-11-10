@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.64] — 2026-11-10
 ### Fixed
 
 * **A bibliography that holds only macros was reported as unreadable prose.**
@@ -47,7 +48,6 @@ tag and that file disagree.
   tables.
 
   9 tests, 8 mutations, all red.
-
 ## [0.22.63] — 2026-11-10
 ### Fixed
 
@@ -4276,7 +4276,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.63...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.64...HEAD
+[0.22.64]: https://github.com/lyear12/citevouch/releases/tag/v0.22.64
 [0.22.63]: https://github.com/lyear12/citevouch/releases/tag/v0.22.63
 [0.22.62]: https://github.com/lyear12/citevouch/releases/tag/v0.22.62
 [0.22.61]: https://github.com/lyear12/citevouch/releases/tag/v0.22.61
