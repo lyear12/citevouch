@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.75] — 2026-11-10
 ### Fixed
 
 * **An HTML block under a one-line claim comment was read as the quote.**
@@ -42,7 +43,6 @@ tag and that file disagree.
   of the ten only died after a second round: the first suite could not tell the
   block-level name list from the alone-on-a-line form, because every fixture had
   the tag alone.
-
 ## [0.22.74] — 2026-11-10
 ### Fixed
 
@@ -4645,7 +4645,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.74...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.75...HEAD
+[0.22.75]: https://github.com/lyear12/citevouch/releases/tag/v0.22.75
 [0.22.74]: https://github.com/lyear12/citevouch/releases/tag/v0.22.74
 [0.22.73]: https://github.com/lyear12/citevouch/releases/tag/v0.22.73
 [0.22.72]: https://github.com/lyear12/citevouch/releases/tag/v0.22.72
