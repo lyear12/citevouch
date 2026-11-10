@@ -7429,3 +7429,40 @@ How to apply:
 - When a pass builds findings for results it will return later, check which
   result each one is attached to. Attaching them all to the first is invisible
   today because every caller flattens, and wrong the moment one groups.
+
+## A column too narrow to hold a value deletes the row that carried it
+
+`_TABLE_CLAIM` read the `page` cell as `\d+|-|`. Three legal values fit.
+Everything else did not fail - it made the whole row match nothing, so the
+row was not a claim that had gone wrong, it was not a claim:
+
+```text
+| c1 | paper | 1   | <quote> | full sentence |   -> a claim
+| c2 | paper | 1-2 | <quote> | full sentence |   -> nothing at all
+```
+
+With a good row present the run said `1 claim - 1 verified` and no line
+mentioned the second. Alone, the same row made the file look empty and the
+run said `no-claim-blocks ... This file has none`, at `high`.
+
+The reason this was not noticed is worth more than the bug: the fence
+dialect reads the *same attribute* as free text and has answered it
+honestly since it was written -
+`page=1-2` reports `page-unreadable ... the hint is ignored`. One dialect
+had a vocabulary for "I cannot use this" and the other had only "this
+is not a claim", and nobody compared them because they are different
+parsers working on different syntaxes.
+
+How to apply:
+
+- A narrow alphabet in a parser is a *deletion* rule, not a validation
+  rule. Validation says no; a pattern that fails to match says the thing
+  was never there. Ask which one you are writing.
+- When two dialects spell the same field, they are two readers of one
+  contract. Write down what each does with a value neither can apply, and
+  make the answers agree before adding a third dialect.
+- The fix is not to widen the cell to anything. `iv` still matches
+  nothing, and a results table's header row still reads as a claim. A
+  wide alphabet buys the silent row back and spends the loud false
+  positive.
+

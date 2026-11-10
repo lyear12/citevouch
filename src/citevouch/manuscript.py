@@ -57,9 +57,31 @@ _HTML_CLOSE = re.compile(r"^\s*-->\s*$")
 # the author has not finished, and `claim-uncheckable` names it.
 # The unescaping is `_unescape_pipe`, applied where the columns are read.
 _CELL = r"(?:[^|\\]|\\.)*?"
+# The `page` cell is the one column of a claim row that is not free text, so
+# getting its alphabet wrong loses the row instead of misreading it.  It held
+# `\d+|-|` once, which read a page number and a "no hint" dash and nothing
+# else: a row whose author wrote `1-2` matched no claim at all, and a file
+# holding a good row plus that one reported `1 claim - 1 verified` with no line
+# mentioning the second.  Alone, the same row made the file look empty:
+# `no-claim-blocks ... This file has none`, over a file that holds one.
+#
+# The fence dialect has answered this value since it was written - `page=1-2`
+# reports `page-unreadable ... the hint is ignored and the quote will be
+# located by search`, and the claim is verified anyway.  So the cell now admits
+# anything that looks like a number or a run of them joined by a dash: a range,
+# a backwards range, an open-ended one, and the en/em dashes a word processor
+# substitutes.  `int()` still refuses each of them, which is the point - the
+# row is read, and the hint the tool cannot apply is the thing it complains
+# about.
+#
+# Deliberately not "any text": a results table's header row
+# (`| model | setting | 84 | f1 | note |`) already reads as a claim, and
+# widening this cell would make every such row one.  `iv` and `iv-vii` still
+# match nothing, which is a limit, not a claim about roman numerals.
+_PAGE_CELL = r"[0-9](?:[0-9\s\u2013\u2014-]*[0-9\u2013\u2014-])?|[-\u2013\u2014]|"
 _TABLE_CLAIM = re.compile(
     r"^\|\s*(?P<id>[A-Za-z0-9_.:-]*)\s*\|\s*(?P<source>" + _CELL + r")\s*\|"
-    r"\s*(?P<page>\d+|-|)\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"
+    r"\s*(?P<page>" + _PAGE_CELL + r")\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"
     r"\s*(?P<text>" + _CELL + r")\s*\|"
 )
 # What a cell's text is once the cell boundary has been found: the only escape

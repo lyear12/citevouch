@@ -12,6 +12,41 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table claim whose page cell held a range was not read at all.**
+  `_TABLE_CLAIM` accepted `\d+`, `-` or nothing in the page cell, so any
+  other spelling made the whole row match nothing.  Measured on a one-page
+  source whose quote is verbatim on page 1:
+
+  ```
+  | c1 | paper | 1 | <quote> | full sentence |
+  | c2 | paper | 1-2 | <quote> | full sentence |
+  ```
+
+  gave `1 claim - 1 verified, 0 moved, 0 missing`, `worst severity: info`
+  and exit 0, and no line anywhere mentioned the second row.  The range
+  row on its own was worse: the file looked empty and the run said
+  `[high] no-claim-blocks ... This file has none.`
+
+  The fence dialect has had an answer for this value since it was
+  written - `page=1-2` reports `[medium] page-unreadable ... the hint is
+  ignored and the quote will be located by search`, and the claim is
+  verified anyway.  So one dialect said "I did not use your hint" and the
+  other said nothing at all, about the same value, in the same tool.
+
+  The page cell now admits a number or a run of numbers joined by a dash,
+  including the en and em dashes a word processor substitutes.  Each of
+  those still fails `int()`, which is the point: the row is read, and the
+  hint the tool cannot apply is the thing it complains about.  Not "any
+  text", because a results table's header row
+  (`| model | setting | 84 | f1 | note |`) already reads as a claim and
+  widening the cell would make every such row one.  `iv` and `iv-vii`
+  still match nothing; that is a limit, recorded rather than hidden.
+
+  13 tests, 6 mutations, all red.
+
+
 ## [0.22.67] — 2026-11-10
 ### Fixed
 
