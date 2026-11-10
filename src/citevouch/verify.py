@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .bibtex import field_findings, merge_entries, parse_bib
+from .bibtex import field_findings, merge_entries, parse_bib_group
 from .errors import why_not_a_file
 from .evidence import is_the_manuscript, source_is_manuscript_finding
 from .manuscript import ParseResult, parse_manuscript, scan_unbound_markers
@@ -394,6 +394,7 @@ def verify(
     # `source-missing` or `bib-unreadable` finding above already says why,
     # and a key missing from a file nobody could read is not a missing key.
     reread_entries: dict[str, BibEntry] = {}
+    reread_texts: list[tuple[str, str]] = []
     if not fresh:
         for recorded_bib in ledger.bibliographies:
             bib_path = _resolve(root, recorded_bib)
@@ -417,7 +418,15 @@ def verify(
                     )
                 )
                 continue
-            parsed_bib = parse_bib(bib_text, recorded_path(root, bib_path))
+            reread_texts.append((bib_text, recorded_path(root, bib_path)))
+
+        # Read as one group, the way `scan` did: a `macros.bib` recorded
+        # beside `refs.bib` defines the macros `refs.bib` uses, and parsing
+        # each file alone reported them undefined - the recorded pass then
+        # disagreed with the run that wrote the ledger.  Measured: the recorded
+        # pass of a macros-first project reported `bib-macro-unknown` while the
+        # same project's fresh run reported none.
+        for parsed_bib in parse_bib_group(reread_texts):
             result.findings.extend(parsed_bib.findings)
             result.findings.extend(merge_entries(reread_entries, parsed_bib.entries))
 

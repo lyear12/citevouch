@@ -7327,3 +7327,42 @@ How to apply:
 - A message about a file the reader can open should describe what is in it.
   `macros.bib` holds two definitions; saying "no entries" and stopping there
   hides the half the reader can see.
+## A group of files is one fact, and parsing them one at a time invents a second
+
+`--bib` may be given more than once.  The shape that needs it is a shared
+`macros.bib` beside the `refs.bib` that uses its `@string`s.  Measured before
+this was fixed, on a project whose `macros.bib` holds
+`@string{acm = "Association for Computing Machinery"}` on line 1 and whose
+`refs.bib` says `journal = acm` -- all three orders, identical:
+
+```text
+[medium] bib-macro-unknown at refs.bib:1: knuth1984: 1 undefined macro in 1
+field ('journal' uses 'acm'); no @string defines them, so each name was kept as
+literal text
+```
+
+Every clause is false: a `@string` did define it, the file was read completely,
+and the two flags the tool accepts exist for exactly this.  The parse function
+was `parse_bib(text, path)` -- no way to pass in what an earlier file taught it
+-- so no caller could have done better than parse each file alone.  A signature
+that cannot receive the group has already decided the group is not one thing.
+
+The fix reads the group twice: first collect every definition, then parse each
+file against all of them, and return the second pass.  Which flag came first is
+not a fact about the bibliography, so neither pass may depend on it.
+
+How to apply:
+
+- When a command takes the same flag more than once, ask what the *set* means
+  before writing the loop.  A loop over the flags is a claim that they are
+  independent, and independence is a claim somebody has to check.
+- A parameter list is a design decision.  `parse_bib(text, path)` said, silently
+  and permanently, that no file can learn from another.  When a family of files
+  is meant to be read together, the signature has to say so.
+- Fixing one reader is not fixing the readers.  `scan`, `draft` and the recorded
+  pass in `verify` each opened the bibliography themselves, and the recorded
+  pass disagreeing with the run that wrote the ledger is a second bug wearing
+  the first one's clothes.
+
+Oldest first: keep this entry last.
+

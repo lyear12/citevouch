@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import __version__
-from .bibtex import merge_entries, parse_bib
+from .bibtex import merge_entries, parse_bib_group
 from .errors import UsageError, why_not_a_file
 from .evidence import is_the_manuscript, source_is_manuscript_finding
 from .latex import looks_like_latex
@@ -453,6 +453,16 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
             )
         ledger.claims.append(claim)
 
+    # One `@string` table for the whole `--bib` group: a `macros.bib` passed
+    # beside `refs.bib` defines the macros `refs.bib` uses, and parsing each
+    # file alone reported them undefined while the definition sat on line 1 of
+    # the other one.
+    # One `@string` table for the whole `--bib` group: a `macros.bib` passed
+    # beside `refs.bib` defines the macros `refs.bib` uses, and parsing each
+    # file alone reported them undefined while the definition sat on line 1 of
+    # the other one.  Both files are read before either is parsed, because
+    # which flag came first is not a fact about the bibliography.
+    readable: list[tuple[str, str]] = []
     for raw in options.bib:
         bib_path = _resolve(root, raw)
         # Recorded before the file is judged: a bibliography that is missing
@@ -468,7 +478,9 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
                 )
             )
             continue
-        result = parse_bib(read_text(bib_path), recorded_path(root, bib_path))
+        readable.append((read_text(bib_path), recorded_path(root, bib_path)))
+
+    for result in parse_bib_group(readable):
         findings.extend(result.findings)
         # Merged through `merge_entries`, not `dict.update`: two files that
         # define one key used to overwrite each other silently, so the entry a

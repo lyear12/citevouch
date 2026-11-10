@@ -197,10 +197,20 @@ def _clean(value: str) -> str:
     return value.strip()
 
 
-def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
+def parse_bib(
+    text: str, path: str = "refs.bib", known_strings: dict[str, str] | None = None
+) -> BibResult:
     findings: list[Finding] = []
     entries: dict[str, BibEntry] = {}
-    strings: dict[str, str] = {}
+    # `--bib` takes more than one file and the shape that needs it - a shared
+    # `macros.bib` beside the `refs.bib` that uses its `@string`s - used to do
+    # nothing at all: each file was parsed alone, so `journal = acm` in
+    # `refs.bib` was reported as an undefined macro while the definition sat
+    # on line 1 of the other file, and the message named the one thing that
+    # was not true ("no @string defines them").  Measured for all three
+    # orders: macros first, refs first, refs alone - all the same complaint.
+    # The group of files is one bibliography, so the strings travel with it.
+    strings: dict[str, str] = dict(known_strings) if known_strings else {}
     # `@string` / `@preamble` / `@comment` are read, not lost.  Counted so the
     # "no entries here" finding can say what the file does hold instead of
     # claiming nobody could read it.
@@ -491,6 +501,27 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
                 )
             )
     return BibResult(entries=entries, findings=findings, strings=strings)
+
+
+def parse_bib_group(files: list[tuple[str, str]]) -> list[BibResult]:
+    """Parse a `--bib` group as one bibliography, in either order.
+
+    `(text, recorded_path)` pairs, in the order the flags were given.  A file
+    that defines only `@string`s is useful precisely because another file in
+    the group uses them, and which one was named first is not a fact about the
+    bibliography.  So the group is read twice: the first pass collects every
+    definition, the second parses each file against all of them and is the
+    pass whose findings, entries and strings are returned.
+
+    Reading each file alone was the bug this exists to stop - `macros.bib`
+    beside `refs.bib` reported `journal = acm` as an undefined macro for all
+    three orders (macros first, refs first, refs alone), with the definition
+    on line 1 of the other file.
+    """
+    known: dict[str, str] = {}
+    for text, path in files:
+        known.update(parse_bib(text, path).strings)
+    return [parse_bib(text, path, known) for text, path in files]
 
 
 REQUIRED_FIELDS = {

@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A `macros.bib` passed beside `refs.bib` did nothing, and the message said
+  the opposite.** `--bib` may be given more than once, and the shape that needs
+  it is a shared macros file next to the entries that use its `@string`s. Each
+  file was parsed alone, so `journal = acm` in `refs.bib` was reported as an
+  undefined macro while the definition sat on line 1 of the other file -- and
+  the sentence named the one thing that was not true: "no `@string` defines
+  them".  Measured for all three orders (macros first, refs first, refs alone),
+  all identical:
+
+  ```text
+  [medium] bib-macro-unknown at refs.bib:1: knuth1984: 1 undefined macro in 1
+  field ('journal' uses 'acm'); no @string defines them, so each name was kept
+  as literal text
+  ```
+
+  The group of `--bib` files is now parsed as one bibliography:
+  `bibtex.parse_bib_group` reads the group twice -- the first pass collects
+  every `@string`, the second parses each file against all of them -- because
+  which flag came first is not a fact about the bibliography.  `parse_bib` grew
+  a `known_strings` parameter for the second pass.  All three readers moved over
+  together: `scan`, `draft` and the recorded pass in `verify`, which used to
+  disagree with the run that wrote the ledger.
+
+  What still has to hold: a macro nobody defines is still `bib-macro-unknown`,
+  `refs.bib` on its own still says the macro is undefined, and a
+  definitions-only file is still `[low] bib-no-entries`.
+
+  9 tests, 9 mutations, all red.
+
 ## [0.22.64] — 2026-11-10
 ### Fixed
 

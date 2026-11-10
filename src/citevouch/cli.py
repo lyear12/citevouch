@@ -28,7 +28,7 @@ from . import __version__
 from . import doctor as doctor_module
 from . import draft as draft_module
 from . import latex as latex_module
-from .bibtex import merge_entries, parse_bib
+from .bibtex import merge_entries, parse_bib_group
 from .errors import CitevouchError, UsageError, why_not_a_file
 from .manuscript import parse_manuscript
 from .model import SEVERITIES, SUPPORTED_SCHEMA, BibEntry, Finding, Ledger
@@ -709,13 +709,18 @@ def cmd_draft(args: argparse.Namespace) -> int:
     # sources.toml, no `file` field in the bibliography, and no file named
     # after the key -->`, and said nothing about the file being unreadable.
     bib_findings: list[Finding] = []
+    bib_group: list[tuple[str, str]] = []
     for raw in args.bib:
         bib_path = _resolve(root, raw)
         if not bib_path.is_file():
             raise UsageError(f"bib file {bib_path} {why_not_a_file(bib_path)}")
         bib_paths.append(bib_path)
+        bib_group.append((read_text(bib_path), recorded_path(root, bib_path)))
 
-        parsed = parse_bib(read_text(bib_path), recorded_path(root, bib_path))
+    # Read as one group: a `macros.bib` passed beside `refs.bib` defines the
+    # macros `refs.bib` uses, and parsing each file alone reported them
+    # undefined while the definition sat on line 1 of the other file.
+    for parsed in parse_bib_group(bib_group):
         bib_findings.extend(parsed.findings)
         bib_findings.extend(merge_entries(bib, parsed.entries))
     # `draft` reads these files for one reason: to answer "where is the local
