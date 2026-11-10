@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.68] — 2026-11-10
 ### Fixed
 
 * **A table claim whose page cell held a range was not read at all.**
@@ -45,8 +46,6 @@ tag and that file disagree.
   still match nothing; that is a limit, recorded rather than hidden.
 
   13 tests, 6 mutations, all red.
-
-
 ## [0.22.67] — 2026-11-10
 ### Fixed
 
@@ -4397,7 +4396,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.67...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.68...HEAD
+[0.22.68]: https://github.com/lyear12/citevouch/releases/tag/v0.22.68
 [0.22.67]: https://github.com/lyear12/citevouch/releases/tag/v0.22.67
 [0.22.66]: https://github.com/lyear12/citevouch/releases/tag/v0.22.66
 [0.22.65]: https://github.com/lyear12/citevouch/releases/tag/v0.22.65
