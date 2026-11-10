@@ -87,6 +87,14 @@ CODES = {
     # reported a number of claims checked that does not include this one, and a
     # green pipeline over an unchecked claim is the exact failure this tool
     # exists to prevent.
+    "claim-table-header": "medium",
+    # A table row sitting directly above the `|---|` delimiter row.  In GFM that
+    # row is the table's header, so its cells are column labels - and reading
+    # them as a claim once certified a label as a verified quotation, because
+    # the page happened to print the same words.  Medium and not high: nothing
+    # was claimed and nothing was checked, but no quotation was misjudged
+    # either - the failure this avoids is a false `quote-found`, not silence
+    # about a real claim.
     "claim-uncheckable": "high",
     # A claim fence inside a blockquote, a list item or an indent.  Markdown
     # renders that as a code sample, so the parser is right not to read it -

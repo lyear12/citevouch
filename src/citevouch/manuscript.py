@@ -164,6 +164,43 @@ _CONTAINER = r"(?:(?:[ \t]*>[ \t]*)|(?:[ \t]*[-*+][ \t]+)|(?:[ \t]*\d+[.)][ \t]+
 # has to name the construct the reader actually wrote.
 _BARE_CLAIM = re.compile(r"(?:`{3,}|~{3,})\s*[*_]*\s*claim\b", re.IGNORECASE)
 _BARE_COMMENT = re.compile(r"<!--\s*claim\s*:?", re.IGNORECASE)
+#: A GFM delimiter row: cells of dashes with optional alignment colons.
+#:
+#: It decides one thing, and that thing used to be got wrong: the row directly
+#: above a delimiter row is the table's *header*, and a header holds column
+#: labels.  Measured on a manuscript whose results table had a prose cell in
+#: its header:
+#:
+#:     | model | setting | 84 | We report the mean over five seeds | note |
+#:     |-------|---------|----|------------------------------------|------|
+#:
+#: `check` printed `[info] quote-found at manuscript.md:3 (model): quote found
+#: on page 1` - it certified a column label as a verified quotation, because
+#: the page happened to print those words.  A header row is now named and not
+#: judged.
+_DELIMITER_ROW = re.compile(
+    r"^[ \t]{0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$"
+)
+
+
+def _is_delimiter_row(line: str) -> bool:
+    """Whether ``line`` is the delimiter row that makes the row above a header."""
+    return _DELIMITER_ROW.match(line) is not None
+
+
+def _is_header_row(lines: list[str], index: int) -> bool:
+    """Whether line ``index`` (0-based) is a table header.
+
+    True only when the line is shaped like a table claim *and* the next line is
+    a delimiter row.  The documented header (`| id | source | page | quote |
+    claim |`) never reaches here: its third cell is the word `page`, so the
+    table-claim pattern already refuses it.
+    """
+    if _TABLE_CLAIM.match(lines[index]) is None:
+        return False
+    return index + 1 < len(lines) and _is_delimiter_row(lines[index + 1])
+
+
 # The table opener is `_TABLE_CLAIM` itself, with its left-margin anchor
 # removed.  Reusing the pattern rather than retyping it is the point: a second
 # copy of a shape is a second copy that drifts, and the parser and this
@@ -953,6 +990,10 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
 
         m = _TABLE_CLAIM.match(line)
         if m:
+            if _is_header_row(lines, i):
+                findings.append(_table_header_finding(line, path, start_line))
+                i += 1
+                continue
             attrs = {
                 "id": m.group("id"),
                 "source": _unescape_pipe(m.group("source")),
@@ -999,8 +1040,14 @@ def _unread_findings(
         for number in range(max(1, first), min(len(lines), last) + 1):
             covered[number] = True
     found: list[Finding] = []
-    for number, line in enumerate(lines, start=1):
+    for index, line in enumerate(lines):
+        number = index + 1
         if covered[number]:
+            continue
+        if _is_header_row(lines, index):
+            # Naming the header is `_table_header_finding`'s job, and it does
+            # not call the row a claim block.  This pass would say it is one
+            # "inside a blockquote, a list item or an indent", which is false.
             continue
         hit = _unread_opener(line)
         if hit is None:
@@ -1049,6 +1096,31 @@ _UNREAD_REASON = {
         "the left margin to have it checked"
     ),
 }
+
+
+def _table_header_finding(line: str, path: str, line_number: int) -> Finding:
+    """Name a table header row that is shaped exactly like a claim row.
+
+    The row is not a claim, so it is not judged: certifying a column label as a
+    quotation is the worst thing this tool can do.  It is not silent either,
+    because the same shape with different intent - a real claim written above
+    the delimiter row - would otherwise disappear without a word.
+    """
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    claim_id = cells[0] if cells else ""
+    who = f"claim {claim_id}: " if claim_id else ""
+    return Finding(
+        code="claim-table-header",
+        message=(
+            f"{who}line {line_number} is the header of the table below it, so its "
+            "cells are column labels and were not checked against any source. "
+            "A header row sits directly above the `|---|` delimiter row; a row "
+            "you meant as a claim belongs under it"
+        ),
+        claim_id=claim_id,
+        path=path,
+        line=line_number,
+    )
 
 
 def _unread_opener(line: str) -> tuple[str, re.Match[str]] | None:

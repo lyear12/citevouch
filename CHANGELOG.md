@@ -12,6 +12,54 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table header row was certified as a quotation.**
+
+  The table dialect reads a five-cell row whose third cell is an integer,
+  a dash or nothing.  A results table's *header* can have exactly that
+  shape, and in GFM the row directly above a `|---|` delimiter row is the
+  header.  Measured on a manuscript holding this table:
+
+  ```
+  | model | setting | 84 | We report the mean over five seeds | note |
+  |-------|---------|----|------------------------------------|------|
+  | bert  | base    | 84 | 88 | 90 |
+  ```
+
+  `check` printed:
+
+  ```
+  [high] page-out-of-range at manuscript.md:3 (model): claim model points at page 84 but page.txt has pages 1-1
+  [info] quote-found at manuscript.md:3 (model): quote found on page 1
+  ```
+
+  The second line is the worst thing this tool can print.  It certified a
+  column label as a verified quotation, because the page happened to print
+  the same words in its prose.  The run reported `2 claims` about a table
+  that has nothing to do with citations.
+
+  A row is now a header when two things hold: it is shaped like a table
+  claim, and the line under it is a GFM delimiter row (dashes with optional
+  alignment colons, at most three spaces of indent, nothing else on the
+  line).  Such a row is named with the new `claim-table-header` code
+  (medium) and is not judged against any source.  The data rows under it
+  are still read normally.
+
+  The documented header `| id | source | page | quote | claim |` never
+  reaches this rule: its third cell is the word `page`, so the table-claim
+  pattern already refuses it.  A row with no delimiter row under it is
+  still a claim, which matters because a manuscript may hold a single-row
+  table with no header at all.
+
+  This is a narrowing of a rule that used to be too wide, and the opposite
+  narrowing - refusing a page cell that holds a range - was fixed in
+  0.22.68 by widening the cell instead.  Both directions are now written
+  down: `_DELIMITER_ROW` says where a header ends and data begins, and
+  `_PAGE_CELL` says what a page cell may contain.
+
+  20 tests, 12 mutations, all red.
+
 ## [0.22.69] — 2026-11-10
 ### Fixed
 

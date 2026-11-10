@@ -93,6 +93,7 @@ rots:
 | `bib-field-empty` | medium | a required field is empty or missing |
 | `claim-without-evidence` | low | a 【原文】/【推测】-style marker with no claim block (a block's `marker=` binds the mark beside it) |
 | `claim-block-unclosed` | high | a `` ```claim `` block never closes, so every claim after it was read as part of it |
+| `claim-table-header` | medium | a table header row was shaped like a claim row - its cells are column labels, so nothing in it was checked against a source. The header is the row directly above a `\|---\|` delimiter row |
 | `claim-uncheckable` | high | a claim block cannot be looked up at all - no `source=`, no quote, no id, or an id used twice so the second block is dropped |
 | `claim-field-conflict` | medium | the claim writes both `ref=` and `cite=` with different values, so one of the two was dropped |
 | `claim-field-unknown` | medium | a key on the fence line or a line in the body looks like a field (`Page: 1`, `pgae=3`) but is not one this format has, so what it said was never applied |

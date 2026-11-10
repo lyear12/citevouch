@@ -7500,4 +7500,40 @@ swallowed line produces a *finding* rather than silence, check which noun the
 finding names: anything that sends the reader to the source when the problem is
 in the manuscript is a false accusation wearing a true code.
 
+## A table's header is a label, and a label is not a datum
 
+`_TABLE_CLAIM` reads any five-cell row whose third cell is an integer, a
+dash or nothing.  A results table's header can have that shape, and in GFM
+the row directly above a `|---|` delimiter row *is* the header.  So the
+parser judged a row of column labels, and on a page that happened to print
+the header's prose cell verbatim it printed:
+
+```
+| model | setting | 84 | We report the mean over five seeds | note |
+|-------|---------|----|------------------------------------|------|
+```
+
+```
+[info] quote-found at manuscript.md:3 (model): quote found on page 1
+```
+
+A column label certified as a verified quotation.  Every number in the run
+was about a table with no citations in it.
+
+**The delimiter row was already being read, and already being thrown
+away.**  `|---|---|` matched nothing and became nothing: it was skipped
+without a word.  The parser had the fact - "the line above me is a
+header" - in hand at the moment it decided the line above was a claim.
+It just never asked.
+
+The rule now has two halves, and both are needed.  A row is a header when
+it is *shaped like a table claim* and the line under it is a delimiter
+row.  Drop the first half and the unread-block pass starts excusing any
+line above `|---|`; drop the second and every single-row table loses its
+only claim.
+
+How to apply:
+
+- When a parser skips a line without recording anything, ask what that line could have told the parser about its neighbours.  A delimiter row is pure metadata about the row above it, and metadata is exactly what a reader stops seeing first.
+- A rule that decides "is this a datum" has to decide "is this a label" too, because the two shapes are chosen by the *author's* formatting, not by the tool's grammar.  Markdown makes them identical.
+- Two narrowings in a row (0.22.68 widened a page cell to stop a row vanishing; this narrowed a row to stop a label being believed) can both be right.  Write down what each one is a statement about - a cell's contents, or a line's role - so the next fix knows which question it is answering.

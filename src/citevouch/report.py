@@ -67,6 +67,10 @@ SARIF_RULES = {
     "bib-no-entries": "A definitions-only bibliography holds no entries to answer a key from.",
     "page-out-of-range": "A page hint exceeds the source length.",
     "claim-block-unclosed": "A block never closes, so later claims in the file were never read.",
+    "claim-table-header": (
+        "A table header row was shaped like a claim row, so its cells were read as "
+        "column labels rather than checked against a source."
+    ),
     "claim-uncheckable": (
         "A claim block cannot be looked up at all, so its quote was never compared to anything."
     ),
