@@ -7396,3 +7396,36 @@ How to apply:
 
 Oldest first: keep this entry last.
 
+## A finding's coordinate is the line the reader has to open
+
+`bib-macro-redefined` was new, and every conflict it found was written as
+`path=<the later file>, line=1`, then attached with `parsed[0].findings.extend`.
+On `a.bib` defining `j = "Journal A"` and `n = "Note A"`, `b.bib` redefining both
+on lines 5 and 8, and `refs.bib` using both, the run produced two findings that
+were the same coordinate - and `_deconflict` keys on
+`(code, claim_id, path, line)`:
+
+```text
+raw findings:        2  (both at b.bib line 1)
+after _deconflict:   1
+```
+
+The author fixed `j`, re-ran, and met `n` for the first time. Line 1 of a
+`.bib` is almost always a comment, so the coordinate was also the wrong place to
+look.
+
+A finding carries three things the reader acts on: which file, which line, and
+what is wrong. Two of them were guesses. The file was right by accident (the
+conflict always lands in the later file); the line was the constant 1.
+
+How to apply:
+
+- A finding's line number is not decoration - it is the address the reader
+  opens. If the code cannot produce it, the finding has to say it does not
+  know rather than print a plausible 1.
+- Any deduplication key that includes `path` and `line` is a claim that those
+  two fields are unique per fact. Reusing a constant line silently turns that
+  claim into "one finding per file", which is what happened here.
+- When a pass builds findings for results it will return later, check which
+  result each one is attached to. Attaching them all to the first is invisible
+  today because every caller flattens, and wrong the moment one groups.

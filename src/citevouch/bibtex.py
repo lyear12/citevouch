@@ -62,6 +62,13 @@ class BibResult:
     entries: dict[str, BibEntry] = field(default_factory=dict)
     findings: list[Finding] = field(default_factory=list)
     strings: dict[str, str] = field(default_factory=dict)
+    # Where each definition was written.  `parse_bib_group` needs it because a
+    # finding carries the coordinate a reader follows: two macros that disagree
+    # between the same two files both used to be reported at line 1 of the
+    # later file, `_deconflict` keys on (code, claim, path, line) and kept the
+    # first, so the author fixed `j`, re-ran, and met `n`.  Measured: two
+    # conflicts in, one finding out.
+    string_lines: dict[str, int] = field(default_factory=dict)
 
 
 def _advance_from(lex: Lex, text: str, i: int) -> tuple[int, bool]:
@@ -215,6 +222,7 @@ def parse_bib(
     # "no entries here" finding can say what the file does hold instead of
     # claiming nobody could read it.
     definitions = 0
+    string_lines: dict[str, int] = {}
     text = _strip_comments(text)
     line_starts = [0] + [i + 1 for i, ch in enumerate(text) if ch == "\n"]
 
@@ -315,7 +323,9 @@ def parse_bib(
                 sm = _STRING_DEF.match(body)
                 if sm:
                     value, _pos, _ok = _read_field_value(body, sm.end(), strings, [])
-                    strings[sm.group(1).lower()] = _clean(value)
+                    name = sm.group(1).lower()
+                    strings[name] = _clean(value)
+                    string_lines[name] = entry_line
             continue
 
         km = _KEY.match(body)
@@ -500,7 +510,12 @@ def parse_bib(
                     line=1,
                 )
             )
-    return BibResult(entries=entries, findings=findings, strings=strings)
+    return BibResult(
+        entries=entries,
+        findings=findings,
+        strings=strings,
+        string_lines=string_lines,
+    )
 
 
 def parse_bib_group(files: list[tuple[str, str]]) -> list[BibResult]:
@@ -529,38 +544,53 @@ def parse_bib_group(files: list[tuple[str, str]]) -> list[BibResult]:
     nothing said so.  `bib-duplicate-key` already refuses that shape for
     entries; a macro is the same fact one level up, so the message says what
     the entry resolved to and that the group disagreed.
+
+    The finding names the line each side wrote, and hangs off the file that
+    won: two macros that disagree between the same two files are two things to
+    fix, and a coordinate shared between them hides the second one.
     """
     known: dict[str, str] = {}
-    where: dict[str, tuple[str, str]] = {}
-    conflicts: list[Finding] = []
+    where: dict[str, tuple[str, str, int]] = {}
+    conflicts: list[tuple[str, Finding]] = []
     for text, path in files:
-        for name, value in parse_bib(text, path).strings.items():
+        parsed = parse_bib(text, path)
+        for name, value in parsed.strings.items():
+            line = parsed.string_lines.get(name, 1)
             if name in known:
                 if known[name] == value:
                     continue
-                earlier_path, earlier_value = where[name]
+                earlier_path, earlier_value, earlier_line = where[name]
                 conflicts.append(
-                    Finding(
-                        code="bib-macro-redefined",
-                        message=(
-                            f"@string {name!r} is defined as {earlier_value!r} in "
-                            f"{earlier_path} and as {value!r} in {path}; the "
-                            f"definition from {path} is the one used, so which "
-                            "work a field built from this macro names depends on "
-                            "the order of the --bib flags"
+                    (
+                        path,
+                        Finding(
+                            code="bib-macro-redefined",
+                            message=(
+                                f"@string {name!r} is defined as "
+                                f"{earlier_value!r} in {earlier_path} line "
+                                f"{earlier_line} and as {value!r} in {path} line "
+                                f"{line}; the definition from {path} is the one "
+                                "used, so which work a field built from this "
+                                "macro names depends on the order of the --bib "
+                                "flags"
+                            ),
+                            path=path,
+                            line=line,
                         ),
-                        path=path,
-                        line=1,
                     )
                 )
-            where[name] = (path, value)
+            where[name] = (path, value, line)
             known[name] = value
     parsed = [parse_bib(text, path, known) for text, path in files]
-    if conflicts:
-        # Attached to the first result so every caller already gathers findings
-        # from the group sees it; the alternative was a fifth return value that
-        # three readers would each have to remember to collect.
-        parsed[0].findings.extend(conflicts)
+    by_path = {path: result for result, (text, path) in zip(parsed, files, strict=True)}
+    for path, finding in conflicts:
+        # Each conflict hangs off the file that won it, at the line that file
+        # wrote the definition.  Attaching every conflict to the first result at
+        # line 1 - which is what this did while the shape was new - put two
+        # different macros on one coordinate, and `_deconflict` keys on
+        # (code, claim, path, line): the author was told about `j`, fixed it,
+        # re-ran, and met `n`.  Measured: two conflicts in, one finding out.
+        by_path.get(path, parsed[0]).findings.append(finding)
     return parsed
 
 

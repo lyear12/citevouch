@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from citevouch.bibtex import parse_bib, parse_bib_group
+from citevouch.cli import _deconflict
 
 NL = chr(10)
 B3 = chr(96) * 3
@@ -199,3 +200,119 @@ class TestWhatMustNotBeReported:
             "Journal A",
             "Journal C",
         )
+
+
+# Two macros that disagree between the same two files are two things to fix.
+# They were reported at line 1 of the winning file, which is the same
+# coordinate `_deconflict` keys on, so only the first survived: the author
+# fixed `j`, re-ran, and met `n` for the first time.
+TWO_A = '@string{j = "Journal A"}' + NL + '@string{n = "Note A"}' + NL
+TWO_B = NL * 4 + '@string{j = "Journal B"}' + NL + NL * 2 + '@string{n = "Note B"}' + NL
+TWO_USE = (
+    NL.join(
+        [
+            "@article{k1,",
+            "  title = {T},",
+            "  author = {A},",
+            "  journal = j,",
+            "  note = n,",
+            "  year = {2020},",
+            "}",
+        ]
+    )
+    + NL
+)
+
+
+class TestEveryConflictGetsItsOwnCoordinate:
+    def test_two_conflicts_are_two_findings(self) -> None:
+        results = parse_bib_group([(TWO_A, "a.bib"), (TWO_B, "b.bib"), (TWO_USE, "refs.bib")])
+        found = [
+            finding
+            for result in results
+            for finding in result.findings
+            if finding.code == "bib-macro-redefined"
+        ]
+        assert len(found) == 2, [finding.message for finding in found]
+
+    def test_the_deconflict_pass_keeps_both(self) -> None:
+        # The report downstream keeps one finding per (code, claim, path,
+        # line).  Two conflicts on one coordinate is one line on screen and one
+        # fix in the file, and the second one is then met on the next run.
+        results = parse_bib_group([(TWO_A, "a.bib"), (TWO_B, "b.bib"), (TWO_USE, "refs.bib")])
+        raw = [finding for result in results for finding in result.findings]
+        kept = [f for f in _deconflict(raw) if f.code == "bib-macro-redefined"]
+        assert len(kept) == 2, [f.message for f in kept]
+
+    def test_each_finding_points_at_the_line_that_wrote_it(self) -> None:
+        # The reader opens the file the finding names.  Line 1 of a `.bib` is
+        # usually a comment, so pointing there sends them hunting.
+        results = parse_bib_group([(TWO_A, "a.bib"), (TWO_B, "b.bib"), (TWO_USE, "refs.bib")])
+        found = {
+            finding.message.split("'")[1]: finding
+            for result in results
+            for finding in result.findings
+            if finding.code == "bib-macro-redefined"
+        }
+        assert found["j"].line == 5, found["j"].line
+        assert found["n"].line == 8, found["n"].line
+
+    def test_the_message_names_the_line_each_side_wrote(self) -> None:
+        results = parse_bib_group([(TWO_A, "a.bib"), (TWO_B, "b.bib"), (TWO_USE, "refs.bib")])
+        message = next(
+            finding.message
+            for result in results
+            for finding in result.findings
+            if finding.code == "bib-macro-redefined" and "'j'" in finding.message
+        )
+        assert "a.bib line 1" in message and "b.bib line 5" in message
+
+    def test_the_check_prints_both(self, tmp_path: Path) -> None:
+        root = _project(tmp_path)
+        (root / "a.bib").write_text(TWO_A, encoding="utf-8", newline=NL)
+        (root / "b.bib").write_text(TWO_B, encoding="utf-8", newline=NL)
+        (root / "e.bib").write_text(TWO_USE, encoding="utf-8", newline=NL)
+        _code, captured = _run(
+            root,
+            "check",
+            "manuscript.md",
+            "--root",
+            str(root),
+            "--bib",
+            "a.bib",
+            "--bib",
+            "b.bib",
+            "--bib",
+            "e.bib",
+        )
+        lines = [line for line in captured.splitlines() if "bib-macro-redefined" in line]
+        assert len(lines) == 2, lines
+        assert any("'j'" in line for line in lines)
+        assert any("'n'" in line for line in lines)
+
+
+class TestTheFindingHangsOffTheFileItNames:
+    def test_every_finding_is_attached_to_its_own_file(self) -> None:
+        # `scan`, `draft` and the recorded re-read all flatten these results
+        # without reading the finding's own path, so a finding attached to the
+        # wrong result is a finding filed under another file's name.  Nothing
+        # breaks today; the next caller that groups by result gets a lie.
+        results = parse_bib_group([(TWO_A, "a.bib"), (TWO_B, "b.bib"), (TWO_USE, "refs.bib")])
+        names = ["a.bib", "b.bib", "refs.bib"]
+        for result, path in zip(results, names, strict=True):
+            for finding in result.findings:
+                if finding.code == "bib-macro-redefined":
+                    assert finding.path == path, (finding.path, path)
+
+    def test_the_earlier_side_names_its_own_line(self) -> None:
+        # `a.bib` writes `n` on line 2, not line 1.  Reporting line 1 sends the
+        # reader to the comment at the top of the file.
+        results = parse_bib_group([(TWO_A, "a.bib"), (TWO_B, "b.bib"), (TWO_USE, "refs.bib")])
+        message = next(
+            finding.message
+            for result in results
+            for finding in result.findings
+            if finding.code == "bib-macro-redefined" and "'n'" in finding.message
+        )
+        assert "a.bib line 2" in message, message
+        assert "b.bib line 8" in message, message

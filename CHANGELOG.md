@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **Two macros that disagree between the same two files were one finding.**
+  `bib-macro-redefined` is new in 0.22.66, and it reported every conflict at
+  line 1 of the winning file, all attached to the first result.  Measured on
+  `a.bib` defining `j = "Journal A"` and `n = "Note A"`, `b.bib` redefining both
+  on lines 5 and 8, and `refs.bib` using both:
+
+  ```text
+  raw findings:          2  (both at b.bib line 1)
+  after _deconflict:     1
+  ```
+
+  `_deconflict` keys on `(code, claim_id, path, line)`, so two different macros
+  on one coordinate became one line on screen: the author was told about `j`,
+  fixed it, re-ran, and met `n` for the first time.  Line 1 of a `.bib` is
+  usually a comment, so the coordinate also sent them to the wrong place.
+
+  Each finding now names the line both sides wrote and hangs off the file that
+  won:
+
+  ```text
+  [high] bib-macro-redefined at b.bib:5: @string 'j' is defined as
+  'Journal A' in a.bib line 1 and as 'Journal B' in b.bib line 5; ...
+  [high] bib-macro-redefined at b.bib:8: @string 'n' is defined as
+  'Note A' in a.bib line 2 and as 'Note B' in b.bib line 8; ...
+  ```
+
+  7 tests, 8 mutations, all red.
+
 ## [0.22.66] — 2026-11-10
 ### Fixed
 
