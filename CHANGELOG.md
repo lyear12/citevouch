@@ -12,6 +12,43 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table's delimiter row was read as a claim named `-`.**
+
+  GFM lets a delimiter cell be a single dash, so this is a legal five-column
+  table:
+
+  ```
+  | id | source | page | quote | claim |
+  |-|-|-|-|-|
+  | c1 | paper | 1 | We report the mean over five seeds ... | note |
+  ```
+
+  It is also, to the table-claim pattern, a five-cell row whose third cell is
+  `-`: the id is `-`, the source is `-`, the page is `-`. The run reported a
+  claim nobody wrote:
+
+  ```
+  [high] source-missing at manuscript.md:2 (-): claim - names source='-' but no
+         entry in sources.toml and no --source path resolves it
+  citevouch: 2 claims — 1 verified, 0 moved, 1 missing
+  worst severity: high, exit 1
+  ```
+
+  The parser already held the answer. 0.22.70 added `_is_delimiter_row` so that
+  a header row could be recognised by the line below it; that question was never
+  asked about the delimiter itself.
+
+  Three readers had to learn it, and each was measured on its own: the claim
+  reader, which accepted the row as a claim named `-`; `_unread_findings`, which
+  called it a claim block "inside a blockquote, a list item or an indent" -
+  three things it is not; and `scan`'s near-miss list, which said the same thing
+  from a different command. All three now skip delimiter rows, and
+  `_is_header_row` refuses to call a delimiter the header of what follows it.
+
+  `tests/test_delimiter_row.py`, 11 tests, 6 mutations, all red.
+
 ## [0.22.71] — 2026-11-10
 ### Fixed
 

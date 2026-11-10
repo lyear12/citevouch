@@ -7587,3 +7587,44 @@ How to apply:
   different states, and only one of them is a failure. If they share a branch,
   find out which one the branch was written for.
 
+
+## The parser knew the answer and only asked it about the neighbour
+
+GFM allows a delimiter cell to be a single dash, so `|-|-|-|-|-|` is a legal
+delimiter row for a five-column table. It is also a five-cell row whose third
+cell is `-`, which is all the table-claim pattern asks for: id `-`, source `-`,
+page `-`. A correct table produced:
+
+```
+[high] source-missing at manuscript.md:2 (-): claim - names source='-' ...
+citevouch: 2 claims — 1 verified, 0 moved, 1 missing / exit 1
+```
+
+The previous round had already written `_is_delimiter_row`, to decide whether
+the row *above* a line made that line a header. The predicate existed, was
+tested, and was never asked about the delimiter itself - because it had been
+written to answer a question about a neighbour, and a helper named after its
+first caller keeps that caller's shape.
+
+Fixing it took four readers, each found separately:
+
+* the claim reader, which accepted the row;
+* `_unread_findings`, which called it a claim block "inside a blockquote, a
+  list item or an indent" - three things it was not;
+* `scan`'s near-miss list, which said the same from another command;
+* `_is_header_row` itself, which would have called a delimiter the header of
+  the row below it (reachable only when two delimiter rows touch).
+
+How to apply:
+
+* When you add a predicate for one caller, ask the predicate's question about
+  the objects it recognises, not just about the object that prompted it. "Is
+  this line a delimiter" is a fact about a line; "is the line above a
+  delimiter" is a fact about two lines.
+* A row that satisfies a pattern by having empty cells is not the shape that
+  pattern was written for. `|-|-|-|-|-|` matches because every cell is
+  `-` and the quote and text cells are empty - the same permissiveness that lets
+  `| c1 | paper | - | q | t |` mean "no page hint".
+* After refusing a shape in one reader, grep for the other readers of the same
+  lines. This repository has three, and it has had three before.
+

@@ -21,6 +21,7 @@ from .latex import looks_like_latex
 from .manuscript import (
     _CLAIMISH,
     _UNREAD_REASON,
+    _is_delimiter_row,
     _is_header_row,
     _unread_opener,
     parse_manuscript,
@@ -139,6 +140,12 @@ def _no_claim_blocks_finding(
     wrapped: list[tuple[int, str]] = []
     for index, line in enumerate(lines):
         if _is_header_row(lines, index):
+            continue
+        if _is_delimiter_row(line):
+            # `|-|-|-|-|-|` is a legal GFM delimiter whose cells are single
+            # dashes, so the table-claim pattern matches it and this list named
+            # it a claim block "inside a blockquote, a list item or an indent".
+            # It is punctuation between a header and a body.
             continue
         hit = _unread_opener(line)
         if hit is not None:

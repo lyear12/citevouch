@@ -195,7 +195,20 @@ def _is_header_row(lines: list[str], index: int) -> bool:
     a delimiter row.  The documented header (`| id | source | page | quote |
     claim |`) never reaches here: its third cell is the word `page`, so the
     table-claim pattern already refuses it.
+
+    A delimiter row is not a header.  GFM allows a delimiter cell to be a
+    single dash, so `|-|-|-|-|-|` satisfies `_TABLE_CLAIM` with `-` for the id,
+    the source and the page; with a claim-shaped row above it this function
+    called the delimiter a header, and without one the delimiter was read as a
+    claim named `-` that names source `-`.  Measured before the fix, on a table
+    whose delimiter is written that way: `[high] source-missing at
+    manuscript.md:2 (-): claim - names source='-' but no entry in sources.toml`,
+    `2 claims - 1 verified, 0 moved, 1 missing`, exit 1 - over a table that is
+    correct.  So the delimiter is refused here, and the caller refuses it as a
+    claim too.
     """
+    if _is_delimiter_row(lines[index]):
+        return False
     if _TABLE_CLAIM.match(lines[index]) is None:
         return False
     return index + 1 < len(lines) and _is_delimiter_row(lines[index + 1])
@@ -1002,6 +1015,13 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
 
         m = _TABLE_CLAIM.match(line)
         if m:
+            if _is_delimiter_row(line):
+                # A delimiter row is punctuation between the header and the
+                # body of a table, never a claim and never something to
+                # explain.  `_is_header_row` refuses it as a header for the
+                # same reason.
+                i += 1
+                continue
             if _is_header_row(lines, i):
                 findings.append(_table_header_finding(line, path, start_line))
                 i += 1
@@ -1055,6 +1075,13 @@ def _unread_findings(
     for index, line in enumerate(lines):
         number = index + 1
         if covered[number]:
+            continue
+        if _is_delimiter_row(line):
+            # A delimiter row satisfies the table-claim pattern (`|-|-|-|-|-|`
+            # is a legal GFM delimiter whose cells are all single dashes), so
+            # this pass called it a claim block "inside a blockquote, a list
+            # item or an indent" - three things it is not.  It is punctuation,
+            # and the caller already refuses it as a claim.
             continue
         if _is_header_row(lines, index):
             # Naming the header is `_table_header_finding`'s job, and it does
