@@ -7741,3 +7741,22 @@ How to apply:
 * When a message says "not X" or "we did not Y", the test has to measure X and Y, not the message.  Here: the quote must equal the passage, and the value must not appear in the output.
 * A branch that copies another branch copies its dead ends too.  The known-attribute branch cleared `current`; the unknown-key branch was written from it and dropped that one line, which was invisible until the value spanned lines.
 * The strongest assertion available is the one the message makes about itself - pin the sentence, then make the code keep it.
+## A file one reader binds and another cannot open is two projects
+
+`sources.toml` is read by `tomllib` on 3.11+ and by a line-based subset on 3.10. Both were asked whether the file was TOML and both said yes; they were never asked the same question about the same bytes, so the subset bound keys TOML refuses to spell bare:
+
+```
+[sources]
+王力2020 = "page.txt"
+```
+
+On 3.10 that binds a source and the manuscript verifies. On 3.12 the same file is not TOML at all, so `tomllib` refuses the whole manifest and every claim in the manuscript loses its source at once. Same repository, same file, nothing edited between the runs - and the failure lands on the interpreter, not on the author.
+
+The two answers are not two spellings of one verdict. "I refuse this key" and "I cannot read this file" are different sentences to different people: the first asks for a fix to one line, the second voids every claim in the project. A second reader is only worth having if it reaches the same refusal *and* the same words, which means the refusal has to be written once and reached by both.
+
+How to apply:
+
+- When a file has two readers, drive both from one byte string in a test and compare outcomes, not intentions. A reader that is only tested on the files it was written for has been asked nothing.
+- Take the accepted and refused sets from the format's own grammar (TOML's bare-key alphabet is `A-Z`, `a-z`, `0-9`, `_`, `-`), not from the examples that happen to be in the repository.
+- A refusal that names the working spelling must be tested by actually using that spelling: a suggestion which the same reader then refuses is worse than no suggestion.
+

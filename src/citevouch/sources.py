@@ -1093,6 +1093,35 @@ def _unspellable(name: str) -> bool:
     return not inner or any(char in inner for char in "=#[]\"'")
 
 
+#: The characters TOML allows in a key written without quotes.
+_BARE_KEY = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def _bare_key_is_not_a_key(name: str) -> bool:
+    """Whether this unquoted key would be refused by a real TOML parser.
+
+    A bare key is ``A-Z``, ``a-z``, ``0-9``, ``_`` and ``-`` and nothing else;
+    every other character has to be quoted.  The line-based subset splits on
+    ``=`` and strips, so it binds ``wang力``, ``smith/2020`` and ``smith 2020``
+    as happily as ``paper`` - and the same manifest that reads on 3.10 is not
+    TOML at all on 3.12, where it is reported as an unreadable file rather
+    than as one entry.  Both readings are wrong about the same bytes, and
+    which one an author gets depends on the interpreter they happen to run.
+
+    A quoted key is not this question: ``"wang力"`` is legal TOML and the
+    quotes come off, which is why the message below offers that spelling.
+
+    A dotted key is not this question either.  ``smith.2020`` is legal TOML -
+    it names a nested table - and the caller has a sentence of its own for
+    that shape, which is the one an author can act on.  Saying "quote it"
+    about a dotted key would replace the right answer with a near miss.
+    """
+    quoted = len(name) >= 2 and name[0] in "\"'" and name[-1] == name[0]
+    if quoted or "." in name:
+        return False
+    return _BARE_KEY.fullmatch(name) is None
+
+
 def _refuse_shapes_only_one_reader_follows(text: str) -> None:
     """Refuse the spellings the parsers would answer differently.
 
@@ -1163,6 +1192,18 @@ def _refuse_shapes_only_one_reader_follows(text: str) -> None:
             raise ValueError(
                 f"{name} names a source this reader cannot spell; a key here "
                 "may not contain quotes, '=', '#', or brackets"
+            )
+        if section == "sources" and _bare_key_is_not_a_key(name):
+            # A bare key TOML would refuse.  tomllib answers "this file is not
+            # TOML" and the run reports the manifest as unreadable; the subset
+            # below answers "here is one source" and the same project verifies.
+            # Measured on `[sources]` + `wang力 = "page.txt"`, then on the same
+            # line with `smith/2020`, `smith+2020`, `smith 2020`, `smith:2020`,
+            # `smith@2020` and `papér`: tomllib refused every one of them and
+            # the subset bound every one of them.
+            raise ValueError(
+                f"{name} is not a bare TOML key; quote it - "
+                f'"{name}" - to bind one source under that name'
             )
         if stripped[:3] in ('"""', "'''"):
             # A multi-line string.  tomllib joins the continuation lines into

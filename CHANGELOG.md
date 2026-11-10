@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A source key written without quotes bound on one interpreter and made the manifest unreadable on another.**
+
+  `sources.toml` has two readers. On 3.11+ the file goes to `tomllib`; on 3.10, which has no `tomllib`, it goes to a line-based subset that splits on `=` and strips. The subset bound keys TOML refuses to spell bare - `王力2020`, `smith/2020`, `smith 2020`, `smith:2020` - so the same repository, on the same bytes, bound a source on 3.10 and lost the whole manifest on 3.12:
+
+  ```
+  [sources]
+  王力2020 = "page.txt"
+  ```
+
+  The 3.12 answer is not merely a miss. `tomllib` refuses the file, so every claim in the manuscript loses its source at once, reported as `source-missing ... because the manifest could not be read` - while the author's own key looks perfectly fine on the page.
+
+  The subset now refuses these keys too, with the same sentence `tomllib` earns, and the sentence carries the fix: `王力2020 is not a bare TOML key; quote it - "王力2020" - to bind one source under that name`. A quoted key is legal TOML and binds, which is why the message names that spelling rather than inventing one.
+
+  Two neighbouring shapes keep their own sentences on purpose. A dotted key (`smith.2020`) is legal TOML naming a nested table, and answering it with `quote it` would trade the right sentence for a near miss; a quoted key this reader cannot spell (`"pa#ge"`) is refused for a reason quoting does not address.
+
+  55 tests, 8 mutations, all red.
+
 ## [0.22.76] — 2026-11-10
 ### Fixed
 
