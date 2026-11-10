@@ -1347,7 +1347,25 @@ def _split_body(
                 # A field line whose name this format does not have.  Read as
                 # quote text it becomes a false accusation, and skipped in
                 # silence it becomes a check the author believes ran.
+                #
+                # `current` has to be cleared here for the same reason the
+                # branch above clears it: a block scalar's lines belong to the
+                # key over them, and this key has no owner to collect them.
+                # Measured without this line, on a quote verbatim on page 1:
+                #
+                #     quote: |
+                #       We collected 40,688 examples from the corpus.
+                #     text: |
+                #       我们收集了例句
+                #
+                #   -> claim.quote == 'We collected 40,688 examples from the
+                #      corpus.\n我们收集了例句' and then [high] quote-missing,
+                #      in the same run that printed [medium] claim-field-unknown
+                #      saying the value was "neither applied nor searched as
+                #      part of the quote".  The sentence was false, and the
+                #      author had to read both halves to see it.
                 unknown.append((index, keyish.group("key")))
+                current = ""
                 continue
             if current:
                 fields.setdefault(current, []).append(raw)

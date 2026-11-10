@@ -7730,3 +7730,14 @@ How to apply:
 - A fix for one family of missing boundaries is evidence about the next
   family, not proof that the list is complete.
 
+## A sentence about what the code did not do is a sentence nothing tests
+
+`claim-field-unknown` told the author the unknown field's value was "neither applied nor searched as part of the quote".  The value was searched: it joined the quote and turned a verbatim passage into `quote-missing` (high).  The sentence had been in the message since the finding was written, and no test asked what it claimed - the tests asked that the finding appeared, at the right line, naming the right key.
+
+A message that names a bug is read as the fix.  The finding exists because a line was read as quote text, so the sentence says the opposite of the bug - and the opposite of a bug is exactly the property no failing test can produce.  Only a passing run can be asked.
+
+How to apply:
+
+* When a message says "not X" or "we did not Y", the test has to measure X and Y, not the message.  Here: the quote must equal the passage, and the value must not appear in the output.
+* A branch that copies another branch copies its dead ends too.  The known-attribute branch cleared `current`; the unknown-key branch was written from it and dropped that one line, which was invisible until the value spanned lines.
+* The strongest assertion available is the one the message makes about itself - pin the sentence, then make the code keep it.
