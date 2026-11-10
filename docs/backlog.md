@@ -4566,3 +4566,43 @@ would a person actually have on disk", not by reading the code.
   **Not covered.** A macros file named through a Zotero/biblatex config rather
   than on the command line is still not discovered; the group is exactly what
   the `--bib` flags name.
+
+- [x] **P1 - two `--bib` files that define one macro differently picked a winner
+  silently**
+
+  **What was wrong.** The group of `--bib` files shares one `@string` table, and
+  a repeated macro name was simply overwritten in flag order.  Measured with
+  `a.bib` defining `j = "Journal A"` and `c.bib` defining `j = "Journal C"`,
+  with `e.bib` using `j`:
+
+  ```text
+  a.bib c.bib e.bib -> journal = 'Journal C'   (no finding)
+  c.bib a.bib e.bib -> journal = 'Journal A'   (no finding)
+  ```
+
+  So which work the entry named depended on the order of two flags, and nothing
+  said so.  This landed the same round as the group parse itself, which is what
+  made the conflict possible.
+
+  **What it does now.** `bibtex.parse_bib_group` compares definitions as it
+  collects them and reports `bib-macro-redefined` (high), naming the macro, both
+  values and both files, instead of quietly keeping the last one.
+
+  **Why it is now true.** `tests/test_bib_macro_redefined.py` (11 tests) pins
+  the finding in both flag orders, the message naming both files and both
+  values, a three-file disagreement naming all three, and the severity reaching
+  `[high]` end to end.  The reverse direction is pinned too: an identical
+  repeat in two files is not a conflict, one file redefining its own macro keeps
+  its old "later wins" answer, and a single file with a repeated macro is
+  unchanged.  Seven mutations, all red: never reporting, reporting identical
+  repeats, dropping the conflicts instead of attaching them, a message with no
+  file or no value, the severity dropping to medium, the conflict check keyed on
+  the wrong thing, and the earlier side of the conflict reported as the later
+  one.  Two survivors in the first pass were rewritten: one was an equivalent
+  mutation (a no-op expression), the other (`known.clear()`) still detected the
+  conflict, so both were replaced with mutations that actually change the
+  finding.
+
+  **Not covered.** A macro redefined inside one file still keeps "the later
+  definition wins" and says nothing; that shape had an answer before `--bib`
+  could be given twice, and changing it is a separate decision.
