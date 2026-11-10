@@ -12,6 +12,41 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A heading or a horizontal rule under a one-line claim comment was read as
+  the quote.**  `_continues_one_line_html` decides where an already-closed
+  `<!-- claim ... -->` block ends. Its own docstring says the block ends "at a
+  blank line, or where the next construct starts", and the list of constructs
+  held a fence, another comment and a table row. A heading and a thematic
+  break were missing, so both joined the quote. Measured on a page printing
+  `We collected 40,688 examples from the corpus.`:
+
+  ```
+  <!-- claim: c1 source=paper page=1 -->
+  ## Methods
+  -> [high] quote-missing at manuscript.md:1 (c1): ## Methods — quote not found
+
+  <!-- claim: c1 source=paper page=1 -->
+  ---
+  -> [high] quote-missing at manuscript.md:1 (c1): --- — quote not found
+  ```
+
+  Both sentences send the author to their PDF to look for a heading and a
+  horizontal rule their source never printed, over a claim that carries no
+  quote at all. `claim-uncheckable` is the true finding there, and it points at
+  the author's own block instead of at their evidence.
+
+  The two new patterns are `_ATX_HEADING` (``^[ \t]{0,3}#{1,6}(?:[ \t]|$)`` -
+  the indent is capped at three spaces like CommonMark, and a space after the
+  `#`s is required, so `#hashtag` stays prose) and `_THEMATIC_BREAK` (three of
+  the same character of `*`, `-` or `_`, optionally separated by spaces, with
+  nothing else on the line, so `--- and then some words` and `--` stay prose).
+
+  `15 tests, 10 mutations, all red.` The first round of mutations found two
+  gaps - any indent allowed, and a break needing only two characters - and
+  each gap got its own test before the round closed.
+
 ## [0.22.68] — 2026-11-10
 ### Fixed
 

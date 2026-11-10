@@ -43,6 +43,17 @@ _FENCE_CLOSE = re.compile(r"^```\s*$")
 _ANY_FENCE = re.compile(r"^(?P<ticks>`{3,}|~{3,})(?P<info>.*)$")
 _HTML_OPEN = re.compile(r"^<!--\s*claim\s*:?\s*(?P<attrs>.*)$")
 _HTML_CLOSE = re.compile(r"^\s*-->\s*$")
+# A block starts a new construct and can never be a quote's continuation.
+# These two are the ones `_continues_one_line_html` was missing: a heading and
+# a thematic break both began blocks in CommonMark, and both were read as the
+# quote of the one-line comment above them. The indent is capped at three
+# spaces and a heading needs a space after its `#`s, so `#hashtag` stays text;
+# a break needs the same character three times with nothing else on the line,
+# so `--- and then some words` stays text too.
+_ATX_HEADING = re.compile(r"^[ \t]{0,3}#{1,6}(?:[ \t]|$)")
+_THEMATIC_BREAK = re.compile(
+    r"^[ \t]{0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$"
+)
 # A cell ends at an unescaped `|`.  `\|` is the only way GFM lets a pipe sit
 # inside a cell, so it has to be one token here; `[^|]+?` read it as a cell
 # break and an author who escaped correctly got their quote cut at the
@@ -689,10 +700,30 @@ def _continues_one_line_html(line: str) -> bool:
     way a Markdown paragraph does: at a blank line, or where the next construct
     starts. Erring short here would silently drop the quote; erring long would
     swallow a following claim, so every opener counts as a boundary.
+
+    A heading and a thematic break were the two constructs missing from that
+    list, and both were read as the quote. Measured with a page printing
+    ``We collected 40,688 examples from the corpus.`` and a manuscript holding
+    one documented claim:
+
+        <!-- claim: c1 source=paper page=1 -->
+        ## Methods
+        -> [high] quote-missing at manuscript.md:1 (c1): ## Methods — quote not found
+
+        <!-- claim: c1 source=paper page=1 -->
+        ---
+        -> [high] quote-missing at manuscript.md:1 (c1): --- — quote not found
+
+    Both sentences send the author to their PDF to look for a heading and a
+    horizontal rule their source never printed. The claim holds no quote at
+    all, and the true finding is ``claim-uncheckable``, which at least points
+    at the author's own block.
     """
     if not line.strip():
         return False
     if _ANY_FENCE.match(line) or _HTML_OPEN.match(line) or _TABLE_CLAIM.match(line):
+        return False
+    if _ATX_HEADING.match(line) or _THEMATIC_BREAK.match(line):
         return False
     stripped = line.strip()
     return not stripped.startswith("<!--") and not _HTML_CLOSE.match(line)

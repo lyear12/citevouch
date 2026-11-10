@@ -7466,3 +7466,38 @@ How to apply:
   wide alphabet buys the silent row back and spends the loud false
   positive.
 
+## A list of boundaries is an inventory of every block a reader can start
+
+`_continues_one_line_html` decides where a claim comment that has already
+closed ends. Its docstring stated the rule it was following: "at a blank line,
+or where the next construct starts". The check underneath that sentence listed
+three constructs - a fence, another comment, a table row - and a heading and a
+thematic break were not on it, so both were read as the quote:
+
+```
+<!-- claim: c1 source=paper page=1 -->
+## Methods
+-> [high] quote-missing at manuscript.md:1 (c1): ## Methods — quote not found
+```
+
+The document that says "where the next construct starts" has never said which
+constructs it means. The list is the definition, and it will always be short
+until someone sits down with the Markdown spec and writes out every construct
+that can open a block: heading, thematic break, fence, comment, table row,
+blockquote, list item, HTML block.
+
+Two things made this hard to see. The block that ran long still produced a
+claim - just one carrying the wrong words - so nothing looked empty; and the
+verdict it produced was `quote-missing`, which is a sentence about the source
+page. An author who trusts it goes to look for a `## Methods` heading in their
+PDF. The failure shape is the one this project keeps meeting: the wrong answer
+is louder than the right one, and it points away from the file that is wrong.
+
+**How to apply it.** When a rule says "until the next X", the list of X is the
+rule, and it needs the same treatment as a severity table - enumerate it from
+the specification, not from the examples that came to mind. And when a
+swallowed line produces a *finding* rather than silence, check which noun the
+finding names: anything that sends the reader to the source when the problem is
+in the manuscript is a false accusation wearing a true code.
+
+
