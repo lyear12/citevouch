@@ -4846,3 +4846,44 @@ would a person actually have on disk", not by reading the code.
   Not covered: `_is_header_row` still assumes the delimiter immediately follows
   its header, so a blank line between the two makes the header a claim again.
   That is the open item noted above under the header-only fix.
+
+- [x] **P1 - a table claim whose page cell said `p. 3` was deleted, not read**
+
+  What was wrong: the table dialect reads the page cell with a pattern, so a
+  value the pattern does not know never reaches `int()` - the row stops being a
+  claim. A page hint is prose as often as it is a number, so
+  `| c1 | paper | p. 3 | We collected 40,688 examples from the corpus. | note |`
+  printed `[high] no-claim-blocks ... This file has none`, exit 1, over a file
+  holding one claim whose quote the page prints verbatim. `1,2`, `pp. 3-4`,
+  `page 5` and `pages 6-7` did the same.
+
+  What it does now: the cell admits an optional `p`/`pp`/`page`/`pages` prefix
+  with its full stop, then digits separated by space, comma, dash, en dash or em
+  dash, or a bare dash for "no hint", or nothing. A cell holding any other
+  letter is still not a page, which is what keeps a results table's third column
+  from turning five-cell rows into claims - that was the previous defect, and
+  both halves are real.
+
+  Why it is now true: `tests/test_table_page_spellings.py`, 25 tests, and 10
+  mutations, all red. One test asserts the fence and table dialects answer the
+  same value the same way, which is the property that was missing: the fence
+  dialect had parsed `p. 3`, refused it with `page-unreadable`, and verified the
+  claim, for releases.
+
+  Not covered: roman numerals. `iv` and `iv-vii` still match nothing, so a table
+  claim with a roman page hint is still invisible - the same class of defect
+  this item closed, left open because there is no rule here that both dialects
+  would agree on.
+
+- [ ] **P2 - a roman-numeral page hint deletes a table claim row**
+
+  `| c1 | paper | iv | We collected ... | note |` matches no claim at all: the
+  file reports `no-claim-blocks ... This file has none` when that is its only
+  row, and silently drops the row when it has company. The fence dialect has
+  the same hole from the other side - `page=iv` parses, `int()` refuses it, and
+  `page-unreadable` names the ignored hint - so the fence answer is honest and
+  the table answer is silence. Direction to try: admit `[ivxlcdm]+` runs in the
+  page cell, let `int()` refuse them, and confirm a results table's third column
+  cannot be a bare roman numeral often enough to matter. Not done here because
+  it wants a decision about which of `iv`, `iv-vii`, `IV` are hints and which
+  are words, and a wrong answer deletes rows in the other direction.
