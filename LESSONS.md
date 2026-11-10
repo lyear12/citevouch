@@ -7666,3 +7666,36 @@ How to apply:
 * A cell that is refused must cost the author a finding, not a row. If a
   pattern is the gate, ask what happens to the row behind it.
 
+## A branch that refuses a value is a branch that deletes the line
+
+The table dialect reads a page cell with a pattern, and a value the pattern
+rejects does not reach `int()` - the whole row stops being a claim.  The fence
+dialect reads the same value as a string, hands it to `int()`, and reports
+`page-unreadable`: the hint is refused and the quote is still searched.  One
+dialect loses a row, the other names an ignored instruction.
+
+Every alphabet the pattern does not know deletes rows the same way.  Numbers
+went first, then the prose around them (`p. 3`, `pp. 3-4`), then roman
+numerals - three defects with one shape, each found separately because each
+time I asked what the pattern accepts rather than what the pattern is for.
+
+```
+| c1 | paper | iv | We collected 40,688 examples from the corpus. | note |
+-> [high] no-claim-blocks ... This file has none        (the table dialect)
+-> [medium] page-unreadable ... quote-found               (the fence dialect)
+```
+
+How to apply:
+
+- When two dialects read the same attribute by different means, ask whether
+  they agree on a value that is *unusable*, not on a value that is valid.  The
+  valid ones agree by construction; the unusable ones are where one of them
+  silently drops the record.
+- A pattern in a parser is a decision to refuse everything it does not
+  recognise.  Naming the refused value in a finding is the alternative, and it
+  costs one branch instead of one class of missing rows.
+- Before widening a pattern, write down what it protects.  Here it was the
+  results table, whose third column is a number - so the answer is an alphabet,
+  not `.*`, and the alphabet has to be small enough that `class` is not a
+  numeral.
+

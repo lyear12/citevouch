@@ -87,8 +87,7 @@ _CELL = r"(?:[^|\\]|\\.)*?"
 #
 # Deliberately not "any text": a results table's header row
 # (`| model | setting | 84 | f1 | note |`) already reads as a claim, and
-# widening this cell would make every such row one.  `iv` and `iv-vii` still
-# match nothing, which is a limit, not a claim about roman numerals.
+# widening this cell would make every such row one.
 #
 # The same argument made the cell too narrow in the other direction.  A page
 # hint is prose as often as it is a bare number - `p. 3`, `pp. 3-4`,
@@ -104,9 +103,29 @@ _CELL = r"(?:[^|\\]|\\.)*?"
 # A cell holding any other letter is still not a page, which is what keeps a
 # results table a results table: its third column is `score`, `f1`, `done` or a
 # bare number, and only the bare number was ever read as a claim.
+#
+# Roman numerals are the same bargain as the bare number, not a new one.  A
+# book's front matter is numbered i, ii, iii, so `| c1 | paper | iv | ... |`
+# deleted the whole row: measured over a file whose only claim it was, `check`
+# printed `no-claim-blocks ... This file has none`, exit 1, while the fence
+# dialect answered `page=iv` with `page-unreadable`, medium, and verified the
+# quote anyway.  The alphabet is restricted to i, v, x and l and each run has
+# to be a canonical numeral, so the words that share those letters stay words:
+# `ill` is not a numeral and `mix` is not in the alphabet, and neither matches.
+# The price is the price the bare number already charges - a results table whose
+# third column is a roman numeral reads as claims - and it is paid on purpose,
+# because a deleted row is silence while a read row naming an unfindable source
+# is a sentence the author can answer.
+_ROMAN_SEPARATORS = r"[ \t]*[-\u2013\u2014,][ \t]*"
+_ROMAN_RUN = (
+    r"(?=[ivxlIVXL])"
+    r"(?:[Xx][Cc]|[Xx][Ll]|[Ll]?[Xx]{0,3})?"
+    r"(?:[Ii][Xx]|[Ii][Vv]|[Vv]?[Ii]{0,3})"
+)
 _PAGE_CELL = (
     r"(?:(?:[Pp]|[Pp][Pp]|[Pp]age|[Pp]ages)[ \t]*\.?[ \t]*)?"
-    r"[0-9](?:[0-9\s,\u2013\u2014-]*[0-9\u2013\u2014-])?"
+    r"(?:[0-9](?:[0-9\s,\u2013\u2014-]*[0-9\u2013\u2014-])?"
+    r"|" + _ROMAN_RUN + r"(?:" + _ROMAN_SEPARATORS + _ROMAN_RUN + r")*)"
     r"|[-\u2013\u2014]|"
 )
 _TABLE_CLAIM = re.compile(

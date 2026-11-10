@@ -118,9 +118,13 @@ class TestTheRowIsStillRead:
 
 
 class TestWhatMustStillBeRefused:
+    # `iv` and `iv-vii` used to be listed here.  They are roman numerals, and a
+    # book's front matter is numbered in them, so refusing them deleted the row
+    # instead of naming an ignored hint - the same defect this file is about,
+    # one alphabet over.  `tests/test_table_roman_page.py` covers them now.
     @pytest.mark.parametrize(
         "cell",
-        ["score", "f1", "done", "n/a", "iv", "iv-vii", "1 to 2", "1.5", "+1", "-1"],
+        ["score", "f1", "done", "n/a", "1 to 2", "1.5", "+1", "-1"],
     )
     def test_a_cell_that_is_a_word_is_still_not_a_claim(self, cell):
         parsed = parse("Title", "", row(cell))

@@ -12,6 +12,39 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table claim whose page cell held a roman numeral was deleted, not read.**
+  A book's front matter is numbered i, ii, iii, iv, and its chapters cite those
+  pages.  The table dialect read the page cell with a pattern, and a value that
+  failed the pattern never reached `int()` - the row stopped being a claim, with
+  no finding.  Measured in a project whose page held the quote:
+
+      | c1 | paper | iv | We collected 40,688 examples from the corpus. | note |
+      -> [high] no-claim-blocks ... This file has none
+      citevouch: 0 claims - 0 verified, 0 moved, 0 missing, exit 1
+
+  The fence dialect answered the same value the same way it answers any other
+  hint it cannot apply:
+
+      ```claim id=c1 source=paper page=iv
+      -> [medium] page-unreadable ... claim c1 has a non-numeric page='iv'; the
+         hint is ignored and the quote will be located by search
+      -> quote-found
+
+  So the cell now admits a roman numeral and lets `int()` refuse it.  The
+  alphabet is i, v, x and l and every run has to be a canonical numeral, so the
+  words spelled with those letters stay words: `ill`, `mix`, `class`, `civic`,
+  `live` and `x-ray` are not pages, and a cell holding one is still not a claim.
+  `m` and `c` are left out on purpose - a table's third column is more likely to
+  say `class` or `done` than to be a page numbered in the hundreds.  A run joined
+  by a dash, an en dash, an em dash or a comma is one hint, so `iv-vii` and
+  `iv, vii` are read the way the number branch reads `1-2`.
+
+  `tests/test_table_roman_page.py`, 42 tests, and 9 mutations, all red.  One test
+  asserts the two dialects answer the same value the same way, which is the
+  property that was missing.
+
 ## [0.22.73] — 2026-11-10
 ### Fixed
 
