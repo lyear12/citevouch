@@ -7186,3 +7186,46 @@ missing category and the duplicated one at the same time. And keep the clause
 conditional on the count being non-zero where the existing output promised that:
 adding a fifth number to every clean report is a byte-level change to a surface
 users diff.
+## A command is not the only thing in TeX that takes arguments
+
+`\begin{minipage}{0.5\textwidth}` and `\begin{spacing}{1.5}` take arguments the reader never
+sees. The converter had a rule for commands - `_SKIP_FIRST_ARGUMENT`,
+`_DROP_ALL_ARGUMENTS`, `_SKIP_ARGUMENT_COUNT` - and no rule at all for
+environments, which it treated as a name to drop and a body to keep. So the
+width became the first word of the next sentence. Measured:
+
+```
+\begin{spacing}{1.5}
+We collected 40,688 examples from the corpus of written English and then
+filtered them by hand. \citep{paper}
+\end{spacing}
+```
+
+converted to `'1.5
+We collected ...'`, and `draft` wrote a claim whose quotation begins `1.5`.
+Pasted back it is `[high] quote-fuzzy` and `[high] number-absent-in-quote` -
+the tool asking the author about a number the author never typed.
+
+The family of mistakes is the same one the command tables were built for, and
+the reason it survived is the reason that family always survives: the tables
+were written from the commands a paper uses, and nobody asked what else in
+TeX has this shape. The answer is environments, sectioning parameters,
+keyval lists and counter names - and each of those needs its own table, not a
+cleverer regex.
+
+A second detail is worth keeping: `theorem` takes `[Main result]` and that
+*is* prose. The optional-argument table is therefore not "every environment
+with a bracket"; it is the environments where the bracket is a placement, a
+list style or a column type. Two of those (`theorem`, `proof`) name the
+result, and dropping their bracket would delete the author's own words.
+
+How to apply:
+
+- When a converter has a table of argument-taking *commands*, ask what else
+  in the format takes the same kind of argument. Environments, sectioning
+  parameters and keyval lists are the usual next three.
+- A figure planted in front of a sentence is invisible in the output until
+  you read the *first* line of the converted text. That is where to look.
+- Two tables, not one: "this argument is not prose" and "this argument is
+  markup I must drop". Merging them is how `[Main result]` gets deleted.
+

@@ -788,6 +788,69 @@ _DROP_ALL_ARGUMENTS = {
 #: both said them twice, once in a form the reader never sees.
 _KEEP_FIRST_ARGUMENT = frozenset({"texorpdfstring"})
 
+#: How many braced arguments each environment takes before its body starts.
+#:
+#: The converter read the environment name out of `\begin{...}` and let
+#: everything after it fall into the stream as prose, so a width or a column
+#: count became a word: `\begin{spacing}{1.5}` converted to `'1.5
+#: We collected ...'`, and `draft` glued the figure to the next line - there is
+#: no full stop between them - and proposed
+#:
+#:     quote: |
+#:       1.5 We collected 40,688 examples from the corpus ...
+#:
+#: with `confidence: medium` where the same sentence outside the environment
+#: earns `high`.  Pasted back, that block is `[high] quote-fuzzy` **and**
+#: `[high] number-absent-in-quote: the quote says 1.5 but page 1 does not
+#: contain that number` - two accusations against a sentence the source prints
+#: verbatim and a number the author never typed.
+_ENVIRONMENT_ARGUMENTS = {
+    "minipage": 1,
+    "multicols": 1,
+    "multicols*": 1,
+    "spacing": 1,
+    "column": 1,
+    "column*": 1,
+    "overlaycolumn": 1,
+    "adjustbox": 1,
+    "wrapfigure": 2,
+    "wraptable": 2,
+    "subfigure": 1,
+    "subtable": 1,
+    "list": 2,
+}
+
+#: Environments whose leading `[..]` is a placement or a list option, not
+#: prose.  `theorem` and its relatives are deliberately absent: their
+#: `[Main result]` names the result in words the author chose, and that reads
+#: as text already.
+_ENVIRONMENT_OPTIONAL = frozenset(
+    {
+        "figure",
+        "figure*",
+        "table",
+        "table*",
+        "algorithm",
+        "algorithm*",
+        "algorithmic",
+        "minipage",
+        "adjustbox",
+        "itemize",
+        "enumerate",
+        "description",
+    }
+)
+
+#: Beamer environments whose leading `<..>` is an overlay specification.
+_ENVIRONMENT_OVERLAY = frozenset(
+    {
+        "onlyenv",
+        "visibleenv",
+        "uncoverenv",
+        "actionenv",
+        "columns",
+    }
+)
 # Environments that separate prose from prose.
 _BLOCK_ENVIRONMENT = frozenset(
     {
@@ -1551,7 +1614,10 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
                         index = after
                         continue
                     out.append("\n\n" if environment in _BLOCK_ENVIRONMENT else "")
-                    index = group
+                    if name == "begin":
+                        index = _past_environment_arguments(text, group, environment)
+                    else:
+                        index = group
                     continue
                 if name in _SPACE_COMMANDS:
                     out.append("\n\n" if name == "par" else " ")
@@ -1595,6 +1661,45 @@ def _convert(text: str, notes: list[str] | None = None) -> str:
         index += 1
 
     return "".join(out)
+
+
+def _skip_spaces(text: str, start: int) -> int:
+    """Index just past the spaces and tabs at `start`."""
+    index = start
+    while index < len(text) and text[index] in " \t\r\n":
+        index += 1
+    return index
+
+
+def _past_environment_arguments(text: str, start: int, name: str) -> int:
+    """Index just past the arguments a `\begin{name}` line takes.
+
+    `start` is just past the closing brace of the name.  An overlay
+    specification, the `[..]` options a float takes and the braced arguments
+    the environment declares are markup: TeX consumes them, and leaving them
+    in the stream is how a width became the first word of a sentence.
+    """
+    index = _skip_spaces(text, start)
+    if name in _ENVIRONMENT_OVERLAY and index < len(text) and text[index] == "<":
+        end = _group_end(text, index, "<", ">")
+        if end > 0:
+            index = end
+    if name in _ENVIRONMENT_OPTIONAL:
+        while True:
+            index = _skip_spaces(text, index)
+            if index >= len(text) or text[index] != "[":
+                break
+            end = _group_end(text, index, "[", "]")
+            if end < 0:
+                return index
+            index = end
+    for _ in range(_ENVIRONMENT_ARGUMENTS.get(name, 0)):
+        index = _skip_spaces(text, index)
+        end = _group_end(text, index)
+        if end < 0:
+            return index
+        index = end
+    return index
 
 
 def _skip_optional_args(text: str, start: int) -> int:

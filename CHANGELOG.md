@@ -12,6 +12,39 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A `\begin{...}` line's arguments were converted as prose.**
+
+  `\begin{spacing}{1.5}` names a line spacing and `\begin{multicols}{2}` names a column count. The converter read the
+  environment name and let everything after it fall into the stream, so the
+  figure became a word: `\begin{spacing}{1.5}` followed by
+  `We collected 40,688 examples from the corpus ...` converted to
+  `'1.5
+  We collected ...'`. `draft` glues such a figure to the next line - there is
+  no full stop between them - and proposed
+
+      quote: |
+        1.5 We collected 40,688 examples from the corpus of written English and then filtered them by hand.
+
+  with `confidence: medium` where the same sentence outside the environment
+  earns `high`. Pasted back, that block is `[high] quote-fuzzy` **and**
+  `[high] number-absent-in-quote: the quote says 1.5 but page 1 of the source
+  does not contain that number` - two accusations against a sentence the
+  source prints verbatim and a number the author never typed.
+
+  The converter now knows how many braced arguments each environment takes
+  (`_ENVIRONMENT_ARGUMENTS`: `minipage`, `multicols`, `spacing`, `column` and
+  `adjustbox` take one, `wrapfigure` and `wraptable` take two), which
+  environments take a leading `[..]` placement or list option
+  (`_ENVIRONMENT_OPTIONAL`), and which beamer environments take a leading
+  `<..>` overlay (`_ENVIRONMENT_OVERLAY`). `theorem` and its relatives are
+  deliberately absent from the option set: their `[Main result]` names the
+  result in the author's words and reads as text already. A `\begin{quote}`
+  that takes no argument keeps a braced group in its body.
+
+  30 tests, 10 mutations, all red.
+
 ## [0.22.60] — 2026-11-10
 ### Fixed
 
