@@ -7699,3 +7699,34 @@ How to apply:
   not `.*`, and the alphabet has to be small enough that `class` is not a
   numeral.
 
+## A boundary list is only as long as the spec it was copied from
+
+The one-line comment dialect ends where the next construct starts, and that
+list has now been short three times.  Headings and thematic breaks went
+first.  HTML went second, and it went in a shape I had already fixed once:
+the author writes a claim comment, then closes a `<div>` they opened earlier,
+and the tag becomes the quote.
+
+```
+<!-- claim: c1 source=paper page=1 -->
+</div>
+-> [high] quote-missing at manuscript.md:1 (c1): </div> - quote not found
+```
+
+The wrong fix is "anything in angle brackets ends the block".  A tag inside a
+sentence - `a <b>bold</b> word`, or `5 < 7 and 8 > 2` - is prose, and treating
+it as a boundary chops a real quote in half.  Losing a quote is quieter than
+misreporting one and just as wrong.
+
+How to apply:
+
+- When you write a boundary list, say whose list it is.  CommonMark's HTML
+  block types are published, finite and testable; "the constructs I could
+  think of" is none of those.
+- Test the two halves of a rule separately.  "A tag alone on a line" and "a
+  block-level tag name" look identical until a fixture puts prose after the
+  tag - three of this round's ten mutations survived on the first suite for
+  exactly that reason.
+- A fix for one family of missing boundaries is evidence about the next
+  family, not proof that the list is complete.
+

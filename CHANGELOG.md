@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **An HTML block under a one-line claim comment was read as the quote.**
+  The one-line comment dialect has no terminator of its own, so its body ends
+  where the next construct starts.  An ATX heading and a thematic break were
+  added to that list two releases ago; HTML was the third family and was still
+  missing.  Measured in a project whose page prints the quoted sentence:
+
+      <!-- claim: c1 source=paper page=1 -->
+      </div>
+      -> [high] quote-missing at manuscript.md:1 (c1): </div> - quote not found
+         (too short for a fuzzy comparison) in page.txt
+
+  The same for `<div class="note">`, `<br>`, `<hr>`, `<table>` and `<details>`.
+  Every one of them sends the author to their PDF looking for a tag their source
+  never printed, when the block holds no quote at all and the honest finding is
+  `claim-uncheckable`.
+
+  The rule is CommonMark's, not "anything in angle brackets": a block-level tag
+  name starts a block whether or not prose follows it on the line, a complete tag
+  alone on a line starts a block, and `<script>`, `<pre>`, `<style>`, `<textarea>`
+  start a block.  So `a <b>bold</b> word` is still prose, `<divs>` is not a tag
+  name, and `5 < 7 and 8 > 2` is still arithmetic - reading every angle bracket as
+  a boundary would chop a legitimate quote in half, which loses a quote instead of
+  misreporting one.
+
+  `tests/test_html_block_boundary.py`, 46 tests, and 10 mutations, all red.  Three
+  of the ten only died after a second round: the first suite could not tell the
+  block-level name list from the alone-on-a-line form, because every fixture had
+  the tag alone.
+
 ## [0.22.74] — 2026-11-10
 ### Fixed
 

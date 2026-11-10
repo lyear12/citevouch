@@ -793,6 +793,48 @@ def _unclosed_finding(
     )
 
 
+# The tag names CommonMark calls block-level.  A line that opens or closes one
+# of these starts a block; anything else in angle brackets is inline HTML and
+# belongs to the sentence it sits in.  Spelled out because the list is the
+# definition: a name missing here is a name whose line gets read as a quote.
+_HTML_BLOCK_TAGS = (
+    "address article aside base basefont blockquote body caption center col "
+    "colgroup dd details dialog dir div dl dt fieldset figcaption figure footer "
+    "form frame frameset h1 h2 h3 h4 h5 h6 head header hr html iframe legend li "
+    "link main menu menuitem nav noframes ol optgroup option p param search "
+    "section summary table tbody td tfoot th thead title tr track ul"
+).split()
+
+# CommonMark HTML block type 1 (a raw-text element) and type 6 (one of the
+# block-level names above), matched the way CommonMark matches them: at the
+# start of the line, after at most three spaces, followed by space, `>`, `/`
+# or the end of the line.  ``<DIV>`` counts; ``<divs>`` does not.
+_HTML_BLOCK_START = re.compile(
+    r"^[ \t]{0,3}(?:"
+    r"<(?:script|pre|style|textarea)(?:[ \t>]|$)"
+    r"|</?(?:" + "|".join(_HTML_BLOCK_TAGS) + r")(?:[ \t/>]|$)"
+    r")",
+    re.IGNORECASE,
+)
+
+# CommonMark HTML block type 7: a complete open or closing tag alone on a line.
+# This is what makes ``<span>`` on its own line a block while ``<span>`` inside
+# a sentence is not - the tag has to be the whole line, attributes and all.
+_HTML_BLOCK_ALONE = re.compile(
+    r"^[ \t]{0,3}(?:"
+    r"</[A-Za-z][A-Za-z0-9-]*[ \t]*>"
+    r"|<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*"
+    r"(?:[ \t]*=[ \t]*(?:[^ \t\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)*"
+    r"[ \t]*/?>"
+    r")[ \t]*$"
+)
+
+
+def _starts_an_html_block(line: str) -> bool:
+    """True when ``line`` opens an HTML block rather than continuing prose."""
+    return bool(_HTML_BLOCK_START.match(line) or _HTML_BLOCK_ALONE.match(line))
+
+
 def _continues_one_line_html(line: str) -> bool:
     """True while ``line`` still belongs to an already-closed ``<!-- claim``.
 
@@ -818,12 +860,22 @@ def _continues_one_line_html(line: str) -> bool:
     horizontal rule their source never printed. The claim holds no quote at
     all, and the true finding is ``claim-uncheckable``, which at least points
     at the author's own block.
+
+    HTML was the third family.  A claim comment written directly above a
+    ``</div>``, a ``<br>``, an ``<hr>`` or an image was read with that tag as
+    its quote, and every one of those produced the same accusation against a
+    page that prints none of them.  The rule is CommonMark's, not "anything in
+    angle brackets": a block-level tag name starts a block, a complete tag
+    alone on a line starts a block, and a tag inside a sentence stays in the
+    sentence - ``a <b>bold</b> word`` is prose and ``5 < 7`` is arithmetic.
     """
     if not line.strip():
         return False
     if _ANY_FENCE.match(line) or _HTML_OPEN.match(line) or _TABLE_CLAIM.match(line):
         return False
     if _ATX_HEADING.match(line) or _THEMATIC_BREAK.match(line):
+        return False
+    if _starts_an_html_block(line):
         return False
     stripped = line.strip()
     return not stripped.startswith("<!--") and not _HTML_CLOSE.match(line)
