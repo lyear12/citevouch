@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.77] — 2026-11-10
 ### Fixed
 
 * **A source key written without quotes bound on one interpreter and made the manifest unreadable on another.**
@@ -30,7 +31,6 @@ tag and that file disagree.
   Two neighbouring shapes keep their own sentences on purpose. A dotted key (`smith.2020`) is legal TOML naming a nested table, and answering it with `quote it` would trade the right sentence for a near miss; a quoted key this reader cannot spell (`"pa#ge"`) is refused for a reason quoting does not address.
 
   55 tests, 8 mutations, all red.
-
 ## [0.22.76] — 2026-11-10
 ### Fixed
 
@@ -4683,7 +4683,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.76...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.77...HEAD
+[0.22.77]: https://github.com/lyear12/citevouch/releases/tag/v0.22.77
 [0.22.76]: https://github.com/lyear12/citevouch/releases/tag/v0.22.76
 [0.22.75]: https://github.com/lyear12/citevouch/releases/tag/v0.22.75
 [0.22.74]: https://github.com/lyear12/citevouch/releases/tag/v0.22.74
