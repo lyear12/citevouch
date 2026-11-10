@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.66] — 2026-11-10
 ### Fixed
 
 * **Two `--bib` files that define one macro differently chose a winner
@@ -36,7 +37,6 @@ tag and that file disagree.
   shape had an answer before `--bib` could be given twice.
 
   11 tests, 7 mutations, all red.
-
 ## [0.22.65] — 2026-11-10
 ### Fixed
 
@@ -4332,7 +4332,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.65...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.66...HEAD
+[0.22.66]: https://github.com/lyear12/citevouch/releases/tag/v0.22.66
 [0.22.65]: https://github.com/lyear12/citevouch/releases/tag/v0.22.65
 [0.22.64]: https://github.com/lyear12/citevouch/releases/tag/v0.22.64
 [0.22.63]: https://github.com/lyear12/citevouch/releases/tag/v0.22.63
