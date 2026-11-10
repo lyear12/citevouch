@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.72] — 2026-11-10
 ### Fixed
 
 * **A table's delimiter row was read as a claim named `-`.**
@@ -48,7 +49,6 @@ tag and that file disagree.
   `_is_header_row` refuses to call a delimiter the header of what follows it.
 
   `tests/test_delimiter_row.py`, 11 tests, 6 mutations, all red.
-
 ## [0.22.71] — 2026-11-10
 ### Fixed
 
@@ -4552,7 +4552,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.71...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.72...HEAD
+[0.22.72]: https://github.com/lyear12/citevouch/releases/tag/v0.22.72
 [0.22.71]: https://github.com/lyear12/citevouch/releases/tag/v0.22.71
 [0.22.70]: https://github.com/lyear12/citevouch/releases/tag/v0.22.70
 [0.22.69]: https://github.com/lyear12/citevouch/releases/tag/v0.22.69
