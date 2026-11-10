@@ -12,6 +12,33 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The markdown report left out the claims it skipped.**
+
+  `render_text` and `render_json` both carry `skipped`; the markdown summary
+  row - the one `action.yml` puts in a pull-request comment - printed four
+  counts and never that fifth one. Measured on a claim whose source file exists
+  but holds no text, before this change:
+
+  ```
+  --format text      citevouch: 1 claim — 0 verified, 0 moved, 0 missing, 1 skipped
+  --format json      {"checked": 1, ..., "skipped": 1}
+  --format markdown  **1** claim · **0** verified · **0** moved · **0** missing
+  ```
+
+  The run exits 1 over that claim, and the row a reviewer reads accounts for
+  none of it. The four numbers add up to the document minus everything this
+  run declined to judge, so a red job looks like a report about a smaller
+  paper. A skipped claim was read and then deliberately not judged - that is
+  the opposite of it not existing, and the surface a reviewer trusts cannot be
+  the one place that says it does not.
+
+  The clause is conditional on `result.skipped`, exactly as the text tally is,
+  so a clean report keeps the row it has always had: 6 tests, 6 mutations, all
+  red.
+
+
 ## [0.22.59] — 2026-11-09
 ### Fixed
 

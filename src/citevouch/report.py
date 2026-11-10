@@ -467,10 +467,19 @@ def render_markdown(
     bullets = findings[:max_total]
     lines = ["## citevouch evidence report", ""]
     if result is not None:
+        # `skipped` is printed only when it is not zero, exactly as the text
+        # tally does, so a clean report keeps the row it has always had.  It
+        # has to be printed at all: a reviewer reading this row adds up
+        # verified, moved and missing and learns how much of the manuscript
+        # was judged - and a skipped claim was read, then deliberately not
+        # judged, so leaving it out says the document holds fewer claims than
+        # it holds.  A run that exits 1 over a claim this row does not count
+        # looks like a report about a smaller paper.
         lines.append(
             f"**{result.checked}** {_word(result.checked, 'claim')} · "
             f"**{result.verified}** verified · "
             f"**{result.moved}** moved · **{result.missing}** missing"
+            + (f" · **{result.skipped}** skipped" if result.skipped else "")
         )
         if result.unrecorded:
             # Same reason as the text summary: the bullet list below already

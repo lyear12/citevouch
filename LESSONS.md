@@ -7156,3 +7156,33 @@ How to apply:
 * "The output looks right" is not the test. The test is that the two readers who
   need opposite things from the same characters both get their answer.
 
+
+## A count printed by three writers is three chances to say nothing
+
+`check` renders one `VerifyResult` four ways. Text, JSON, SARIF and markdown each
+print the same numbers, and each is an independent promise that the numbers are
+the numbers. `skipped` was written into three of them and left out of the
+fourth - the markdown row that `action.yml` puts in a pull-request comment, the
+one surface a reviewer actually reads.
+
+The row that was missing it said `**1** claim · **0** verified · **0** moved ·
+**0** missing` for a run that exits 1 over that claim. Nothing in it was false.
+The four numbers are real counts of real categories. What was missing is the
+category the claim fell into, so the reader adds up what is on the page, gets
+zero, and concludes the document holds nothing worth reading. A reader cannot
+miss a number that is not offered as absent.
+
+This is the same shape as the tally that counted the ledger instead of the file,
+and the same shape as the whole-row refusal that left the refused block in
+neither `checked` nor `skipped`: a summary is not a place to be tasteful. Every
+category a result can fall into has to appear, or the sentence describes a
+different document than the one that was read.
+
+**How to apply.** When a result object gains a field, grep for the writers that
+print it rather than the writer you were thinking of - the one that forgot it is
+the one nobody's test covered. Make the counts add up in a test (`verified +
+moved + missing + skipped == checked`), because that assertion catches the
+missing category and the duplicated one at the same time. And keep the clause
+conditional on the count being non-zero where the existing output promised that:
+adding a fifth number to every clean report is a byte-level change to a surface
+users diff.
