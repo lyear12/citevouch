@@ -4316,3 +4316,43 @@ would a person actually have on disk", not by reading the code.
   against the printed characters, which is a different change.  A `\verb` body
   inside a claim block's `quote:` is likewise blanked in the claim text.
 
+
+- [x] **P1 - the markdown report left out the claims it skipped**
+
+  **What was wrong.** `render_text` and `render_json` both print
+  `result.skipped`; the markdown summary row - the one `action.yml` puts in a
+  pull-request comment, the surface a reviewer actually reads - printed
+  `checked`, `verified`, `moved` and `missing` and stopped. Measured on a claim
+  whose source file exists but holds no text:
+
+  ```
+  --format text      citevouch: 1 claim — 0 verified, 0 moved, 0 missing, 1 skipped
+  --format json      {"checked": 1, ..., "skipped": 1}
+  --format markdown  **1** claim · **0** verified · **0** moved · **0** missing
+  ```
+
+  The run exits 1 over that claim and the row accounts for none of it. Nothing
+  in the row is false - those are real counts of real categories - but a reader
+  adds up what is on the page, gets zero, and concludes the document holds
+  nothing. A skipped claim was read and then deliberately not judged, which is
+  the opposite of it not existing.
+
+  **What it does now.** The row carries the fifth count when it is not zero,
+  exactly as the text tally does, so a clean report keeps the row it has always
+  had. `tests/test_markdown_summary_matches_the_others.py` asserts the four
+  counts add up to `checked` - one assertion that catches both a missing
+  category and a duplicated one.
+
+  **Why it is now true.** 7 tests, 8 mutations, all red: never printing the
+  clause, always printing it, printing `missing` twice, printing `verified` as
+  skipped, gluing the clause to the `unrecorded` row instead, removing it from
+  the text tally too, dropping `moved` from the markdown row, and counting
+  blocks in a row that says claims. The last one survived the first round -
+  it only dies once a test pins the two rows to their two different nouns.
+  The demo red line is unchanged: `5 claims — 4 verified, 0 moved, 1 missing`,
+  `worst severity: high`, exit 1.
+
+  **Not covered.** The SARIF writer never carried a tally and still does not;
+  it has a fixed shape and callers read `invocations` there instead. Nothing
+  here makes a fifth renderer appear - if one does, it starts without the
+  clause like this one did.
