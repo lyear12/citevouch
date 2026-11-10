@@ -4356,3 +4356,60 @@ would a person actually have on disk", not by reading the code.
   it has a fixed shape and callers read `invocations` there instead. Nothing
   here makes a fifth renderer appear - if one does, it starts without the
   clause like this one did.
+
+- [x] **P1 - a `\begin{...}` line's arguments were pasted into the sentence**
+
+  **What was wrong.** `latex._convert` had a rule for commands that take
+  arguments - `_SKIP_FIRST_ARGUMENT`, `_DROP_ALL_ARGUMENTS`,
+  `_SKIP_ARGUMENT_COUNT` - and no rule at all for environments, which it
+  treated as a name to drop and a body to keep. So the argument became the
+  first word of the next sentence:
+
+  ```
+  \begin{spacing}{1.5}
+  We collected 40,688 examples from the corpus ... \citep{paper}
+  \end{spacing}
+  ```
+
+  converted to `'1.5
+  We collected ...'`. `draft` glues a figure to the following line because
+  there is no full stop between them, and proposed
+
+      quote: |
+        1.5 We collected 40,688 examples from the corpus of written English and then filtered them by hand.
+
+  with `confidence: medium` where the same sentence outside the environment
+  earns `high`. Pasted back, the block is `[high] quote-fuzzy` **and**
+  `[high] number-absent-in-quote: the quote says 1.5 but page 1 of the source
+  does not contain that number` - the tool asking the author about a number
+  the author never typed, in a sentence the source prints verbatim.
+
+  Measured leaks before the fix: `minipage`, `wrapfigure`, `wraptable`,
+  `multicols`, `multicols*`, `subfigure`, `subtable`, `adjustbox`, `spacing`,
+  `list`, `column`, `tcolorbox`, `figure`, `table`, `algorithm` and
+  `thebibliography`.
+
+  **What it does now.** Three tables say what a `begin` line consumes:
+  `_ENVIRONMENT_ARGUMENTS` (counted braced groups), `_ENVIRONMENT_OPTIONAL`
+  (a leading `[..]` placement or list style) and `_ENVIRONMENT_OVERLAY` (a
+  beamer `<..>`). `_past_environment_arguments` applies them only to
+  `begin`; `theorem`, `lemma`, `corollary`, `proposition`, `remark` and
+  `proof` are deliberately absent from the optional set because their
+  `[Main result]` is the author's own words.
+
+  **Why it is now true.** 30 tests, 10 mutations, all red. Three of them
+  survived the first round and each needed a test written for it: spaces
+  between environment name and argument, an argument that never closes (the
+  group must be abandoned, not the file), and `\end{...}` (which takes no
+  arguments at all - a braced group after it is the author's). The
+  space-skipping one only died once the test used *two* arguments with a
+  space before the second. The demo red line is unchanged:
+  `5 claims — 4 verified, 0 moved, 1 missing`, `worst severity: high`, exit 1.
+
+  **Not covered.** The tables say how many groups to skip, not what is inside
+  them, so an argument that is itself a macro (`{\linewidth}`, `{\colwidth}`)
+  is skipped wholesale rather than expanded - which is what the prose wants,
+  but it means a `\begin{minipage}{\foo{1.5}}` still leaves the body alone only because the
+  group scan is balanced. Sectioning parameters (`titlesec`), keyval lists
+  outside `adjustbox`, and counter names are the same family and are still
+  unhandled.
