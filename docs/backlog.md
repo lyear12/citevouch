@@ -4502,3 +4502,26 @@ would a person actually have on disk", not by reading the code.
   `bib-key-unused`) were not re-read for a third source; only the key-missing
   sentence was shown to have one.
 
+
+- [x] **P1 - a bibliography that holds only macros was reported as unreadable prose**
+
+  What was wrong: `parse_bib` ended with a single branch for "no entries came out", and it wrote the sentence for the worst reason - not one entry could be read, the file is probably in the wrong encoding, convert it.  Two very different files reach that branch.  With a shared `macros.bib` (two `@string definitions) beside `refs.bib` (every key the manuscript cites), which is what multiple `--bib` flags are for:
+
+  ```
+  $ citevouch check manuscript.md --root . --bib macros.bib --bib refs.bib
+  [high] bib-unreadable at macros.bib:1: not one entry could be read from
+         macros.bib, so every reference in the manuscript is unchecked
+         against a bibliography that is effectively empty.  Often the file
+         is not the encoding it claims: a UTF-16 save read as UTF-8 gives a
+         replacement character and a NUL between every letter.
+  exit 1
+  ```
+
+  The file is ASCII, it parsed completely, both macros came through, and no reference went unanswered.  The author is sent to change an encoding that is already right, at the severity reserved for findings a reader must not ignore.
+
+  What it does now: the branch asks the question it can answer - is there text this parse could not account for?  A gap between entries, or an entry that never closes, is that answer and keeps `bib-unreadable`.  Definitions alone are not, and get a new `bib-no-entries` (low) that says what the file does hold (`2 definitions`) and points at `--bib macros.bib --bib refs.bib`.  A file with macros *and* stray prose stays loud and now says how many definitions did parse.  `bib-no-entries` is added to `CODES`, the SARIF rules and both README code tables.
+
+  Why it is now true: `tests/test_bib_definitions_only.py` (9 tests) covers the two-flag set-up, a `@preamble`-only file, an `@comment`-only file, prose that is not BibTeX (still `bib-unreadable`), and macros plus stray prose (still loud, and now counted).  Eight mutations, all red: always blame the encoding, never blame it, definitions not counted, unparsed headers no longer counted, unclosed entries no longer counted, the count dropped from the sentence, the workaround dropped from the sentence, `bib-no-entries` reported as high.  The last two survived the first run and were killed by pinning `2 definitions` and `--bib macros.bib --bib refs.bib` in the test.
+
+  Not covered: `draft --bib` uses the same `parse_bib`, so it now also reports `bib-no-entries` for a definitions-only file; no test pins that verb yet.  A file that holds definitions and an *unclosed* entry is still `bib-unreadable` (correct), but a file whose only content is `@comment` is reported low even though nothing in it was lost - that is the intended reading of the code, not an oversight.
+
