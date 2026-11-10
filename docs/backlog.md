@@ -4413,3 +4413,50 @@ would a person actually have on disk", not by reading the code.
   group scan is balanced. Sectioning parameters (`titlesec`), keyval lists
   outside `adjustbox`, and counter names are the same family and are still
   unhandled.
+- [x] **P1 - a citation that opens a sentence was read as a bare word**
+
+  `solid` `src/citevouch/latex.py`.  `CITATION_NAMES` carried natbib's
+  seven capitalised commands (`\Citet`, `\Citep`, `\Citealp` and four more) and
+  **none** of biblatex's, while listing both families' lowercase ones.
+  A capitalised citation command is not decoration: an author writes it when
+  the citation opens a sentence, which is the first citation anyone reading
+  the paper sees.
+
+  Measured before the fix:
+
+  ```text
+  \autocite{paper}   ->  '[@paper]'        \Autocite{paper}   ->  'paper'
+  \autocites{a}{b}   ->  '[@a; @b]'        \Autocites{a}{b}   ->  'ab'
+  ```
+
+  The key was pasted into the prose as a word, and `draft` then reported
+  `0 claim block(s) proposed: no citations were found to propose them for`
+  about a manuscript whose first sentence cites a paper.
+
+  What it does now: both families appear in `CITATION_NAMES`, and their
+  plurals in `MULTI_CITATION_NAMES`, each group spelled out rather than
+  derived by upper-casing a lowercase name (`\Cite` is not natbib's and
+  `\Nocite` is not biblatex's, so a derived table would claim two commands
+  nobody writes).  `\Autocite{paper}` now converts to `[@paper]` and reaches a site.
+
+  Why it is now true: `tests/test_citation_names.py` grows 16 tests - the two
+  pinned name lists now carry the biblatex capitals, and a new
+  `TestACitationThatOpensASentence` class checks that each of the seven
+  singular and seven plural commands reaches a site, that the plural ones
+  reach *every* source, that a sentence-initial citation proposes a block
+  end to end, and that the capital and lowercase forms of seven commands
+  give the same answer.  113 tests in the file, 3323 in the suite.
+  Five mutations are caught (drop the whole biblatex group, keep only one
+  name, drop the plural group, spell the plurals lowercase, drop the natbib
+  group).  A sixth - flipping `key=len, reverse=True` to `False` - was
+  measured equivalent over all 30 names x 3 call shapes and is recorded in
+  the harness rather than counted as a survivor.
+
+  Not covered: thirteen lowercase biblatex commands are still missing
+  entirely - `footfullcite`, `citenum`, `citetitle`, `citedate`, `citeurl`,
+  `citename`, `notecite`, `pnotecite`, `fnotecite`, `citefield`,
+  `citealias`, `citepalias`, `citetext`.  All convert to a bare key and
+  produce no site.  Listing them from a table rather than from observation
+  is the same mistake this round fixed, so they need the same treatment:
+  one at a time with an end-to-end case each.
+
