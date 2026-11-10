@@ -4939,3 +4939,30 @@ would a person actually have on disk", not by reading the code.
   quote in half, so a tag that starts a line and is not in CommonMark's list
   stays content.  That is the same trade the whole dialect makes: erring short
   drops a quote, erring long invents one.
+
+- [x] **P1 - an unknown field's value was searched as part of the quote, and the message said it was not**
+
+  **What was wrong.**  A claim body is read as a YAML mapping: an indented line under `key: |` belongs to that key.  `_split_body` already cleared the collection target (`current = ""`) in the branch that reads a *known* attribute, and the branch that reads an unknown key was written from it without that line.  So the lines under an unknown key fell through to `if current:` and joined whatever field was still open - `quote:`, nearly always:
+
+  ```claim id=c1 source=paper page=1
+  quote: |
+    We collected 40,688 examples from the corpus of written English.
+  text: |
+    我们收集了例句
+  ```
+
+  gave `claim.quote == 'We collected 40,688 examples from the corpus of written English.\n我们收集了例句'`, and then
+
+      [medium] claim-field-unknown … it was neither applied nor searched
+               as part of the quote
+      [high]   quote-missing … — quote not found in page.txt
+
+  Every word of the medium finding was false, and the high finding that followed accused the author of quoting a passage that is verbatim on the page.  The real problem - a misspelt field name - was in the output, one line above the accusation, saying the opposite of what had happened.
+
+  **What it does now.**  The unknown-key branch clears `current` too, so a block scalar under a key this format does not have has no owner and its lines reach neither the quote nor the claim text.  The finding is unchanged and still names the line and the key; the quote is the passage the author wrote.
+
+  **Why it is now true.**  `tests/test_unknown_field_value.py` (13 tests) pins six shapes: a block scalar under an unknown key stays out of the quote (fence and HTML dialects), a second unknown key does not adopt the first one's value, a known key after the unknown one still merges, the value becomes no claim text either, and - on a project - the run prints `quote-found` and not `quote-missing`, with the value absent from the reported quote.  A separate test pins the message itself (`neither applied nor searched as part of the quote`), so the promise and the behaviour are now checked in the same file.
+
+  Five mutations die: keeping the owner, adopting the quote, adopting the claim text, not recording the key at all, and clearing the quote along with the owner.  A sixth - letting the unknown key collect its own lines - is equivalent by construction (`fields` is read only for `quote` and `claim`, and this key is neither) and is recorded as `EQUIVALENT` in the script rather than counted as caught.
+
+  **Not covered.**  The body is read by hand, not by a YAML parser, so other shapes a real YAML parser accepts (flow mappings, anchors, folded `>` scalars with blank lines) are read the way this reader chooses and not the way YAML says; the tests pin the former.
