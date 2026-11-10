@@ -77,6 +77,7 @@ CODES = {
     # so every bib-key-missing is suppressed.  Quietest possible run for the
     # worst possible input.
     "bib-unreadable": "high",
+    "bib-no-entries": "low",
     "page-out-of-range": "high",
     "claim-block-unclosed": "high",
     # A claim block that cannot be looked up at all: no source=, no quote, no

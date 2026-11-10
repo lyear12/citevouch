@@ -201,6 +201,10 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
     findings: list[Finding] = []
     entries: dict[str, BibEntry] = {}
     strings: dict[str, str] = {}
+    # `@string` / `@preamble` / `@comment` are read, not lost.  Counted so the
+    # "no entries here" finding can say what the file does hold instead of
+    # claiming nobody could read it.
+    definitions = 0
     text = _strip_comments(text)
     line_starts = [0] + [i + 1 for i, ch in enumerate(text) if ch == "\n"]
 
@@ -296,6 +300,7 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
         i = body_end
 
         if etype in _NON_ENTRIES:
+            definitions += 1
             if etype == "string":
                 sm = _STRING_DEF.match(body)
                 if sm:
@@ -416,20 +421,75 @@ def parse_bib(text: str, path: str = "refs.bib") -> BibResult:
         # bug this project exists to refuse - a green run over input that was
         # never read - and a medium finding about an unparsed header does not
         # name it.
-        findings.append(
-            Finding(
-                code="bib-unreadable",
-                message=(
-                    f"not one entry could be read from {path}, so every reference "
-                    "in the manuscript is unchecked against a bibliography that "
-                    "is effectively empty. Often the file is not the encoding it "
-                    "claims: a UTF-16 save read as UTF-8 gives a replacement "
-                    "character and a NUL between every letter."
-                ),
-                path=path,
-                line=1,
-            )
+        #
+        # But "no entries" is answered by two different facts, and this branch
+        # used to assert the worse one for both.  A file whose every byte was
+        # read and which happens to hold only definitions - a shared
+        # `@string` macro file sitting beside the entries, which is what
+        # multiple `--bib` flags are for - was reported as unreadable prose in
+        # a wrong encoding.  Measured, with `macros.bib` holding two `@string`
+        # definitions and `refs.bib` answering every key::
+        #
+        #     $ citevouch check manuscript.md --root . \
+        #           --bib macros.bib --bib refs.bib
+        #     [high] bib-unreadable at macros.bib:1: not one entry could be
+        #            read from macros.bib ... Often the file is not the
+        #            encoding it claims: a UTF-16 save read as UTF-8 ...
+        #     exit 1
+        #
+        # The file is ASCII, it parsed completely, both macros came through,
+        # and no reference in the manuscript went unanswered.  The author is
+        # sent to change an encoding that is already right, at the severity
+        # that stops a build.
+        #
+        # So the question is not "were there entries" but "is there text this
+        # parse could not account for".  An unparsed header is exactly that
+        # answer, and it is already known here.
+        # Text this parse could not account for comes in exactly two shapes: a
+        # gap between entries that would not parse, and an entry that never
+        # closes (which also makes everything after it unread).  Either one
+        # means the file lost something; definitions alone do not.
+        unaccounted = any(
+            finding.code in ("bib-entry-header-unparsed", "bib-unparsed-entry")
+            for finding in findings
         )
+        if unaccounted:
+            findings.append(
+                Finding(
+                    code="bib-unreadable",
+                    message=(
+                        f"not one entry could be read from {path}, so every reference "
+                        "in the manuscript is unchecked against a bibliography that "
+                        "is effectively empty."
+                        + (
+                            f" {count_of(definitions, 'definition')} did parse, so the "
+                            "text named above is what stopped the entries from being read."
+                            if definitions
+                            else ""
+                        )
+                        + " Often the file is not the encoding it claims: a UTF-16 "
+                        "save read as UTF-8 gives a replacement character and a NUL "
+                        "between every letter."
+                    ),
+                    path=path,
+                    line=1,
+                )
+            )
+        else:
+            findings.append(
+                Finding(
+                    code="bib-no-entries",
+                    message=(
+                        f"{path} holds {count_of(definitions, 'definition')} and no "
+                        "entries, so no citation key can be answered from it. A file "
+                        "that only defines @string macros is meant to be passed next "
+                        "to one that holds the entries: `--bib macros.bib --bib "
+                        "refs.bib`."
+                    ),
+                    path=path,
+                    line=1,
+                )
+            )
     return BibResult(entries=entries, findings=findings, strings=strings)
 
 

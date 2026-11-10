@@ -12,6 +12,42 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A bibliography that holds only macros was reported as unreadable prose.**
+
+  `--bib` takes a file more than once on purpose, and the reason is a shared
+  `macros.bib` sitting beside `refs.bib`. That set-up was reported as a broken
+  file:
+
+  ```
+  $ citevouch check manuscript.md --root . --bib macros.bib --bib refs.bib
+  [high] bib-unreadable at macros.bib:1: not one entry could be read from
+         macros.bib, so every reference in the manuscript is unchecked
+         against a bibliography that is effectively empty.  Often the file
+         is not the encoding it claims: a UTF-16 save read as UTF-8 gives a
+         replacement character and a NUL between every letter.
+  exit 1
+  ```
+
+  Every word of it was false: the file is ASCII, it parsed completely, both
+  macros came through, and `refs.bib` answered every key. The author was sent
+  to change an encoding that was already right, at the severity reserved for
+  findings a reader must not ignore.
+
+  `parse_bib` reached "no entries" by two different routes and asserted the
+  worse one for both. It now asks the question it can answer: is there text
+  this parse could not account for? A gap between entries, or an entry that
+  never closes, is that answer and keeps `bib-unreadable`. Definitions alone
+  are not, and get a new `bib-no-entries` (low) that says what the file does
+  hold and points at the two-flag form. A file with both macros *and* stray
+  prose stays loud, and now says how many definitions did parse.
+
+  `bib-no-entries` is added to `CODES`, the SARIF rules and both README code
+  tables.
+
+  9 tests, 8 mutations, all red.
+
 ## [0.22.63] — 2026-11-10
 ### Fixed
 

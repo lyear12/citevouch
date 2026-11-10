@@ -81,6 +81,7 @@ worst severity: high
 | `bib-duplicate-key` | high | 两个条目共用一个键（同一个文件里，或分处两个文件） |
 | `bib-unparsed-entry` | high | 有条目定界符始终未闭合，它之后的条目全部读不到 |
 | `bib-unreadable` | high | 一条条目都读不出来，所有引用都没能跟文献库核对 |
+| `bib-no-entries` | low | 书目只有定义（`@string`/`@preamble`），没有条目可回答任何键 |
 | `bib-entry-header-unparsed` | medium | 条目之间残留了读不到的文本，或 `@` 头不是可用条目 |
 | `bib-field-malformed` | medium | 某字段无法读取；该条目的其余字段仍会继续解析 |
 | `bib-field-duplicate` | medium | 同一条目里有一个或多个字段出现两次（字段名不分大小写）；保留各字段的首个值，所有字段名一并报告 |

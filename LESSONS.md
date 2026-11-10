@@ -7285,3 +7285,45 @@ it.  Nothing about the finding was wrong; the noun was.
   the file it used to name is absent.  Asserting only the wording would have
   left the premise free to change.
 
+
+## A file that parsed is not a file that failed to parse
+
+`parse_bib` ended with one branch for "no entries came out", and it wrote the
+sentence for the worst reason: not one entry could be read, the file is
+probably in the wrong encoding, convert it. Two very different files reach
+that branch - prose in the wrong encoding, and a shared `macros.bib` whose
+entire job is to hold `@string` definitions - and only the first deserves
+that sentence.
+
+Measured, with `macros.bib` (two macros) beside `refs.bib` (every key the
+manuscript cites):
+
+```
+[high] bib-unreadable at macros.bib:1: not one entry could be read from
+       macros.bib ... Often the file is not the encoding it claims
+exit 1
+```
+
+The file is ASCII, it parsed completely, both macros came through, and no
+reference went unanswered. The author is sent to change an encoding that is
+already right, at the severity that stops a build.
+
+The branch was asking a question it could not answer - were there entries? -
+when the question it could answer was right there: is there text this parse
+could not account for? A gap between entries and an entry that never closes
+are both literal answers to that; definitions alone are not. Splitting the
+branch by the answerable question produced a second finding instead of a
+softer sentence, which is the useful shape here: the low severity *is* the
+claim that nothing was lost.
+
+How to apply:
+
+- When two populations reach one error branch, ask which question separates
+  them, not which population is bigger. "No output" is almost never that
+  question; "input that was not accounted for" often is.
+- The severity carries the judgement, so a wrong reason is a wrong verdict,
+  not a wording problem. This one had to become low before the sentence
+  could be true.
+- A message about a file the reader can open should describe what is in it.
+  `macros.bib` holds two definitions; saying "no entries" and stopping there
+  hides the half the reader can see.
