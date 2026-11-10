@@ -89,7 +89,26 @@ _CELL = r"(?:[^|\\]|\\.)*?"
 # (`| model | setting | 84 | f1 | note |`) already reads as a claim, and
 # widening this cell would make every such row one.  `iv` and `iv-vii` still
 # match nothing, which is a limit, not a claim about roman numerals.
-_PAGE_CELL = r"[0-9](?:[0-9\s\u2013\u2014-]*[0-9\u2013\u2014-])?|[-\u2013\u2014]|"
+#
+# The same argument made the cell too narrow in the other direction.  A page
+# hint is prose as often as it is a bare number - `p. 3`, `pp. 3-4`,
+# `page 5`, `1,2` - and every one of those deleted the whole row: measured in
+# a project whose page held the quote, `check` printed
+# `no-claim-blocks ... This file has none`, exit 1, over a file holding one.
+# The fence dialect answers all of them the same honest way, so the cell now
+# spells out the shapes a hint takes: an optional `p`/`pp`/`page`/`pages`
+# prefix with its full stop, then digits with the separators a person writes
+# between them (space, comma, dash, en dash, em dash), or a bare dash for "no
+# hint", or nothing at all.
+#
+# A cell holding any other letter is still not a page, which is what keeps a
+# results table a results table: its third column is `score`, `f1`, `done` or a
+# bare number, and only the bare number was ever read as a claim.
+_PAGE_CELL = (
+    r"(?:(?:[Pp]|[Pp][Pp]|[Pp]age|[Pp]ages)[ \t]*\.?[ \t]*)?"
+    r"[0-9](?:[0-9\s,\u2013\u2014-]*[0-9\u2013\u2014-])?"
+    r"|[-\u2013\u2014]|"
+)
 _TABLE_CLAIM = re.compile(
     r"^\|\s*(?P<id>[A-Za-z0-9_.:-]*)\s*\|\s*(?P<source>" + _CELL + r")\s*\|"
     r"\s*(?P<page>" + _PAGE_CELL + r")\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"

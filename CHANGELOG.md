@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table claim whose page cell said `p. 3` was deleted, not read.**
+
+  The table dialect has a pattern for the page cell, and a value the pattern
+  does not know never reaches `int()`: the whole row stops being a claim.  A
+  page hint is prose as often as it is a bare number, so:
+
+  ```
+  | c1 | paper | p. 3 | We collected 40,688 examples from the corpus. | note |
+  ```
+
+  printed `[high] no-claim-blocks ... This file has none` and exited 1, over a
+  file holding one claim whose quote the page prints verbatim.  So did `1,2`,
+  `pp. 3-4`, `page 5` and `pages 6-7`.
+
+  The fence dialect has always answered these honestly - `page=p. 3` reports
+  `page-unreadable ... the hint is ignored and the quote will be located by
+  search`, and the claim is verified anyway.  The cell now spells out the
+  shapes a hint takes: an optional `p`/`pp`/`page`/`pages` prefix with its full
+  stop, then digits separated by what a person writes between them (space,
+  comma, dash, en dash, em dash), or a bare dash for "no hint", or nothing.
+
+  A cell holding any other letter is still not a page.  That is what keeps a
+  results table from becoming five claims: its third column is `score`, `f1`,
+  `done`, or a bare number - and only the bare number was ever read.
+
+  `tests/test_table_page_spellings.py`, 25 tests, 10 mutations, all red.
+
 ## [0.22.72] — 2026-11-10
 ### Fixed
 

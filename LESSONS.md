@@ -7628,3 +7628,41 @@ How to apply:
 * After refusing a shape in one reader, grep for the other readers of the same
   lines. This repository has three, and it has had three before.
 
+
+## A pattern narrow enough to refuse a word also refuses a citation
+
+The table dialect reads the page cell with a pattern, so a value the pattern
+does not know is not "refused" - the row stops being a claim, silently:
+
+```
+| c1 | paper | p. 3 | We collected 40,688 examples from the corpus. | note |
+-> [high] no-claim-blocks ... This file has none
+```
+
+The row was written in a project whose page prints that sentence verbatim.
+`1,2`, `pp. 3-4` and `page 5` did the same.
+
+The fence dialect had answered all of them honestly for releases: `page=p. 3`
+is parsed, `int()` refuses it, `page-unreadable` names the hint being ignored,
+and the claim is verified anyway. Two dialects for one attribute, and the one
+with a pattern had no place to put a value it did not expect.
+
+The narrowness was bought deliberately. A results table's third column is a
+number, and letting the page cell admit any text made every such row a claim -
+that was the previous defect, and it is why the alphabet is digits and dashes.
+Both halves are real, so the fix has to be narrower than "any text" and wider
+than "digits and dashes": the letters of a page prefix (`p`, `pp`, `page`) and
+the separators a person types between page numbers.
+
+How to apply:
+
+* A pattern is a decision about every value it will ever see, so each spelling
+  it refuses is a row that disappears. List the spellings, not the shapes -
+  `p.`, `pp.`, `page`, `pages` are four words and none of them is derivable
+  from the others.
+* When one attribute has two dialects and only one has a parser, compare what
+  they do with the *same bad value*. The dialect with `int()` said
+  `page-unreadable`; the dialect with a regex said the file held nothing.
+* A cell that is refused must cost the author a finding, not a row. If a
+  pattern is the gate, ask what happens to the row behind it.
+
