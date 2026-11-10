@@ -7229,3 +7229,32 @@ How to apply:
 - Two tables, not one: "this argument is not prose" and "this argument is
   markup I must drop". Merging them is how `[Main result]` gets deleted.
 
+
+## A table of aliases that carries one family's capitals has carried half a fact
+
+`latex.CITATION_NAMES` listed natbib's capitalised citation commands and none
+of biblatex's, while listing *both* families' lowercase ones.  A capitalised
+citation command is not a decoration: an author writes it when the citation
+opens a sentence, which is the first citation anyone reading the paper sees.
+The half that was missing was exactly the half nobody writes mid-sentence,
+so the defect could not show up in the middle of a test sentence:
+
+```text
+\autocite{paper}  ->  '[@paper]'        \Autocite{paper}  ->  'paper'
+```
+
+The key became a word in the prose and `draft` said the manuscript cited
+nothing.  Both readers were consistent about it, which is why nothing failed.
+
+How to apply:
+
+* When a name table has a capitalised group, ask whether it is one family's
+  convention or every family's.  natbib capitalises `cite` + suffix; biblatex
+  capitalises the whole command.  Listing seven natbib names looks like the
+  feature is covered.
+* Do not derive the capitals by upper-casing the lowercase names.  `\Cite` and
+  `\Nocite` are not commands, and a derived table would claim they are - the
+  reverse error, which costs nothing but lies in the docstring.
+* A mutation that changes no observable behaviour is not a hole in the tests.
+  Measure it over the whole table before reporting it as a survivor, and say
+  so in the harness so the next run does not chase it again.

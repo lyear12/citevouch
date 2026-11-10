@@ -40,6 +40,7 @@ NL = chr(10)
 #: one, this list fails.  A third list that is *not* derived would be the same
 #: mistake this round fixed - but a list of what is meant to work is not.
 CAPITALISED = [
+    # natbib spells the capital form by capitalising `cite`.
     "Citet",
     "Citep",
     "Citealp",
@@ -47,6 +48,19 @@ CAPITALISED = [
     "Citeauthor",
     "Citeyear",
     "Citeyearpar",
+    # biblatex spells it by capitalising the whole command, and both
+    # families have to be here: an author writes the capital one when the
+    # citation opens a sentence, which is the citation a reader sees first.
+    # Measured before these were listed, `\Autocite{paper}` converted to
+    # the bare word `paper`, and `draft` reported that a manuscript citing
+    # on its first sentence cited nothing.
+    "Autocite",
+    "Parencite",
+    "Textcite",
+    "Footcite",
+    "Smartcite",
+    "Supercite",
+    "Fullcite",
 ]
 LOWERCASE = [
     "cite",
@@ -79,6 +93,15 @@ PLURAL = [
     "smartcites",
     "supercites",
     "fullcites",
+    # The same capitalisation, one letter later: a plural citation can open
+    # a sentence too.
+    "Autocites",
+    "Parencites",
+    "Textcites",
+    "Footcites",
+    "Smartcites",
+    "Supercites",
+    "Fullcites",
 ]
 
 
@@ -246,6 +269,85 @@ class TestTheCommandOnARealManuscript:
             == 0
         )
         assert "```claim" in (root / "proposals.md").read_text(encoding="utf-8")
+
+
+class TestACitationThatOpensASentence:
+    r"""The capital letter exists because the citation comes first.
+
+    ``\autocite{paper} showed the effect.`` and
+    ``\Autocite{paper} showed the effect.`` are the same citation with the same
+    key; only the author's decision about where the sentence starts differs.
+    Measured on the tree before the capitalised biblatex names were listed,
+    the second converted to `'paper showed the effect.'` - the key pasted
+    into the prose as a word - and `draft` reported that a manuscript citing
+    on its first sentence cited nothing at all.  The capitalised natbib
+    names had been in the table for a while, so the half that was missing
+    was exactly the half whose commands nobody writes mid-sentence.
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        ["Autocite", "Parencite", "Textcite", "Footcite", "Smartcite", "Supercite", "Fullcite"],
+    )
+    def test_the_key_does_not_become_a_word(self, name: str) -> None:
+        text = f"{BS}{name}{{knuth1984}} showed the effect grows."
+        assert site_keys(text) == ["knuth1984"]
+        assert latex.to_text(text) == "[@knuth1984] showed the effect grows." + NL
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Autocites",
+            "Parencites",
+            "Textcites",
+            "Footcites",
+            "Smartcites",
+            "Supercites",
+            "Fullcites",
+        ],
+    )
+    def test_a_capitalised_plural_reaches_every_source(self, name: str) -> None:
+        text = f"{BS}{name}{{a}}{{b}} showed two effects."
+        assert site_keys(text) == ["a", "b"]
+        assert latex.to_text(text) == "[@a; @b] showed two effects." + NL
+
+    def test_a_sentence_initial_citation_proposes_a_block(self, tmp_path: Path) -> None:
+        root = _project(tmp_path, f"{BS}Autocite{{smith2026paper}}.")
+        assert (
+            main(
+                [
+                    "draft",
+                    str(root / "manuscript.md"),
+                    "--root",
+                    str(root),
+                    "-o",
+                    "proposals.md",
+                ]
+            )
+            == 0
+        )
+        proposed = (root / "proposals.md").read_text(encoding="utf-8")
+        assert "```claim" in proposed
+        # The sentence the author is invited to paste has no LaTeX and no
+        # bare key in it.
+        assert BS + "Autocite" not in proposed
+        assert "smith2026paper." not in proposed
+
+    def test_the_capital_and_lowercase_forms_agree(self) -> None:
+        """Same command, same answer.  That is the property, not the wording."""
+        for lower, capital in [
+            ("autocite", "Autocite"),
+            ("parencite", "Parencite"),
+            ("textcite", "Textcite"),
+            ("footcite", "Footcite"),
+            ("smartcite", "Smartcite"),
+            ("supercite", "Supercite"),
+            ("fullcite", "Fullcite"),
+        ]:
+            l_text = f"{BS}{lower}{{k}} showed it."
+            c_text = f"{BS}{capital}{{k}} showed it."
+            assert site_keys(l_text) == site_keys(c_text) == ["k"], capital
+            assert latex.to_text(l_text) == latex.to_text(c_text), capital
 
 
 class TestTheSentenceTheAuthorIsShown:

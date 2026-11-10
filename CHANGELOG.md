@@ -12,6 +12,38 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A citation that opens a sentence was read as a bare word.**
+
+  `latex.CITATION_NAMES` carried natbib's capitalised commands -
+  `\Citet`, `\Citep` and five more - and none of biblatex's.  Both
+  families capitalise a citation that starts a sentence, which is the first
+  citation a reader of the paper sees, and only one family was listed:
+
+  ```text
+  \autocite{paper}   ->  '[@paper]'        \Autocite{paper}   ->  'paper'
+  \autocites{a}{b}   ->  '[@a; @b]'        \Autocites{a}{b}   ->  'ab'
+  ```
+
+  The key was pasted into the prose as a word, and `draft` then reported
+  `0 claim block(s) proposed: no citations were found to propose them for`
+  about a manuscript whose first sentence cites a paper.  The sentence a
+  reader saw first was the one the tool could not see at all.
+
+  `CITATION_NAMES` now carries both families (and `MULTI_CITATION_NAMES`
+  their plurals), each group spelled out rather than derived by capitalising
+  a lowercase name: `\Cite` is not natbib's and `\Nocite` is not
+  biblatex's, so a derived table would claim two commands nobody writes.
+  `tests/test_citation_names.py` grew 16 tests, including one that reads the
+  capital and lowercase forms of seven commands and asserts they give the
+  same answer - they are the same citation, and the capital letter is the
+  author's decision about where the sentence starts, not a different command.
+
+  5 mutations, all red; a sixth (`key=len, reverse=True` to `False`) was
+  measured equivalent over 30 names x 3 call shapes and is recorded as such
+  rather than counted as a survivor.
+
 ## [0.22.61] — 2026-11-10
 ### Fixed
 

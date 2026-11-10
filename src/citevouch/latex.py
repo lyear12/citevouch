@@ -46,11 +46,18 @@ _END_DOC = re.compile(r"\\end\s*\{document\}")
 #: from `draft` - `draft` then said "no citations were found" while the
 #: marker sat in the very text it was reading.
 #:
-#: The capitalised forms are natbib's, and they are not decoration: an
-#: author writes the capital one when the citation opens a sentence, which
-#: is the first citation anyone reading the paper sees.  Measured before
-#: they were listed, `\Citet{knuth}` reached the page as the bare word
-#: `knuth`, and `draft` proposed nothing at all.
+#: The capitalised forms are not decoration: an author writes the capital
+#: one when the citation opens a sentence, which is the first citation
+#: anyone reading the paper sees.  Measured before they were listed,
+#: `\Citet{knuth}` reached the page as the bare word `knuth`, and `draft`
+#: proposed nothing at all.
+#:
+#: Both families have them and the table has to carry both.  natbib spells
+#: `\Citet`; biblatex spells `\Textcite`.  Listing only natbib's was the
+#: half-fix: measured on `\Autocite{paper}` where `\autocite{paper}` works,
+#: the sentence became `'paper showed the effect.'` - the key pasted into
+#: the prose as a word - and `draft` then said "no citations were found"
+#: about a manuscript whose first sentence cites a paper.
 CITATION_NAMES = tuple(
     sorted(
         {
@@ -71,11 +78,15 @@ CITATION_NAMES = tuple(
             "supercite",
             "fullcite",
         }
-        # natbib's capitalised forms, spelled out rather than derived by
-        # upper-casing the first letter: `\Cite` is not a natbib command and
-        # `\Nocite` is not one either, so deriving them would claim two
-        # commands exist that no author has ever written.
+        # The capitalised forms, spelled out rather than derived by
+        # upper-casing the first letter: `\Cite` is not natbib's and
+        # `\Nocite` is not biblatex's, so deriving them would claim two
+        # commands exist that no author has ever written.  Derived, the
+        # table would also grow `\Footcite` from `footcite` whether or not
+        # biblatex defined it - and it is the reverse that matters here:
+        # a name that exists and is missing costs the author a citation.
         | {
+            # natbib
             "Citet",
             "Citep",
             "Citealp",
@@ -83,6 +94,14 @@ CITATION_NAMES = tuple(
             "Citeauthor",
             "Citeyear",
             "Citeyearpar",
+            # biblatex
+            "Autocite",
+            "Parencite",
+            "Textcite",
+            "Footcite",
+            "Smartcite",
+            "Supercite",
+            "Fullcite",
         },
         key=len,
         reverse=True,
@@ -106,6 +125,15 @@ MULTI_CITATION_NAMES = tuple(
             "smartcites",
             "supercites",
             "fullcites",
+            # biblatex's capitalised plurals, for the same reason as the
+            # singular ones: `\Autocites{a}{b}` opens a sentence.
+            "Autocites",
+            "Parencites",
+            "Textcites",
+            "Footcites",
+            "Smartcites",
+            "Supercites",
+            "Fullcites",
         },
         key=len,
         reverse=True,
