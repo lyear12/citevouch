@@ -4816,3 +4816,33 @@ would a person actually have on disk", not by reading the code.
   Not covered: a header row separated from its delimiter by a blank line is not
   a table at all (documented in `_is_header_row`), so that row is still read as
   a claim.
+
+- [x] **P1 - a table's delimiter row was read as a claim named `-`**
+
+  What was wrong: GFM lets a delimiter cell be a single dash, so `|-|-|-|-|-|`
+  is a legal delimiter row for a five-column table. It is also a five-cell row
+  whose third cell is `-`, which is exactly what `_TABLE_CLAIM` asks for, so a
+  correct table produced `[high] source-missing at manuscript.md:2 (-): claim -
+  names source='-' but no entry in sources.toml` and `2 claims - 1 verified, 0
+  moved, 1 missing`, exit 1. `_-_-_`, `--`, `:-`, `-:` and `:-:` were already
+  fine: none of their cells is a bare `-`.
+
+  What it does now: four readers refuse a delimiter row, each measured on its
+  own - the claim reader in `parse_manuscript`; `_unread_findings`, which had
+  been calling it a claim block "inside a blockquote, a list item or an indent"
+  (three things it is not); `scan`'s near-miss list, which said the same thing
+  from another command; and `_is_header_row`, which would have called a
+  delimiter the header of the row below it.
+
+  Why it is now true: `tests/test_delimiter_row.py` (11 tests) and 6 mutations,
+  all red: no claim-reader refusal, no unread refusal, no scan refusal, every
+  dashed row refused, every row skipped, and a delimiter allowed as a header.
+  Two survived the first round. "Every row is skipped" was written against the
+  wrong reader and became `scan: every row is skipped`. "A delimiter can be a
+  header" looked equivalent - the claim reader refuses a delimiter before
+  `_is_header_row` is asked - until two adjacent delimiter rows made the guard
+  observable, which is now the test that pins it.
+
+  Not covered: `_is_header_row` still assumes the delimiter immediately follows
+  its header, so a blank line between the two makes the header a claim again.
+  That is the open item noted above under the header-only fix.
