@@ -4966,3 +4966,19 @@ would a person actually have on disk", not by reading the code.
   Five mutations die: keeping the owner, adopting the quote, adopting the claim text, not recording the key at all, and clearing the quote along with the owner.  A sixth - letting the unknown key collect its own lines - is equivalent by construction (`fields` is read only for `quote` and `claim`, and this key is neither) and is recorded as `EQUIVALENT` in the script rather than counted as caught.
 
   **Not covered.**  The body is read by hand, not by a YAML parser, so other shapes a real YAML parser accepts (flow mappings, anchors, folded `>` scalars with blank lines) are read the way this reader chooses and not the way YAML says; the tests pin the former.
+- [x] **P1 - a source key written without quotes bound on one interpreter and made the manifest unreadable on another**
+
+  **What was wrong.**  `sources.toml` has two readers.  On 3.11+ the file goes to `tomllib`; on 3.10, which has no `tomllib`, it goes to `sources._mini_toml`, a line-based subset that splits on `=` and strips.  The subset bound whatever key the author wrote: `王力2020`, `smith/2020`, `smith 2020`, `smith:2020`, `smith@2020`, `papér`.  TOML allows only `A-Z a-z 0-9 _ -` unquoted, so `tomllib` refused the whole file.
+
+  Measured, `[sources]` + `<key> = "page.txt"`, both readers over the same bytes: on 3.10 the source bound and the manuscript verified; on 3.12 the manifest was reported unreadable and every claim in the manuscript lost its source at once, as `source-missing ... because the manifest could not be read`.  Same repository, nothing edited between the runs - the verdict depended on the interpreter that happened to be installed, and the failing one failed loudly about a file the author had not touched.
+
+  **What it does now.**  `sources._bare_key_is_not_a_key` asks the question both readers can answer, and `_refuse_shapes_only_one_reader_follows` asks it before either reader runs, so the subset reaches the refusal `tomllib` earns.  The sentence carries the fix: `王力2020 is not a bare TOML key; quote it - "王力2020" - to bind one source under that name`.  A quoted key is legal TOML and binds, so the suggested spelling is the one that works.
+
+  Two neighbouring shapes keep the sentences they already had, on purpose: a dotted key (`smith.2020` is legal TOML naming a nested table, and answering it with `quote it` would trade the right sentence for a near miss) and a quoted key this reader cannot spell (`"pa#ge"`).
+
+  **Why it is now true.**  `tests/test_manifest_bare_keys.py` (55 tests) drives both readers over the same strings and compares outcomes: 8 bare keys both bind, 8 non-bare keys both refuse, and for every non-bare key the two refusals are the *same sentence* - not merely both refusals.  Five quoted names both bind and bind without their quotes.  Each offered spelling is then used for real, because a suggestion the same reader refuses is worse than none.  On a project, the 3.10 path is simulated by `monkeypatch`-style replacement of `_load_toml` and both paths are asserted to bind nothing and report the same `manifest_problem`.
+
+  Eight mutations die: never asking the question, calling every key non-bare, calling no key non-bare, refusing quoted keys too, answering a dotted key with the quoting advice, widening the alphabet to any run of non-separators, dropping `quote it` from the message, and dropping the quoted form from it.  The message mutations only died after the test was made to assert the instruction as well as the spelling - naming the fix is not telling the author it is a fix.
+
+  **Not covered.**  A real TOML parser is not run on 3.10 in CI; the agreement is pinned by driving the two entry points over the same bytes, which is what the readers do.  Keys that are TOML table headers (`[a.b]`) and multi-line keys are outside this reader by design and are refused with the sentence they already had.
+
