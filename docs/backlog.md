@@ -4690,39 +4690,42 @@ would a person actually have on disk", not by reading the code.
   are not numbers this tool can compare, and widening the cell to reach
   them is the change that would break the header-row test.
 
-- [ ] **P2 - a results table with a numeric column reads as a claim row**
+- [x] **P2 - a results table with a numeric column reads as a claim row**
 
-  Any five-column table row whose third cell is a bare integer is a claim
-  as far as `_TABLE_CLAIM` is concerned.  Measured on a manuscript holding
-  a real results table:
+  What was wrong: any five-cell row whose third cell was a bare integer
+  was a claim.  Measured on a manuscript holding a real results table:
 
   ```
-  | model | setting | 84 | f1 | note |
-  | bert  | base    | 84 | 88 | 90   |
+  | model | setting | 84 | We report the mean over five seeds | note |
+  |-------|---------|----|------------------------------------|------|
+  | bert  | base    | 84 | 88 | 90 |
   ```
 
-  gave `[high] source-missing ... claim model names source='setting'` and
-  `[high] source-missing ... claim bert names source='base'`, exit 1 - two
-  high findings about a table that has nothing to do with citations.
+  `check` printed two `[high] source-missing` lines naming `source='setting'` and `source='base'`, exit 1.  Worse, when the header's prose
+  cell happened to appear on the page it printed
+  `[info] quote-found at manuscript.md:3 (model): quote found on page 1`
+  - a column label certified as a verified quotation.
 
-  Why it is not the same fix: narrowing the page cell back is what caused
-  the range row to vanish, so the two directions trade one silent failure
-  for one loud false positive.  A real answer needs a judgement the tool
-  does not currently make - for example requiring the row to sit under a
-  header whose five cells are spelled `id | source | page | quote | text`,
-  or requiring the source cell to resolve against the manifest before the
-  row is called a claim.
+  What it does now: a row is a header when it is shaped like a table
+  claim *and* the line under it is a GFM delimiter row (dashes with
+  optional alignment colons, at most three spaces of indent, nothing else
+  on the line).  Such a row is named with the new `claim-table-header`
+  code (medium) and is not judged against any source.  Data rows under it
+  are still read; a row with no delimiter under it is still a claim.
 
-  Why it is worth doing: a false high finding on a table row costs the
-  author the same trust as a missing citation, and the current wording
-  (`claim model names source='setting'`) reads as though the tool thinks
-  the author wrote something they did not.
+  Why it is now true: 20 tests in `tests/test_table_header_row.py` and 12
+  mutations, all red.  Two mutants survived the first round and each was a
+  real gap - `any row above a dash line counts` (the helper never asked
+  whether the line was table-shaped) and `the header finding names no
+  line` (the one test pinned the header at line 1, so a finding that
+  always said "line 1" could not fail).  Each got a test and the round
+  closed at 12/12.
 
-  Direction to try: look for a header row above the table before reading
-  its rows as claims, and make a mismatch between the header spelling and
-  the five-column shape a `claim-table-unusual-header` finding rather than
-  a silent accept.  Failing that, require the source cell to resolve; a
-  results table's second column never will.
+  Not covered: the delimiter row must be *directly* under the header, so a
+  table whose header and delimiter are separated by a blank line still
+  reads its header as a claim - and that is deliberate, because Markdown
+  does not make a table out of it either.  Tables wider or narrower than
+  five cells are out of scope: the dialect only binds five.
 
 - [x] **P1 - a heading or a horizontal rule under a one-line claim comment was read as the quote**
 
@@ -4765,4 +4768,4 @@ would a person actually have on disk", not by reading the code.
   `![img](x.png)` after a one-line comment are still read as the quote.
   They are HTML blocks rather than Markdown block starters, so they need
   the same treatment from the other direction, and this fix did not do
-  it.  `docs/backlog.md` keeps the results-table item (:4693) open.
+  it.  The results-table item it pointed at is closed further down this file.
