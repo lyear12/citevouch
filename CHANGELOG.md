@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.61] — 2026-11-10
 ### Fixed
 
 * **A `\begin{...}` line's arguments were converted as prose.**
@@ -44,7 +45,6 @@ tag and that file disagree.
   that takes no argument keeps a braced group in its body.
 
   30 tests, 10 mutations, all red.
-
 ## [0.22.60] — 2026-11-10
 ### Fixed
 
@@ -4181,7 +4181,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.60...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.61...HEAD
+[0.22.61]: https://github.com/lyear12/citevouch/releases/tag/v0.22.61
 [0.22.60]: https://github.com/lyear12/citevouch/releases/tag/v0.22.60
 [0.22.59]: https://github.com/lyear12/citevouch/releases/tag/v0.22.59
 [0.22.58]: https://github.com/lyear12/citevouch/releases/tag/v0.22.58
