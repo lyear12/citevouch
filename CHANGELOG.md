@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.69] — 2026-11-10
 ### Fixed
 
 * **A heading or a horizontal rule under a one-line claim comment was read as
@@ -46,7 +47,6 @@ tag and that file disagree.
   `15 tests, 10 mutations, all red.` The first round of mutations found two
   gaps - any indent allowed, and a break needing only two characters - and
   each gap got its own test before the round closed.
-
 ## [0.22.68] — 2026-11-10
 ### Fixed
 
@@ -4431,7 +4431,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.68...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.69...HEAD
+[0.22.69]: https://github.com/lyear12/citevouch/releases/tag/v0.22.69
 [0.22.68]: https://github.com/lyear12/citevouch/releases/tag/v0.22.68
 [0.22.67]: https://github.com/lyear12/citevouch/releases/tag/v0.22.67
 [0.22.66]: https://github.com/lyear12/citevouch/releases/tag/v0.22.66
