@@ -4606,3 +4606,46 @@ would a person actually have on disk", not by reading the code.
   **Not covered.** A macro redefined inside one file still keeps "the later
   definition wins" and says nothing; that shape had an answer before `--bib`
   could be given twice, and changing it is a separate decision.
+
+- [x] **P2 - two macros that disagree between the same two files were one
+  finding**
+
+  What was wrong: `bib-macro-redefined` (new in 0.22.66) wrote every conflict
+  as `path=<the later file>, line=1` and attached them all with
+  `parsed[0].findings.extend`. On `a.bib` defining `j = "Journal A"` and
+  `n = "Note A"`, `b.bib` redefining both on lines 5 and 8, and `refs.bib`
+  using both, the run produced two findings that were the same coordinate, and
+  `cli._deconflict` keys on `(code, claim_id, path, line)`:
+
+  ```text
+  raw findings:          2  (both at b.bib line 1)
+  after _deconflict:     1
+  ```
+
+  The author was told about `j`, fixed it, re-ran, and met `n` for the first
+  time. Line 1 of a `.bib` is almost always a comment, so the coordinate also
+  sent them to the wrong place.
+
+  What it does now: `BibResult.string_lines` records the line each `@string`
+  was written on, and the conflict carries the winning file's line:
+
+  ```text
+  [high] bib-macro-redefined at b.bib:5: @string 'j' is defined as
+  'Journal A' in a.bib line 1 and as 'Journal B' in b.bib line 5; ...
+  ```
+
+  Each finding is attached to the result for the file that won it, so a caller
+  that groups results by file gets the right answer.
+
+  Why it is now true: `tests/test_bib_macro_redefined.py` grew seven tests -
+  two conflicts are two findings, the deconflict pass keeps both, each points
+  at the line that wrote it, the message names both lines, the check prints two
+  lines, every finding is attached to its own file, and the earlier side names
+  its own line. Eight mutations, all red: dropping the line back to 1, dropping
+  the earlier line from the message, dropping the later line, attaching to the
+  first result, attaching to the last, never recording the line, never reading
+  it back, and recording 1 for the earlier side.
+
+  Not covered: a single file that defines one macro twice still takes the last
+  definition silently - that shape has no second file to blame and is recorded
+  separately.
