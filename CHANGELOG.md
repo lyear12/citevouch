@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.71] — 2026-11-10
 ### Fixed
 
 * **A file whose only table row was the table's header checked nothing, and said so with exit 0.**
@@ -47,7 +48,6 @@ tag and that file disagree.
   rows in that list too, so both readers of the same lines agree.
 
   `tests/test_header_only_file.py`, 10 tests, 5 mutations, all red.
-
 ## [0.22.70] — 2026-11-10
 ### Fixed
 
@@ -4515,7 +4515,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.70...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.71...HEAD
+[0.22.71]: https://github.com/lyear12/citevouch/releases/tag/v0.22.71
 [0.22.70]: https://github.com/lyear12/citevouch/releases/tag/v0.22.70
 [0.22.69]: https://github.com/lyear12/citevouch/releases/tag/v0.22.69
 [0.22.68]: https://github.com/lyear12/citevouch/releases/tag/v0.22.68
