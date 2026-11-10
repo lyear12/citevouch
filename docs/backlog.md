@@ -4769,3 +4769,50 @@ would a person actually have on disk", not by reading the code.
   They are HTML blocks rather than Markdown block starters, so they need
   the same treatment from the other direction, and this fix did not do
   it.  The results-table item it pointed at is closed further down this file.
+
+- [x] **P1 - a file whose only table row was the table's header checked nothing, and exited 0**
+
+  Found by running an *old* shape through the *new* door: 0.22.70 added
+  `claim-table-header` for a row above the `|---|` delimiter, and the code was
+  fully tested - but nothing asked what the pre-existing rule would think of it.
+
+  `ParseResult.nothing_to_check` (in `src/citevouch/manuscript.py`) decided
+  whether a run checked anything with "no claims, and no finding whose code
+  starts with `claim-`". The prefix was a shorthand for a property nobody had
+  written down: every such code used to describe a block the author wrote and
+  the parser could not use. A header row is not a block, so this manuscript:
+
+  ```
+  | model | setting | 84 | We report the mean over five seeds. | note |
+  |-------|---------|----|------------------------------------|------|
+  ```
+
+  printed `[medium] claim-table-header ...`, `0 claims — 0 verified, 0 moved, 0
+  missing` and **exited 0**, while an empty manuscript exited 1 with
+  `no-claim-blocks`. Both checked nothing; the CI gate passed for one of them.
+
+  The second reader of the same lines disagreed too. With the exit code fixed,
+  `scan._no_claim_blocks_finding`'s near-miss list still pointed at the header
+  row and said it was "inside a blockquote, a list item or an indent, where
+  Markdown renders it as a code sample rather than a table" - about a row at the
+  left margin.
+
+  What it does now: `nothing_to_check` names `claim-table-header` as the one
+  `claim-` code that does **not** explain a run, with the reason written beside
+  it, and `scan` skips header rows in the near-miss list so both readers agree.
+
+  Why it is now true: `tests/test_header_only_file.py` (10 tests) covers the
+  header-only file exiting 1 for `check` and `scan`, the empty file still saying
+  the same thing, a refused block still explaining itself without a second
+  finding, the header finding no longer being read as an explanation, and the
+  near-miss sentence no longer naming a construct that is not there (both when
+  the header stands alone and when a data row follows). Five mutations, all red:
+  every `claim-` code explaining the run, nothing explaining the run, everything
+  explaining the run, `scan` pointing at the header, `scan` skipping every row.
+  The fifth survived at first - my mutation runner only ran the new test file,
+  and `tests/test_no_claims.py` was the suite that caught it; widening the runner
+  to include it made all five red.
+
+  Not covered: a header row separated from its delimiter by a blank line is not
+  a table at all (documented in `_is_header_row`), so that row is still read as
+  a claim.
