@@ -4649,3 +4649,78 @@ would a person actually have on disk", not by reading the code.
   Not covered: a single file that defines one macro twice still takes the last
   definition silently - that shape has no second file to blame and is recorded
   separately.
+
+- [x] **P1 - a table claim whose page cell held a range was not read at all**
+
+  `_TABLE_CLAIM` read the `page` column as `\d+|-|`, so a row whose
+  author wrote `1-2` matched no claim at all - it was not a claim that had
+  gone wrong, it was not a claim.  Measured on a one-page source whose
+  quote is verbatim on page 1:
+
+  ```
+  | c1 | paper | 1   | <quote> | full sentence |
+  | c2 | paper | 1-2 | <quote> | full sentence |
+  ```
+
+  gave `1 claim - 1 verified, 0 moved, 0 missing`, `worst severity:
+  info`, exit 0, and no line anywhere mentioned the second row.  The range
+  row on its own was worse: the file looked empty and the run said
+  `[high] no-claim-blocks ... This file has none.`
+
+  What it does now: the page cell admits a number or a run of numbers
+  joined by a dash, including the en and em dashes a word processor
+  substitutes.  Each of those still fails `int()`, so the row is read and
+  the hint the tool cannot apply is what it complains about -
+  `[medium] page-unreadable ... the hint is ignored and the quote will be
+  located by search`, with the claim verified anyway.  That is the answer
+  the fence dialect has given for the same value since it was written.
+
+  Why it is now true: `tests/test_table_page_range.py` adds 13 tests -
+  the range row is a claim, the range row alone is not an empty file, five
+  spellings of a range are read, the hint is what gets refused and not the
+  claim, a plain number still sets the page, the tally does not count a
+  refused hint as a skip, and a header row and a separator row are still
+  not claims.  Putting the old `\d+|-|` cell back turns 8 of them red.
+  Six mutations of the new cell are all caught: the old alphabet, the dash
+  dropped, the en and em dashes dropped, the interior space dropped,
+  any-text, and digit-only.
+
+  Not covered: `iv` and `iv-vii` still match no claim at all, so a table
+  row with a roman-numeral page is still silently absent.  Roman numerals
+  are not numbers this tool can compare, and widening the cell to reach
+  them is the change that would break the header-row test.
+
+- [ ] **P2 - a results table with a numeric column reads as a claim row**
+
+  Any five-column table row whose third cell is a bare integer is a claim
+  as far as `_TABLE_CLAIM` is concerned.  Measured on a manuscript holding
+  a real results table:
+
+  ```
+  | model | setting | 84 | f1 | note |
+  | bert  | base    | 84 | 88 | 90   |
+  ```
+
+  gave `[high] source-missing ... claim model names source='setting'` and
+  `[high] source-missing ... claim bert names source='base'`, exit 1 - two
+  high findings about a table that has nothing to do with citations.
+
+  Why it is not the same fix: narrowing the page cell back is what caused
+  the range row to vanish, so the two directions trade one silent failure
+  for one loud false positive.  A real answer needs a judgement the tool
+  does not currently make - for example requiring the row to sit under a
+  header whose five cells are spelled `id | source | page | quote | text`,
+  or requiring the source cell to resolve against the manifest before the
+  row is called a claim.
+
+  Why it is worth doing: a false high finding on a table row costs the
+  author the same trust as a missing citation, and the current wording
+  (`claim model names source='setting'`) reads as though the tool thinks
+  the author wrote something they did not.
+
+  Direction to try: look for a header row above the table before reading
+  its rows as claims, and make a mismatch between the header spelling and
+  the five-column shape a `claim-table-unusual-header` finding rather than
+  a silent accept.  Failing that, require the source cell to resolve; a
+  results table's second column never will.
+
