@@ -4460,3 +4460,45 @@ would a person actually have on disk", not by reading the code.
   is the same mistake this round fixed, so they need the same treatment:
   one at a time with an end-to-end case each.
 
+- [x] **P1 - a bibliography message named a ledger that no run had written**
+
+  **What was wrong.**  `verify` chose the noun in a `bib-key-missing` finding
+  from one variable with two possible values: the file it had just re-read
+  (`the bibliography`), or the file the ledger recorded (`the bibliography the
+  ledger recorded`).  `check --bib` reaches the same line by a third path - it
+  scans the manuscript and the bibliography to answer this one run and writes
+  no ledger - and got the second sentence.  On a project that had never been
+  scanned:
+
+  ```text
+  [high] bib-key-missing at manuscript.md:1 (c1): claim c1 cites
+        'knuth2020', which is not in the bibliography the ledger recorded
+  ```
+
+  `citevouch.lock.json` did not exist before that command and did not exist
+  after it.  The finding was right; the noun pointed at a document nobody had
+  written, so an author who went looking for it would find nothing.
+
+  **What it does now.**  Three cases, one per source: `the bibliography this
+  run read` when `check --bib` scanned it, `the bibliography` when a recorded
+  pass re-read the file, and `the bibliography the ledger recorded` only when
+  the ledger is old enough to carry entries without the file that produced
+  them.
+
+  **Why it is now true.**  `tests/test_bib_message_names_the_file.py`, 5 tests:
+  the fresh run's sentence, the recorded pass's sentence, the legacy ledger's
+  sentence, the `source=`-without-`ref=` wording, and a deleted bibliography
+  that must stay a `source-missing` rather than become a missing key.  The
+  first test also asserts `(root / 'citevouch.lock.json').exists() is False`,
+  so the premise of the complaint is pinned, not just its wording.  5
+  mutations: four died (both branches answer with the ledger, both answer with
+  the plain file, the fresh branch answers with the ledger, the fresh branch
+  is unreachable).  One was measured equivalent - guarding the first branch
+  with `and not fresh` changes nothing, because `reread_entries` is only
+  filled inside `if not fresh:` - and is recorded as equivalent rather than as
+  a survivor.
+
+  **Not covered.**  The other two `bib-*` sentences (`bib-field-duplicate`,
+  `bib-key-unused`) were not re-read for a third source; only the key-missing
+  sentence was shown to have one.
+
