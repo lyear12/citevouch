@@ -4525,3 +4525,44 @@ would a person actually have on disk", not by reading the code.
 
   Not covered: `draft --bib` uses the same `parse_bib`, so it now also reports `bib-no-entries` for a definitions-only file; no test pins that verb yet.  A file that holds definitions and an *unclosed* entry is still `bib-unreadable` (correct), but a file whose only content is `@comment` is reported low even though nothing in it was lost - that is the intended reading of the code, not an oversight.
 
+
+- [x] **P1 - a `macros.bib` passed beside `refs.bib` did nothing, and the message
+  said the opposite**
+
+  **What was wrong.** `--bib` may be given more than once, and the shape that
+  needs it is a shared macros file beside the entries that use its `@string`s.
+  Each file was parsed alone, so `journal = acm` in `refs.bib` was reported as
+  an undefined macro while the definition sat on line 1 of the other file, and
+  the sentence named the one thing that was not true: "no `@string` defines
+  them".  Measured for all three orders -- macros first, refs first, refs alone
+  -- identical:
+
+  ```text
+  [medium] bib-macro-unknown at refs.bib:1: knuth1984: 1 undefined macro in 1
+  field ('journal' uses 'acm'); no @string defines them, so each name was kept
+  as literal text
+  ```
+
+  **What it does now.** The group of `--bib` files is parsed as one
+  bibliography.  `bibtex.parse_bib_group` reads the group twice: the first pass
+  collects every `@string`, the second parses each file against all of them,
+  because which flag came first is not a fact about the bibliography.
+  `parse_bib` grew a `known_strings` parameter for the second pass.  All three
+  readers moved over together -- `scan`, `draft`, and the recorded pass in
+  `verify`, which used to disagree with the run that wrote the ledger.
+
+  **Why it is now true.** `tests/test_bib_macros_across_files.py` (9 tests) pins
+  the group pass itself (`parse_bib` takes and returns the strings), both flag
+  orders end to end, the recorded pass reading the same group, and `draft`.  The
+  reverse direction is pinned too: a macro nobody defines is still
+  `bib-macro-unknown` with the name quoted, a lone `refs.bib` still reports its
+  macro undefined, and a definitions-only file is still `[low] bib-no-entries`
+  at exit 0.  Nine mutations, all red: each reader falling back to parsing files
+  alone, the group pass never collecting strings, keeping only the last file's
+  strings, `parse_bib` ignoring what it was given, the second pass not being the
+  one returned, an undefined macro going silent, and a definitions-only file
+  losing its low severity.
+
+  **Not covered.** A macros file named through a Zotero/biblatex config rather
+  than on the command line is still not discovered; the group is exactly what
+  the `--bib` flags name.
