@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.74] — 2026-11-10
 ### Fixed
 
 * **A table claim whose page cell held a roman numeral was deleted, not read.**
@@ -44,7 +45,6 @@ tag and that file disagree.
   `tests/test_table_roman_page.py`, 42 tests, and 9 mutations, all red.  One test
   asserts the two dialects answer the same value the same way, which is the
   property that was missing.
-
 ## [0.22.73] — 2026-11-10
 ### Fixed
 
@@ -4614,7 +4614,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.73...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.74...HEAD
+[0.22.74]: https://github.com/lyear12/citevouch/releases/tag/v0.22.74
 [0.22.73]: https://github.com/lyear12/citevouch/releases/tag/v0.22.73
 [0.22.72]: https://github.com/lyear12/citevouch/releases/tag/v0.22.72
 [0.22.71]: https://github.com/lyear12/citevouch/releases/tag/v0.22.71
