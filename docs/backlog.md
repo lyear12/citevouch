@@ -4724,3 +4724,45 @@ would a person actually have on disk", not by reading the code.
   a silent accept.  Failing that, require the source cell to resolve; a
   results table's second column never will.
 
+- [x] **P1 - a heading or a horizontal rule under a one-line claim comment was read as the quote**
+
+  What was wrong: `_continues_one_line_html` ends an already-closed
+  `<!-- claim ... -->` block at a blank line or where the next construct
+  starts.  The construct list held a fence, another comment and a table
+  row.  A heading and a thematic break were not on it, so both joined the
+  quote and the run reported
+
+  ```
+  <!-- claim: c1 source=paper page=1 -->
+  ## Methods
+  -> [high] quote-missing at manuscript.md:1 (c1): ## Methods — quote not found
+  ```
+
+  and, for `---`, the same sentence with `---` in place of `## Methods`.
+  Both send the author to their PDF to look for a heading and a rule their
+  source never printed, over a block that carries no quote at all.
+
+  What it does now: two patterns join the list.
+
+  ```
+  _ATX_HEADING = re.compile(r"^[ \t]{0,3}#{1,6}(?:[ \t]|$)")
+  _THEMATIC_BREAK = re.compile(r"^[ \t]{0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$")
+  ```
+
+  The indent cap and the required space after the hashes matter:
+  `#hashtag` and `--- and then some words` are still prose, and `--` is
+  still the quote.  A block left with no quote now reports
+  `claim-uncheckable`, which names the author's own file.
+
+  Why it is now true: 15 tests in
+  `tests/test_one_line_comment_boundary.py`, and 10 mutations all red.
+  The first mutation round left two alive - heading allows any indent,
+  break needs only two characters - and each got a test of its own
+  (`test_a_deeply_indented_hashtag_is_a_code_block`,
+  `test_two_dashes_are_not_a_break`) before the round closed at 10/10.
+
+  Not covered: the inventory is still not closed.  `</div>`, `<br>` and
+  `![img](x.png)` after a one-line comment are still read as the quote.
+  They are HTML blocks rather than Markdown block starters, so they need
+  the same treatment from the other direction, and this fix did not do
+  it.  `docs/backlog.md` keeps the results-table item (:4693) open.
