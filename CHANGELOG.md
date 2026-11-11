@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.85] — 2026-11-11
 ### Fixed
 
 * **A damaged text cell in the ledger was reported as a verdict about the author.**
@@ -44,7 +45,6 @@ tag and that file disagree.
   with the wrong kind of value is refused.
 
   80 tests, 12 mutations, all red.
-
 ## [0.22.84] — 2026-11-11
 ### Fixed
 
@@ -4921,7 +4921,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.84...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.85...HEAD
+[0.22.85]: https://github.com/lyear12/citevouch/releases/tag/v0.22.85
 [0.22.84]: https://github.com/lyear12/citevouch/releases/tag/v0.22.84
 [0.22.83]: https://github.com/lyear12/citevouch/releases/tag/v0.22.83
 [0.22.82]: https://github.com/lyear12/citevouch/releases/tag/v0.22.82
