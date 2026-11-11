@@ -7846,3 +7846,31 @@ How to apply:
 * Returning the input unchanged is a choice to inherit every difference in the input. Say so in the docstring, or remove the differences.
 * The test that catches this is the same file reached by two spellings, one run each. One spelling per test proves nothing - it passes with the identity function.
 
+## A sentence in backticks is an invitation to paste, and paste is a round trip
+
+`draft` ends by naming the `check` that reads the file it just wrote, in
+backticks, because the author is supposed to copy it. Half of that
+sentence was quoted for a shell and half was not: the output path went
+through `_shell_word` and then `.as_posix()`, while `--root` was the
+value the run was handed, printed as typed. On Windows that value is
+`C:\work\proj`, the shell ate the separators, and the pasted
+command exited 2 with `--root C:workproj does not exist`.
+
+The function was not wrong about its inputs - it quoted whitespace and
+the four characters a POSIX shell expands. It was wrong about what a
+backslash is: on the platform where this path is most often typed, it
+is not an escape character in the user's head, it is a separator. A
+value is only 'safe as typed' relative to one shell, and this program
+has no idea which shell will read its output.
+
+* Before quoting a value for a shell, ask what the reader's own shell
+  does with it - not what POSIX `sh` does. The set of characters that
+  need quotes differs by platform, and `\` is the one where they
+  differ most.
+* A command printed in backticks is a promise about a round trip: text
+  out, arguments back in. Test the round trip by parsing the sentence
+  back (`shlex.split`) and comparing to the values the run used, not by
+  eyeballing it.
+* Two halves of one sentence must be quoted by the same rule. When one
+  argument is passed through a canonicaliser and another is not, the
+  difference is invisible on the platform where both look plain.

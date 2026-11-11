@@ -12,6 +12,38 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The command `draft` names was unquotable on Windows, so copying it failed.**
+
+  `draft` ends by naming the `check` command that reads the file it just
+  wrote, and that sentence is the only next step it gives. The output
+  path is printed with forward slashes, but `--root` was printed exactly
+  as it was typed, and every Windows path is typed with backslashes:
+
+  ```
+  $ citevouch draft paper.md --root C:\work\proj -o claims.md
+  citevouch: wrote claims.md; read it, then `citevouch check
+  C:/work/proj/claims.md --root C:\work\proj`
+  $ citevouch check C:/work/proj/claims.md --root C:\work\proj
+  citevouch: --root C:workproj does not exist; it has to be the
+  directory the project lives in, because every relative path on this
+  command line is resolved against it.
+  ```
+
+  The shell ate the separators before `citevouch` ever saw the argument,
+  so an author who copied the sentence - which is what a sentence in
+  backticks asks for - got exit 2 on the last line of the first screen
+  `draft` shows them. `_shell_word` quoted whitespace and the four
+  characters a POSIX shell expands, and a backslash is neither: it is
+  the ordinary separator on the platform this tool is mostly run on.
+  It now quotes a backslash too, so both halves of the advice agree.
+
+  Three tests: the advice is parsed back into arguments and `--root`
+  is the value the run was given, the whole sentence is run from a
+  different directory and exits 0, and the rule itself. 4 mutations,
+  all red.
+
 ## [0.22.80] — 2026-11-11
 ### Fixed
 

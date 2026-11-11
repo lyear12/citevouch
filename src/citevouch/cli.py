@@ -611,10 +611,24 @@ def _shell_word(value: str) -> str:
     space in it would otherwise split into two arguments and fail for a reason
     that has nothing to do with the draft, so the quoting is part of the
     sentence rather than an afterthought.
+
+    A backslash counts as needing quotes, and on Windows it is the ordinary
+    separator rather than an exotic character:
+
+        $ citevouch draft paper.md --root C:\\work\\proj -o claims.md
+        citevouch: wrote claims.md; read it, then `citevouch check
+        C:/work/proj/claims.md --root C:\\work\\proj`
+        $ citevouch check C:/work/proj/claims.md --root C:\\work\\proj
+        citevouch: --root C:workproj does not exist; ...
+
+    The output path was printed with forward slashes while ``--root`` was
+    printed as it was given, so the one argument the reader had typed
+    themselves was the one argument the shell ate.  Quoting it costs one
+    character pair and the two halves of the advice agree again.
     """
     if not value:
         return "''"
-    if any(ch.isspace() for ch in value) or any(ch in value for ch in "\"'$`"):
+    if any(ch.isspace() for ch in value) or any(ch in value for ch in "\"'$`" + chr(92)):
         return "'" + value.replace("'", "'\\''") + "'"
     return value
 

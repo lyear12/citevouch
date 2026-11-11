@@ -229,3 +229,84 @@ class TestTheAdviceRunsFromWhereItWasPrinted:
             f"the advice was {advice!r}\nfollowing it: {followed.stdout}{followed.stderr}"
         )
         assert "1 claim — 1 verified" in followed.stdout, followed.stdout
+
+
+class TestTheAdviceWhenTheRootIsAnAbsolutePath:
+    r"""The one argument the reader typed themselves must survive the shell.
+
+    Measured before this existed, with the project at an absolute path and the
+    command run from a different directory::
+
+        $ citevouch draft --root C:\work\proj ... -o claims.md
+        citevouch: wrote claims.md; read it, then `citevouch check
+        C:/work/proj/claims.md --root C:\work\proj`
+        $ citevouch check C:/work/proj/claims.md --root C:\work\proj
+        citevouch: --root C:workproj does not exist; it has to be the
+        directory the project lives in ...
+
+    Every path this tool prints uses forward slashes because a Windows
+    backslash is an escape character to a shell; ``--root`` was the one place
+    the value was printed as typed.  The advice ``draft`` prints is its only
+    next step, so the failure was on the last line of the only screen a new
+    user reads.
+    """
+
+    def test_the_command_it_names_exits_zero(self, tmp_path: Path) -> None:
+        proj = _project(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+
+        drafted = _run(
+            elsewhere,
+            "draft",
+            str(proj / "paper.md"),
+            "--root",
+            str(proj),
+            "-o",
+            "claims.md",
+            "--bib",
+            str(proj / "refs.bib"),
+        )
+        assert drafted.returncode == 0, drafted.stderr
+
+        advice = _advice(drafted)
+        assert advice, drafted.stderr
+        followed = _run_as_written(elsewhere, advice)
+        assert followed.returncode == 0, (
+            f"the advice was {advice!r}\nfollowing it: {followed.stdout}{followed.stderr}"
+        )
+        assert "1 claim — 1 verified" in followed.stdout, followed.stdout
+
+    def test_the_root_stays_one_argument_with_its_backslashes(self, tmp_path: Path) -> None:
+        proj = _project(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+
+        drafted = _run(
+            elsewhere,
+            "draft",
+            str(proj / "paper.md"),
+            "--root",
+            str(proj),
+            "-o",
+            "claims.md",
+            "--bib",
+            str(proj / "refs.bib"),
+        )
+        advice = _advice(drafted)
+        parts = shlex.split(advice)
+
+        assert "--root" in parts, advice
+        given = parts[parts.index("--root") + 1]
+        assert given == str(proj), (
+            f"the advice was {advice!r}; a shell hands --root {given!r}, "
+            f"but the run was told {str(proj)!r}"
+        )
+
+    def test_a_backslash_path_is_quoted(self) -> None:
+        # The rule, with no project in the way: a value a shell would read
+        # differently from the bytes printed has to be quoted.
+        from citevouch import cli
+
+        assert cli._shell_word("C:\\work\\proj") == "'C:\\work\\proj'"
+        assert cli._shell_word("plain") == "plain"
