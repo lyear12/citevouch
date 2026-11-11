@@ -12,6 +12,39 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A field written with `=` inside a claim body was dropped above the quote and
+  quoted below it.**
+
+  A claim block teaches two spellings and each reader accepted one: the opening
+  line reads `key=value`, the body reads `key: value`. A body line at the
+  margin that spelled a field with `=` matched no key pattern, so it fell
+  through to the branch that appends to the open field - and when no field was
+  open, dropped the line. Measured on a source whose quote is on page 2, with
+  the hint written both ways in both places:
+
+  ```
+  page: 2 above quote, correct page  -> [info] quote-found page 2
+  page=2 above quote, correct page   -> [info] quote-found page 2, hint dropped
+  page: 2 above quote, WRONG page    -> [medium] quote-moved
+  page=2 above quote, WRONG page     -> [info] quote-found, exit 0, no finding
+  page=2 below quote                 -> [high] quote-missing "…corpus. page=2"
+  ```
+
+  So the same misspelling either switched a check off without a word, or
+  accused the author of quoting a passage the source really prints. It is
+  reported now, not applied - the call `_opening_colon_findings` already makes
+  in the other direction, for the same reason: the author cannot tell from the
+  key alone whether the key or the separator was wrong, so the reader names
+  both and guesses neither. The sentence about a name this format does not have
+  now lists the names from the reader's own table (`number:` next to
+  `numbers:` had been reported as "no such key" while `_BODY_KEY` matched it),
+  and it names the separator only when the name really is one of them.
+
+  `28 tests, 10 mutations, all red.`
+
+
 ## [0.22.82] — 2026-11-11
 ### Fixed
 

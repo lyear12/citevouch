@@ -7900,3 +7900,56 @@ How to apply:
 * When a reader may cut text, ask what the cut removes and which verdict that
   changes. Truncating a quote moves a verdict toward `quote-found`, so a
   truncation bug is a false pass by construction.
+
+## A reader that accepts one spelling must say which spelling it did not read
+
+A claim block has two halves and each half teaches a spelling: the opening line
+reads `key=value`, the body reads `key: value`. Each reader accepted only its
+own, and neither noticed the other's. A body line at the margin written
+`page=2` matched no key pattern at all and fell through to the branch that
+appends to the open field - and with no field open, to a bare drop. Measured on
+a source whose quote is on page 2:
+
+```
+page: 2 above quote, correct page  -> [info] quote-found page 2
+page=2 above quote, correct page   -> [info] quote-found page 2, hint dropped
+page: 2 above quote, WRONG page    -> [medium] quote-moved
+page=2 above quote, WRONG page     -> [info] quote-found, exit 0, no finding
+page=2 below quote                 -> [high] quote-missing "…corpus. page=2"
+```
+
+The same misspelling switched a check off above the quote and manufactured an
+accusation below it. Both are the one thing a citation tool may not do: answer
+a question the author did not ask.
+
+Three things follow.
+
+* **A separator is a syntax decision, and an unread one is a silent one.**
+  Every reader has a fallback branch for "this line is not a key I know", and
+  that branch always has to decide where the line goes. If the answer is
+  "append it to whatever is open", then a misspelt key becomes content; if the
+  answer is "drop it", the check it was meant to configure never runs. Neither
+  is a neutral default.
+* **Report across both spellings, apply in neither.** The author cannot tell
+  from `page` alone whether the key or the separator was wrong, so the sentence
+  names both - the same call `_opening_colon_findings` makes on the fence line
+  in the other direction. Guessing would be a format change; naming is not.
+* **A sentence that lists what the reader knows must be built from the
+  reader's table.** Written by hand it is a claim about the day it was written:
+  `number:` is a body key (`numbers?` in `_BODY_KEY`) and the message said
+  "no such key" while listing the names that already included it.
+
+And one thing that follows from testing it: two patterns for one line is two
+places to disagree. The first version of this fix had a pattern for the names
+the body has and another for the names it does not, and both matched the same
+lines - so deleting either one changed nothing, and five mutations survived.
+Removing the redundancy is what made the behaviour testable at all.
+
+* Before adding a second recognition path for the same input, ask which answer
+  wins when both match. If the answer is "the same one", delete one of them.
+* Every "unrecognised line" branch needs a destination and a sentence. The
+  destination decides the verdict; the sentence decides whether the author ever
+  learns it happened.
+* A message that enumerates a table should render that table, so the mutated
+  table shows up in the test that compares the message.
+

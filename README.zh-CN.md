@@ -93,7 +93,7 @@ worst severity: high
 | `claim-table-header` | medium | 某行落在 `\|---\|` 分隔行正上方，因此它是表头、单元格是列名——里面的东西没有对照任何来源检查过 |
 | `claim-uncheckable` | high | 某条 claim 块根本无法核对——缺 `source=`、缺引文、缺 id，或 id 重复导致第二块被丢弃 |
 | `claim-field-conflict` | medium | claim 同时写了 `ref=` 和 `cite=` 且值不同，其中一个被丢弃 |
-| `claim-field-unknown` | medium | 围栏行或 claim 体里有个键看起来是字段（`Page: 1`、`pgae=3`），但不在本格式的键里——它写的东西从未被应用 |
+| `claim-field-unknown` | medium | 围栏行或 claim 体里有一行看起来是字段，但写错了位置或分隔符（体里的 `Page: 1`、围栏行上的 `pgae=3`、体里的 `page=2`）——它写的东西从未被应用 |
 | `claim-block-unread` | high | claim 块（围栏、`<!-- claim` 注释或表格行）写在引用块、列表项或缩进里，Markdown 会把它渲染成代码示例——里面的内容一个字都没核对 |
 | `page-unreadable` | medium | `page=` 提示不是数字，会被忽略，引文改为按搜索定位 |
 | `no-claim-blocks` | high | 稿件里一个 claim 块都没有，因此什么都没被核对过 |

@@ -337,6 +337,54 @@ _ATTRIBUTE_KEY = re.compile(
 # author of quoting a page their source never printed.
 _KEYISH = re.compile(r"^\s*(?P<key>[A-Za-z][A-Za-z0-9_-]*)\s*:")
 
+# Every name a claim *body* legitimately has, in every spelling the readers
+# above accept.  `numbers?` in `_BODY_KEY` means `number:` is a body key too, so
+# `number=1` must be answered with "write number:" and not with "no such key" -
+# a sentence that lists the keys it says are missing is a claim about the
+# reader, and it is measured against the reader's own tables.  `quote` and
+# `claim` are in both `_BODY_KEY` and `_FIELD_KEY`; `numbers` is the body key
+# whose value is thrown away.
+_BODY_FIELD_NAMES: tuple[str, ...] = tuple(
+    sorted(_KNOWN_ATTRIBUTES | {"quote", "claim", "number", "numbers"})
+)
+
+# A body field written with the other separator.
+#
+# A claim block has two halves that each teach a spelling: the opening line
+# reads ``key=value`` and the body reads ``key: value``.  Each reader accepted
+# only its own, and the body reader had no way to notice the other one - a line
+# at the margin that spelled a field with ``=`` matched no key pattern at all
+# and fell through to the last branch, which appends it to whatever field is
+# open.  Measured on a source whose quote is on page 2, with the hint written
+# both ways in both places:
+#
+#     page: 2 above quote, correct page   -> [info] quote-found page 2
+#     page=2 above quote, correct page    -> [info] quote-found page 2, hint dropped
+#     page: 2 above quote, WRONG page     -> [medium] quote-moved
+#     page=2 above quote, WRONG page      -> [info] quote-found, exit 0, no finding
+#     page=2 below quote                  -> [high] quote-missing
+#                                           "…from the corpus. page=2"
+#
+# Above the quote the hint was thrown away - the one shape that switches a
+# check off without saying so - and below it the line was quoted, which is an
+# accusation against a passage the source really prints.  Two spellings, two
+# failure modes, one construct.
+#
+# Applying the ``=`` form would be a format change; reporting it is not.  That
+# is the call ``_opening_colon_findings`` already makes in the other direction,
+# and for the same reason: the author cannot tell from the key alone whether
+# the key or the separator was wrong, so the reader names both and guesses
+# neither.
+#
+# One pattern answers both the name this format has and the name it does not:
+# the line is the same mistake either way, and only the sentence differs (see
+# ``_unknown_field_message``).  ``=(?!=)`` keeps ``a == b`` out - a comparison
+# in prose is not a field, and a finding nobody can act on is how a real one
+# gets ignored.
+
+# The same shape for a name this format does not have.
+_KEYISH_EQUALS = re.compile(r"^\s*(?P<key>[A-Za-z][A-Za-z0-9_-]*)\s*=(?!=)")
+
 DEFAULT_MARKERS = ("【原文】", "【实测】", "【推测】", "[原文]", "[实测]", "[推测]")
 
 # What may stand in front of a credibility mark.  The convention is a *prefix*:
@@ -1387,7 +1435,7 @@ def _split_body(
                 attributes[other.group("key").lower()] = _unquote(other.group("rest").strip())
                 current = ""
                 continue
-            keyish = _KEYISH.match(raw)
+            keyish = _KEYISH.match(raw) or _KEYISH_EQUALS.match(raw)
             if keyish is not None and _at_the_margin(raw, margin):
                 # A field line whose name this format does not have.  Read as
                 # quote text it becomes a false accusation, and skipped in
@@ -1441,6 +1489,43 @@ def _split_body(
     return only, "", attributes, unknown
 
 
+def _unknown_field_message(line: int, key: str) -> str:
+    """What to say about a margin line that read like a field.
+
+    Two different mistakes arrive here and they need different sentences.  A
+    name this format does not have is a key to fix; a name it does have, in a
+    body that writes it with ``=``, is a separator to fix.  The second one is
+    only reachable through ``_KEYISH_EQUALS``, because a known name with a
+    colon is consumed by ``_ATTRIBUTE_KEY`` before this is asked.
+    """
+    if key.lower() in _BODY_FIELD_NAMES:
+        return (
+            f"line {line} writes {key}= in a claim body, and a body is a mapping: "
+            f"it reads {key}: value, so write {key}: (not {key}=) - the line was "
+            "neither applied nor searched as part of the quote"
+        )
+    return (
+        f"line {line} reads like a field ({key!r}), and a claim "
+        "body has no such key - it was neither applied nor searched as part of "
+        f"the quote. The body keys are {_body_key_list()}"
+    )
+
+
+def _body_key_list() -> str:
+    """The body keys, spelled out from the table rather than typed out again.
+
+    A sentence that lists the keys it says are missing is a claim about the
+    reader.  Written by hand it is a claim about the day it was written: the
+    reader grew a name (``number:``, next to ``numbers:``) and the sentence
+    kept saying the name did not exist.  Measured on
+    ``_split_body(["quote: |", Q, "number=1"])``: reported as "no such key",
+    listing the same names, while ``_BODY_KEY`` matched ``number:``.
+    """
+    names = list(_BODY_FIELD_NAMES)
+    listed = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    return listed
+
+
 def _unknown_field_findings(
     unknown: list[tuple[int, str]], path: str, start_line: int
 ) -> list[Finding]:
@@ -1455,12 +1540,7 @@ def _unknown_field_findings(
         found.append(
             Finding(
                 code="claim-field-unknown",
-                message=(
-                    f"line {start_line + offset} reads like a field ({key!r}), and a claim "
-                    "body has no such key - it was neither applied nor searched as part of "
-                    "the quote. The body keys are quote, claim, numbers, id, source, ref, "
-                    "cite, page and marker"
-                ),
+                message=_unknown_field_message(start_line + offset, key),
                 path=path,
                 line=start_line + offset,
             )
