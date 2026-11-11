@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.83] — 2026-11-11
 ### Fixed
 
 * **A field written with `=` inside a claim body was dropped above the quote and
@@ -43,8 +44,6 @@ tag and that file disagree.
   and it names the separator only when the name really is one of them.
 
   `28 tests, 10 mutations, all red.`
-
-
 ## [0.22.82] — 2026-11-11
 ### Fixed
 
@@ -4864,7 +4863,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.82...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.83...HEAD
+[0.22.83]: https://github.com/lyear12/citevouch/releases/tag/v0.22.83
 [0.22.82]: https://github.com/lyear12/citevouch/releases/tag/v0.22.82
 [0.22.81]: https://github.com/lyear12/citevouch/releases/tag/v0.22.81
 [0.22.80]: https://github.com/lyear12/citevouch/releases/tag/v0.22.80
