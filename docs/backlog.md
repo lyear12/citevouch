@@ -5147,3 +5147,42 @@ would a person actually have on disk", not by reading the code.
 
   Not covered: a claim block indented with a tab. `_at_the_margin` counts
   characters, so a tab counts as one; the README documents spaces only.
+
+- [x] **P1 - a field written with `=` inside a claim body was dropped above the
+  quote and quoted below it**
+
+  *What was wrong.* A claim body is a mapping and reads `key: value`; the
+  opening line of the same block reads `key=value`. Each reader accepted only
+  its own spelling, and a body line at the margin written with `=` matched no
+  key pattern at all, so it fell through to the branch that appends to the open
+  field - and with no field open, to a bare drop. Measured on a source whose
+  quote is on page 2:
+
+  ```
+  page=2 above quote, correct page   -> [info] quote-found page 2, hint dropped
+  page=2 above quote, WRONG page     -> [info] quote-found, exit 0, no finding
+  page=2 below quote                 -> [high] quote-missing "…corpus. page=2"
+  ```
+
+  A misspelt separator either switched a check off without a word or accused
+  the author of quoting a passage the source really prints.
+
+  *What it does now.* The line is reported as `claim-field-unknown` (medium)
+  and kept out of the quote, in both positions; it is never applied, because
+  the author cannot tell from the key alone whether the key or the separator
+  was wrong. The sentence names the separator that works (`write page: (not
+  page=)`) for a name the body has, and for a name it does not have lists the
+  names from the reader's own table - `number:` is a body key next to
+  `numbers:`, and the message used to say "no such key" while listing it.
+
+  *Why it is now true.* `tests/test_body_equals_fields.py` - 28 tests over ten
+  spellings, both positions, the margin rule beside it, the comparison `a == b`
+  that must not be read as a field, and four end-to-end verdicts. Ten mutations
+  covering the reader, the margin, the field-clearing, both sentences and the
+  rendered name list are all red. The first version of the fix had two patterns
+  for the same line, both matching every candidate; deleting the redundant one
+  is what let the mutations die.
+
+  *Not covered.* A claim body nested inside a Markdown list item that also
+  spells a field with `=` - the margin rule and the separator rule are tested
+  separately, not in combination.
