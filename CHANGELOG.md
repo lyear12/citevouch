@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.82] — 2026-11-11
 ### Fixed
 
 * **An indented `source:` line inside `quote: |` cut the quote in half, and the half
@@ -45,7 +46,6 @@ tag and that file disagree.
   unknown-key branch, a body that is itself indented two spaces, and the
   end-to-end verdict that a field-shaped line cannot launder a fabricated half.
   18 tests, 8 mutations, all red.
-
 ## [0.22.81] — 2026-11-11
 ### Fixed
 
@@ -4831,7 +4831,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.81...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.82...HEAD
+[0.22.82]: https://github.com/lyear12/citevouch/releases/tag/v0.22.82
 [0.22.81]: https://github.com/lyear12/citevouch/releases/tag/v0.22.81
 [0.22.80]: https://github.com/lyear12/citevouch/releases/tag/v0.22.80
 [0.22.79]: https://github.com/lyear12/citevouch/releases/tag/v0.22.79
