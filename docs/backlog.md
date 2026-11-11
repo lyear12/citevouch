@@ -5031,3 +5031,46 @@ would a person actually have on disk", not by reading the code.
   compared resolved filesystem paths with a spelling fallback - two ways
   to answer one question - and made a fresh `check` call its own ledger a
   different document; that is why there is one comparison now.
+
+- [x] **P1 - a manuscript outside `--root` was recorded with whatever spelling the author typed**
+
+  **What was wrong.**  `recorded_path` (`src/citevouch/scan.py`) stores
+  an input the way a ledger can carry it: a forward-slash path relative
+  to the root. A file outside the root cannot be made relative, and the
+  branch that handles that case returned the string the caller passed
+  in. That reads like declining to guess, but every difference in the
+  caller's spelling went straight into the ledger, and the identity
+  guard compares stored strings. With the manuscript at `papers/m.md`,
+  outside the project:
+
+  ```
+  scan C:\papers\m.md --root proj     -> 0, ledger records C:\papers\m.md
+  verify C:\papers\m.md --root proj     -> 0, quote-found
+  verify ..\papers\m.md --root proj     -> 1, ledger-stale
+                            "ledger describes C:\papers\m.md, but this check
+                             was asked about C:\proj\..\papers\m.md"
+  ```
+
+  One book, two spellings, called two books - inside the identity guard,
+  the one place that comparison is supposed to get right. This is the
+  gap v0.22.79's backlog entry listed under **Not covered**.
+
+  **What it does now.**  The outside-root branch returns the resolved
+  path, so a file the ledger cannot make relative still has exactly one
+  ledger spelling. Paths inside the root are unchanged: still relative,
+  still portable, and every spelling of one file still collapses to one
+  string.
+
+  **Why it is now true.**  `tests/test_ledger_path_identity.py`
+  `TestAManuscriptOutsideTheRoot` (4 tests) reaches the same file by two
+  spellings, one run each - a single spelling per test passes with the
+  identity function and proves nothing - and a fifth test keeps a
+  *different* outside document refused. Six mutations were all red,
+  including "the caller's spelling is kept" (the original code), "an
+  unresolved path is returned", "the relative branch is not canonical"
+  and "nothing is made absolute".
+
+  **Not covered.**  `Path.resolve()` on a case-insensitive filesystem
+  (macOS) collapsing two files whose names differ only in case is not
+  exercised here; the recorded form would then be identical, which is
+  what the platform says anyway.
