@@ -1273,6 +1273,44 @@ def _id_from_opener(dialect: str, line: str, opener: re.Match[str]) -> str:
     return _attrs(line[opener.end() :]).get("id", "")
 
 
+def _at_the_margin(raw: str, margin: int) -> bool:
+    """Is this line a sibling key of the block, rather than quote content?
+
+    A claim body is a YAML mapping, and the rule that decides which lines are
+    keys of it has two halves.  The comment in ``_split_body`` writes both:
+    "in a ``quote: |`` block a line at the left margin is a sibling key and
+    never continuation text".  Only the second half was implemented - every
+    key pattern is anchored on ``^\\s*``, which matches the continuation lines
+    too - so an *indented* line of the quote that happened to read
+    ``source: ...`` was read as an attribute, and it ended the quote.
+
+    Measured on a block whose first sentence really is on the page and whose
+    second sentence is nowhere in the source::
+
+        quote: |
+          We collected 154,391 examples from the corpus.
+          We also invented a sentence that is nowhere in the paper.
+                                                  -> [high] quote-missing
+
+        quote: |
+          We collected 154,391 examples from the corpus.
+          source: our own dataset
+          We also invented a sentence that is nowhere in the paper.
+                                                  -> [info] quote-found, exit 0
+
+    One indented field-shaped line turned a fabricated quotation into a
+    verified one.  ``page:``, ``id:``, ``ref:``, ``cite:``, ``marker:``,
+    ``claim:`` and ``numbers:`` cut it just as cleanly; ``Page:`` (a key this
+    format does not have) did not, because ``_KEYISH`` already had this guard.
+
+    ``margin`` is the indentation of the block's own keys, so a claim block
+    written one indent into a list item still reads its own ``quote:`` line.
+    Anything deeper than that is content: ``quote: |`` collects what is under
+    it, and "under it" includes lines that begin with a word and a colon.
+    """
+    return len(raw) - len(raw.lstrip()) <= margin
+
+
 def _split_body(
     body: list[str],
 ) -> tuple[str, str, dict[str, str], list[tuple[int, str]]]:
@@ -1313,11 +1351,18 @@ def _split_body(
     if not body:
         return "", "", attributes, unknown
     has_keys = any(_FIELD_KEY.match(raw) for raw in body)
+    # The block's own indentation: the least-indented line that reads as a
+    # field.  `quote:` in a list item is written two spaces in, and its content
+    # four; both are legitimate, and the margin is what separates them.
+    margin = min(
+        (len(raw) - len(raw.lstrip()) for raw in body if _FIELD_KEY.match(raw)),
+        default=0,
+    )
     if has_keys:
         fields: dict[str, list[str]] = {}
         current = ""
         for index, raw in enumerate(body, start=1):
-            m = _BODY_KEY.match(raw)
+            m = _BODY_KEY.match(raw) if _at_the_margin(raw, margin) else None
             if m:
                 current = m.group("key").lower()
                 fields.setdefault(current, [])
@@ -1334,7 +1379,7 @@ def _split_body(
                     # mark, in the one place nobody had looked.
                     fields[current].append(_unquote(rest))
                 continue
-            other = _ATTRIBUTE_KEY.match(raw)
+            other = _ATTRIBUTE_KEY.match(raw) if _at_the_margin(raw, margin) else None
             if other:
                 # `source: paper` under the fence is the same statement as
                 # `source=paper` on it.  Reading it as quote text is how a
@@ -1343,7 +1388,7 @@ def _split_body(
                 current = ""
                 continue
             keyish = _KEYISH.match(raw)
-            if keyish is not None and not raw[:1].isspace():
+            if keyish is not None and _at_the_margin(raw, margin):
                 # A field line whose name this format does not have.  Read as
                 # quote text it becomes a false accusation, and skipped in
                 # silence it becomes a check the author believes ran.

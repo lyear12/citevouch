@@ -12,6 +12,40 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **An indented `source:` line inside `quote: |` cut the quote in half, and the half
+  that remained verified.**
+
+  A claim block whose body is a mapping keeps its keys at the left margin and its
+  quote below them, so every indented line in that body is quotation. The reader
+  matched its key patterns with `^\s*`, which makes an indented line a key too -
+  so a passage that happens to contain a line shaped like a field silently lost
+  everything from that line down:
+
+  ```
+  quote: |
+    We collected 154,391 examples from the corpus.
+    source: our own dataset
+    We also invented a sentence that is nowhere in the paper.
+  ```
+
+  Measured against a page that prints only the first sentence, this file reported
+  `[info] quote-found` and `1 claim - 1 verified`, exit 0. The same block without
+  the middle line reported `[high] quote-missing`, exit 1. One line of quotation
+  made a fabricated half look checked. The reverse case was quieter and just as
+  wrong: a real page that prints `source: the Penn Treebank, released in 1999.`
+  had its quote truncated there and reported `quote-found` for the surviving
+  fragment.
+
+  The three body readers now share one rule: a line is a key only when it is no
+  deeper than the block's own keys, whose indent is the shallowest `quote:`/
+  `claim:` line in that body. Deeper than that is quotation, whatever it spells.
+  `test_indented_field_lines.py` covers nine key names at four indents, the
+  unknown-key branch, a body that is itself indented two spaces, and the
+  end-to-end verdict that a field-shaped line cannot launder a fabricated half.
+  18 tests, 8 mutations, all red.
+
 ## [0.22.81] — 2026-11-11
 ### Fixed
 

@@ -7874,3 +7874,29 @@ has no idea which shell will read its output.
 * Two halves of one sentence must be quoted by the same rule. When one
   argument is passed through a canonicaliser and another is not, the
   difference is invisible on the platform where both look plain.
+## A rule with two halves is a rule you can implement by writing one of them
+
+Three readers in one function decided whether a body line was a key: the
+`quote:`/`claim:` reader, the attribute reader, and the unknown-key reader.
+All three matched `^\s*(key)\s*:` - which says a key may be indented - and
+only the third also refused indented lines (`not raw[:1].isspace()`). So the
+same body answered two ways depending on whether the author spelled the key
+correctly: `Page: 2` stayed in the quote, `page: 2` became an attribute.
+
+In a `quote: |` block, keys sit at the left margin and everything indented is
+quotation. A quote that happened to contain a line shaped like a field lost
+every line from there down. Measured, that made a fabricated half of a quote
+report `quote-found` with exit 0 - the one failure this tool exists to
+prevent - because the surviving half was on the page.
+
+How to apply:
+
+* When a comment says "a line at the left margin is a sibling key and never
+  continuation text", the load-bearing word is `left`; `sibling` alone does
+  not tell the code anything. Find the margin before you match the line.
+* Two branches that answer the same question must call the same predicate.
+  Duplicated guards drift, and the branch that forgot one is the branch nobody
+  wrote a test for.
+* When a reader may cut text, ask what the cut removes and which verdict that
+  changes. Truncating a quote moves a verdict toward `quote-found`, so a
+  truncation bug is a false pass by construction.
