@@ -4991,3 +4991,43 @@ would a person actually have on disk", not by reading the code.
   **Why it is now true.**  `tests/test_allow_stale_scope.py` (15 tests) pins each fact in both directions: `verify` and `check --use-recorded` still exit 1 with the flag set for another document, a missing manuscript, and a directory; the tolerated case (a paragraph added) still exits 0 with `quote-found`; and a legacy ledger with no recorded hash is not let off by the flag.  Eleven mutations all go red: putting either guard back inside the flag, requiring a hash for the existence check, skipping the existence check, using `exists()` instead of `is_file()`, skipping the name check, comparing full paths rather than file names, ignoring the flag on the digest, never running the digest, letting the flag silence the recorded re-parse, and swapping the order of the two guards.
 
   **Not covered.**  Behaviour change worth naming: a repository that used `--allow-stale` to run a ledger against a **renamed** manuscript now gets `ledger-stale` instead of a verdict - that is the point of the fix, but it is a tightening, and the message names the two ways out (`citevouch scan` for this document, or point `--ledger` at the right project).  The flag's interaction with `--use-recorded` on the bibliography path is unchanged and stays as it was.
+
+- [x] **P1 - a ledger about `sub/m.md` was accepted as the ledger for `m.md`**
+
+  **What was wrong.**  `src/citevouch/verify.py` decided whether the
+  ledger describes the document this run was asked about by comparing
+  `Path(ledger.manuscript).name` against `manuscript_path.name`.  Two
+  files in one project can share a name, so with a ledger recorded for
+  `sub/m.md`, `verify m.md --root .` reported `[high] ledger-stale ...
+  m.md changed since the ledger was written` (accusing the author of an
+  edit that never happened) and `verify m.md --root . --allow-stale`
+  reported `[info] quote-found at m.md:1 (c1)` and exited 0 (crediting
+  `m.md` with a page `sub/m.md` printed, through the one branch
+  `--allow-stale` is meant to answer).
+
+  **What it does now.**  `_describes_the_same_file(recorded, root,
+  manuscript_path)` compares paths spelled the way the ledger stores
+  them: `recorded_path(root, manuscript_path)` - relative to the root,
+  forward slashes - against the recorded string.  `./m.md`,
+  `sub/../sub/m.md` and an absolute path still name the same document;
+  `sub/m.md` and `m.md` do not.  The message now names both paths rather
+  than both bare names.
+
+  **Why it is now true.**  `tests/test_ledger_path_identity.py` (12 tests)
+  pins both directions: the same name in another directory is refused by
+  `verify` and by `check --use-recorded`, with and without
+  `--allow-stale`, never prints `quote-found` for the other document, and
+  never says `changed since the ledger was written`; the three equivalent
+  spellings of the recorded document stay green; and a live `check`
+  (which scans and verifies in one run) is never blocked by the guard.
+  Six mutations all go red: comparing names, comparing the recorded
+  string as given, skipping the comparison, treating an unrecorded name
+  as different, never consulting the guard, and consulting it for a fresh
+  scan.
+
+  **Not covered.**  A manuscript outside `--root` is stored absolute by
+  `recorded_path`, so the comparison there is string equality of two
+  absolute paths; no test exercises it.  The earlier form of this fix
+  compared resolved filesystem paths with a spelling fallback - two ways
+  to answer one question - and made a fresh `check` call its own ledger a
+  different document; that is why there is one comparison now.
