@@ -390,15 +390,80 @@ def terms_of(text: str) -> set[str]:
     return out
 
 
-def _bib_file(entry: BibEntry) -> str:
-    """The path in a bib `file` field, without Zotero's `:path:mime` wrapper."""
+# A MIME type is the only thing Zotero ever writes after the last colon of a
+# `file` field.  Matching it is what makes unwrapping safe: a path may legally
+# contain a colon, and blindly taking the second piece of a `:` split turned a
+# Windows absolute path into its drive letter.
+_MIME_TYPE = re.compile(r"^[A-Za-z][\w.+-]*/[\w.+-]+$")
+
+
+def _one_file_field_path(raw: str) -> str:
+    """One `file` field candidate, without Zotero's `label:path:mime` wrapper.
+
+    Three writers, three shapes, all of them in the wild:
+
+    * ``papers/page.txt`` - JabRef and hand-written bibliographies.
+    * ``:papers/page.txt:application/pdf`` - older Zotero.
+    * ``Full Text PDF:papers/page.txt:application/pdf`` - Zotero today.
+
+    The path is everything between the label and the MIME type, and both are
+    optional.  A field whose last colon piece is not a MIME type is returned
+    untouched, which keeps ``papers/a:b.txt`` - a legal file name - intact.
+    """
+    if not raw or ":" not in raw:
+        return raw
+    pieces = raw.split(":")
+    if not _MIME_TYPE.match(pieces[-1].strip()):
+        return raw
+    body = pieces[:-1]
+    if body and body[0].strip() == "":
+        body = body[1:]
+    if len(body) == 1:
+        return body[0]
+    # A label never contains a separator; a drive letter is one character and
+    # is the one single-letter piece that is not a label.
+    label = body[0]
+    looks_like_a_label = (
+        len(label) > 1
+        and "/" not in label
+        and chr(92) not in label
+        and "." not in label
+        and not label.endswith(" ")
+    )
+    return ":".join(body[1:] if looks_like_a_label else body)
+
+
+def _bib_files(entry: BibEntry) -> list[str]:
+    """Every path a `file` field names, in the order the author's tool wrote them.
+
+    Mendeley separates copies with `;`, Zotero separates attachments with `;`
+    too, and either may hold more than one file for one entry.  Reading only
+    the first piece reported a file that is right there as "not there", because
+    the first piece was a different attachment of the same entry.
+    """
     raw = (entry.fields.get("file") or "").strip()
     if not raw:
-        return ""
-    if raw.startswith(":"):
-        parts = raw.split(":")
-        return parts[1] if len(parts) > 1 else ""
-    return raw
+        return []
+    out = []
+    for chunk in raw.split(";"):
+        path = _one_file_field_path(chunk.strip())
+        if path:
+            out.append(path)
+    return out
+
+
+def _bib_file(entry: BibEntry) -> str:
+    """The first path in a bib `file` field, without Zotero's wrapper."""
+    files = _bib_files(entry)
+    return files[0] if files else ""
+
+
+def _and_list(values: list[str]) -> str:
+    """`'a'`, `'a' and 'b'`, `'a', 'b' and 'c'` - the way a person says it."""
+    quoted = [repr(value) for value in values]
+    if len(quoted) == 1:
+        return quoted[0]
+    return ", ".join(quoted[:-1]) + f" and {quoted[-1]}"
 
 
 def resolve(
@@ -424,8 +489,12 @@ def resolve(
         return bound, None
     entry = bib.get(key)
     if entry is not None:
-        candidate = _bib_file(entry)
-        if candidate:
+        # Every path the field names, in the order the author's tool wrote
+        # them.  Reading only the first piece reported a file that is right
+        # there as "not there" whenever the entry held two attachments and
+        # the second was the one on disk.
+        base = Path(root) / Path(entry.path).parent if entry.path else Path(root)
+        for candidate in _bib_files(entry):
             # `entry.path` is recorded relative to the project root, not
             # to the shell that ran the command, so it has to be joined
             # back to the root before it names a directory.  Measured
@@ -434,7 +503,6 @@ def resolve(
             # above it, which made `draft` a command whose answer
             # depended on where it was typed - the same defect the
             # `-o` guard above was written for.
-            base = Path(root) / Path(entry.path).parent if entry.path else Path(root)
             for folder in (base, Path(root)):
                 path = folder / candidate
                 if path.is_file():
@@ -660,11 +728,16 @@ def _why_no_file(
             return f"no local file: {reason}"
     entry = (bib or {}).get(key)
     if entry is not None:
-        named = _bib_file(entry)
+        named = _bib_files(entry)
         if named:
+            if len(named) == 1:
+                return (
+                    f"no local file: the `file` field for {key!r} in the bibliography "
+                    f"names {named[0]!r}, and that file is not there"
+                )
             return (
                 f"no local file: the `file` field for {key!r} in the bibliography "
-                f"names {named!r}, and that file is not there"
+                f"names {_and_list(named)}, and neither file is there"
             )
     if bib_unreadable and key in bib_unreadable:
         # The citation key is in the file, the entry is not.  Saying the

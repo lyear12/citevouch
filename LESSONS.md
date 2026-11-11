@@ -8085,3 +8085,28 @@ How to apply:
   twice". Write the pair of tests together; the second one is the one that
   gets skipped.
 
+
+## A field a third-party tool writes is a format, and the format has more than one shape
+
+`draft` reads a bibliography entry's `file` field to find the local copy of a cited paper. That field looks like a path, so it was read as one: the value was split on `:`, the second piece was taken, and the result was joined to the project root.
+
+Three tools write that field. Measured, with `papers/page.txt` on disk:
+
+```
+file = {papers/page.txt}                              -> found
+file = {:papers/page.txt:application/pdf}               -> found
+file = {Full Text PDF:papers/page.txt:application/pdf}  -> not there
+file = {papers/page.txt;papers/other.pdf}               -> not there
+```
+
+JabRef, older Zotero, Zotero today, Mendeley. The second shape worked by accident — splitting on `:` and taking piece 1 happens to be right when there is no label — which is why the reader looked finished. What the first shape cost when it did not work is the sentence that matters: `names 'Full Text PDF:papers/page.txt:application/pdf', and that file is not there` tells an author their file is missing and prints, as evidence, a string no human ever typed.
+
+The split-on-colon also turned `:C:\papers\page.txt:application/pdf` into `'C'`. A drive letter is the second piece of a colon split. Two mistakes in one line, both invisible in the happy path.
+
+**How to apply.**
+
+* A field another program writes is a format with a parser, not a string to slice. Find out who writes it and in how many shapes before writing the reader; the shapes are documentation you can get wrong for years.
+* When a reader works on the sample in front of you, ask which sample it would fail on. The unlabelled Zotero shape passed and the labelled one did not, and the difference was one prefix.
+* A wrapper is identified by what it *ends with*, not by where its separators fall. `label:path:mime` is only that shape because the tail is a MIME type; the same test leaves a legal `papers/a:b.txt` alone.
+* A list of candidates is a list of tries. Reading `files[0]` and stopping reports the second attachment — the one on disk — as absent.
+* The sentence about what was not found must name what was looked for. If the reader unwraps four candidates it has to print four.

@@ -12,6 +12,50 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A bibliography `file` field was read as one path, and only one.**
+
+  `draft` looks in an entry's `file` field for the local copy of the cited
+  paper. Three tools write that field, in three shapes, and only two of them
+  were read:
+
+  ```
+  file = {papers/page.txt}                                  -> found
+  file = {:papers/page.txt:application/pdf}                   -> found
+  file = {Full Text PDF:papers/page.txt:application/pdf}      -> not there
+  file = {papers/page.txt;papers/other.pdf}                   -> not there
+  ```
+
+  The first line is JabRef, the second is older Zotero, the third is Zotero
+  today and the fourth is Mendeley. With `papers/page.txt` sitting in the
+  project, the last two produced
+
+  ```
+  no local file: the `file` field for 'paper' in the bibliography names
+  'Full Text PDF:papers/page.txt:application/pdf', and that file is not there
+  ```
+
+  — a sentence that names a file nobody wrote, about a file that is right
+  there. The old unwrapper also split on `:` and took the second piece, so a
+  Windows absolute path came back as its drive letter:
+  `file = {:C:\papers\page.txt:application/pdf}` reported
+  `names 'C'`.
+
+  `_bib_files` now reads every candidate the field names, in the order the
+  author's tool wrote them: it splits on `;` first, then unwraps a
+  `label:path:mime` or `path:mime` wrapper only when the tail actually looks
+  like a MIME type, which leaves `papers/a:b.txt` alone. `resolve` tries each
+  candidate in turn — so an entry whose second attachment is the one on disk
+  now resolves — and the failure sentence names every path it tried.
+
+  ```
+  no local file: the `file` field for 'paper' in the bibliography names
+  'papers/gone.pdf' and 'papers/also-gone.pdf', and neither file is there
+  ```
+
+  17 tests, 8 mutations, all red.
+
 ## [0.22.86] — 2026-11-11
 ### Fixed
 
