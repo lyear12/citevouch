@@ -5074,3 +5074,44 @@ would a person actually have on disk", not by reading the code.
   (macOS) collapsing two files whose names differ only in case is not
   exercised here; the recorded form would then be identical, which is
   what the platform says anyway.
+
+- [x] **The `draft` advice was a command Windows could not run**
+  (`src/citevouch/cli.py` `_shell_word`).
+
+  **What was wrong.** `draft` ends by naming the `check` that reads the
+  file it just wrote, in backticks, because the author is meant to copy
+  it. The output path was printed with forward slashes, but `--root` was
+  printed as typed, and every Windows path is typed with backslashes:
+
+  ```
+  $ citevouch draft paper.md --root C:\work\proj -o claims.md
+  citevouch: wrote claims.md; read it, then `citevouch check
+  C:/work/proj/claims.md --root C:\work\proj`
+  $ citevouch check C:/work/proj/claims.md --root C:\work\proj
+  citevouch: --root C:workproj does not exist; ...
+  ```
+
+  The shell ate the separators before `citevouch` saw the argument, so
+  copying the sentence - the one thing a backticked sentence asks for -
+  exited 2 on the last line of the first screen `draft` prints.
+
+  **What it does now.** `_shell_word` quotes a backslash as well as
+  whitespace and the four characters a POSIX shell expands, so both
+  halves of the advice go through the same rule:
+
+  ```
+  citevouch check C:/work/proj/claims.md --root 'C:\work\proj'
+  ```
+
+  **Why it is now true.** `tests/test_draft_advice_runs.py` gains
+  `TestTheAdviceWhenTheRootIsAnAbsolutePath`: the sentence is split back
+  with `shlex.split` and `--root` must equal the value the run was given;
+  the whole sentence is run from a different directory and must exit 0
+  with `1 claim - 1 verified`; and the rule is asserted directly. Four
+  mutations, all red: no backslash trigger, `--root` printed without
+  quoting, every value quoted, apostrophe not escaped.
+
+  **Not covered.** Both tests parse the sentence with `shlex.split`,
+  which is POSIX rules. A `cmd.exe` or PowerShell reader is not tested,
+  so what is proven is that the value survives POSIX quoting, not that
+  it survives every shell on the platform it is printed on.
