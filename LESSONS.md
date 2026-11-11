@@ -7821,3 +7821,28 @@ How to apply it:
 * The test that matters is the negative one: two documents with the same
   name, where the answer must be `no`. Write it before the guard, or the
   guard will be written to satisfy the cases that already agree.
+
+## A spelling you hand back is a decision you handed to the caller
+
+`recorded_path` stores an input in the one form a ledger can contain: relative to the root, forward slashes. It cannot do that for a file outside the root, and when it could not, it returned the string it was handed.
+
+That reads like refusing to guess. It is not. The function still has to return *something*, and the something it returned carries every difference the caller's spelling happened to have: an absolute path here, a `..` there, one run each. A downstream comparison of two strings then answers "same document?" differently depending on which way the author typed the path.
+
+Measured, with a manuscript at `papers/m.md`, outside the project:
+
+```
+scan C:\papers\m.md --root proj      -> 0, ledger records C:\papers\m.md
+verify C:\papers\m.md --root proj      -> 0, quote-found
+verify ..\papers\m.md --root proj      -> 1, ledger-stale
+                           "ledger describes C:\papers\m.md, but this check was
+                            asked about C:\proj\..\papers\m.md"
+```
+
+The same book, called two books - inside the guard written to stop exactly that. The fix resolves the path before returning it, so an input the ledger cannot make relative still has exactly one ledger spelling.
+
+How to apply:
+
+* When a canonicaliser has a "cannot canonicalise" branch, ask what the caller will do with the value. If anything compares it, the branch is not free.
+* Returning the input unchanged is a choice to inherit every difference in the input. Say so in the docstring, or remove the differences.
+* The test that catches this is the same file reached by two spellings, one run each. One spelling per test proves nothing - it passes with the identity function.
+

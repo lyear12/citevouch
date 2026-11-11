@@ -12,6 +12,32 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A manuscript outside `--root` was recorded with whatever spelling the author typed.**
+
+  `recorded_path` turns an input into the string a ledger stores. A file
+  inside the root becomes a forward-slash path relative to it; a file outside
+  the root cannot, so the function returned the spelling it was handed. One
+  file therefore had as many ledger spellings as there were ways to name it,
+  and the identity guard compares strings - recorded from `C:\papers\m.md`,
+  then asked about the same file spelled `..\papers\m.md` from inside the
+  project:
+
+  ```
+  verify ..\papers\m.md --root proj  -> 1, ledger-stale:
+                       "ledger describes C:\papers\m.md, but this check
+                        was asked about C:\proj\..\papers\m.md"
+  ```
+
+  The same book, two spellings, called two books - the failure the identity
+  guard exists to prevent, happening inside it. The outside-root branch now
+  stores the resolved path, so every spelling of one file collapses to one
+  string and the comparison can answer the question it was written for. Inside
+  the root nothing changes: the stored form is still relative and portable.
+
+  4 tests, 6 mutations, all red.
+
 ## [0.22.79] — 2026-11-11
 ### Fixed
 

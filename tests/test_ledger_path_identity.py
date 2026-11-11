@@ -193,3 +193,65 @@ class TestTheLiveCheckHasNoLedgerToDisagreeWith:
         out = capsys.readouterr().out
         assert code == 0, out
         assert "ledger-stale" not in out
+
+
+class TestAManuscriptOutsideTheRoot:
+    """`recorded_path` cannot make an outside path relative - but it can be exact.
+
+    It used to keep the caller's spelling, so one file had as many ledger
+    spellings as there were ways to type it.  Measured: a ledger recorded from
+    `C:\\...\\papers\\m.md`, then asked about the same file spelled
+    `..\\papers\\m.md` from inside the project:
+
+        verify ..\\papers\\m.md --root proj  -> 1, ledger-stale
+        "ledger describes C:\\\\...\\\\papers\\\\m.md, but this check was asked about
+         C:\\\\...\\\\proj\\\\..\\\\papers\\\\m.md"
+    """
+
+    def _outside(self, tmp_path: Path) -> tuple[Path, Path]:
+        project = tmp_path / "project"
+        project.mkdir()
+        _project(project)
+        papers = tmp_path / "papers"
+        papers.mkdir()
+        paper = papers / "m.md"
+        paper.write_text(_block("c1", GOOD), encoding="utf-8", newline=NL)
+        return project, paper
+
+    def test_the_ledger_stores_an_exact_path(self, tmp_path: Path):
+        project, paper = self._outside(tmp_path)
+        assert main(["scan", str(paper), "--root", str(project)]) == 0
+        blob = json.loads((project / "citevouch.lock.json").read_text(encoding="utf-8"))
+        recorded = blob["manuscript"]
+        assert recorded == str(paper.resolve()), recorded
+
+    def test_a_relative_spelling_of_it_is_the_same_document(self, tmp_path: Path, capsys):
+        project, paper = self._outside(tmp_path)
+        assert main(["scan", str(paper), "--root", str(project)]) == 0
+        capsys.readouterr()
+        spelling = str(Path("..") / "papers" / "m.md")
+        # Typed from inside the project, which is where an author stands.
+        code = main(["verify", spelling, "--root", str(project)])
+        out = capsys.readouterr().out
+        assert code == 0, out
+        assert "ledger-stale" not in out
+
+    def test_the_scanning_spelling_still_works(self, tmp_path: Path, capsys):
+        project, paper = self._outside(tmp_path)
+        assert main(["scan", str(paper), "--root", str(project)]) == 0
+        capsys.readouterr()
+        code = main(["check", str(paper), "--root", str(project), "--use-recorded"])
+        out = capsys.readouterr().out
+        assert code == 0, out
+        assert "ledger-stale" not in out
+
+    def test_a_different_outside_document_is_still_refused(self, tmp_path: Path, capsys):
+        project, paper = self._outside(tmp_path)
+        assert main(["scan", str(paper), "--root", str(project)]) == 0
+        other = tmp_path / "papers" / "other.md"
+        other.write_text(_block("zzz", ELSEWHERE), encoding="utf-8", newline=NL)
+        capsys.readouterr()
+        code = main(["verify", str(other), "--root", str(project)])
+        out = capsys.readouterr().out
+        assert code == 1, out
+        assert "ledger-stale" in out

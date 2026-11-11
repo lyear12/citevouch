@@ -246,12 +246,26 @@ def recorded_path(root: Path, path: str | Path) -> str:
     the machine that wrote it.  A file outside ``root`` cannot be
     made relative meaningfully; it keeps its absolute form and the ledger is
     simply not portable, which is the honest outcome.
+
+    That absolute form is the *resolved* one, not the spelling the caller
+    typed.  Returning ``str(path)`` made one file have as many ledger
+    spellings as there were ways to name it: recorded from
+    ``C:\\...\\papers\\m.md``, then asked about the same file spelled
+    ``..\\papers\\m.md`` from inside the project, the two strings differed and
+    the identity guard called one book two books.  Resolving collapses every
+    spelling of one file to one string, which is what a ledger needs in order
+    to compare two of them.
     """
     candidate = Path(path)
     try:
-        relative = candidate.resolve().relative_to(root.resolve())
-    except (ValueError, OSError):
+        resolved = candidate.resolve()
+    except OSError:
+        # Nothing to canonicalise: keep the spelling rather than invent one.
         return str(path)
+    try:
+        relative = resolved.relative_to(root.resolve())
+    except (ValueError, OSError):
+        return str(resolved)
     return relative.as_posix()
 
 
