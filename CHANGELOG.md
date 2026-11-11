@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.80] — 2026-11-11
 ### Fixed
 
 * **A manuscript outside `--root` was recorded with whatever spelling the author typed.**
@@ -37,7 +38,6 @@ tag and that file disagree.
   the root nothing changes: the stored form is still relative and portable.
 
   4 tests, 6 mutations, all red.
-
 ## [0.22.79] — 2026-11-11
 ### Fixed
 
@@ -4765,7 +4765,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.79...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.80...HEAD
+[0.22.80]: https://github.com/lyear12/citevouch/releases/tag/v0.22.80
 [0.22.79]: https://github.com/lyear12/citevouch/releases/tag/v0.22.79
 [0.22.78]: https://github.com/lyear12/citevouch/releases/tag/v0.22.78
 [0.22.77]: https://github.com/lyear12/citevouch/releases/tag/v0.22.77
