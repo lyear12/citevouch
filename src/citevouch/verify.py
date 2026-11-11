@@ -124,6 +124,43 @@ def _gone_sentence(path: Path) -> str:
     return "no longer exists"
 
 
+def _describes_the_same_file(recorded: str, root: Path, manuscript_path: Path) -> bool:
+    """Does the ledger's recorded manuscript name the file this run was asked about?
+
+    Compared as *paths*, not as names.  It compared
+    ``Path(ledger.manuscript).name`` against ``manuscript_path.name`` until a
+    project could hold two documents with one name: ``sub/m.md`` recorded,
+    ``verify m.md`` asked, and the guard said "same document" - so the run
+    credited ``m.md`` with a page it never printed, and without
+    ``--allow-stale`` it accused the author of editing a file that had not
+    changed.
+
+    Both sides are spelled the way the rest of the tool spells them, so the
+    answer is "same file" exactly when the ledger and this run are talking
+    about the same input:
+
+    * ``manuscript_path`` arrives already put through
+      :func:`citevouch.sources._resolve`, which is how this run names its input;
+    * :func:`citevouch.scan.recorded_path` re-spells it relative to the root
+      with forward slashes, which is how the ledger stores it - and that is what
+      keeps ``./m.md``, ``sub/../m.md`` and an absolute path equal to the
+      recorded spelling.
+
+    One comparison rather than a filesystem comparison with a spelling
+    fallback.  The fallback version passed its own tests and then reported a
+    freshly scanned project as "the ledger describes another document" inside
+    ``check``, where the ledger was written seconds earlier from this exact
+    file: two ways to answer one question means the wrong one is reachable.
+
+    Empty means the ledger recorded no name at all: it can say nothing about
+    which document it describes, and the existence check downstream is the
+    question that still has an answer.
+    """
+    if not recorded:
+        return True
+    return recorded_path(root, manuscript_path) == recorded
+
+
 def verify(
     ledger: Ledger,
     options: ScanOptions,
@@ -176,18 +213,27 @@ def verify(
     # produced the same green line about a document that is not on disk.
     # Deleting the thing under review must never be the way to make the check
     # pass.
-    recorded_name = Path(ledger.manuscript).name
+    #
+    # The first of them compares *files*, not names.  It compared
+    # `Path(ledger.manuscript).name` against `manuscript_path.name` until two
+    # documents in one project could share a name: with a ledger recorded for
+    # `sub/m.md`, `verify m.md --allow-stale` printed
+    # `[info] quote-found at m.md:1 (c1)` and exited 0, and without the flag it
+    # reported `changed since the ledger was written` - accusing the author of
+    # an edit that never happened, then crediting the other document's page to
+    # this one.  One name, two documents, and the guard answered "same".
+    recorded = ledger.manuscript
     # Asked first, and outside the `check_manuscript_hash` gate: reading this
     # document's claims and attributing them to another file is not a staleness
     # question at all, and it is a question the ledger can answer on its own.
-    if recorded_name and recorded_name != manuscript_path.name:
+    if not _describes_the_same_file(recorded, root, manuscript_path):
         result.findings.append(
             Finding(
                 code="ledger-stale",
                 message=(
-                    f"ledger describes {recorded_name}, but this check was asked about "
-                    f"{manuscript_path.name}; run `citevouch scan` for this document, or "
-                    "point --ledger at the right project"
+                    f"ledger describes {recorded}, but this check was asked about "
+                    f"{recorded_path(root, manuscript_path)}; run `citevouch scan` for "
+                    "this document, or point --ledger at the right project"
                 ),
                 path=str(manuscript_path),
             )

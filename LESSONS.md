@@ -7782,3 +7782,42 @@ How to apply:
 * Before adding a flag over a guard, list the facts the guard answers and ask which of them the flag's own documentation mentions.  Here the README said *the manuscript changed* and the guard also said *it is gone* and *it is someone else's*.
 * Split the guard so each `return` states one fact, then gate only the fact the flag is named after.  A precondition (the file exists) does not need the optional input (the hash) that a different check requires.
 * The test for a flag has to include its negative cases: not just "the tolerated state passes" but "the untolerated states still fail with the flag set".  A flag tested only in the direction it was written for has been tested in one direction.
+
+## A name is not an identity, and two ways to answer one question means the wrong one is reachable
+
+Two files in one project can share a name. The guard that asks *does
+this ledger describe the document I was asked about* compared
+`Path(recorded).name` against `manuscript_path.name`, so a ledger
+recorded for `sub/m.md` was accepted as the ledger for `m.md`:
+
+```
+verify m.md --root .                  -> 1, ledger-stale,
+                                         "changed since the ledger was written"
+verify m.md --root . --allow-stale    -> 0, [info] quote-found at m.md:1 (c1)
+```
+
+One line credits the wrong document's page; the other accuses the author
+of an edit that never happened. Neither is an answer to the question the
+guard asked, because a name is not an identity.
+
+The first fix compared resolved filesystem paths and fell back to the
+recorded spelling. It passed its own tests and then made a fresh `check`
+call its own ledger a different document: inside one `check` run, two
+`resolve()` calls over the same file disagreed. Two ways to answer one
+question do not give you a second chance - they give you a second
+answer, and the wrong one is reachable.
+
+How to apply it:
+
+* When a guard compares two things to decide whether they are *the same*,
+  ask what the identity actually is. A name, a basename, a display string
+  and a resolved path are four different answers.
+* Spell both sides with the functions that already own that spelling -
+  here `_resolve` for the input and `recorded_path` for the ledger - so a
+  new spelling convention reaches the guard for free.
+* If a guard needs a second opinion to be correct, delete the first one
+  instead of trying to order them. A fallback you cannot make fail in a
+  test is not a safeguard, it is an untested branch.
+* The test that matters is the negative one: two documents with the same
+  name, where the answer must be `no`. Write it before the guard, or the
+  guard will be written to satisfy the cases that already agree.

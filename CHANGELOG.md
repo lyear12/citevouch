@@ -11,6 +11,33 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **A ledger about `sub/m.md` was accepted as the ledger for `m.md`.**
+
+  The stale check compared the *names* of the two documents. Two files
+  in one project can share a name, so with a ledger recorded for
+  `sub/m.md`:
+
+  ```
+  verify m.md --root .                        -> 1, ledger-stale,
+                                                "changed since the ledger was written"
+  verify m.md --root . --allow-stale          -> 0, [info] quote-found at m.md:1 (c1)
+  ```
+
+  The second line credits `m.md` with a page `sub/m.md` printed, and it
+  reaches that verdict through the one branch `--allow-stale` is meant to
+  answer. The first line is a different falsehood: nothing was edited,
+  the ledger is about another file.
+
+  The comparison is now between paths, spelled the way the ledger stores
+  them - relative to the root, with forward slashes - so `./m.md`,
+  `sub/../m.md` and an absolute path still name the same document while
+  `sub/m.md` and `m.md` do not. One comparison, not a filesystem check
+  with a spelling fallback: the two-step version passed its own tests and
+  then made a fresh `check` call its own ledger a different document.
+
+  12 tests, 6 mutations, all red.
 
 ## [0.22.78] — 2026-11-11
 ### Fixed
