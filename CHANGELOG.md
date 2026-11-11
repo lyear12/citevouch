@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.78] — 2026-11-11
 ### Fixed
 
 * **`--allow-stale` answered three questions, but the README only asked it one.**
@@ -39,8 +40,6 @@ tag and that file disagree.
   A ledger that recorded no `manuscript_sha256` now also gets the existence check it was previously denied: the hash is needed to answer *did the text change*, not *is the file here*.
 
   15 tests, 11 mutations, all red.
-
-
 ## [0.22.77] — 2026-11-10
 ### Fixed
 
@@ -4712,7 +4711,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.77...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.78...HEAD
+[0.22.78]: https://github.com/lyear12/citevouch/releases/tag/v0.22.78
 [0.22.77]: https://github.com/lyear12/citevouch/releases/tag/v0.22.77
 [0.22.76]: https://github.com/lyear12/citevouch/releases/tag/v0.22.76
 [0.22.75]: https://github.com/lyear12/citevouch/releases/tag/v0.22.75
