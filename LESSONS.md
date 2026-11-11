@@ -7953,3 +7953,51 @@ Removing the redundancy is what made the behaviour testable at all.
 * A message that enumerates a table should render that table, so the mutated
   table shows up in the test that compares the message.
 
+## A character the format says may be omitted is a character the reader may not require
+
+GitHub-flavoured Markdown lets a table row leave off the pipes at its ends. This
+reader's table pattern ended with `\s*\|`, so the short spelling matched
+nothing and the row was read as prose. Measured on a file holding the
+documented header, a delimiter row and one claim written the short way:
+
+      | id | source | page | quote | claim |
+      | c1 | paper | 1 | a quote | a claim
+
+    alone            -> [high] no-claim-blocks, in the vocabulary of a fenced block
+    beside a good block -> 1 claim - 1 verified, and no finding names c1
+
+The second line is the expensive one: the run looked at the file, found one
+claim, verified it, and never mentioned the evidence it had not read. Adding
+the trailing pipe to the same row made it visible, so whether a claim was
+checked depended on a character the format says the author may leave out.
+
+Two answers were available and only one of them was already wrong:
+
+* **I did not read this** is a fact about the reader, and the reader owns it.
+  It has to be reported, with the line number, whatever the shape turned out
+  to be.
+* **This is not a claim** is a claim about the author's intent, and the reader
+  is not entitled to it. A four-cell row with no trailing pipe is exactly
+  this case - it could be a five-cell row with an empty last cell, or a
+  different table entirely - so it stays unread, and it stays unread out
+  loud only when something else on the page was read.
+
+What to apply:
+
+* **Write the pattern by the spec, not by the sample.** Every optional
+  delimiter a format permits is a spelling a real document will use, and a
+  sample written by the implementer always uses the full form.
+* **A pattern that is stricter than the grammar cannot fail; it can only
+  undercount.** So the test that catches it is not "does the strict form
+  parse" - every sample passes that - but "do the two spellings of one row
+  produce equal claims".
+* **Decide the ambiguous shape once, in a comment, with the reason.** Four
+  cells versus five-with-an-empty-one has no correct answer; writing down
+  that it is unknowable is what stops the next reader from guessing.
+* **A behaviour no input can observe is not covered by a test.** The fifth
+  mutation in this round (allow no space before the trailing pipe) changed
+  nothing observable, because `_claim_from` strips both cells anyway. Mark
+  it equivalent and move on; a test written for it would assert a strip that
+  already happens elsewhere.
+
+

@@ -12,6 +12,32 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A table row that left off its trailing pipe was never looked at.**
+
+  GitHub-flavoured Markdown lets a table row omit the pipes at its ends, and
+  this reader required the last one. This row of the documented table form
+  was read as prose, so the claim inside it was never checked:
+
+      | id | source | page | quote | claim |
+      |----|--------|------|-------|-------|
+      | c1 | paper  | 1    | a quote | a claim shown in the table
+
+  On its own the file was then reported as holding no claim blocks, in the
+  vocabulary of a fenced block. Next to one good block the run said nothing
+  at all: `1 claim - 1 verified`, with no finding naming `c1`. The same row
+  with a trailing pipe was read, so whether the evidence was looked at came
+  down to a character Markdown says may be omitted. It is read either way
+  now, and that file reports `2 claims - 2 verified`.
+
+  A row with a fourth column and no fifth is deliberately still refused:
+  the reader cannot tell an empty last cell from a table of a different
+  shape, and guessing would report a claim the author did not write.
+
+  25 tests, 4 mutations, all red.
+
+
 ## [0.22.83] — 2026-11-11
 ### Fixed
 

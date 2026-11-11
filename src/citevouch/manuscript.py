@@ -128,10 +128,30 @@ _PAGE_CELL = (
     r"|" + _ROMAN_RUN + r"(?:" + _ROMAN_SEPARATORS + _ROMAN_RUN + r")*)"
     r"|[-\u2013\u2014]|"
 )
+# The last cell's closing pipe is optional, because GFM makes it optional.  A
+# row read only when the trailing pipe was there, and the row that was refused
+# was not refused loudly - it was a line the parser never looked at.  Measured
+# with the documented header above the row:
+#
+#     | c1 | paper | 1 | <quote> | <claim> |   -> 1 claim, judged, exit 0
+#     | c1 | paper | 1 | <quote> | <claim>     -> 0 claims; alone the run says
+#                                                  `no-claim-blocks` in the
+#                                                  vocabulary of fences, and
+#                                                  beside one good block it
+#                                                  says nothing at all
+#
+# Two spellings of one row, and whether a row of evidence was looked at
+# depended on a character Markdown says may be left out.
+#
+# What is still not a claim row is a row with only four cells: without the
+# closing pipe there is no way to tell "the fifth cell is empty" from "the
+# author is writing a different table", and this dialect reads what it can see
+# rather than guessing.  `| c1 | paper | 1 | <quote> |` is read; the same row
+# with no pipe and no fifth cell is not.
 _TABLE_CLAIM = re.compile(
     r"^\|\s*(?P<id>[A-Za-z0-9_.:-]*)\s*\|\s*(?P<source>" + _CELL + r")\s*\|"
     r"\s*(?P<page>" + _PAGE_CELL + r")\s*\|\s*(?P<quote>" + _CELL + r")\s*\|"
-    r"\s*(?P<text>" + _CELL + r")\s*\|"
+    r"\s*(?P<text>" + _CELL + r")(?:\s*\||\s*$)"
 )
 # What a cell's text is once the cell boundary has been found: the only escape
 # GFM defines inside a table is the pipe, and it means the pipe.
