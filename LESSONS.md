@@ -7760,3 +7760,25 @@ How to apply:
 - Take the accepted and refused sets from the format's own grammar (TOML's bare-key alphabet is `A-Z`, `a-z`, `0-9`, `_`, `-`), not from the examples that happen to be in the repository.
 - A refusal that names the working spelling must be tested by actually using that spelling: a suggestion which the same reader then refuses is worse than no suggestion.
 
+## A flag that answers one question may not silently answer three
+
+`--allow-stale` has one documented job: tolerate a manuscript edited since the ledger was recorded.  Three different facts were reported under the single code `ledger-stale`, and one `if check_manuscript_hash and ledger.manuscript_sha256:` wrapped all three: the recorded manuscript is **gone**, the ledger describes **another document**, or the text **changed**.  The flag switched off the whole block, so it also answered the two questions it was never about.  Measured with a ledger written for `a.md` and a command asked about `b.md`:
+
+```
+$ citevouch check b.md --root . --use-recorded
+[high] ledger-stale at b.md: ledger describes a.md, but this check was asked about b.md
+
+$ citevouch check b.md --root . --use-recorded --allow-stale
+[info] quote-found at a.md:1 (c1): quote found on page 1
+citevouch: 1 claim - 1 verified, 0 moved, 0 missing
+```
+
+Deleting `a.md` produced the same green line about a document that is not on disk.  The guard that existed to stop *deleting the thing under review makes the check pass* was still there; the flag was a second door into the state it refused.
+
+The tell is not in the flag.  It is in the finding: one `code` covering three sentences that three different people would act on differently.  A severity table is a contract with the exit code, and so is a code table - if one code can mean "your draft is newer" and "I am looking at the wrong file", then any switch written against that code is switching all of it.
+
+How to apply:
+
+* Before adding a flag over a guard, list the facts the guard answers and ask which of them the flag's own documentation mentions.  Here the README said *the manuscript changed* and the guard also said *it is gone* and *it is someone else's*.
+* Split the guard so each `return` states one fact, then gate only the fact the flag is named after.  A precondition (the file exists) does not need the optional input (the hash) that a different check requires.
+* The test for a flag has to include its negative cases: not just "the tolerated state passes" but "the untolerated states still fail with the flag set".  A flag tested only in the direction it was written for has been tested in one direction.

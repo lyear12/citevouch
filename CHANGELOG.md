@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`--allow-stale` answered three questions, but the README only asked it one.**
+
+  The flag exists for one sentence: *the manuscript changed since the ledger was recorded*.  Three different facts were reported under the single code `ledger-stale`, and one flag switched all three off together - the recorded manuscript is **gone**, the ledger describes **another document**, or the text **changed**.  Measured with a ledger written for `a.md` and a command asked about `b.md`:
+
+  ```
+  $ citevouch check b.md --root . --use-recorded
+  [high] ledger-stale at b.md: ledger describes a.md, but this check was asked about b.md
+  citevouch: 0 claims - 0 verified, 0 moved, 0 missing, 1 skipped
+  ```
+
+  Adding `--allow-stale` - the flag whose documented job is to tolerate an older draft - produced a green verdict quoting the file nobody asked about:
+
+  ```
+  $ citevouch check b.md --root . --use-recorded --allow-stale
+  [info] quote-found at a.md:1 (c1): quote found on page 1
+  citevouch: 1 claim - 1 verified, 0 moved, 0 missing
+  ```
+
+  Deleting `a.md` produced the same green line about a document that is not on disk - exactly the shape the guard above it was added to stop, reachable again by adding a flag.
+
+  The two questions that are not about ageing are now asked outside the flag.  `--allow-stale` still answers the one it documents, and a manuscript with new prose still verifies; a ledger about another document, a manuscript that is gone, and a path that is now a directory are all still `[high] ledger-stale` with or without it.
+
+  A ledger that recorded no `manuscript_sha256` now also gets the existence check it was previously denied: the hash is needed to answer *did the text change*, not *is the file here*.
+
+  15 tests, 11 mutations, all red.
+
+
 ## [0.22.77] — 2026-11-10
 ### Fixed
 

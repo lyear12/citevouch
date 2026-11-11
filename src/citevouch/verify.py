@@ -159,53 +159,74 @@ def verify(
     # ledger is not wrong, it is stale — and saying so beats silently verifying
     # claims that no longer exist in the manuscript.
     #
-    # A missing manuscript is the largest possible change to it, and it used to
-    # slip through this guard because the `exists()` half was an `and` rather
-    # than its own case: the PDFs all still matched, so `verify` returned a
-    # green "1 verified" about a document that was not there.  Deleting the
-    # thing under review must never be the way to make the check pass.
+    # Three different facts are reported under this one code, and only the last
+    # of them is about being out of date:
+    #
+    #   1. the ledger describes another document;
+    #   2. the recorded document is not on disk;
+    #   3. the document is here and its text changed.
+    #
+    # `--allow-stale` answers the third one - "the draft moved on since the
+    # ledger was written".  It must not answer the first two: neither has an
+    # older draft to fall back on.  It used to, because a single
+    # `if check_manuscript_hash and ledger.manuscript_sha256:` wrapped all
+    # three.  Measured with a ledger about `a.md` and a command asked about
+    # `b.md`, the flag printed `[info] quote-found at a.md:1 (c1)` and exited
+    # 0 - a green verdict quoting a file nobody asked about; deleting `a.md`
+    # produced the same green line about a document that is not on disk.
+    # Deleting the thing under review must never be the way to make the check
+    # pass.
+    recorded_name = Path(ledger.manuscript).name
+    # Asked first, and outside the `check_manuscript_hash` gate: reading this
+    # document's claims and attributing them to another file is not a staleness
+    # question at all, and it is a question the ledger can answer on its own.
+    if recorded_name and recorded_name != manuscript_path.name:
+        result.findings.append(
+            Finding(
+                code="ledger-stale",
+                message=(
+                    f"ledger describes {recorded_name}, but this check was asked about "
+                    f"{manuscript_path.name}; run `citevouch scan` for this document, or "
+                    "point --ledger at the right project"
+                ),
+                path=str(manuscript_path),
+            )
+        )
+        result.skipped = len(ledger.claims)
+        return result
+
+    # Asked second, also outside the gate.  A missing manuscript is the largest
+    # possible change to it and used to slip through because the `exists()`
+    # half was an `and` rather than its own case: the PDFs all still matched,
+    # so `verify` returned a green "1 verified" about a document that was not
+    # there.  Existence does not need a recorded hash to answer - a ledger
+    # written before `manuscript_sha256` existed still names a file.
+    #
+    # `is_file`, not `exists`: a directory named `m.md` passes `exists()` and
+    # then `sha256_file` raises PermissionError, which leaves `main` as a
+    # traceback with exit 1 - and 1 is this tool's word for "the manuscript has
+    # findings".  A path that is not a readable file is not a manuscript,
+    # whichever way it fails to be one.
+    if not manuscript_path.is_file():
+        result.findings.append(
+            Finding(
+                code="ledger-stale",
+                message=(
+                    f"{manuscript_path.name} recorded by the ledger "
+                    f"{_gone_sentence(manuscript_path)}; "
+                    "restore it, or point --root/--ledger at the project it belongs to"
+                ),
+                path=str(manuscript_path),
+            )
+        )
+        result.skipped = len(ledger.claims)
+        return result
+
+    # The name matched and the file is here, so the digest comparison is now
+    # the drift check it looks like - and this is the one `--allow-stale`
+    # gets to switch off.
     if check_manuscript_hash and ledger.manuscript_sha256:
-        # `is_file`, not `exists`: a directory named `m.md` passes `exists()`
-        # and then `sha256_file` raises PermissionError, which leaves `main`
-        # as a traceback with exit 1 - and 1 is this tool's word for "the
-        # manuscript has findings".  A path that is not a readable file is not
-        # a manuscript, whichever way it fails to be one.
-        if not manuscript_path.is_file():
-            result.findings.append(
-                Finding(
-                    code="ledger-stale",
-                    message=(
-                        f"{manuscript_path.name} recorded by the ledger "
-                        f"{_gone_sentence(manuscript_path)}; "
-                        "restore it, or point --root/--ledger at the project it belongs to"
-                    ),
-                    path=str(manuscript_path),
-                )
-            )
-            result.skipped = len(ledger.claims)
-            return result
-        # The ledger names the document it is about.  If the command-line
-        # manuscript is a different file, the hash comparison below is not a
-        # drift check at all - it is two unrelated files disagreeing, which
-        # would be reported as "your manuscript changed" and send the author
-        # looking for an edit that never happened.  Name the real problem.
-        recorded_name = Path(ledger.manuscript).name
-        if recorded_name and recorded_name != manuscript_path.name:
-            result.findings.append(
-                Finding(
-                    code="ledger-stale",
-                    message=(
-                        f"ledger describes {recorded_name}, but this check was asked about "
-                        f"{manuscript_path.name}; run `citevouch scan` for this document, or "
-                        "point --ledger at the right project"
-                    ),
-                    path=str(manuscript_path),
-                )
-            )
-            result.skipped = len(ledger.claims)
-            return result
-        current = manuscript_digest
-        if current != ledger.manuscript_sha256:
+        if manuscript_digest != ledger.manuscript_sha256:
             result.findings.append(
                 Finding(
                     code="ledger-stale",
