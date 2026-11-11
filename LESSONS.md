@@ -8000,4 +8000,53 @@ What to apply:
   it equivalent and move on; a test written for it would assert a strip that
   already happens elsewhere.
 
+## `str()` is not a reader: it is a promise that every value was text
 
+`Ledger.from_json` was strict about every structural cell and trusting
+about every textual one. The structural half is easy to see - a list has
+to be a list - so it got guards in the round that stopped the crashes:
+`claims` must be a list, `line` a whole number, `numbers` a list of
+strings, `fields` an object. The textual half was thirteen lines of
+`str(entry.get(key, ""))`, which reads as defensive - there is a default,
+there is a cast, nothing can raise.
+
+The cast is the defect. `str(None)` is the four characters `None`, and
+`str(5)` is `"5"`, so a damaged cell walks into the verifier dressed as
+content. Measured on a project whose page holds the quoted sentence, with
+one ledger cell edited by hand:
+
+- `quote: null` -> `[high] quote-missing at m.md:1 (c1): None - quote
+  not found (too short for a fuzzy comparison) in page.txt`, exit **1**
+- `id: null` -> `[info] quote-found at m.md:1 (None)`, exit 0
+- `path: null` -> `[info] quote-found at None:1`, exit 0
+- `source: null` -> `[high] source-missing ... source 'None' cannot be
+  found any more`
+
+Exit 1 here means "findings reached the threshold" - a verdict about the
+manuscript. Every one of these sentences is a verdict about a manuscript
+that was never damaged, in a run where a file was. And `source 'None'
+cannot be found any more` is worse than a shrug: it tells the author a
+source they named has vanished, from a cell that never named one.
+
+The tell is the asymmetry inside one function. A guard on `line` and a
+cast on `quote` are two answers to the same question - "can I read this
+cell?" - and the reason one got a guard is that its failure was a crash,
+which is loud, while the other's failure was plausible output, which is
+not. Damage that produces a sentence always outlives damage that produces
+a traceback, because nobody looks for it.
+
+What to apply:
+
+* **A cast is a decision that the value was the right type.** If the
+  function has a default for absence, it has already admitted that the key
+  may not be there; a value that *is* there with the wrong type is a third
+  case, and `str()` deletes it. Write the three cases out: absent, present
+  and a string, present and not a string.
+* **Ask what the value will be compared against.** A cell that ends up in
+  a message, a filename or a comparison is a cell whose wrong type becomes
+  a wrong sentence. A cell only ever shown back to the reader can take a
+  cast; a cell that decides what is accused cannot.
+* **Guard the family, not the cell you saw.** The crash round fixed the
+  cells whose failure was loud; the remaining twelve kept the same bug.
+  When one reader has two kinds of cell, the guard has to be uniform or the
+  unguarded kind is where the next report comes from.

@@ -12,6 +12,39 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A damaged text cell in the ledger was reported as a verdict about the author.**
+
+  `Ledger.from_json` guarded every structural cell from the start - `claims`
+  had to be a list, `line` a whole number, `numbers` a list of strings - and
+  then read every textual one with `str(entry.get(key, ""))`. `str()` is not a
+  reader: it turns a `null` into the four characters `None` and a `5` into the
+  string `"5"`. So a ledger edited by hand, or half-merged, arrived in the
+  verifier looking like a claim whose quote really is those characters, and
+  the page that holds the quoted sentence was reported like this:
+
+      [high] quote-missing at m.md:1 (c1): None - quote not found (too short
+      for a fuzzy comparison) in page.txt
+
+  Exit 1 in this tool means "findings reached the threshold" - a verdict
+  about the manuscript. The manuscript was fine; the file was damaged. The
+  same shape reached the other sentences too: `id: null` printed
+  `quote-found at m.md:1 (None)`, `path: null` printed `quote-found at
+  None:1`, and `source: null` said `source 'None' cannot be found any more`
+  - a source that was never named, described as one that vanished.
+
+  Every text cell is now read by a guard that refuses a present non-string
+  with exit 2 and a message naming the cell and the type it found:
+
+      citevouch: ledger claims[0].quote must be a string, not NoneType
+
+  An *absent* key keeps its old meaning - a ledger written before a key
+  existed has no key, and that still reads - so only a key that is there
+  with the wrong kind of value is refused.
+
+  80 tests, 12 mutations, all red.
+
 ## [0.22.84] — 2026-11-11
 ### Fixed
 

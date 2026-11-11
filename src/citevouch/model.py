@@ -235,6 +235,35 @@ def _fields(entry: dict[str, Any], where: str) -> dict[str, str]:
     return {str(k): str(v) for k, v in value.items()}
 
 
+def _text_cell(entry: dict[str, Any], key: str, where: str) -> str:
+    """One ledger text cell, which must be a string when the key is there.
+
+    ``from_json`` read every textual cell with ``str(entry.get(key, ""))``, and
+    ``str()`` is not a reader: it turns a ``null`` into the four characters
+    ``None`` and a ``5`` into ``"5"``, so a hand-edited or half-merged ledger
+    arrived in the verifier looking like a claim whose quote really is those
+    characters.  Measured before this guard, on a page that holds the quoted
+    sentence::
+
+        [high] quote-missing at m.md:1 (c1): None - quote not found (too
+        short for a fuzzy comparison) in page.txt
+
+    Exit 1 in this tool means "findings reached the threshold" - a verdict
+    about the manuscript, in a run where the manuscript was fine and the file
+    was damaged.  A damaged file is exit 2 with a message that names the cell.
+
+    *Absent* is not *null*: a ledger written before a key existed has no key,
+    and that keeps its old meaning (the default).  Only a key that is present
+    with something other than a string is refused.
+    """
+    if key not in entry:
+        return ""
+    value = entry[key]
+    if not isinstance(value, str):
+        raise UsageError(f"ledger {where}.{key} must be a string, not {type(value).__name__}")
+    return value
+
+
 def _whole(value: Any, where: str, *, default: int = 0) -> int:
     """A ledger count, which must be a whole number."""
     if value is None:
@@ -497,10 +526,10 @@ class Ledger:
     def from_json(cls, blob: dict[str, Any]) -> Ledger:
         ledger = cls(
             schema=_whole(blob.get("schema"), "schema", default=SUPPORTED_SCHEMA),
-            manuscript=str(blob.get("manuscript", "")),
-            manuscript_sha256=str(blob.get("manuscript_sha256", "")),
-            generated_at=str(blob.get("generated_at", "")),
-            tool_version=str(blob.get("tool_version", "")),
+            manuscript=_text_cell(blob, "manuscript", "ledger"),
+            manuscript_sha256=_text_cell(blob, "manuscript_sha256", "ledger"),
+            generated_at=_text_cell(blob, "generated_at", "ledger"),
+            tool_version=_text_cell(blob, "tool_version", "ledger"),
             # A ledger written before this key existed names no bibliography,
             # which is exactly what it recorded: nothing is claimed about one.
             bibliographies=list(_texts(blob.get("bibliographies"), "bibliographies")),
@@ -508,18 +537,18 @@ class Ledger:
         for key, raw in _section(blob, "sources").items():
             entry = _object(raw, f"sources[{key!r}]")
             ledger.sources[key] = SourceRef(
-                key=str(entry.get("key", key)),
-                path=str(entry.get("path", "")),
-                sha256=str(entry.get("sha256", "")),
+                key=_text_cell(entry, "key", f"sources[{key!r}]") or key,
+                path=_text_cell(entry, "path", f"sources[{key!r}]"),
+                sha256=_text_cell(entry, "sha256", f"sources[{key!r}]"),
                 pages=_whole(entry.get("pages"), f"sources[{key!r}].pages"),
             )
         for key, raw in _section(blob, "entries").items():
             entry = _object(raw, f"entries[{key!r}]")
             ledger.entries[key] = BibEntry(
-                key=str(entry.get("key", key)),
-                entry_type=str(entry.get("type", "")),
+                key=_text_cell(entry, "key", f"entries[{key!r}]") or key,
+                entry_type=_text_cell(entry, "type", f"entries[{key!r}]"),
                 fields=_fields(entry, f"entries[{key!r}]"),
-                path=str(entry.get("path", "")),
+                path=_text_cell(entry, "path", f"entries[{key!r}]"),
                 line=_whole(entry.get("line"), f"entries[{key!r}].line"),
             )
         claims = blob.get("claims")
@@ -533,7 +562,7 @@ class Ledger:
             )
         for index, raw in enumerate(claims):
             entry = _object(raw, f"claims[{index}]")
-            quote = str(entry.get("quote", ""))
+            quote = _text_cell(entry, "quote", f"claims[{index}]")
             # The shape is checked and the value is not trusted.
             #
             # ``numbers`` is a transcription of ``quote`` - ``textnorm.quote_numbers``
@@ -556,17 +585,19 @@ class Ledger:
             _texts(entry.get("numbers"), f"claims[{index}].numbers")
             ledger.claims.append(
                 Claim(
-                    id=str(entry.get("id", "")),
-                    text=str(entry.get("text", "")),
-                    source=str(entry.get("source", "")),
+                    id=_text_cell(entry, "id", f"claims[{index}]"),
+                    text=_text_cell(entry, "text", f"claims[{index}]"),
+                    source=_text_cell(entry, "source", f"claims[{index}]"),
                     quote=quote,
                     page=_as_page(entry.get("page")),
-                    path=str(entry.get("path", "")),
+                    path=_text_cell(entry, "path", f"claims[{index}]"),
                     line=_whole(entry.get("line"), f"claims[{index}].line"),
-                    marker=str(entry.get("marker", "")),
-                    ref=str(entry.get("ref", "")),
+                    marker=_text_cell(entry, "marker", f"claims[{index}]"),
+                    ref=_text_cell(entry, "ref", f"claims[{index}]"),
                     numbers=quote_numbers(quote),
-                    quote_fingerprint=str(entry.get("quote_fingerprint", "")),
+                    quote_fingerprint=_text_cell(
+                        entry, "quote_fingerprint", f"claims[{index}]"
+                    ),
                 )
             )
         return ledger

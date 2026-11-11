@@ -43,26 +43,86 @@ def _sources() -> list[Path]:
 
 
 def _expands_os_environ(node: ast.Dict) -> bool:
-    """True if the dict has a `**` entry that comes from os.environ."""
+    """True if the dict has a `**` entry that comes from the environment."""
     for key, value in zip(node.keys, node.values, strict=True):
         if key is not None:
             continue  # an ordinary `name: value` entry, not an expansion
-        source = ast.unparse(value)
-        if "os.environ" in source:
+        if "environ" in ast.unparse(value):
             return True
+    return False
+
+
+def _functions(tree: ast.Module) -> dict[str, list[ast.expr]]:
+    """Every value each function in this file returns."""
+    found: dict[str, list[ast.expr]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            found[node.name] = [
+                inner.value
+                for inner in ast.walk(node)
+                if isinstance(inner, ast.Return) and inner.value
+            ]
+    return found
+
+
+def _bindings(tree: ast.Module) -> dict[str, list[ast.expr]]:
+    """Every value ever assigned to each plain name in this file."""
+    found: dict[str, list[ast.expr]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                found.setdefault(target.id, []).append(node.value)
+    return found
+
+
+def _inherits(
+    node: ast.expr, bound: dict[str, list[ast.expr]], returned: dict[str, list[ast.expr]]
+) -> bool:
+    """True if this value can carry the real environment into the child.
+
+    Four spellings reach the same idea: a dict literal that expands the
+    environment, a name bound to one, a call to a function in this file that
+    returns one, and any expression that mentions `environ` at all.  "Can"
+    rather than "does" because a name is resolved file-wide: the same
+    variable is reused for several children, and proving each use separately
+    would mean modelling control flow.  A guard that guesses wrong in the
+    permissive direction lets a real defect through; one that guesses wrong
+    in the strict direction fails the build on correct code, which is why the
+    permissive reading is the one to take when a name has several bindings.
+    """
+    if isinstance(node, ast.Dict):
+        return _expands_os_environ(node)
+    if isinstance(node, ast.Name):
+        values = bound.get(node.id, [])
+        return any(_inherits(value, bound, returned) for value in values)
+    if isinstance(node, ast.Call):
+        if "environ" in ast.unparse(node):
+            return True
+        name = getattr(node.func, "id", None)
+        return any(_inherits(value, bound, returned) for value in returned.get(name or "", []))
+    if isinstance(node, ast.BoolOp):
+        return any(_inherits(value, bound, returned) for value in node.values)
+    if isinstance(node, ast.BinOp):
+        return any(_inherits(side, bound, returned) for side in (node.left, node.right))
+    if isinstance(node, ast.IfExp):
+        return any(_inherits(side, bound, returned) for side in (node.body, node.orelse))
     return False
 
 
 def _replacing_envs(path: Path) -> list[int]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    bound = _bindings(tree)
+    returned = _functions(tree)
     lines: list[int] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         for keyword in node.keywords:
-            if keyword.arg != "env" or not isinstance(keyword.value, ast.Dict):
+            if keyword.arg != "env":
                 continue
-            if not _expands_os_environ(keyword.value):
+            if not _inherits(keyword.value, bound, returned):
                 lines.append(keyword.value.lineno)
     return sorted(lines)
 
@@ -83,6 +143,48 @@ def test_the_detector_recognises_both_shapes() -> None:
     bad = ast.parse('run(x, env={"PYTHONPATH": "src"})').body[0]
     assert _expands_os_environ(good.value.keywords[0].value) is True
     assert _expands_os_environ(bad.value.keywords[0].value) is False
+
+
+def test_the_guard_follows_a_name_to_its_literal(tmp_path: Path) -> None:
+    """`env=env` over a two-key literal is the same defect, one step out.
+
+    The first version of this guard read only `env={...}` literals, so a
+    helper that assigned the dict to a name and passed the name walked
+    straight past it - and that is what happened: four assertions died on
+    Windows 3.10 while the Linux and macOS cells stayed green.  A guard that
+    recognises one spelling protects that spelling.
+    """
+    source = tmp_path / "child.py"
+    source.write_text(
+        "def go():"
+        + chr(10)
+        + '    env = {"PYTHONPATH": "src"}'
+        + chr(10)
+        + "    run(env=env)"
+        + chr(10),
+        encoding="utf-8",
+    )
+    assert _replacing_envs(source) == [3]
+
+
+def test_a_name_that_inherits_is_not_flagged(tmp_path: Path) -> None:
+    """The widening must not turn every helper into an offender."""
+    source = tmp_path / "child.py"
+    source.write_text(
+        "def build():"
+        + chr(10)
+        + '    base = {**os.environ, "PYTHONPATH": "src"}'
+        + chr(10)
+        + "    return base"
+        + chr(10)
+        + chr(10)
+        + "def go():"
+        + chr(10)
+        + "    run(env=build())"
+        + chr(10),
+        encoding="utf-8",
+    )
+    assert _replacing_envs(source) == []
 
 
 def test_nothing_replaces_the_environment_with_a_literal() -> None:
