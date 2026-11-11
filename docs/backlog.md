@@ -5295,3 +5295,40 @@ would a person actually have on disk", not by reading the code.
   Not covered: a repeated attribute inside a claim block that is itself
   nested inside a list item; the margin rule and the repeat rule are each
   tested, the combination is not.
+- [x] **P1 - a bibliography `file` field was read as one path, and only one (0.22.87)**
+
+  What was wrong: `draft` looked in an entry's `file` field for the local
+  copy of the cited paper, and read that field as a path - split on `:` and
+  take the second piece. Three tools write the field and only two shapes
+  were read. With `papers/page.txt` on disk,
+  `file = {Full Text PDF:papers/page.txt:application/pdf}` (Zotero today)
+  and `file = {papers/page.txt;papers/other.pdf}` (Mendeley) both produced
+  `no local file: ... names 'Full Text PDF:papers/page.txt:application/pdf', and that file is not there`
+  - a sentence naming a file nobody wrote, about a file that is right
+  there. The colon split also turned `:C:\papers\page.txt:application/pdf`
+  into `'C'`, because a drive letter is the second piece of a colon split.
+
+  What it does now: `_bib_files` returns every candidate the field names,
+  in the order the author's tool wrote them - `;` separates copies and
+  attachments, and a `label:path:mime` or `path:mime` wrapper is unwrapped
+  only when the tail actually looks like a MIME type, which is what leaves
+  a legal `papers/a:b.txt` alone. `resolve` tries each candidate in turn,
+  so an entry whose second attachment is the one on disk now resolves, and
+  `_why_no_file` names every path it tried. `_bib_file` is kept as the
+  first-candidate spelling so the callers that want one path stay readable.
+
+  Why it is now true: 17 tests in `tests/test_bib_file_field.py` pin every
+  shape (plain, unlabelled Zotero, labelled Zotero, a label with spaces, a
+  Windows absolute path with and without the wrapper, Mendeley's two
+  copies, two Zotero attachments, an empty field, and `papers/a:b.txt`
+  staying whole). `TestTheSecondCandidateIsTried` and
+  `TestTheSentenceNamesWhatItCouldNotFind` cover the two halves that only
+  fail together: the resolver walks the list and the sentence prints it.
+  Eight mutations, all red: no path read from the field; only the first
+  candidate tried; only the first path named; `;` read as one path; the
+  MIME test removed; the label never recognised; the empty leading piece
+  kept; a colon in a name treated as a wrapper.
+
+  Not covered: a `.bib` written by Zotero itself (the fixtures reproduce
+  its shape by hand from the strings the tool documents); a `file` field
+  whose label itself contains a colon.
