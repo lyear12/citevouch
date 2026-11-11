@@ -5186,3 +5186,27 @@ would a person actually have on disk", not by reading the code.
   *Not covered.* A claim body nested inside a Markdown list item that also
   spells a field with `=` - the margin rule and the separator rule are tested
   separately, not in combination.
+- [x] **P1 - a table row that left off its trailing pipe was never looked at**
+
+  What was wrong: the table dialect's pattern required a closing `|` at the end of
+  the row, while GitHub-flavoured Markdown says the pipes at the ends of a row
+  may be left out. A row written the shorter way matched nothing, so its claim
+  was never read. On its own the file came back as `no-claim-blocks`, described
+  in the vocabulary of a fenced block; next to one good block the run printed
+  `1 claim - 1 verified` with no finding naming the row, so the evidence was
+  silently absent from the verdict.
+
+  What it does now: the last cell ends at either a trailing pipe or the end of
+  the line. That file reports `2 claims - 2 verified`. A row with a fourth
+  column and no fifth is still refused, because an empty last cell and a table
+  of a different shape cannot be told apart.
+
+  Why it is now true: `tests/test_table_row_without_trailing_pipe.py` holds 25
+  tests covering both spellings, the equal-claim comparison, the four-cell
+  boundary, trailing whitespace, prose that contains pipes, the end-to-end
+  verdicts, and the detector agreeing with the parser. Four mutations of the
+  pattern all go red; the fifth (no space allowed before the trailing pipe) is
+  equivalent, because `_claim_from` strips both cells either way.
+
+  Not covered: a last cell that ends inside an escaped `\`|`; and the ambiguous four-cell shape is unread by design.
+
