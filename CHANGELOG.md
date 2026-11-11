@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.84] — 2026-11-11
 ### Fixed
 
 * **A table row that left off its trailing pipe was never looked at.**
@@ -36,8 +37,6 @@ tag and that file disagree.
   shape, and guessing would report a claim the author did not write.
 
   25 tests, 4 mutations, all red.
-
-
 ## [0.22.83] — 2026-11-11
 ### Fixed
 
@@ -4889,7 +4888,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.83...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.84...HEAD
+[0.22.84]: https://github.com/lyear12/citevouch/releases/tag/v0.22.84
 [0.22.83]: https://github.com/lyear12/citevouch/releases/tag/v0.22.83
 [0.22.82]: https://github.com/lyear12/citevouch/releases/tag/v0.22.82
 [0.22.81]: https://github.com/lyear12/citevouch/releases/tag/v0.22.81
