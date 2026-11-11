@@ -82,6 +82,9 @@ SARIF_RULES = {
         "A claim names one attribute twice under two spellings, with different values, "
         "so only one of the two was ever used."
     ),
+    "claim-field-repeated": (
+        "A claim names one attribute twice with different values, so only the first was used."
+    ),
     "claim-block-unread": (
         "A claim fence sits where Markdown renders a code sample, so nothing in it was checked."
     ),

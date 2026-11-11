@@ -8050,3 +8050,38 @@ What to apply:
   cells whose failure was loud; the remaining twelve kept the same bug.
   When one reader has two kinds of cell, the guard has to be uniform or the
   unguarded kind is where the next report comes from.
+
+## A dict assignment is a silent ruling on which of two statements wins
+
+`_attrs` (opening line) and `_split_body` (body) both kept attributes as
+`out[key] = value`. Writing one attribute twice therefore picked the last
+value and dropped the first, and no finding existed for either. On a quote
+printed on page 1 of `paper.txt` and nowhere in `alt.txt`:
+
+    source=paper source=alt   -> [high] quote-missing   (an accusation)   
+    source=alt source=paper   -> [info] quote-found     (silence)         
+
+Both sentences are about the order of two tokens, not about the manuscript.
+In the body the same shape gave `quote-found` for one order and
+`[medium] quote-moved` for the other, and a repeated `id:` silently renamed
+the claim everywhere it was printed.
+
+Two neighbours had already answered this question and were not consulted.
+`bib-field-duplicate` keeps the first value of a doubled BibTeX field and
+names every spelling; `claim-field-conflict` reports the aliased pair
+`ref=`/`cite=`, which is two spellings of one attribute. Only the same
+attribute spelled the same way twice was quiet - the case the two existing
+guards each assumed the other one covered.
+
+How to apply:
+
+* A bare `dict[k] = v` on data read from a user's file is a decision about
+  which of two conflicting statements wins. Either that decision is written
+  down somewhere the author can read, or it is being made by line order.
+* When two fields merge into one dictionary, ask what happens on a collision
+  before asking what happens on the happy path. The collision is the only
+  case where a reader learns the author wrote the same thing twice.
+* A guard for "two spellings of one thing" does not cover "one spelling
+  twice". Write the pair of tests together; the second one is the one that
+  gets skipped.
+

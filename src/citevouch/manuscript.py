@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass, field
 
 from .model import Claim, Finding, fingerprint
-from .textnorm import quote_numbers
+from .textnorm import count_of, quote_numbers
 
 _FENCE_OPEN = re.compile(r"^```claim\b(?P<attrs>.*)$")
 _FENCE_CLOSE = re.compile(r"^```\s*$")
@@ -498,11 +498,26 @@ def _unquote(value: str) -> str:
     return value
 
 
-def _attrs(blob: str) -> dict[str, str]:
+def _attrs(blob: str, dropped: list[tuple[str, str, str]] | None = None) -> dict[str, str]:
     """Parse ``key=value`` attributes; a leading bare token becomes ``id``.
 
     ``<!-- claim: c1 source=x -->`` is common enough that refusing to read the
     positional id would reject the manuscripts this tool exists to help.
+
+    A key written twice keeps its **first** value and hands every later value
+    back through ``dropped``.  It used to keep the last one, which made the
+    verdict depend on the order of two tokens the author wrote: on a quote
+    printed on page 1 of ``paper.txt`` and nowhere in ``alt.txt``,
+
+        source=paper source=alt   -> [high] quote-missing
+        source=alt source=paper   -> [info] quote-found
+
+    One of those is an accusation and the other is silence, and neither is a
+    fact about the manuscript.  The bibliography reader settled this question
+    long ago - ``bib-field-duplicate`` keeps the first value and says which
+    names were given twice - and the claim reader already had a finding for two
+    *spellings* of one attribute (``ref=``/``cite=``); only the same spelling
+    twice was quiet.
     """
     out: dict[str, str] = {}
     for m in _ATTR.finditer(blob or ""):
@@ -510,7 +525,12 @@ def _attrs(blob: str) -> dict[str, str]:
         value = m.group("tvalue") or m.group("lvalue")
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
-        out[key.lower()] = value
+        lowered = key.lower()
+        if lowered in out:
+            if dropped is not None and out[lowered] != value:
+                dropped.append((lowered, out[lowered], value))
+            continue
+        out[lowered] = value
     if "id" not in out:
         head = (blob or "").strip().split()
         if head and "=" not in head[0] and head[0] not in (":", "-"):
@@ -694,6 +714,51 @@ def _conflicting_fields(attrs: dict[str, str], path: str, line: int) -> list[Fin
             )
         )
     return out
+
+
+def _repeated_fields(
+    dropped: list[tuple[int, str, str, str]],
+    path: str,
+    line: int,
+) -> list[Finding]:
+    """Name each attribute this block wrote twice, keeping the first value.
+
+    One finding per attribute, not per repeated spelling: the reason the
+    bibliography reader groups its duplicates is that findings on one line are
+    deduplicated downstream, so a per-spelling loop would report the first and
+    hide the rest.  Two identical values are not a loss and say nothing.
+
+    The line is the first repeated spelling, not the block's opening line - the
+    author has to go and delete that line, and the opening line is already
+    carrying the quote they wrote.
+    """
+    by_name: dict[str, list[tuple[int, str, str]]] = {}
+    for offset, name, kept, value in dropped:
+        by_name.setdefault(name, []).append((offset, kept, value))
+    return [
+        Finding(
+            code="claim-field-repeated",
+            message=(
+                f"this claim block writes {name} "
+                f"{count_of(len(values) + 1, 'time')}, with different values; "
+                f"the first, {values[0][1]!r}, was kept and "
+                f"{_and_list_values([v for _, _, v in values])} "
+                f"{'was' if len(values) == 1 else 'were'} dropped - delete the "
+                "extra line, or keep the one you meant"
+            ),
+            path=path,
+            line=line + min(offset for offset, _, _ in values),
+        )
+        for name, values in sorted(by_name.items())
+    ]
+
+
+def _and_list_values(values: list[str]) -> str:
+    """Write the dropped values as one phrase: ``'a'``, ``'a' and 'b'``, ..."""
+    quoted = [repr(value) for value in values]
+    if len(quoted) == 1:
+        return quoted[0]
+    return ", ".join(quoted[:-1]) + " and " + quoted[-1]
 
 
 def _claim_from(
@@ -981,7 +1046,8 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
 
         m = _FENCE_OPEN.match(line)
         if m:
-            attrs = _attrs(m.group("attrs"))
+            on_the_line: list[tuple[str, str, str]] = []
+            attrs = _attrs(m.group("attrs"), on_the_line)
             opened_with = _unknown_attr_findings(m.group("attrs"), path, start_line)
             opened_with.extend(_opening_colon_findings(m.group("attrs"), path, start_line))
             body: list[str] = []
@@ -1017,9 +1083,14 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 body.append(lines[j])
                 j += 1
             closed = j < len(lines) and nested_at is None
-            quote, claim_text, in_body, unknown = _split_body(body)
+            in_body_lines: list[tuple[int, str, str, str]] = []
+            quote, claim_text, in_body, unknown = _split_body(body, in_body_lines)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
             more.extend(opened_with)
+            more.extend(_repeated_fields(in_body_lines, path, start_line))
+            more.extend(
+                _repeated_fields([(0, n, k, v) for n, k, v in on_the_line], path, start_line)
+            )
             more.extend(_unknown_field_findings(unknown, path, start_line))
             if nested_at is not None:
                 more.append(
@@ -1135,7 +1206,8 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 # A documented form that parses to nothing is a false negative
                 # over the exact sentence the author asked to be checked.
                 head, _, tail = attrs_text.partition("-->")
-                attrs = _attrs(head)
+                on_the_line = []
+                attrs = _attrs(head, on_the_line)
                 body = [tail.strip()] if tail.strip() else []
                 j = i + 1
                 while j < len(lines) and _continues_one_line_html(lines[j]):
@@ -1144,17 +1216,23 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 closed = True
             else:
                 head = attrs_text
-                attrs = _attrs(attrs_text)
+                on_the_line = []
+                attrs = _attrs(attrs_text, on_the_line)
                 body = []
                 j = i + 1
                 while j < len(lines) and not _HTML_CLOSE.match(lines[j]):
                     body.append(lines[j])
                     j += 1
                 closed = j < len(lines)
-            quote, claim_text, in_body, unknown = _split_body(body)
+            in_body_lines: list[tuple[int, str, str, str]] = []
+            quote, claim_text, in_body, unknown = _split_body(body, in_body_lines)
             claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
             more.extend(_unknown_attr_findings(head, path, start_line))
             more.extend(_opening_colon_findings(head, path, start_line))
+            more.extend(_repeated_fields(in_body_lines, path, start_line))
+            more.extend(
+                _repeated_fields([(0, n, k, v) for n, k, v in on_the_line], path, start_line)
+            )
             more.extend(_unknown_field_findings(unknown, path, start_line))
             if not closed and claim is not None:
                 more.append(
@@ -1381,6 +1459,7 @@ def _at_the_margin(raw: str, margin: int) -> bool:
 
 def _split_body(
     body: list[str],
+    dropped: list[tuple[int, str, str, str]] | None = None,
 ) -> tuple[str, str, dict[str, str], list[tuple[int, str]]]:
     """Split a claim body into (quote, claim, attributes, field lines we did not know).
 
@@ -1452,7 +1531,21 @@ def _split_body(
                 # `source: paper` under the fence is the same statement as
                 # `source=paper` on it.  Reading it as quote text is how a
                 # correct passage came back as `quote-missing`.
-                attributes[other.group("key").lower()] = _unquote(other.group("rest").strip())
+                #
+                # A second line naming an attribute that is already set keeps
+                # the first value and reports the loss - the same decision the
+                # opening line makes, and the same one `bib-field-duplicate`
+                # has made for bibliography fields.  Without it the verdict
+                # depended on line order: `page: 2` then `page: 1` verified,
+                # and the two lines swapped accused the author of moving the
+                # quote.
+                name = other.group("key").lower()
+                value = _unquote(other.group("rest").strip())
+                if name in attributes:
+                    if dropped is not None and attributes[name] != value:
+                        dropped.append((index, name, attributes[name], value))
+                else:
+                    attributes[name] = value
                 current = ""
                 continue
             keyish = _KEYISH.match(raw) or _KEYISH_EQUALS.match(raw)

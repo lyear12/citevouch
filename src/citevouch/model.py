@@ -114,6 +114,12 @@ CODES = {
     # check ever saw - the same shape as a misspelt body field, and the same
     # severity: the quote is still compared, what is lost is an instruction.
     "claim-field-conflict": "medium",
+    # The same attribute written twice in the same layer.  The first value is
+    # kept and the rest are dropped, so the run applies instructions the author
+    # wrote in one place and not in the other.  Same family as the conflict
+    # above, and the same reason for existing: without it the verdict depended
+    # on the order of two lines, one of which accused the author.
+    "claim-field-repeated": "medium",
     "claim-block-unread": "high",
     # A page hint that is not a number.  The claim is still located by search,
     # so this is a note about an instruction being ignored, not a rejection.

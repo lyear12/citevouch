@@ -96,6 +96,7 @@ rots:
 | `claim-table-header` | medium | a table header row was shaped like a claim row - its cells are column labels, so nothing in it was checked against a source. The header is the row directly above a `\|---\|` delimiter row |
 | `claim-uncheckable` | high | a claim block cannot be looked up at all - no `source=`, no quote, no id, or an id used twice so the second block is dropped |
 | `claim-field-conflict` | medium | the claim writes both `ref=` and `cite=` with different values, so one of the two was dropped |
+| `claim-field-repeated` | medium | the claim writes the same attribute twice in the same place (`source: paper` then `source: alt`, or `page=1 page=2` on the fence), so the first value was used and the rest were dropped |
 | `claim-field-unknown` | medium | a line on the fence line or in the body looks like a field but is written in the wrong place or with the wrong separator (`Page: 1` in the body, `pgae=3` on the fence, `page=2` in the body), so what it said was never applied |
 | `claim-block-unread` | high | a claim block (a fence, a `<!-- claim` comment or a table row) sits inside a blockquote, a list item or an indent, where Markdown renders it as a code sample - nothing in it was checked |
 | `page-unreadable` | medium | a `page=` hint is not a number, so it is ignored and the quote is located by search |

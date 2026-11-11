@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The same attribute written twice decided the verdict, by which line came first.**
+
+  `_attrs` (the opening line) and `_split_body` (the body) both stored
+  `out[key] = value`. The second spelling won, the first vanished, and no run
+  said either had happened. With a quote printed on page 1 of `paper.txt` and
+  nowhere in `alt.txt`:
+
+  ```
+  source=paper source=alt   -> [high] quote-missing
+  source=alt source=paper   -> [info] quote-found
+  ```
+
+  One of those accuses the author of quoting a page that does not carry their
+  sentence, the other is silence, and neither is a fact about the manuscript.
+  The body had the same shape: `page: 2` then `page: 1` verified, and the two
+  lines swapped produced `[medium] quote-moved`. Writing `id:` twice silently
+  renamed the claim in the report and in the ledger.
+
+  The first value is now kept and the rest are named in a new
+  `claim-field-repeated` (medium) finding, in both layers and both dialects.
+  Two identical spellings lose nothing and say nothing. A repeated `ref=`/`cite=`
+  pair still produces `claim-field-conflict`, and the opening line still wins
+  over the body when both layers name one attribute - that rule is documented.
+
+  22 tests, 8 mutations, all red.
+
+
 ## [0.22.85] — 2026-11-11
 ### Fixed
 
