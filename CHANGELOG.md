@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.81] — 2026-11-11
 ### Fixed
 
 * **The command `draft` names was unquotable on Windows, so copying it failed.**
@@ -43,7 +44,6 @@ tag and that file disagree.
   is the value the run was given, the whole sentence is run from a
   different directory and exits 0, and the rule itself. 4 mutations,
   all red.
-
 ## [0.22.80] — 2026-11-11
 ### Fixed
 
@@ -4797,7 +4797,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.80...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.81...HEAD
+[0.22.81]: https://github.com/lyear12/citevouch/releases/tag/v0.22.81
 [0.22.80]: https://github.com/lyear12/citevouch/releases/tag/v0.22.80
 [0.22.79]: https://github.com/lyear12/citevouch/releases/tag/v0.22.79
 [0.22.78]: https://github.com/lyear12/citevouch/releases/tag/v0.22.78
