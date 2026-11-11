@@ -5210,3 +5210,57 @@ would a person actually have on disk", not by reading the code.
 
   Not covered: a last cell that ends inside an escaped `\`|`; and the ambiguous four-cell shape is unread by design.
 
+- [x] **P0 - a damaged text cell in the ledger was reported as a verdict about the author** (0.22.85)
+
+  What was wrong: `Ledger.from_json` guarded every structural cell and read
+  every textual one with `str(entry.get(key, ""))`. `str()` turns `null` into
+  the four characters `None` and `5` into `"5"`, so a ledger edited by hand
+  reached the verifier looking like a claim whose quote really is those
+  characters. On a project whose page holds the quoted sentence, one damaged
+  cell produced `[high] quote-missing at m.md:1 (c1): None - quote not found
+  (too short for a fuzzy comparison) in page.txt` with exit 1 - and exit 1
+  here means findings reached the threshold, which is a verdict about the
+  manuscript. `id: null` printed `quote-found at m.md:1 (None)`, `path: null`
+  printed `quote-found at None:1`, and `source: null` said `source 'None'
+  cannot be found any more` about a source that never existed.
+
+  What it does now: every text cell goes through `_text_cell`, which refuses
+  a present non-string with exit 2 and names the cell and the type:
+  `citevouch: ledger claims[0].quote must be a string, not NoneType`. An
+  absent key keeps its old meaning, so a ledger written before a key existed
+  still reads.
+
+  Why it is now true: 80 tests in `tests/test_damaged_ledger_text_cells.py`
+  cover 18 damaged cells across the three verbs that read a ledger plus
+  `report`, and 12 mutations all go red - including one per text cell
+  reverting to `str(entry.get(...))`.
+
+  Not covered: a ledger damaged in a way that is still valid JSON with valid
+  types but wrong content (a quote replaced by another string) cannot be told
+  from an honest edit; only the type is checkable.
+
+- [x] **P1 - the child-environment guard read one spelling and missed the
+  name it was passed through** (0.22.85)
+
+  What was wrong: the new test helper built `env = {"PYTHONPATH": ...}` and
+  passed `env=env`. That replaces the whole environment; on Windows the child
+  loses `SYSTEMROOT` and aborts in `_Py_HashRandomization_Init` before it can
+  report anything. Three Linux and macOS cells passed, four assertions failed
+  on Windows 3.10 - the fourth time this repository wrote this defect, and
+  the first time `tests/test_child_env.py` did not catch it: it matched
+  `env={...}` literals only.
+
+  What it does now: the guard resolves a name to its bindings, a call to the
+  values the function returns, and accepts any expression that mentions the
+  environment. It stays permissive where control flow would be needed, which
+  is the safe direction: a false negative keeps the build green on a real
+  defect one indirection out, a false positive fails correct code.
+
+  Why it is now true: two new tests pin both directions (a two-key literal
+  behind a name is flagged; a helper that returns `{**os.environ, ...}` is
+  not), and a reverse-validation run put the two-key literal back and
+  confirmed the guard goes red before restoring it.
+
+  Not covered: a name reassigned conditionally to both a good and a bad dict
+  is treated as good (any binding inherits); modelling that would need flow
+  analysis, and the guard is a lint, not a proof.
