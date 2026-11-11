@@ -5115,3 +5115,35 @@ would a person actually have on disk", not by reading the code.
   which is POSIX rules. A `cmd.exe` or PowerShell reader is not tested,
   so what is proven is that the value survives POSIX quoting, not that
   it survives every shell on the platform it is printed on.
+
+- [x] **P1 - an indented field-shaped line inside `quote: |` cut the quote in half, and the
+  half that remained verified**
+
+  A mapping body writes `quote:` and its attributes at the left margin with the
+  quotation below them, so every indented line in that body is quotation. All three
+  readers in `_split_body` matched their key patterns with `^\s*`, and only the
+  unknown-key reader also refused indented lines, so `page: 2` indented became an
+  attribute while `Page: 2` indented stayed in the quote. A quote containing a line
+  shaped like a field lost every line from there down.
+
+  Measured, a block whose quote held a fabricated second sentence - separated from
+  the real first sentence by an indented `source: our own dataset` - reported
+  `[info] quote-found`, `1 claim - 1 verified`, exit 0, against a page that prints
+  only the first sentence. Without the middle line the same block reported
+  `[high] quote-missing`, exit 1. The reverse case: a page that prints
+  `source: the Penn Treebank, released in 1999.` had its quote truncated there and
+  reported `quote-found` for the surviving fragment.
+
+  What it does now: the three readers share `_at_the_margin(raw, margin)`, and
+  `margin` is the indent of the shallowest `quote:`/`claim:` line in the same body.
+  A line deeper than that is quotation whatever it spells; a line at that indent is
+  a key. A claim block nested two spaces deep in a list still reads its own keys.
+
+  Why it is now true: `tests/test_indented_field_lines.py` covers nine key names at
+  four indents, the unknown-key branch, a body that is itself indented, and the
+  end-to-end verdict. Eight mutations, all red - margin forced to zero, margin
+  unbounded, `_at_the_margin` always true, always false, ignoring the margin, and
+  each of the three branches dropping its call.
+
+  Not covered: a claim block indented with a tab. `_at_the_margin` counts
+  characters, so a tab counts as one; the README documents spaces only.
