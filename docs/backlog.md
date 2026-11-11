@@ -5264,3 +5264,34 @@ would a person actually have on disk", not by reading the code.
   Not covered: a name reassigned conditionally to both a good and a bad dict
   is treated as good (any binding inherits); modelling that would need flow
   analysis, and the guard is a lint, not a proof.
+
+- [x] **P1 - the same attribute written twice decided the verdict, by line
+  order** (0.22.86)
+
+  What was wrong: `_attrs` (the opening line) and `_split_body` (the body)
+  both stored `out[key] = value`, so writing one attribute twice kept the
+  last value and dropped the first with no finding. On a quote printed on
+  page 1 of `paper.txt` and nowhere in `alt.txt`, `source=paper source=alt`
+  produced `[high] quote-missing` (an accusation about the author), and
+  `source=alt source=paper` produced `[info] quote-found` (silence). The
+  body had the same shape: `page: 2` then `page: 1` verified, and swapping
+  the two lines produced `[medium] quote-moved`. A repeated `id:` silently
+  renamed the claim in the report and in the ledger.
+
+  What it does now: the first value is kept and every later value is named
+  in a new `claim-field-repeated` (medium) finding, one finding per
+  attribute, in both layers (opening line and body) and both dialects
+  (fenced and comment). Two identical spellings say nothing, because nothing
+  was lost. The alias pair keeps its own finding, and the documented rule
+  that the opening line wins over the body is unchanged.
+
+  Why it is now true: 22 tests cover both layers, both dialects, both line
+  orders, the identical-value case, the alias pair and three end-to-end
+  verdicts; eight mutations were run against the new code (each layer
+  silent, each layer keeping the last value, identical values counted as a
+  repeat, the alias pair reported as a repeat, a message naming only the
+  dropped value, one finding per dropped value) and all eight went red.
+
+  Not covered: a repeated attribute inside a claim block that is itself
+  nested inside a list item; the margin rule and the repeat rule are each
+  tested, the combination is not.
