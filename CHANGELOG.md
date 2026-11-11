@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.87] — 2026-11-11
 ### Fixed
 
 * **A bibliography `file` field was read as one path, and only one.**
@@ -55,7 +56,6 @@ tag and that file disagree.
   ```
 
   17 tests, 8 mutations, all red.
-
 ## [0.22.86] — 2026-11-11
 ### Fixed
 
@@ -4993,7 +4993,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.86...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.87...HEAD
+[0.22.87]: https://github.com/lyear12/citevouch/releases/tag/v0.22.87
 [0.22.86]: https://github.com/lyear12/citevouch/releases/tag/v0.22.86
 [0.22.85]: https://github.com/lyear12/citevouch/releases/tag/v0.22.85
 [0.22.84]: https://github.com/lyear12/citevouch/releases/tag/v0.22.84
