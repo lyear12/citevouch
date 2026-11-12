@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.95] — 2026-11-12
 ### Fixed
 
 * **`doctor` said the machine was fine about a manuscript it could not use.**
@@ -31,7 +32,6 @@ tag and that file disagree.
   failure, and a file holding one readable block beside a refused one still
   stays green, which is the documented silence in
   `tests/test_skipped_claim_blocks.py`. 21 tests, 9 mutations, all red.
-
 ## [0.22.94] — 2026-11-12
 ### Fixed
 
@@ -5204,7 +5204,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.94...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.95...HEAD
+[0.22.95]: https://github.com/lyear12/citevouch/releases/tag/v0.22.95
 [0.22.94]: https://github.com/lyear12/citevouch/releases/tag/v0.22.94
 [0.22.93]: https://github.com/lyear12/citevouch/releases/tag/v0.22.93
 [0.22.92]: https://github.com/lyear12/citevouch/releases/tag/v0.22.92
