@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.97] — 2026-11-12
 ### Fixed
 
 * **The commands `doctor` printed did not run.** Each failed check ends with a
@@ -32,7 +33,6 @@ tag and that file disagree.
 
   The test takes the command out of the output and runs it. 14 tests, 12
   mutations, all red.
-
 ## [0.22.96] — 2026-11-12
 ### Fixed
 
@@ -5263,7 +5263,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.96...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.97...HEAD
+[0.22.97]: https://github.com/lyear12/citevouch/releases/tag/v0.22.97
 [0.22.96]: https://github.com/lyear12/citevouch/releases/tag/v0.22.96
 [0.22.95]: https://github.com/lyear12/citevouch/releases/tag/v0.22.95
 [0.22.94]: https://github.com/lyear12/citevouch/releases/tag/v0.22.94
