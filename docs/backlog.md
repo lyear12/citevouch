@@ -5791,3 +5791,41 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   `relative_to` raises and `recorded_path` keeps the absolute form - the
   unchanged fallback. `--root` pointing at a symlink on POSIX. Any future
   reader that builds a path without going through `parse_manuscript`.
+
+- [x] **P1 - the four `convert it first` sentences named a file that was not where the reader stood (0.22.99)**
+
+**What was wrong.** `source-not-text`, `source-encoding`, `source-no-text`
+  and `claim-not-decoded` all told the author to convert a file and printed
+  the command to do it with `path.name`. A source at `sources/paper.docx`
+  produced `soffice --convert-to pdf paper.docx`; the reader is at the
+  project root and that file is one directory down, so the command answers
+  `Error: source file paper.docx does not exist`. The finding's own `path`
+  field was correct in all four cases - only the prose was wrong, which is
+  why every existing test stayed green: they asserted a substring of the
+  sentence and never asked whether the file it named existed.
+
+**What it does now.** The four sentences print the root-relative path the
+  reader can open - the same spelling the ledger records - shell-quoted
+  through `shell_path`, so a name with a space survives the shell as one
+  argument. `recorded_path` moved from `scan.py` to `sources.py` so the
+  sentence builders can reach it without an import cycle; the three builders
+  take an optional `root` and spell the path themselves, and `root=None`
+  keeps a bare unit-test path exactly as given. `draft` gained a
+  `manuscript_name` argument because the path it compares for identity is
+  not the path it should print.
+
+**Why it is now true.** 11 tests in `tests/test_conversion_command_runs.py`,
+  all run from the directory *above* the project, because that is the only
+  place the two spellings differ: they take the command out of the output,
+  split it with `shlex`, and stat every path word in it. Three of them go
+  end to end through `check` and `draft` and read the file `draft` wrote,
+  since that is where the author reads the note. 10 mutations (each
+  `shell_path` reverted to `Path(...).name`, the root dropped, the quoting
+  dropped, `draft` printing its identity path) are all red; 4104 tests and
+  239 formatted files on the final tree; the demo still reports 4 verified,
+  1 missing, exit 1.
+
+**Not covered.** A source named with a Windows backslash is shell-quoted as
+  a path, not translated; `-` and `--` leading words in a printed command
+  are skipped by the test rather than proven safe; the `report` verb has no
+  such sentence.
