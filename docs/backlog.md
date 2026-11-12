@@ -5332,3 +5332,40 @@ would a person actually have on disk", not by reading the code.
   Not covered: a `.bib` written by Zotero itself (the fixtures reproduce
   its shape by hand from the strings the tool documents); a `file` field
   whose label itself contains a colon.
+- [x] **P1 - a page that printed `40, 688` was said not to contain `40,688` (0.22.88)**
+
+What was wrong: a quote typing `40,688` against a page printing `40, 688`
+printed both halves of a contradiction in one run - `[info] quote-found`
+from the word matcher, which deletes whitespace before comparing, and
+`[high] number-absent-in-quote` from the number reader, whose grouping
+separator had to sit flush against its digits. The mirror case read a quote
+typing `40, 688` as two numbers and reported both missing from a page that
+printed the figure once.
+
+What it does now: `CANON_PATTERN` lets a digit group be parted from its
+separator, and the digits of a group be parted from each other, by the
+spaces `canonical_number` already folds away. The group rule is untouched:
+one to three digits on the left and exactly three on the right, so
+`2019 2020 2021` stays three years, `1234 567` stays two numbers, `40, 6888`
+is still not a group, and a newline is still not a parting.
+
+Why it is now true: `tests/test_number_separated_by_space.py` pins eight
+spellings of one figure (one token, one canonical value), pins the four
+neighbours that must not widen (years, the two-number page range, the
+four-digit left side, a group that would cut a run of four digits), pins the
+newline boundary, and runs the whole thing end to end through `check` in
+both directions - spaced page against tight quote, and tight page against
+spaced quote - plus a real different number that must still be reported
+absent. Nine mutations were run against `src/citevouch/textnorm.py`:
+dropping either side of the separator's whitespace, dropping the bare space
+branch, forbidding the left digits to part, forbidding the group to part,
+widening the left side to four digits, dropping the digit-boundary assertion,
+letting a newline part digits, and reverting `CANON_PATTERN` to
+`REPORT_PATTERN`. All nine went red.
+
+Not covered: `MASK_PATTERN`, which the match tiers use to blank numbers out,
+still reads `40, 688` as two spans. That only makes the numbers tier mask
+more than it must, never less, so it was left alone rather than risk the
+tiers that already pass; a real PDF that splits a group across a line break
+is also untested, because the pattern deliberately refuses to join across
+one.
