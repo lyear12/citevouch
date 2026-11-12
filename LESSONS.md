@@ -8110,3 +8110,37 @@ The split-on-colon also turned `:C:\papers\page.txt:application/pdf` into `'C'`.
 * A wrapper is identified by what it *ends with*, not by where its separators fall. `label:path:mime` is only that shape because the tail is a MIME type; the same test leaves a legal `papers/a:b.txt` alone.
 * A list of candidates is a list of tries. Reading `files[0]` and stopping reports the second attachment — the one on disk — as absent.
 * The sentence about what was not found must name what was looked for. If the reader unwraps four candidates it has to print four.
+## Two readers on one page disagreed about what a number is
+
+A quote typing `40,688` against a page printing `40, 688` produced both
+halves of a contradiction in a single run:
+
+```
+[info] quote-found at m.md:1 (c1): quote found on page 1
+[high] number-absent-in-quote at m.md:1 (c1): the quote says 40,688 but
+page 1 of the source does not contain that number
+```
+
+The word matcher deletes whitespace and so knows the sentence is there.
+The number reader wanted a separator flush against its digits and so
+sliced the page into `40` and `688`. Both were right by their own rules,
+which is what makes it hard: nothing crashed, no branch was obviously
+wrong, and CI stayed green because every test used one spelling.
+
+The mirror case is the one that proves it is a disagreement rather than a
+missing rule: a quote typing the space was read as two numbers and both
+were reported missing from a page that printed the figure once.
+
+How to apply:
+
+* When two components read the same text, ask what each of them considers
+  one token. A tier that normalises whitespace away and a pattern that
+  requires flush digits are reading two different documents.
+* A contradiction inside one run is a bug even when each sentence is
+  defensible. If `quote-found` and `number-absent-in-quote` can both be
+  printed for one claim, no reader can use either.
+* Test the spelling the ecosystem produces, not the one in your fixture.
+  PDF extraction and house styles part groups with a space; the author
+  types the comma. The interesting case is always the pair, never one side.
+* When widening a token, pin what must *not* widen in the same file: the
+  year rule, the group width, the newline boundary.

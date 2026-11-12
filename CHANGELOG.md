@@ -12,6 +12,37 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A page that printed `40, 688` was said not to contain `40,688`.**
+
+  One run printed both halves of a contradiction, about a figure sitting
+  in front of the reader:
+
+```
+  [info] quote-found at m.md:1 (c1): quote found on page 1
+  [high] number-absent-in-quote at m.md:1 (c1): the quote says 40,688 but
+  page 1 of the source does not contain that number
+```
+
+  The word matcher deletes whitespace before comparing, so `40, 688` on
+  the page and `40,688` in the quote are the same sentence and the quote
+  was found. The number reader used a pattern in which a grouping
+  separator had to sit flush against its digits, so it read the page as
+  `('40', '688')`, found no `40688` on it, and accused the quote of a
+  number it could see. The mirror case failed too: a quote typing
+  `40, 688` against a page printing `40,688` was read as two numbers and
+  both were reported missing.
+
+  `CANON_PATTERN` now lets a digit group be parted from its separator,
+  and the digits of a group be parted from each other, by the spaces
+  `canonical_number` already folds away. The group rule is unchanged: one
+  to three digits on the left and exactly three on the right, so
+  `2019 2020 2021` is still three years, `1234 567` is still two
+  numbers, `40, 6888` is still not a group, and a newline is still not a
+  parting.
+
+  24 tests, 9 mutations, all red.
 ## [0.22.87] — 2026-11-11
 ### Fixed
 

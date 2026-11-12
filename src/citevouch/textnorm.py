@@ -360,8 +360,29 @@ MASK_PATTERN = re.compile(rf"\d+(?:[, \u00a0\u066c.]\d{{3}}(?!\d))*{_DECIMAL_TAI
 #: *thousands* group: one to three digits on the left and exactly three on the
 #: right, which is why a four-digit year never starts a group.
 _SPACES = "[ \u00a0\u2007\u2009\u200a\u202f]"
+#: A digit that may sit apart from its neighbours by a space.
+#:
+#: ``40, 688`` and ``40,688`` are the same number.  A PDF column boundary, a
+#: split ligature or a house style that sets groups apart all leave the first
+#: shape behind, and the author types the second.  ``canonical_number`` already
+#: folds every one of those spaces away - the token was simply never cut out of
+#: the page, because the separator had to sit flush against a digit.  So a page
+#: printing ``We collected 40, 688 examples`` matched a quote typing
+#: ``We collected 40,688 examples`` in the squash tier (which deletes
+#: whitespace) while ``_page_numbers`` read ``('40', '688')``, and one run
+#: emitted both ``[info] quote-found`` and ``[high] number-absent-in-quote``
+#: about the same sentence on the same page.  Both halves were right by their
+#: own rules; they disagreed about what a number is.
+#:
+#: The year rule above still holds: a group takes one to three digits on the
+#: left, so ``2019 2020 2021`` stays three numbers, and no newline counts as one
+#: of these spaces, so a number ending a line never swallows the one starting
+#: the next line.
+_CANON_LEFT = rf"\d(?:{_SPACES}*\d){{0,2}}"
+_CANON_GROUP = rf"\d(?:{_SPACES}*\d){{2}}"
+_CANON_SEP = rf"(?:{_SPACES}*{_THOUSANDS}{_SPACES}*|{_SPACES}+)"
 CANON_PATTERN = re.compile(
-    rf"(?:\d{{1,3}}(?:{_SPACES}\d{{3}}(?!\d))+"
+    rf"(?:{_CANON_LEFT}(?:{_CANON_SEP}{_CANON_GROUP}(?!\d))+"
     rf"|\d+(?:{_THOUSANDS}\d{{3}}(?!\d))*)"
     rf"{_DECIMAL_TAIL}?[%\u066a]?"
 )
