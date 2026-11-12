@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.100] — 2026-11-12
 ### Fixed
 * **The pre-commit hook read evidence it did not read.** Its own header said
   "It reads the committed ledger by default", and its description promised to
@@ -43,7 +45,6 @@ tag and that file disagree.
   21 tests in `tests/test_precommit.py` (6 new, all of which run the hook's
   own composed command against a project that should fail), 5 mutations, all
   red.
-
 ## [0.22.99] — 2026-11-12
 ### Fixed
 * **Four sentences told the reader to convert a file, and named one that was
@@ -5342,7 +5343,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.99...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.100...HEAD
+[0.22.100]: https://github.com/lyear12/citevouch/releases/tag/v0.22.100
 [0.22.99]: https://github.com/lyear12/citevouch/releases/tag/v0.22.99
 [0.22.98]: https://github.com/lyear12/citevouch/releases/tag/v0.22.98
 [0.22.97]: https://github.com/lyear12/citevouch/releases/tag/v0.22.97
