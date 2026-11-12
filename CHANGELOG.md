@@ -12,6 +12,27 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The commands `doctor` printed did not run.** Each failed check ends with a
+  sentence naming what to type, and the reader copies it into a shell. For a
+  manuscript at `paper/m.md` that sentence was `citevouch draft m.md -o
+  claims.md`: the directory was gone, because the file had been printed as
+  `target.name`, and the `--root` the run itself had been given went missing the
+  same way. Running it says `citevouch: manuscript m.md does not exist`. The
+  LaTeX branch did the same, and the GBK branch printed a bare `citevouch scan`,
+  which is argparse text rather than a command.
+
+  `draft` had already fixed this for its own closing advice - print the root,
+  print the path with forward slashes, quote it - so the rule was not invented
+  again but moved to `citevouch.advice`, where both callers ask for the same
+  string. Four builders (`draft`, `scan`, `check`, and the `iconv` line) now go
+  through it, and `--root` is printed whenever it is not the default, which is
+  exactly when a reader working above the project needs it.
+
+  The test takes the command out of the output and runs it. 14 tests, 12
+  mutations, all red.
+
 ## [0.22.96] — 2026-11-12
 ### Fixed
 

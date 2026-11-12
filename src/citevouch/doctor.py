@@ -34,6 +34,7 @@ from pathlib import Path
 from shutil import which
 
 from . import __version__
+from .advice import citevouch_command, root_words, shell_word
 from .errors import why_not_a_file
 from .latex import looks_like_latex
 from .manuscript import ParseResult, parse_manuscript
@@ -204,7 +205,6 @@ def _project(root: Path, manuscript: str) -> list[Report]:
             # said "[ok] manuscript paper.tex (69 bytes)" and exited 0, so the
             # command that exists to explain a run that found nothing was quiet
             # about the one thing that guarantees there is nothing to find.
-            bare = target.name
             reports.append(
                 Report(
                     name="manuscript",
@@ -215,10 +215,10 @@ def _project(root: Path, manuscript: str) -> list[Report]:
                         "which live in Markdown, not in a .tex file"
                     ),
                     fix=(
-                        "Propose them first: `citevouch draft "
-                        f"{bare} -o claims.md`, then check claims.md. Scanning "
-                        "the .tex itself would record zero claims and report a "
-                        "clean run for a manuscript nothing checked."
+                        f"Propose them first: `{_draft_advice(target, root)}`, "
+                        "then check claims.md. Scanning the .tex itself would "
+                        "record zero claims and report a clean run for a "
+                        "manuscript nothing checked."
                     ),
                 )
             )
@@ -230,7 +230,7 @@ def _project(root: Path, manuscript: str) -> list[Report]:
                 name="manuscript", ok=True, detail=f"{target} ({target.stat().st_size} bytes)"
             )
         )
-        reports.append(_claim_blocks(target))
+        reports.append(_claim_blocks(target, root))
     else:
         # `does not exist` was the only thing this check could say, so a
         # directory the reader can see in their file manager was reported as
@@ -283,6 +283,37 @@ def _nothing_named(parsed: ParseResult) -> str:
     if refused:
         return "not checked, because the parser refused the blocks this file holds"
     return "no claim names a source"
+
+
+def _draft_advice(target: Path, root: Path) -> str:
+    """The `draft` command for this manuscript, assembled from this run's values.
+
+    ``target`` is the path this command resolved, and it is printed with forward
+    slashes because a Windows backslash in a line meant for a shell is an escape.
+    The manuscript used to be printed as ``target.name`` - the file name alone -
+    so a manuscript at ``paper/m.md`` produced ``citevouch draft m.md -o
+    claims.md``, and running it said ``manuscript m.md does not exist``.  The
+    ``--root`` this command was given went missing the same way.
+    """
+    return citevouch_command(
+        "draft", target.as_posix(), "-o", "claims.md", *root_words(str(root))
+    )
+
+
+def _scan_advice(target: Path, root: Path) -> str:
+    """The `scan` command that re-records this manuscript, ready to paste.
+
+    ``scan`` takes the manuscript as a positional argument, so the bare word
+    ``citevouch scan`` printed by an earlier version was a usage error: the
+    reader who copied it got a wall of argparse text instead of a recorded
+    ledger.
+    """
+    return citevouch_command("scan", target.as_posix(), *root_words(str(root)))
+
+
+def _check_advice(target: Path, root: Path) -> str:
+    """The `check` command that would name this file's refused blocks in full."""
+    return citevouch_command("check", target.as_posix(), *root_words(str(root)))
 
 
 def _claim_sources(target: Path, root: Path) -> Report:
@@ -388,13 +419,13 @@ def _claim_sources(target: Path, root: Path) -> Report:
         ),
         fix=(
             "Add each of those keys to sources.toml, or change the claim to the "
-            "key the manifest already uses, and run `citevouch scan` afterwards "
-            "so the ledger records the new paths."
+            f"key the manifest already uses, and run `{_scan_advice(target, root)}` "
+            "afterwards so the ledger records the new paths."
         ),
     )
 
 
-def _claim_blocks(target: Path) -> Report:
+def _claim_blocks(target: Path, root: Path | None = None) -> Report:
     """Does this manuscript hold anything the run could check?
 
     A file with no claim blocks produces ``0 claims — 0 verified, 0 moved,
@@ -460,8 +491,9 @@ def _claim_blocks(target: Path) -> Report:
                     "UTF-8 - those words were replaced and can never be searched for"
                 ),
                 fix=(
-                    "Convert the manuscript first, for example `iconv -f GBK -t "
-                    f"utf-8 {target.name} > utf8.md`, then check the converted file"
+                    "Convert the manuscript first, for example "
+                    f"`iconv -f GBK -t utf-8 {shell_word(target.as_posix())} > "
+                    "utf8.md`, then check the converted file"
                 ),
             )
         # Three numbers, and the smallest of them is the one that was printed.
@@ -540,8 +572,8 @@ def _claim_blocks(target: Path) -> Report:
             fix=(
                 "Give every claim block the attributes it needs: `id=` and "
                 "`source=` on the opening fence, then the quoted words under "
-                "`quote: |`. `citevouch check` names each block and the "
-                "attribute it is missing."
+                f"`quote: |`. `{_check_advice(target, root)}` names each "
+                "block and the attribute it is missing."
             ),
         )
     return Report(
@@ -555,9 +587,8 @@ def _claim_blocks(target: Path) -> Report:
         ),
         fix=(
             "Write them by hand, or propose them from the citations already in "
-            "the file: `citevouch draft "
-            f"{target.name} -o claims.md`. A claim block opens with three "
-            "backticks, the word `claim`, then `id=` and `source=`."
+            f"the file: `{_draft_advice(target, root)}`. A claim block opens "
+            "with three backticks, the word `claim`, then `id=` and `source=`."
         ),
     )
 
@@ -626,7 +657,7 @@ def _manifest(root: Path) -> Report:
             fix=(
                 "Open that file and correct the paths, or move the missing files "
                 "back; the paths are relative to the project root, not to this "
-                "shell. Run `citevouch scan` afterwards, because the recorded "
+                "shell. Run the scan again afterwards, because the recorded "
                 "ledger still holds the old paths."
             ),
         )
@@ -745,8 +776,8 @@ def _extraction(target: Path, root: Path) -> Report:
         fix=(
             "Each line above ends in the command that fixes that file. Until it "
             "is fixed, every claim backed by it is skipped rather than checked, "
-            "and `citevouch scan` will record the skip; run it again afterwards "
-            "so the ledger holds the readable file."
+            f"and `{_scan_advice(target, root)}` will record the skip; run it "
+            "again afterwards so the ledger holds the readable file."
         ),
     )
 

@@ -8438,3 +8438,33 @@ How to apply it:
   concluded something about a claim. Saying the weaker true thing beats
   saying a verdict that was never reached.
 
+## A command printed for the reader is a promise, and a promise has to be run
+
+`doctor` closes every failed check with a sentence naming what to type. For a
+manuscript at `paper/m.md` the sentence was
+
+    -> ... `citevouch draft m.md -o claims.md`. A claim block opens ...
+
+and running it says `citevouch: manuscript m.md does not exist`. The file had
+been printed as `target.name`, so the directory was simply gone, and the
+`--root` the run itself had been given went missing the same way. The LaTeX
+branch did it too, and the GBK branch printed a bare `citevouch scan` - which is
+not a command, it is argparse text.
+
+`draft` had already fixed exactly this for its own closing advice, four releases
+earlier, with a comment naming the measurement. The rule existed; the second
+caller had not heard of it.
+
+How to apply:
+
+- When output contains something the reader is meant to type, the only test that
+  counts takes that string out of the output and runs it. Asserting that it
+  starts with `citevouch` tests the first word and nothing else.
+- Print the values the run actually used, not the ones the function happens to
+  have in scope. `target.name` is a shorter variable and a different path.
+- Two callers building the same kind of sentence need one function, not one
+  convention. The fix here was not a new rule but the old rule moved somewhere
+  both could reach - `citevouch.advice`.
+- Run the test from the directory where the two spellings diverge. From inside
+  `paper/`, the path `paper/m.md` does not exist and a command that dropped the
+  directory still works by accident.

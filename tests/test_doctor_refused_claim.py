@@ -34,7 +34,10 @@ QUOTE = "We collected 40,688 examples from the corpus."
 OTHER = "The held-out set of 9,800 rolesets is described elsewhere."
 PAGE = "Nothing to see here.\f" + QUOTE + NL + OTHER + NL
 MANIFEST = '[sources]\npaper = "page.txt"\n'
-FIXED = "`citevouch check` names each block"
+# The command names the file it would check.  It used to be the bare words
+# `citevouch check`, which is a usage error rather than advice; the manuscript
+# in these fixtures is at the project root, so the path is the file name.
+FIXED = "`citevouch check m.md` names each block"
 
 # The three ways a block is refused after the parser has read it.  Each one
 # leaves `parsed.claims` empty, so the ledger gets no claim, and each one is a
