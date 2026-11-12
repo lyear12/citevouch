@@ -8403,3 +8403,38 @@ How to apply:
   not vacuous; the new failure covers only the case where every block was
   refused.  Both halves are pinned by tests so a later fix cannot grow into the
   other.
+## A code names the problem, not the program that noticed it
+
+`doctor --format sarif` gave every failure it found one code,
+`check-unavailable`, whose rule line reads *This machine cannot run the
+checks at all.* SARIF puts the code on the rule line above the message, so
+a GitHub code-scanning reader met an installation problem while the
+message under it was about their manuscript. Measured on a project whose
+only claim block names no `source=`:
+
+```
+doctor --format sarif   ruleId check-unavailable
+check  --format sarif   ruleId claim-uncheckable
+```
+
+This was the third repair of one seam. The first reused
+`source-unreadable` and displayed a missing interpreter as *A source file
+could not be read.*; the second renamed the constant to
+`check-unavailable` and moved the mislabel onto the manuscript. Each
+repair changed which problem was mislabelled; none of them changed the
+fact that the program doing the reporting was choosing the word, in one
+place, for problems it had not seen.
+
+How to apply it:
+
+* When one place picks the vocabulary for failures found elsewhere, the
+  vocabulary is a guess. Let the check that found the problem name it — a
+  field on the report, defaulted to the most common case.
+* Renaming a constant is not splitting a code. If two problems keep
+  arriving under one name, count the names: the repair is a second code,
+  not a better word for the first.
+* A reporting command must not borrow the verdict codes of the command it
+  explains. `doctor` learned it could not get the checks to run; `check`
+  concluded something about a claim. Saying the weaker true thing beats
+  saying a verdict that was never reached.
+

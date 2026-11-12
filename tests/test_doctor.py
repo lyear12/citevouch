@@ -465,9 +465,28 @@ class TestHowItReads:
         assert "1 of" in out and "checks failed" in out
 
     def test_broken_checks_become_findings_under_their_own_code(self, tmp_path: Path):
+        """The code is the one the failing check names, and it is not shared."""
         found = doctor.findings(doctor.diagnose(root=tmp_path, manuscript="nope.md"))
-        assert [finding.code for finding in found] == ["check-unavailable"]
+        assert [finding.code for finding in found] == ["manuscript-unusable"]
         assert "manuscript" in found[0].message
+
+    def test_a_machine_failure_keeps_the_machine_code(self, monkeypatch):
+        """`check-unavailable` still means what its rule line says.
+
+        The default on `Report` has to stay the machine vocabulary, or every
+        failure that forgets to name itself is filed under a project problem.
+        """
+        import citevouch.doctor as doctor_module
+
+        monkeypatch.setattr(
+            doctor_module,
+            "_pypdf",
+            lambda: doctor_module.Report(
+                name="pypdf", ok=False, detail="not installed", fix="pip install pypdf"
+            ),
+        )
+        found = doctor_module.findings(doctor_module.diagnose(root=".", manuscript="m.md"))
+        assert "check-unavailable" in [finding.code for finding in found]
 
     def test_the_code_does_not_borrow_a_source_code_for_a_machine_problem(self, tmp_path: Path):
         """A missing interpreter is not a broken PDF, and GitHub shows the rule.
@@ -502,10 +521,10 @@ class TestTheCommand:
         main(["doctor", "--root", str(tmp_path), "--format", "sarif"])
         payload = json.loads(capsys.readouterr().out)
         results = payload["runs"][0]["results"]
-        assert [entry["ruleId"] for entry in results] == ["check-unavailable"]
+        assert [entry["ruleId"] for entry in results] == ["manuscript-unusable"]
         # The rule line a reader sees has to describe the check that failed.
         rules = payload["runs"][0]["tool"]["driver"]["rules"]
-        assert [rule["id"] for rule in rules] == ["check-unavailable"]
+        assert [rule["id"] for rule in rules] == ["manuscript-unusable"]
 
     def test_json_is_the_format_that_carries_every_check(self, tmp_path: Path, capsys):
         """`findings()` feeds SARIF only; json needs the passing checks too.

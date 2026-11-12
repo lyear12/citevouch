@@ -97,6 +97,8 @@ SARIF_RULES = {
     "ledger-stale": "The ledger predates the manuscript.",
     "no-claim-blocks": "A manuscript holds no claim blocks, so nothing in it was checked.",
     "check-unavailable": "This machine cannot run the checks at all.",
+    "manuscript-unusable": "The manuscript to check cannot be used: not Markdown, not a file, or not readable.",
+    "project-unusable": "Something in the project stops the checks: its claim blocks, their sources, or the manifest.",
 }
 
 _LEVEL = {"high": "error", "medium": "warning", "low": "note", "info": "note"}

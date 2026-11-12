@@ -71,6 +71,16 @@ class Report:
     # suggestion attached to a passing check is noise that trains people to
     # stop reading the column.
     fix: str = ""
+    # Which vocabulary this failure belongs to, and the reason it is a field
+    # rather than a constant in `findings()`.  SARIF puts the code on the
+    # line above the message, so the code decides what a reader of the
+    # GitHub code-scanning tab is told the problem is.  Every failure here
+    # used to arrive as `check-unavailable`, whose rule line says this
+    # machine cannot run the checks at all - which was true of the missing
+    # interpreter and false of a manuscript holding no claim blocks.  The
+    # default is the machine because a check that forgets to say otherwise
+    # is one of the three in `diagnose()` that only ever look at the machine.
+    code: str = "check-unavailable"
 
 
 def _pypdf() -> Report:
@@ -199,6 +209,7 @@ def _project(root: Path, manuscript: str) -> list[Report]:
                 Report(
                     name="manuscript",
                     ok=False,
+                    code="manuscript-unusable",
                     detail=(
                         f"{target} is LaTeX, and this tool reads claim blocks, "
                         "which live in Markdown, not in a .tex file"
@@ -244,6 +255,7 @@ def _project(root: Path, manuscript: str) -> list[Report]:
             Report(
                 name="manuscript",
                 ok=False,
+                code="manuscript-unusable",
                 detail=f"{target} {what}",
                 fix=fix,
             )
@@ -369,6 +381,7 @@ def _claim_sources(target: Path, root: Path) -> Report:
     return Report(
         name="sources",
         ok=False,
+        code="project-unusable",
         detail=(
             f"{count_of(len(unbound), 'source key')} named by a claim {verb} "
             "bound to nothing: " + "; ".join(parts)
@@ -418,6 +431,7 @@ def _claim_blocks(target: Path) -> Report:
         return Report(
             name="claims",
             ok=False,
+            code="manuscript-unusable",
             detail=f"{target} could not be read ({problem.strerror})",
             fix="Check the file's permissions, or pass a manuscript this tool can open.",
         )
@@ -439,6 +453,7 @@ def _claim_blocks(target: Path) -> Report:
             return Report(
                 name="claims",
                 ok=False,
+                code="project-unusable",
                 detail=(
                     f"{count_of(len(undecoded), 'claim block')} in {target.name}: "
                     "quoted words that were never decoded, because the file is not "
@@ -516,6 +531,7 @@ def _claim_blocks(target: Path) -> Report:
         return Report(
             name="claims",
             ok=False,
+            code="project-unusable",
             detail=(
                 f"{count_of(len(refused), 'claim block')} that the parser read "
                 f"and refused, so no claim from this file can be checked - "
@@ -531,6 +547,7 @@ def _claim_blocks(target: Path) -> Report:
     return Report(
         name="claims",
         ok=False,
+        code="project-unusable",
         detail=(
             f"{target} holds no claim blocks, so every run reports "
             "`no-claim-blocks` and exits 1: nothing in this project is ever "
@@ -579,6 +596,7 @@ def _manifest(root: Path) -> Report:
         return Report(
             name="manifest",
             ok=False,
+            code="project-unusable",
             detail=f"{path} ({size} bytes) cannot be used: {table.manifest_problem}",
             fix=(
                 "Fix that file, or delete it and pass each source with "
@@ -603,6 +621,7 @@ def _manifest(root: Path) -> Report:
         return Report(
             name="manifest",
             ok=False,
+            code="project-unusable",
             detail=f"{sentence}: {listed}",
             fix=(
                 "Open that file and correct the paths, or move the missing files "
@@ -718,6 +737,7 @@ def _extraction(target: Path, root: Path) -> Report:
     return Report(
         name="extraction",
         ok=False,
+        code="project-unusable",
         detail=(
             f"{count_of(len(bound), 'source')} the claims name, and this tool "
             f"cannot read: {shown}"
@@ -782,18 +802,19 @@ def findings(reports: list[Report]) -> list[Finding]:
     passing or not, because a machine-readable diagnosis is worth having
     whether or not anything is wrong.
 
-    The code is ``check-unavailable`` and not ``source-unreadable``.  It used to
-    be the latter, on the theory that one vocabulary per problem beats two - but
-    SARIF is what a reader sees in the GitHub code-scanning tab, and the rule
-    line above each result comes from the code, not from the message.  So a
-    three-year-old interpreter and a read-only cache directory were both
-    displayed under "A source file could not be read.", which is not what
-    either of them is.  The message was always right; the word above it was
-    borrowed from a neighbouring problem.
+    The code comes off the report and is not decided here.  It used to be two
+    constants, each of which was a repair for the same defect one step
+    earlier: first ``source-unreadable``, which made a missing interpreter
+    display as "A source file could not be read."; then
+    ``check-unavailable``, which made a manuscript holding no claim blocks
+    display as "This machine cannot run the checks at all."  Both times the
+    message was right and the rule line above it was about a different
+    thing, because the rule line is chosen here and the problem was known
+    there.  So the check that found the problem names it.
     """
     return [
         Finding(
-            code="check-unavailable",
+            code=report.code,
             message=f"{report.name}: {report.detail}",
         )
         for report in problems(reports)

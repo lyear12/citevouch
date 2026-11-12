@@ -76,6 +76,8 @@ worst severity: high
 | `page-out-of-range` | high | 页码不是该文档的真实页（小于 1 或超出总页数） |
 | `ledger-stale` | high | 稿件自账本记录后被改过 |
 | `check-unavailable` | high | `doctor` 有一项检查过不去：没有 PDF 库、解释器版本不支持、缓存不可写 |
+| `manuscript-unusable` | high | `doctor` 被问的那份稿件根本用不了：是 LaTeX、不是文件、是目录，或者没人能读它 |
+| `project-unusable` | high | `doctor` 发现工程里有东西让检查跑不下去：没有 claim 块、块被解析器拒绝、引文从没解码、源键没绑定到文件、manifest 解析不了 |
 | `bib-key-missing` | high | claim 引用的书目键不在库里（没写 `ref=` 时，拿来查的是它源文件的名字） |
 | `bib-key-unused` | info | 有条目没有任何 claim 引用（聚合成一行） |
 | `bib-duplicate-key` | high | 两个条目共用一个键（同一个文件里，或分处两个文件） |

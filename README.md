@@ -79,6 +79,8 @@ rots:
 | `page-out-of-range` | high | the cited page is not a page of the document (below 1 or past its end) |
 | `ledger-stale` | high | the manuscript changed since the ledger was recorded |
 | `check-unavailable` | high | `doctor` found a check it cannot pass: no PDF library, an unsupported interpreter, a cache it cannot write |
+| `manuscript-unusable` | high | `doctor` was asked about a manuscript it cannot use at all: it is LaTeX, it is not a file, it is a directory, or nobody can read it |
+| `project-unusable` | high | `doctor` found something in the project that stops the checks: no claim blocks, blocks the parser refused, quotes never decoded, source keys bound to nothing, a manifest that does not parse |
 | `bib-key-missing` | high | the claim cites no bibliography key that is there (with no `ref=`, its source file's name was looked up instead) |
 | `bib-key-unused` | info | a bibliography entry no claim cites (reported as one aggregate line) |
 | `bib-duplicate-key` | high | two entries share a key, in one file or across two |

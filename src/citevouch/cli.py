@@ -877,7 +877,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 "tool_version": __version__,
                 "root": args.root,
                 "checks": [
-                    {"name": r.name, "ok": r.ok, "detail": r.detail, "fix": r.fix}
+                    {
+                        "name": r.name,
+                        "ok": r.ok,
+                        "code": r.code,
+                        "detail": r.detail,
+                        "fix": r.fix,
+                    }
                     for r in reports
                 ],
             },

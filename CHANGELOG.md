@@ -12,6 +12,44 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`doctor --format sarif` reported a manuscript problem as a broken
+  installation.** The code decides the rule line GitHub prints above each
+  result, and every failure `doctor` found arrived as `check-unavailable`,
+  whose rule says *This machine cannot run the checks at all.* Measured on
+  a project whose only claim block names no `source=`, so `check` exits 1
+  with `claim-uncheckable`:
+
+  ```
+  doctor --format sarif   ruleId check-unavailable
+  check  --format sarif   ruleId claim-uncheckable
+  ```
+
+  The reader of the code-scanning tab was told to fix their installation
+  and sent to look at the wrong file. A manuscript holding no claim blocks
+  and a source that cannot be read arrived the same way.
+
+* **Two codes, named by the check that found the problem.**
+  `manuscript-unusable` (the manuscript is LaTeX, not a file, a directory,
+  or unreadable — `check` exits 2 on all four) and `project-unusable` (no
+  claim blocks, blocks the parser refused, quotes never decoded, source
+  keys bound to nothing, a manifest that does not parse or names a missing
+  file, a source that cannot be read). `check-unavailable` keeps meaning
+  what it says: no PDF library, an unsupported interpreter, a cache nobody
+  can write. `Report` now carries the code, and `doctor.findings()` reads
+  it instead of choosing one constant for every failure — the third repair
+  of the same seam (the first two renamed the constant, which moved the
+  mislabel from one problem to another). `--format json` carries the code
+  too, so a script can tell the three apart.
+
+  The verdict codes are deliberately not reused: `doctor` measured
+  something weaker than `check` did — that it could not get the checks to
+  run — and a rule line stating the weaker, true thing is better than one
+  stating a verdict `doctor` never reached.
+
+  `15 tests, 13 mutations, all red.`
+
 ## [0.22.95] — 2026-11-12
 ### Fixed
 

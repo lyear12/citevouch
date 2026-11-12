@@ -162,6 +162,32 @@ CODES = {
     # problem, and "this machine cannot run the checker" is not "this PDF is
     # broken".
     "check-unavailable": "high",
+    # The manuscript `doctor` was asked about cannot be used at all: it is
+    # LaTeX, it is not a file, it is a directory, or nobody can read it.
+    # High, because it is the one file the whole run is about, and because
+    # `check` on any of those exits 2 - a command that could not start is
+    # worth no less attention than one that found something.
+    #
+    # Separate from `check-unavailable` because the sentence that code puts
+    # on the rule line - "This machine cannot run the checks at all." - is
+    # true of a missing interpreter and false of a manuscript this tool
+    # declined to open.  It is separate from `project-unusable` because the
+    # reader's next move is different: the manuscript cannot be fixed by
+    # correcting a manifest or a source path.
+    "manuscript-unusable": "high",
+    # Something the project itself holds stops the checks: no claim blocks,
+    # blocks the parser read and refused, quotes never decoded, source keys
+    # bound to nothing, a manifest that does not parse, or a file it names
+    # that cannot be read.  High for the same reason as above: every one of
+    # them means the run that follows decides nothing.
+    #
+    # `doctor` does not borrow the verdict codes for these (`no-claim-blocks`,
+    # `claim-uncheckable`, `source-missing`) even where the same file would
+    # produce one.  Those codes say what `check` concluded about a claim;
+    # what `doctor` knows is weaker and different - that it could not get the
+    # checks to run - and a rule line stating the weaker, true thing is
+    # better than one stating the stronger thing `doctor` never measured.
+    "project-unusable": "high",
 }
 
 _SEVERITY_RANK = {name: i for i, name in enumerate(SEVERITIES)}
