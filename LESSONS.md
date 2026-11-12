@@ -8534,3 +8534,42 @@ existed.
 - A function whose parameter is an identity is not a function whose parameter is
   a spelling. `draft` compares the manuscript by resolved path and prints it by
   recorded path, so it needs both, and one of them has to be passed in.
+
+
+## A sentence about what a command reads is a sentence about its arguments
+
+`.pre-commit-hooks.yaml` carried a paragraph saying "It reads the committed ledger
+by default" and a description promising to fail "when a quote moved, went missing,
+or the source file is no longer the one the ledger recorded". The hook ran
+`citevouch check manuscript.md`. Without `--use-recorded`, `check` scans afresh
+and never opens the ledger, so both sentences described a program that was not
+being run:
+
+    citevouch check manuscript.md                 -> 0, [info] quote-found
+    citevouch check manuscript.md --use-recorded  -> 0, [medium] source-changed
+
+The case the description named as the reason the hook exists - a source replaced
+under the ledger - is precisely the case a fresh scan cannot see, because the
+quote is still there in the new version of the file. A ledger that was never
+committed was worse than silent: the hook printed a clean run where the recorded
+path exits 2 saying there is no ledger.
+
+The tests could not catch it because they were testing the hook they wished
+existed. One of them appended `manuscript.md` to the entry itself; none of them
+looked at `args` for a flag. A hook whose command happens to run is not a hook
+that reads what it says it reads.
+
+### How to apply
+
+- A comment next to `args` is documentation, and documentation cannot pass a
+  flag. If a file says which evidence it reads, that sentence belongs in the
+  arguments and the test has to read the arguments back.
+- When a promise is made in prose, ask which command the prose is describing and
+  whether the file's `entry` plus `args` actually is that command. "Reads the
+  ledger" is a claim about a flag, not about a filename.
+- A severity threshold is part of a promise too. The description said the hook
+  fails when a quote moved; `quote-moved` is medium and the default threshold is
+  high, so the hook could report exactly that and exit 0.
+- Prefer running the composed command against a project that should fail. Every
+  test in this family builds the command from the YAML and runs it, so a wrong
+  flag produces a wrong exit code rather than a green suite.

@@ -268,3 +268,107 @@ class TestTheHookCommandActuallyRuns:
                 f"{hook['id']} names no manuscript and takes no filenames, so "
                 "pre-commit runs it with no argument and it exits 2"
             )
+
+
+class TestTheHookReadsTheEvidenceItAdvertises:
+    """The file said "reads the committed ledger" and then did not read it.
+
+    `entry: citevouch check` with no `--use-recorded` scans afresh and never
+    opens the ledger, so every sentence in the hook's own header was false.
+    The case it names as its reason to exist is exactly the case the fresh
+    scan cannot see:
+
+        # a new version of the same paper, quoted sentence still in it
+        citevouch check manuscript.md                 -> 0, [info] quote-found
+        citevouch check manuscript.md --use-recorded  -> 0, [medium] source-changed
+
+    A missing ledger was worse than silence: the hook reported a clean run
+    where the recorded path exits 2 saying there is no ledger at all.
+
+    The threshold is the second half of the defect. The description promises
+    the hook fails when a quote *moved* or when the source is no longer the
+    recorded one, and both are `medium` - so at the default `high` the hook
+    could print them and still exit 0.
+    """
+
+    def _scan(self, root: Path) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, "-m", "citevouch", "scan", "manuscript.md", "--root", "."],
+            cwd=root,
+            capture_output=True,
+            env=_env(PYTHONPATH=str(ROOT / "src"), PYTHONIOENCODING="utf-8"),
+        )
+
+    def _hook(self, root: Path, tmp_path: Path) -> subprocess.CompletedProcess:
+        return TestTheHookCommandActuallyRuns()._run(root, "citevouch", tmp_path)
+
+    def _project(self, tmp_path: Path) -> Path:
+        return TestTheHookCommandActuallyRuns()._project(tmp_path)
+
+    def test_the_check_hook_asks_for_the_recorded_path(self) -> None:
+        args = by_id()["citevouch"].get("args") or []
+        assert "--use-recorded" in args, (
+            "without --use-recorded the hook rescans and never opens the ledger, "
+            "so it cannot see that a source is no longer the recorded one"
+        )
+
+    def test_the_check_hook_fails_on_the_two_things_it_says_it_fails_on(self) -> None:
+        args = by_id()["citevouch"].get("args") or []
+        assert "--fail-on" in args, (
+            "quote-moved and source-changed are medium and the default threshold "
+            "is high, so the hook would print them and exit 0"
+        )
+        threshold = args[args.index("--fail-on") + 1]
+        assert threshold in ("info", "low", "medium"), threshold
+
+    def test_the_recording_hook_does_not_ask_for_a_ledger(self) -> None:
+        # The mirror image: `scan` is the command that writes the ledger, so it
+        # must never be given a flag that tells the reader to trust one.
+        args = by_id()["citevouch-record"].get("args") or []
+        assert "--use-recorded" not in args
+
+    def test_a_replaced_source_fails_the_hook(self, tmp_path: Path) -> None:
+        """The case the header names, and the one the hook used to miss."""
+        root = self._project(tmp_path)
+        assert self._scan(root).returncode == 0
+        # Another version of the same paper. The quoted sentence survives, so a
+        # fresh scan finds it and calls the project clean.
+        (root / "papers" / "a.txt").write_text(
+            "Preface. The corpus contains 154,391 utterances in total. An appendix follows.\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        done = self._hook(root, tmp_path)
+        assert done.returncode == 1, done.stdout + done.stderr
+        assert "source-changed" in done.stdout + done.stderr
+
+    def test_a_quote_that_moved_fails_the_hook(self, tmp_path: Path) -> None:
+        root = tmp_path / "moved"
+        (root / "papers").mkdir(parents=True)
+        (root / "papers" / "a.txt").write_text(
+            "Nothing to see here.\fThe corpus contains 154,391 utterances in total.\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (root / "sources.toml").write_text(
+            '[sources]\na = "papers/a.txt"\n', encoding="utf-8", newline="\n"
+        )
+        # The ledger will record page 1; the sentence is printed on page 2.
+        (root / "manuscript.md").write_text(
+            "```claim id=c1 source=a page=1\n"
+            "quote: |\n"
+            "  The corpus contains 154,391 utterances in total.\n"
+            "```\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        assert self._scan(root).returncode == 0
+        done = self._hook(root, tmp_path)
+        assert done.returncode == 1, done.stdout + done.stderr
+        assert "quote-moved" in done.stdout + done.stderr
+
+    def test_a_ledger_that_was_never_committed_is_not_a_green_run(self, tmp_path: Path) -> None:
+        root = self._project(tmp_path)
+        done = self._hook(root, tmp_path)
+        assert done.returncode == 2, done.stdout + done.stderr
+        assert "no ledger" in (done.stdout + done.stderr).lower()

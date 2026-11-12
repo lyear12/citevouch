@@ -6,9 +6,11 @@
 # installed console script rather than a path.
 #
 # The point of the hook is that the check runs before a bad ledger is pushed, not
-# after. It reads the committed ledger by default: a hook that silently re-records
-# evidence would turn "the file changed under me" into "the file now matches",
-# which is the one failure this tool exists to catch.
+# after. It reads the committed ledger, never re-records one: a hook that silently
+# re-recorded evidence would turn "the file changed under me" into "the file now
+# matches", which is the one failure this tool exists to catch. That is an
+# argument about which command the hook runs, so it is carried by `args` below and
+# not by this paragraph - a comment cannot pass a flag.
 
 - id: citevouch
   name: citevouch - check that every claim still matches its source
@@ -26,7 +28,28 @@
   # rather than taken from the changed-file list, because `files:`
   # matches every Markdown file in the repository - README included -
   # and `check` takes exactly one. Edit `args` to point at yours.
-  args: [manuscript.md]
+  #
+  # `--use-recorded` is what makes the two paragraphs above true.  Without
+  # it `check` scans afresh and never opens the ledger, so a source file
+  # replaced by a new version of the same paper - the exact case this hook
+  # says it exists to catch - came out green: the quote survives in the new
+  # file, and `source-changed` is a verdict only the recorded path reaches.
+  # Measured, source replaced but quote still present, default threshold:
+  #
+  #   citevouch check manuscript.md                  -> 0, [info] quote-found
+  #   citevouch check manuscript.md --use-recorded   -> 0, [medium] source-changed
+  #
+  # A ledger that was never committed or is corrupt fared no better: `check`
+  # re-scanned and reported a clean run, where the recorded path refuses with
+  # exit 2.  Looking at the wrong evidence quietly is the one outcome this
+  # tool exists to prevent.
+  #
+  # `--fail-on medium` is the second half of the same promise: the sentence
+  # above says the hook fails when a quote *moved* or a source file is no
+  # longer the recorded one, and both of those are medium.  At the default
+  # `high` the recorded path printed them and still exited 0, so the hook
+  # could not fail for the two reasons its own description names.
+  args: ["manuscript.md", "--use-recorded", "--fail-on", "medium"]
   pass_filenames: false
   require_serial: true
   additional_dependencies: []

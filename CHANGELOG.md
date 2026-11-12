@@ -11,6 +11,38 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+* **The pre-commit hook read evidence it did not read.** Its own header said
+  "It reads the committed ledger by default", and its description promised to
+  fail "when a quote moved, went missing, or the source file is no longer the
+  one the ledger recorded". It ran `citevouch check` with no `--use-recorded`,
+  which scans afresh and never opens the ledger, so neither sentence was true.
+  Measured, with a source replaced by a new version of the same paper and the
+  quoted sentence still in it - the realistic way a source drifts:
+
+  ```text
+  hook as shipped   citevouch check manuscript.md                -> 0, [info] quote-found
+  recorded path     citevouch check manuscript.md --use-recorded -> 0, [medium] source-changed
+  no ledger         hook -> 0 clean run      recorded path -> 2, "no ledger at citevouch.lock.json"
+  corrupt ledger    hook -> 0 clean run      recorded path -> 2, "not readable JSON"
+  ```
+
+  The missing and corrupt cases are the worse half: the hook reported a green
+  run where the recorded path refuses to answer at all.
+
+  The threshold is the second half of the same defect. `quote-moved` and
+  `source-changed` are both `medium`, and the default `--fail-on` is `high` -
+  so even on the recorded path the hook printed the two findings its
+  description names and exited 0. `args` is now
+  `["manuscript.md", "--use-recorded", "--fail-on", "medium"]`, and the
+  reason is written above it rather than in a comment nobody passes to the
+  command. The recording hook keeps no `--use-recorded`: `scan` is the command
+  that writes a ledger, and telling it to trust one is the mirror image of the
+  same mistake.
+
+  21 tests in `tests/test_precommit.py` (6 new, all of which run the hook's
+  own composed command against a project that should fail), 5 mutations, all
+  red.
 
 ## [0.22.99] — 2026-11-12
 ### Fixed
