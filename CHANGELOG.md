@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.88] — 2026-11-12
 ### Fixed
 
 * **A page that printed `40, 688` was said not to contain `40,688`.**
@@ -5024,7 +5025,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.87...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.88...HEAD
+[0.22.88]: https://github.com/lyear12/citevouch/releases/tag/v0.22.88
 [0.22.87]: https://github.com/lyear12/citevouch/releases/tag/v0.22.87
 [0.22.86]: https://github.com/lyear12/citevouch/releases/tag/v0.22.86
 [0.22.85]: https://github.com/lyear12/citevouch/releases/tag/v0.22.85
