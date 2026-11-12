@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.90] — 2026-11-12
 ### Fixed
 
 * **One block, one attribute, two findings that contradicted each other.** A
@@ -34,7 +35,6 @@ tag and that file disagree.
   repeat keeps its old sentence, because there nothing above it won.
 
   9 tests, 10 mutations, all caught.
-
 ## [0.22.89] — 2026-11-12
 ### Fixed
 
@@ -5071,7 +5071,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.89...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.90...HEAD
+[0.22.90]: https://github.com/lyear12/citevouch/releases/tag/v0.22.90
 [0.22.89]: https://github.com/lyear12/citevouch/releases/tag/v0.22.89
 [0.22.88]: https://github.com/lyear12/citevouch/releases/tag/v0.22.88
 [0.22.87]: https://github.com/lyear12/citevouch/releases/tag/v0.22.87
