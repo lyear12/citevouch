@@ -12,6 +12,46 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **A definition written in the body gave its template to the paper, and `draft`
+  invented a citation from it.**  `\NewDocumentEnvironment{aside}{m}{The corpus
+  for the study of grammar has \citep{phantom2020}.}{}` converted to `asidemThe
+  corpus for the study of grammar has [@phantom2020].` - the environment's name
+  and its argument specification glued to the front of the body.  Because the
+  template holds a citation, `draft` proposed a claim block citing
+  `phantom2020` and quoting a page it had found by keyword overlap: the tool
+  invented evidence and invited the author to paste it.
+* **The shapes were written as branches, and only the branch counts were
+  measured.**  `_definition_end` asked `if name in _DOCUMENT_COMMAND:` and
+  `if name in _ENVIRONMENT_DEFINITION:`, so every spelling that had a branch was
+  read correctly and every spelling that did not fell through to the
+  unknown-command rule - which keeps every argument, because for most commands
+  the arguments *are* the prose.  Eighteen definition spellings leaked:
+  `NewDocumentEnvironment`, `Renew…`, `Provide…`, `DeclareDocumentEnvironment`,
+  `newenvironmentx`, `renewenvironmentx`, `NewEnviron`, `RenewEnviron`,
+  `NewExpandableDocumentCommand`, `DeclareExpandableDocumentCommand`,
+  `declaretheorem`, `newtcolorbox`, `NewTColorBox`, `NewTCBEnvironment`,
+  `NewTCBEnv`, `newcolumntype`, `DeclareCaptionFormat`, `newtheoremstyle`.
+  The shape is now a number in one table (`_DEFINITION_GROUPS`: name, then how
+  many brace groups it takes) and `_definition_end` is a single loop.
+* **`included_files` read a template as a file list.**  It reads the raw source,
+  so `\NewDocumentEnvironment{box}{m}{\input{ghost/sec}}{}` reported
+  `ghost/sec` as a file the paper pulls in - a warning about a document that does
+  not exist, in the one place the tool tells the author to look.
+* **Twenty settings commands pasted their settings into the prose.**
+  `\setmainfont{Times New Roman}` left `Times New Roman` in the sentence and
+  `\sisetup{detect-all}` left `detect-all`.  A preamble is dropped whole, so
+  this only bit a document that writes the setting in the body - but a font name
+  glued into a sentence is exactly the token `draft` matches against a page.
+  Added to `_DROP_ALL_ARGUMENTS`: `sisetup`, `geometry`, `lstset`, `tikzset`,
+  `pgfplotsset`, `setmainfont`, `setsansfont`, `setmonofont`,
+  `setCJKfamilyfont`, `definecolor`, `colorlet`, `addbibresource`,
+  `numberwithin`, `allowdisplaybreaks`, `setlist`, `crefname`, `Crefname`,
+  `floatname`, `newfloat`, `DeclareFontFamily`.
+
+67 tests, 12 mutations, all red.
+
 ## [0.22.91] — 2026-11-12
 ### Fixed
 

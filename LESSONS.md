@@ -8254,3 +8254,52 @@ How to apply:
 * A rule lifted to every shape must name exactly what it claims.  Six names,
   not "any line with a colon": `Note: ours.` and `Example: 1` are prose, and a
   reader that takes them for fields cuts quotations in half.
+
+
+## A shape is data, and a branch is a promise that nobody re-measures
+
+`latex._definition_end` used to decide how many brace groups a definition takes
+with two membership tests:
+
+```python
+if name in _DOCUMENT_COMMAND:
+    ...two more groups...
+if name in _ENVIRONMENT_DEFINITION:
+    ...two more groups...
+```
+
+Every spelling that had a branch was read correctly. Every spelling that had no
+branch fell through to the unknown-command rule, which keeps all the arguments -
+right for a command whose arguments are prose, wrong for a definition, whose
+arguments are a template. Eighteen spellings leaked their templates into the
+paper, including `\NewDocumentEnvironment`, `\NewEnviron` and
+`\newenvironmentx`. The worst of them made `draft` invent a citation: the
+environment's name and body were glued into a sentence, the template's
+`\citep{phantom2020}` became a real citation, and the tool proposed a claim
+block quoting a page it had found by keyword overlap.
+
+The fix is not eighteen more branches. It is one table -
+
+```python
+_DEFINITION_GROUPS = {"newcommand": 2, "NewDocumentEnvironment": 4, ...}
+```
+
+- so that adding a spelling is a key and reading one is a `range()`. What made
+  the family possible is that the *set* of shapes lived in two sets and the
+  *behaviour* lived in two branches, and nothing tied a name in the first to a
+  branch in the second.
+
+How to apply:
+
+* When behaviour depends on which group a name is in, write the group's number
+  as a value and read it, not as an `if`. A branch is unmeasured once it stops
+  being the branch you are testing.
+* Ask of every `if name in ...:` what happens to the names that are not in it.
+  The answer is never "nothing"; it is whatever the fallthrough does.
+* A conditional whose arms return the same value is a comment that looks like
+  code. The mutation check found one in the fix for this very entry
+  (``_unreadable(cursor) if number == 0 else cursor``) - two arms, one value.
+* The same rule that is written twice is measured once. The star of
+  `\newcommand*` was spent by an explicit branch and again by
+  `_skip_optional_args`; deleting the branch changed nothing, which is how it
+  was found.

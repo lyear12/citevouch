@@ -618,6 +618,27 @@ _DEFINITION = frozenset(
         "NewDocumentCommand",
         "RenewDocumentCommand",
         "ProvideDocumentCommand",
+        # Every spelling below was measured leaving its body in the prose.
+        # The shapes are enumerated once, as counts, in
+        # ``_DEFINITION_GROUPS`` - see the note there.
+        "NewExpandableDocumentCommand",
+        "DeclareExpandableDocumentCommand",
+        "NewDocumentEnvironment",
+        "RenewDocumentEnvironment",
+        "ProvideDocumentEnvironment",
+        "DeclareDocumentEnvironment",
+        "newenvironmentx",
+        "renewenvironmentx",
+        "NewEnviron",
+        "RenewEnviron",
+        "declaretheorem",
+        "newtcolorbox",
+        "NewTColorBox",
+        "NewTCBEnvironment",
+        "NewTCBEnv",
+        "newcolumntype",
+        "DeclareCaptionFormat",
+        "newtheoremstyle",
     }
 )
 
@@ -626,23 +647,88 @@ _DEFINITION = frozenset(
 #: The xparse spellings that take three groups: the name, the argument
 #: specification and the body.  The etoolbox ``...x`` spellings do not: they take
 #: a name, an optional count, an optional default and then the body.
-_DOCUMENT_COMMAND = frozenset(
-    {
-        "DeclareDocumentCommand",
-        "NewDocumentCommand",
-        "RenewDocumentCommand",
-        "ProvideDocumentCommand",
-    }
-)
+#: How many brace groups each definition consumes, with any ``*``, ``[..]`` and
+#: whitespace between them skipped.
+#:
+#: The count is data rather than a branch, and that is the whole point.  Each
+#: shape used to get its own ``if`` inside ``_definition_end``, so a shape
+#: without one fell through to the unknown-command branch - which drops the name
+#: and keeps every argument.  A definition's *template* was therefore read as the
+#: paper's prose.  Measured, after the four xparse command spellings had their
+#: own branch and the environment spellings did not:
+#:
+#: ``\NewDocumentEnvironment{box}{m}{See \citep{phantom}.}{}``
+#:     converted to ``boxmSee [@phantom].`` - the environment's name, its
+#:     argument specification and a citation the paper never makes, in one run of
+#:     words.  ``draft`` then proposed a claim block carrying that citation, so
+#:     the tool invented evidence and invited the author to paste it.
+#: ``\NewEnviron{box}{See \citep{phantom}.}``      -> ``boxSee [@phantom].``
+#: ``\newenvironmentx{box}[2][1]{See ...}{}``      -> ``box[2][1]See [@phantom].``
+#: ``\declaretheorem[name=Theorem]{thm}``          -> ``[name=Theorem]thm``
+#: ``\newtcolorbox{mybox}[1]{colback=white}``      -> ``mybox[1]colback=white``
+#: ``\newcolumntype{L}[1]{>{\raggedright}p{#1}}``   -> ``L[1]>p#1``
+#: ``\DeclareCaptionFormat{m}{#1#2#3}``            -> ``m#1#2#3``
+#: ``\newtheoremstyle{m}{}{}{}{}{}{}{}{}``         -> ``m``
+#:
+#: ``included_files`` was the second reader of the same bug: it cuts definitions
+#: out of the raw source, so ``\NewDocumentEnvironment{box}{m}{\input{ghost}}{}``
+#: reported ``ghost`` as a file the paper reads.
+_DEFINITION_GROUPS = {
+    # An ordinary definition: the name, then the body.
+    "newcommand": 2,
+    "renewcommand": 2,
+    "providecommand": 2,
+    "DeclareRobustCommand": 2,
+    "newcommandx": 2,
+    "renewcommandx": 2,
+    "providecommandx": 2,
+    # The xparse command forms, including the two that must expand in an
+    # ``\edef``: the name, the argument specification and the body.
+    "DeclareDocumentCommand": 3,
+    "NewDocumentCommand": 3,
+    "RenewDocumentCommand": 3,
+    "ProvideDocumentCommand": 3,
+    "NewExpandableDocumentCommand": 3,
+    "DeclareExpandableDocumentCommand": 3,
+    # A definition of an environment: the name, the text typeset at ``\begin``
+    # and the text typeset at ``\end``.
+    "newenvironment": 3,
+    "renewenvironment": 3,
+    # ``\newenvironmentx{box}[2][1]{begin}{end}``: the same three, with an
+    # argument count and a default between the name and the bodies.
+    "newenvironmentx": 3,
+    "renewenvironmentx": 3,
+    # The xparse environment forms: name, specification, begin text, end text.
+    "NewDocumentEnvironment": 4,
+    "RenewDocumentEnvironment": 4,
+    "ProvideDocumentEnvironment": 4,
+    "DeclareDocumentEnvironment": 4,
+    # etoolbox's shorter form: the name, then the body.
+    "NewEnviron": 2,
+    "RenewEnviron": 2,
+    # tcolorbox: a name, an optional group of settings, then the definition.
+    "newtcolorbox": 2,
+    "NewTColorBox": 2,
+    "NewTCBEnvironment": 3,
+    "NewTCBEnv": 3,
+    # The column types and the caption format: a name, then a definition.
+    "newcolumntype": 2,
+    "DeclareCaptionFormat": 2,
+    # ``\newtheorem{thm}{Theorem}[section]``: the name, the printed name, and a
+    # trailing bracket that ``_skip_optional_args`` spends.
+    "newtheorem": 2,
+    # ``\declaretheorem[name=Theorem]{thm}`` is the one entry whose first
+    # argument may be a bracket; the skip above the loop spends it, so the count
+    # is the group that follows.
+    "declaretheorem": 1,
+    # The style name and eight settings.
+    "newtheoremstyle": 9,
+}
 
+#: Definitions written as ``\def\name#1#2{body}``: the name is not in braces and
+#: the parameter text may hold anything up to the body.  They are read by
+#: position rather than by count, so they are not in ``_DEFINITION_GROUPS``.
 _LOW_LEVEL_DEFINITION = frozenset({"def", "gdef", "edef", "xdef"})
-
-#: Definitions whose body is prose but whose name is not, in two parts.
-_ENVIRONMENT_DEFINITION = frozenset({"newenvironment", "renewenvironment"})
-
-#: ``\newtheorem{thm}{Theorem}[section]`` - an argument order that is neither of
-#: the other shapes.
-_THEOREM_DEFINITION = frozenset({"newtheorem"})
 
 
 def _without_definitions(text: str) -> str:
@@ -808,7 +894,39 @@ _DROP_ALL_ARGUMENTS = {
     "xeCJKDeclareCharClass": 2,
     "ctexset": 1,
     "CTEXsetup": 1,
-    "CTEXoptions": 1,
+    # A settings command is a definition of a look, not a sentence: every
+    # argument names a length, a colour, a font, a counter or a key.  These were
+    # measured after the definition shapes above were fixed, and they all pasted
+    # their arguments into the prose the same way - so a manuscript whose
+    # preamble had been replaced by \\sisetup or \\setmainfont offered its
+    # font names to `draft` as words of a claim.
+    #
+    # Measured: \\sisetup{detect-all}   -> ``detect-all``
+    #           \\geometry{margin=2cm}  -> ``margin=2cm``
+    #           \\lstset{language=Python} -> ``language=Python``
+    #           \\tikzset{mystyle/.style={draw}} -> ``mystyle/.style=draw``
+    #           \\setmainfont{Times New Roman} -> ``Times New Roman``
+    #           \\definecolor{myblue}{RGB}{1,2,3} -> ``myblueRGB1,2,3``
+    "sisetup": 1,
+    "geometry": 1,
+    "lstset": 1,
+    "tikzset": 1,
+    "pgfplotsset": 1,
+    "setmainfont": 1,
+    "setsansfont": 1,
+    "setmonofont": 1,
+    "setCJKfamilyfont": 2,
+    "definecolor": 3,
+    "colorlet": 2,
+    "addbibresource": 1,
+    "numberwithin": 2,
+    "allowdisplaybreaks": 0,
+    "setlist": 2,
+    "crefname": 3,
+    "Crefname": 3,
+    "floatname": 2,
+    "newfloat": 4,
+    "DeclareFontFamily": 3,
 }
 
 #: Commands that keep their first braced argument (prose) and drop the rest.
@@ -1294,66 +1412,46 @@ def _unreadable(cursor: int) -> int:
 def _definition_end(text: str, name: str, start: int) -> int:
     """Index just past the definition of `name` that follows `start`.
 
-    Three shapes, and each has to be read to its end: a definition whose body is
-    left in the stream is read as a sentence, so ``\\newcommand{\\see}[1]{see
-    \\citep{#1}}`` contributed a citation to the key ``#1`` and swallowed the
-    real call at every use site.
+    A definition body is a template, not a sentence.  Left in the stream it is
+    read as prose: ``\\newcommand{\\seecite}[1]{see \\citep{#1}}`` contributed a
+    citation to the key ``#1`` and swallowed the real call at every use site.
+
+    How many brace groups a shape takes is a number in ``_DEFINITION_GROUPS``,
+    not a branch here.  Writing the shapes as branches is what went wrong: every
+    shape that had one had been measured, and every shape that had not fell
+    through to the unknown-command branch, which keeps every argument - so the
+    template of the definition was read as the paper's own words.
     """
+    # The star of ``\\newcommand*{\\x}{body}`` is spent by the
+    # ``_skip_optional_args`` call below, which is where every other command's
+    # star is spent; an explicit branch here would be a second rule for the same
+    # character, and only one of the two would ever be measured.
     cursor = _skip_space(text, start)
-    if cursor < len(text) and text[cursor] == "*":
-        # ``\newcommand*{\x}{body}`` is the same command as ``\newcommand``:
-        # the star only says the definition must not be \long.  Without this
-        # line the next character is not a brace, ``_group_end`` answers -1,
-        # and the fallthrough below returns ``len(text)`` - the whole rest of
-        # the document became part of a macro that was never called.  Measured
-        # on ``A. \newcommand*{\x}{y} The grammar is large.``: the sentence
-        # came out as ``A.`` and the 32 characters after the definition were
-        # gone, with no finding to say so.
-        cursor = _skip_space(text, cursor + 1)
     if name in _LOW_LEVEL_DEFINITION:
-        # `\def\name#1#2{body}`: the name is not in braces, and the parameter
+        # `\\def\\name#1#2{body}`: the name is not in braces, and the parameter
         # text runs up to the body's opening brace.
         opening = text.find("{", cursor)
         if opening < 0:
             return _unreadable(cursor)
         group = _group_end(text, opening)
         return group if group > 0 else _unreadable(cursor)
-    if name in _THEOREM_DEFINITION:
-        # `\newtheorem{name}[counter]{Printed Name}[within]`.
+    # `\\declaretheorem[name=Theorem]{thm}` puts its settings before the name.
+    # For every other shape there is nothing here and this returns `cursor`.
+    cursor = _skip_optional_args(text, cursor)
+    for _ in range(_DEFINITION_GROUPS.get(name, 2)):
         group = _group_end(text, cursor)
         if group < 0:
+            # The group is missing, so this is not a definition this reader can
+            # follow, and reading on would eat the document: `A. \\newcommand
+            # The grammar is large.` once became `A.`.  `_unreadable` answers
+            # the cursor, which leaves the text in the prose where the author
+            # can see it.  It used to be written as
+            # ``_unreadable(cursor) if number == 0 else cursor`` - two arms that
+            # returned the same value, so the branch that read as a distinction
+            # was a decoration, and the mutation check found it.
             return _unreadable(cursor)
         cursor = _skip_optional_args(text, group)
-        group = _group_end(text, cursor)
-        if group < 0:
-            return cursor
-        return _skip_optional_args(text, group)
-    group = _group_end(text, cursor)
-    if group < 0:
-        return _unreadable(cursor)
-    cursor = _skip_optional_args(text, group)
-    if name in _DOCUMENT_COMMAND:
-        # ``\\NewDocumentCommand{\\x}{m}{Body #1}``: name, argument
-        # specification, body.  Reading only the first two left the body in the
-        # prose, so ``\\NewDocumentCommand{\\seecite}{m}{see \\citep{#1}}``
-        # contributed the words ``see [@#1]`` to the text and `draft` reported a
-        # citation to the key ``#1`` -- a source the paper never cites, offered
-        # to the author to paste.
-        for _ in range(2):
-            group = _group_end(text, cursor)
-            if group < 0:
-                return cursor
-            cursor = _skip_optional_args(text, group)
-        return cursor
-    if name in _ENVIRONMENT_DEFINITION:
-        for _ in range(2):
-            group = _group_end(text, cursor)
-            if group < 0:
-                return cursor
-            cursor = _skip_optional_args(text, group)
-        return cursor
-    group = _group_end(text, cursor)
-    return group if group > 0 else cursor
+    return cursor
 
 
 def _conditional_span(text: str, start: int) -> tuple[int, int, int] | None:
