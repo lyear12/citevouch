@@ -39,7 +39,7 @@ from .errors import why_not_a_file
 from .latex import looks_like_latex
 from .manuscript import ParseResult, parse_manuscript
 from .model import Finding
-from .scan import _resolve
+from .scan import _resolve, recorded_path
 from .sources import candidate_files, extract_pages, near_misses, read_source_table
 from .textnorm import UNDECODED, count_of, read_text, read_text_and_loss
 
@@ -285,6 +285,23 @@ def _nothing_named(parsed: ParseResult) -> str:
     return "no claim names a source"
 
 
+def _manuscript_name(target: Path, root: Path | None) -> str:
+    """The manuscript as :func:`recorded_path` spells it - the ledger's own name.
+
+    Every finding this module emits names the file the same way the ledger that
+    `scan` writes names it: relative to ``--root``, forward slashes.  It used to
+    be ``target.name``, so a diagnosis of ``paper/m.md`` printed findings at
+    ``m.md`` while its ledger said ``paper/m.md`` - one file, two names, and the
+    short one points at a path that does not exist in a code-scanning viewer.
+
+    ``root`` is optional because a caller that already holds the project
+    directory passes it; a direct call with only the target falls back to the
+    file's own directory, which spells the file by its basename - the same
+    string the ledger holds when the manuscript sits at the project root.
+    """
+    return recorded_path(root if root is not None else target.parent, target)
+
+
 def _draft_advice(target: Path, root: Path) -> str:
     """The `draft` command for this manuscript, assembled from this run's values.
 
@@ -354,7 +371,7 @@ def _claim_sources(target: Path, root: Path) -> Report:
             ok=True,
             detail="not checked, because the manuscript could not be read",
         )
-    parsed = parse_manuscript(text, target.name)
+    parsed = parse_manuscript(text, _manuscript_name(target, root))
     named = sorted({claim.source for claim in parsed.claims if claim.source})
     if not named:
         # The `claims` check owns "this file holds nothing"; saying it twice
@@ -457,7 +474,7 @@ def _claim_blocks(target: Path, root: Path | None = None) -> Report:
     """
     try:
         text, lost = read_text_and_loss(target)
-        parsed = parse_manuscript(text, path=target.name)
+        parsed = parse_manuscript(text, path=_manuscript_name(target, root))
     except OSError as problem:
         return Report(
             name="claims",
@@ -486,7 +503,7 @@ def _claim_blocks(target: Path, root: Path | None = None) -> Report:
                 ok=False,
                 code="project-unusable",
                 detail=(
-                    f"{count_of(len(undecoded), 'claim block')} in {target.name}: "
+                    f"{count_of(len(undecoded), 'claim block')} in {_manuscript_name(target, root)}: "
                     "quoted words that were never decoded, because the file is not "
                     "UTF-8 - those words were replaced and can never be searched for"
                 ),
@@ -699,7 +716,7 @@ def _extraction(target: Path, root: Path) -> Report:
     diagnosis about files the tool never opened.
     """
     try:
-        parsed = parse_manuscript(read_text(target), path=target.name)
+        parsed = parse_manuscript(read_text(target), path=_manuscript_name(target, root))
     except OSError:
         # The `manuscript` check owns this, in the words the author can act on.
         return Report(

@@ -485,13 +485,18 @@ class TestTheAdviceCanBeFollowed:
         assert command == "citevouch draft m.md --root paper -o claims.md", command
         assert (root / "paper" / "claims.md").exists()
 
-    def test_the_finding_still_names_the_basename(self, tmp_path: Path):
-        # The advice may carry a directory; the finding's own path must not, or
-        # the same project reported from two machines stops reading alike.
+    def test_the_finding_names_the_file_the_ledger_names(self, tmp_path: Path):
+        # The advice carries the directory the reader typed; the finding carries
+        # the path the ledger records, which is the same file spelled the same
+        # way.  It used to be the bare basename so that two checkouts read
+        # alike - but a path relative to `root` reads alike too, and unlike
+        # `m.md` it names a file the reader (and a code-scanning viewer) can
+        # open.
         root = _project_with_paper(tmp_path)
-        findings = scan(ScanOptions(manuscript="paper/m.md", root=str(root)))[1]
-        finding = next(f for f in findings if f.code == "no-claim-blocks")
-        assert finding.path == "m.md"
+        result = scan(ScanOptions(manuscript="paper/m.md", root=str(root)))
+        finding = next(f for f in result[1] if f.code == "no-claim-blocks")
+        assert finding.path == "paper/m.md"
+        assert finding.path == result[0].manuscript, "one run, two names for one file"
 
 
 # A claim block inside a blockquote, a list item or an indent is not readable

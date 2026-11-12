@@ -8468,3 +8468,35 @@ How to apply:
 - Run the test from the directory where the two spellings diverge. From inside
   `paper/`, the path `paper/m.md` does not exist and a command that dropped the
   directory still works by accident.
+## A file has one name per run, and every sentence must use it
+
+Measured on a project whose manuscript sits in a directory, run as
+`check paper/m.md --root .`:
+
+```
+[high] quote-missing at m.md:3 (c1): We collected 40,688 examples ...
+ledger: manuscript = 'paper/m.md'
+```
+
+One run, two names for one file. The ledger's is the one that resolves,
+because a code-scanning viewer reads a SARIF `uri` against the repository
+root and there is no `m.md` there - so the annotation is dropped and the
+pull request shows nothing. The comment that defended the basename said a
+report should read identically wherever the project is checked out; that
+argument was true and still did not make the short name a name for the
+file.
+
+**How to apply**
+
+- When two parts of one output disagree about how to spell an input, ask
+  which of the two a reader can resolve. The answer is not "whichever was
+  easier to compute".
+- A property that motivated a choice can survive the choice being reversed:
+  "reads the same in every checkout" is satisfied by a root-relative path
+  too, so the sentence was true about both spellings and only one of them
+  also names a file. Re-check the old argument instead of deleting it.
+- Readers that run before the shared one is computed - guards whose job is
+  to fire early - are the ones that keep the old spelling. Grep for the
+  value, not for the function that produces it.
+- A path in a finding is a promise about a file someone will try to open.
+  Test it by opening it from the directory the command was run in.

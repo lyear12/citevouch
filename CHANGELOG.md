@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **One run spelled the manuscript two ways, and the ledger was not the one
+  that lost.** Against a project whose manuscript sits in a directory - the
+  shape `action.yml` documents - `check paper/m.md --root .` printed
+  `[high] quote-missing at m.md:3` while the ledger it had just written
+  recorded `paper/m.md`. Every reader of the manuscript took `Path.name` for
+  the path it handed the parser, so the finding lost the directory the
+  moment the project had one. A code-scanning viewer resolves a SARIF `uri`
+  against the repository root, where `m.md` does not exist, so the
+  annotation was dropped and the pull request showed nothing - the failure
+  `report._sarif_uri` documents and can repair only for absolute paths.
+
+* **Every reader now names the file the way the ledger names it.**
+  `recorded_path` already answered "what is this file called" for the
+  ledger, the sources and the bibliography entries; `scan`, `verify` and
+  `doctor` now ask it too, and hand the same string to `parse_manuscript`,
+  to `scan_unbound_markers`, to `_no_claim_blocks_finding` and to the two
+  `ledger-stale` guards that fire before any parsing. Sixteen call sites,
+  one spelling.
+
+* **The sentence that defended the basename is gone.**
+  `_no_claim_blocks_finding` explained that the finding's `path` stays the
+  basename "so that a report of the same project reads identically wherever
+  it is checked out". A path relative to `--root` has that property too, and
+  unlike a bare basename it names a file the reader can open. The docstring
+  says that now.
+
+20 tests, 9 mutations, all red..
 ## [0.22.97] — 2026-11-12
 ### Fixed
 

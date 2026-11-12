@@ -109,9 +109,13 @@ def _no_claim_blocks_finding(
 
     ``typed`` is the manuscript string as the caller's command line carried it,
     used only for the suggested command (see :func:`_draft_advice`), together
-    with ``root``, the ``--root`` it was read against; the finding's own
-    ``path`` stays the basename so that a report of the same project reads
-    identically wherever it is checked out.
+    with ``root``, the ``--root`` it was read against.  ``path`` is the
+    manuscript as :func:`recorded_path` spells it - relative to ``root``,
+    forward slashes - which is also how the ledger records it.  It used to be
+    the basename alone, on the reasoning that a report should read the same
+    wherever the project is checked out; a root-relative path has that property
+    too, and unlike a bare basename it names a file the reader can still open
+    once the project has more than one directory in it.
 
     ``no-claim-blocks`` is the only finding that can be true of a file holding
     no claims, and it is deliberately the *last* thing checked: a manuscript
@@ -351,7 +355,13 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
 
     findings: list[Finding] = []
     text = read_text(manuscript_path)
-    parsed = parse_manuscript(text, path=manuscript_path.name)
+    # The path a finding carries is the path the ledger records: relative
+    # to ``root``, forward slashes.  This used to be ``manuscript_path.name``,
+    # so one run about ``paper/m.md`` printed findings at ``m.md`` while its
+    # own ledger said ``paper/m.md`` - two names for one file, and the one a
+    # code-scanning viewer resolves against the repository root does not exist.
+    manuscript_name = recorded_path(root, manuscript_path)
+    parsed = parse_manuscript(text, path=manuscript_name)
     findings.extend(parsed.findings)
     # No claim blocks at all.  Every other finding describes a claim that was
     # checked and failed; this one describes a run in which nothing was checked,
@@ -366,7 +376,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     if parsed.nothing_to_check:
         findings.append(
             _no_claim_blocks_finding(
-                text, manuscript_path.name, typed=options.manuscript, root=options.root
+                text, manuscript_name, typed=options.manuscript, root=options.root
             )
         )
     # A credibility marker outside a claim block is the most common way a
@@ -376,7 +386,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
     findings.extend(
         scan_unbound_markers(
             text,
-            path=manuscript_path.name,
+            path=manuscript_name,
             spans=parsed.spans,
             claims=parsed.claims,
         )

@@ -179,6 +179,9 @@ def verify(
     result = VerifyResult()
     root = Path(options.root)
     manuscript_path = _resolve(root, options.manuscript)
+    # One name for the manuscript in every sentence this run prints.  It is the
+    # ledger's spelling: relative to `root`, forward slashes.
+    manuscript_name = recorded_path(root, manuscript_path)
     # Hashed once, used by two checks: the stale-manuscript comparison below and
     # the guard that refuses a source which is a *copy* of this manuscript.  A
     # copy has the same problem as the original - the sentence in the claim
@@ -236,7 +239,7 @@ def verify(
                     f"{recorded_path(root, manuscript_path)}; run `citevouch scan` for "
                     "this document, or point --ledger at the right project"
                 ),
-                path=str(manuscript_path),
+                path=manuscript_name,
             )
         )
         result.skipped = len(ledger.claims)
@@ -259,11 +262,11 @@ def verify(
             Finding(
                 code="ledger-stale",
                 message=(
-                    f"{manuscript_path.name} recorded by the ledger "
+                    f"{manuscript_name} recorded by the ledger "
                     f"{_gone_sentence(manuscript_path)}; "
                     "restore it, or point --root/--ledger at the project it belongs to"
                 ),
-                path=str(manuscript_path),
+                path=manuscript_name,
             )
         )
         result.skipped = len(ledger.claims)
@@ -278,10 +281,10 @@ def verify(
                 Finding(
                     code="ledger-stale",
                     message=(
-                        f"{manuscript_path.name} changed since the ledger was written; "
+                        f"{manuscript_name} changed since the ledger was written; "
                         "run `citevouch scan` to re-record the evidence"
                     ),
-                    path=str(manuscript_path),
+                    path=manuscript_name,
                 )
             )
             result.skipped = len(ledger.claims)
@@ -317,7 +320,7 @@ def verify(
             text = read_text(manuscript_path)
         except OSError:
             text = ""
-        parsed = parse_manuscript(text, manuscript_path.name)
+        parsed = parse_manuscript(text, manuscript_name)
         result.findings.extend(parsed.findings)
         # A credibility mark - 【原文】 and its siblings - that no claim block
         # covers is the shape this tool exists to catch: the manuscript reads
@@ -335,7 +338,7 @@ def verify(
         result.findings.extend(
             scan_unbound_markers(
                 text,
-                path=manuscript_path.name,
+                path=manuscript_name,
                 spans=parsed.spans,
                 claims=parsed.claims,
             )
@@ -358,7 +361,7 @@ def verify(
         except OSError:
             fresh_text = None
         if fresh_text is not None:
-            result.unrecorded = _unrecorded(parse_manuscript(fresh_text, manuscript_path.name))
+            result.unrecorded = _unrecorded(parse_manuscript(fresh_text, manuscript_name))
 
     # A ledger that recorded no claims is the recording of a run that checked
     # nothing, and reading it back produces the same shape as the manuscript
@@ -372,7 +375,7 @@ def verify(
                 text = read_text(manuscript_path)
             except OSError:
                 text = ""
-            parsed = parse_manuscript(text, manuscript_path.name)
+            parsed = parse_manuscript(text, manuscript_name)
         # The near-miss sentence in `_no_claim_blocks_finding` says a line
         # "reads like a claim block but is not one the parser accepts", which is
         # the right thing to tell someone who is looking at a manuscript with no
@@ -381,24 +384,24 @@ def verify(
         # this tool - and then that sentence names a fault on the line that is
         # not faulty, while the real cause (the recording, not the text) goes
         # unsaid.  Ask the parser before borrowing its words.
-        parsed = parse_manuscript(text, manuscript_path.name)
+        parsed = parse_manuscript(text, manuscript_name)
         if parsed.claims:
             result.findings.append(
                 Finding(
                     code="no-claim-blocks",
                     message=(
-                        f"{manuscript_path.name} has {len(parsed.claims)} claim block(s), but "
+                        f"{manuscript_name} has {len(parsed.claims)} claim block(s), but "
                         "the ledger recorded none; run `citevouch scan` to record them - "
                         "this run checked nothing"
                     ),
-                    path=str(manuscript_path),
+                    path=manuscript_name,
                 )
             )
         elif parsed.nothing_to_check:
             result.findings.append(
                 _no_claim_blocks_finding(
                     text,
-                    manuscript_path.name,
+                    manuscript_name,
                     typed=options.manuscript,
                     root=options.root,
                 )
