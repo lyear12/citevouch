@@ -117,8 +117,13 @@ class TestTheShapesThatAreNotMappingsKeepTheirQuote:
     counting an ``id:``/``source:`` line as a "key" made a ``>>`` block look
     like a mapping, and the quote came back empty while the attribute line
     became the claim text - a silent loss, which is worse than the defect being
-    fixed.  Both shapes below were quoted correctly before the fix and have to
-    stay that way.
+    fixed.
+
+    The rule that replaced it is narrower, and both shapes below assert the
+    part that must not regress: the quote survives.  An attribute line at the
+    margin is now lifted out of any shape, which is the same statement the
+    mapping branch makes - but it is *read*, not used to demote the body to a
+    mapping with no quote in it.
     """
 
     def test_the_arrow_shape_keeps_its_quote(self) -> None:
@@ -126,10 +131,14 @@ class TestTheShapesThatAreNotMappingsKeepTheirQuote:
         result = parse_manuscript(_fenced(body, attrs="id=c1 source=paper"))
         assert [claim.quote for claim in result.claims] == [QUOTE]
 
-    def test_a_body_with_no_keys_is_all_quote(self) -> None:
+    def test_a_body_with_no_keys_keeps_its_quote_and_reads_the_page(self) -> None:
+        # Before this, `page: 1` was quote text: the passage was searched for
+        # with the author's own field line glued to its end, and the page hint
+        # was not applied.  The quote is what has to survive either way.
         body = f"{QUOTE}\npage: 1"
         result = parse_manuscript(_fenced(body))
-        assert [claim.quote for claim in result.claims] == [f"{QUOTE}\npage: 1"]
+        assert [claim.quote for claim in result.claims] == [QUOTE]
+        assert [claim.page for claim in result.claims] == [1]
 
 
 class TestTheVerdictOnARealProject:

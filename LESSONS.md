@@ -8220,3 +8220,37 @@ How to apply:
   for, and its own tests will not notice because they assert the code, not
   the sentence.
 
+## A rule about a coordinate belongs to the coordinate, not to one branch
+
+A claim body has four shapes: `quote:`/`claim:` keys, a `>>` passage, two
+paragraphs, or one paragraph.  The format's margin rule says a line at the
+block's own indentation is a field line, so `page: 2` under the fence means the
+same thing as `page=2` on it.  That rule was written inside the first shape's
+branch.  The other three read every line as prose.
+
+Measured on a fence that had already said `id=c1 source=paper page=1`, with the
+passage really on page 2:
+
+    body ["page: 2", "", Q]  -> quote "page: 2", claim Q, page still 1
+                                [high] quote-missing "... page: 2"
+    body [Q, "", "page: 2"]  -> quote Q, claim "page: 2", exit 0
+
+The first is this tool's worst failure - an accusation about words the source
+really prints - and the second is silent loss of the hint, printed back as if
+it were the author's own prose.  Both dialects, all six attribute names.
+
+The margin is a property of the block.  A shape decides where the quote is; it
+does not decide who owns the margin.  So the lift runs before the shape is
+chosen, on one rule, for all four.
+
+How to apply:
+
+* When a reader has N shapes and one rule, ask which branch the rule was
+  written in and why that branch and not the others.  "It is the common case"
+  is not an answer: the uncommon shapes are the ones whose output nobody looks
+  at twice.
+* Lift the rule to the widest place it is true.  Do it before the shape is
+  chosen, so there is one implementation to keep honest instead of N.
+* A rule lifted to every shape must name exactly what it claims.  Six names,
+  not "any line with a colon": `Note: ours.` and `Example: 1` are prose, and a
+  reader that takes them for fields cuts quotations in half.

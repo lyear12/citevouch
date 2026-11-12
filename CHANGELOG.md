@@ -12,6 +12,31 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **An attribute line was read as quote text whenever the body named no
+  key.** A claim block has four body shapes, and the rule that a line at the
+  margin belongs to the block - `page: 2` under the fence is the same
+  statement as `page=2` on it - was implemented in one of them. The other
+  three read every line as prose. Measured on a fence that had already said
+  `id=c1 source=paper page=1`, with the passage really on page 2:
+
+    body ["page: 2", "", Q]
+    -> quote "page: 2", claim Q, page still 1
+       [high] quote-missing "... page: 2 - quote not found ... in page.txt"
+
+    body [Q, "", "page: 2"]
+    -> quote Q, claim "page: 2", exit 0
+
+  The first accused the author of quoting a page their source never printed;
+  the second dropped the hint and printed it back as the claim text. Any of
+  the six attribute names did it, in both dialects. The margin rule now runs
+  before the shape is chosen, for every shape, taking only the six names this
+  format has: a `Note:` line is prose that happens to contain a colon, and a
+  reader that treats every such line as a field cuts quotations in half.
+
+  25 tests, 13 mutations (11 caught, 2 shown equivalent), all caught.
+
 ## [0.22.90] — 2026-11-12
 ### Fixed
 

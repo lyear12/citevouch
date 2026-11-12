@@ -1590,6 +1590,13 @@ def _split_body(
     reported now, and the line is kept out of the quote, because in a YAML
     block scalar a line at the left margin is a sibling key and never
     continuation text.
+
+    That last rule is about the margin, not about which shape the body picked.
+    The four shapes above are four ways of saying where the quote is; none of
+    them changes who owns the margin, so an attribute line is read as an
+    attribute in all four.  Only these six names are taken - a `Note:` line is
+    prose that happens to contain a colon, and a format that treats every such
+    line as a field cuts quotations in half.
     """
     attributes: dict[str, str] = {}
     unknown: list[tuple[int, str]] = []
@@ -1603,6 +1610,45 @@ def _split_body(
         (len(raw) - len(raw.lstrip()) for raw in body if _FIELD_KEY.match(raw)),
         default=0,
     )
+    if not has_keys:
+        # The margin rule is about the margin, so it holds in the shapes that
+        # name no key as well.  Lifting the attribute lines out before the
+        # shape is chosen is what keeps the fallbacks honest: measured before
+        # this ran, on a fence that had already said `id=c1 source=paper page=1`
+        # and a body saying `page: 2`, with the quote really on page 2:
+        #
+        #     ["page: 2", "", Q]  -> quote "page: 2", claim Q, page still 1
+        #                            [high] quote-missing "page: 2"
+        #     [Q, "", "page: 2"]  -> quote Q, claim "page: 2", exit 0
+        #
+        # The first accused the author of quoting a page their source never
+        # printed; the second dropped the page hint and printed it back as
+        # prose.  Only the six names this format has are taken.  An unknown
+        # `Note:` line stays in the body: a mapping has already declared itself
+        # by writing `quote:`/`claim:`, and a body that declared nothing cannot
+        # be read as announcing fields without cutting a quotation in half.
+        keyless_margin = min(
+            (len(raw) - len(raw.lstrip()) for raw in body if raw.strip()),
+            default=0,
+        )
+        kept: list[str] = []
+        for index, raw in enumerate(body, start=1):
+            other = _ATTRIBUTE_KEY.match(raw) if _at_the_margin(raw, keyless_margin) else None
+            if other is None:
+                kept.append(raw)
+                continue
+            name = other.group("key").lower()
+            value = _unquote(other.group("rest").strip())
+            if name in attributes:
+                if dropped is not None and attributes[name] != value:
+                    dropped.append((index, name, attributes[name], value))
+            else:
+                attributes[name] = value
+                if places is not None:
+                    places[name] = index
+        body = kept
+        if not body:
+            return "", "", attributes, unknown
     if has_keys:
         fields: dict[str, list[str]] = {}
         current = ""
