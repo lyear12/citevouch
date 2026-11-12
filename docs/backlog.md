@@ -5448,3 +5448,48 @@ one.
   on the opening line and no body repeat exists; and the table dialect,
   which has no body lines to repeat.
 
+- [x] **P1 - an attribute line was read as quote text whenever the body named no key (0.22.91)**
+
+**What was wrong.** A claim body has four shapes: `quote:`/`claim:` keys, a
+`>>` passage, two paragraphs, or one paragraph. The format's margin rule
+says a line at the block's own indentation is a field line, so `page: 2`
+under the fence means the same thing as `page=2` on it. It was implemented
+inside the first shape's branch only, so the other three read the attribute
+line as prose. Measured on a fence that had already said
+`id=c1 source=paper page=1`, with the passage really on page 2:
+`['page: 2', '', Q]` gave quote `page: 2`, claim `Q` and page 1, and then
+`[high] quote-missing "page: 2"` - an accusation about a page the source
+never printed. `[Q, '', 'page: 2']` gave quote `Q`, claim `page: 2`, exit 0:
+the hint was dropped and printed back as the author's prose. All six
+attribute names, both dialects.
+
+**What it does now.** `_split_body` lifts the attribute lines out before the
+shape is chosen, for every shape, on one rule. Only the six names the format
+has are taken - `Note: ours.` and `Example: 1` stay in the quote, because a
+reader that treats every colon as a field cuts quotations in half. A repeat
+inside a keyless body keeps the first spelling and reports the rest through
+`claim-field-repeated`; two identical values still say nothing. An attribute
+line on its own now leaves a block with no passage, and `_claim_from` says
+`carries no verbatim quote` instead of accusing the author of quoting their
+own line.
+
+**Why it is now true.** 25 tests in
+`tests/test_attribute_line_without_a_key.py` cover the five keyless shapes,
+the six names, the indent rule, the shadow/repeat findings and the
+end-to-end verdict (including the third page of a three-page file, where the
+wrong hint is now `quote-moved` at medium instead of `quote-missing` at
+high). 13 mutations were aimed at the new branch: 11 turned the suite red,
+and the two survivors were checked and found equivalent (the
+`_ATTRIBUTE_KEY` pattern is case-sensitive, so `lower()` cannot change a key
+that reached it; and a body of `[' ']` returns the same empty tuple through
+the paragraph fallback). One older test in
+`tests/test_attributes_in_the_body.py` asserted the old behaviour - that a
+keyless body is all quote - and was rewritten to assert the quote survives
+and the page is read.
+
+**Not covered.** A margin line whose value is a YAML block scalar (`page: |`
+plus an indented line) still takes only the inline value, which is exactly
+what the mapping branch does with these six names. The `>>` shape with an
+attribute line between two passages is lifted and the passages stay
+adjacent, but no test pins that interleaving.
+
