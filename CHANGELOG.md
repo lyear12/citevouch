@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.92] — 2026-11-12
 ### Fixed
 
 * **A definition written in the body gave its template to the paper, and `draft`
@@ -51,7 +52,6 @@ tag and that file disagree.
   `floatname`, `newfloat`, `DeclareFontFamily`.
 
 67 tests, 12 mutations, all red.
-
 ## [0.22.91] — 2026-11-12
 ### Fixed
 
@@ -5136,7 +5136,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.91...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.92...HEAD
+[0.22.92]: https://github.com/lyear12/citevouch/releases/tag/v0.22.92
 [0.22.91]: https://github.com/lyear12/citevouch/releases/tag/v0.22.91
 [0.22.90]: https://github.com/lyear12/citevouch/releases/tag/v0.22.90
 [0.22.89]: https://github.com/lyear12/citevouch/releases/tag/v0.22.89
