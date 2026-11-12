@@ -5532,3 +5532,41 @@ before the specification; `\tcbset`, a tcolorbox settings command that was
 not among the twenty measured. The mutation check also found two defects in
 this fix itself - a conditional whose arms returned the same value, and a
 star branch duplicating `_skip_optional_args` - both removed.
+
+- [x] **P1 - one sentence on one page was reported both found and absent, because two readers read two different strings (0.22.93)**
+
+**What was wrong.** A page printed the fullwidth `４０，６８８`; the quote typed
+`40,688`. The matcher compares `fold`ed text, where NFKC has already turned
+the fullwidth comma into `,`, so it saw one number and printed `[info]
+quote-found`. `verify._page_numbers` scanned the *raw* page with
+`CANON_PATTERN`, whose separator list has no fullwidth comma, so it read
+`40` and `688` and printed `[high] number-absent-in-quote ... the quote says
+40,688 but page 1 of the source does not contain that number`. One run, one
+sentence, two opposite verdicts. The same split made `mask_numbers` write
+two placeholders where the quote wrote one, so the numbers tier could not
+line a fullwidth page up with an ASCII quote at all, and a quote typed in
+the fullwidth form was read as two numbers.
+
+**What it does now.** `textnorm.fold_number_forms` applies NFKC and drops
+format characters, and nothing else; the page reader, the quote reader, the
+report reader, the masker and the span reader all pass their text through it
+first. NFKC is exactly the right amount - it turns `４` and `，` into `4` and
+`,` because those are compatibility spellings of the same characters - and
+it leaves whitespace and offsets alone, which the masker needs because a
+collapsed line break would merge two numbers into one placeholder. It
+deliberately does not translate Arabic-Indic or Devanagari digits: the first
+version called `_ascii_digits` too, and the full suite caught that it broke
+`numbers_in`'s promise to report a number the way the document spells it.
+
+**Why it is now true.** `tests/test_fullwidth_digits.py` (22 tests) makes
+the five readers agree on one number in both scripts, runs the sentence that
+was called both found and absent through three page/quote combinations, and
+pins what the shared reading must not change - a line break keeping two
+numbers apart, offsets not moving, `2019 2020 2021` still three years, a
+bare space still a thousands group, the quote reader still keeping the wide
+separator rule that `numbers_in` refuses. Ten mutations ran red, including
+each reader falling back to the raw text.
+
+**Not covered.** A number split across a line break inside a run of pages; a
+fullwidth number inside a table-dialect claim; circled or enclosed numerals,
+which stay non-numbers by design. The measured perf cost is unchanged.
