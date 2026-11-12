@@ -5369,3 +5369,49 @@ more than it must, never less, so it was left alone rather than risk the
 tiers that already pass; a real PDF that splits a group across a line break
 is also untested, because the pattern deliberately refuses to join across
 one.
+- [x] **P1 - an attribute written on the fence and again in the body silently dropped the body's value (0.22.89)**
+
+  What was wrong: a claim block can name one attribute twice, once on the
+  opening line (`source=paper`) and again in the body (`source: alt`).
+  `_claim_from` merged the two with `merged.update(attrs)`, so the opening
+  line won and the body's value vanished with no finding. Measured with a
+  quote printed in `alt.txt` and nowhere in `paper.txt`, the block
+
+      ```claim id=c1 source=paper page=1
+      quote: |
+        We collected 154,391 examples from the corpus.
+      source: alt
+      ```
+
+  gave `[high] quote-missing at m.md:1 (c1): quote not found in paper.txt` -
+  an accusation against an author who wrote the right source three lines
+  below the fence - and the same block with the values swapped verified
+  silently. Five attributes behaved this way: `source`, `page`, `id`,
+  `marker`, `ref`.
+
+  What it does now: the precedence rule is unchanged (the fence wins,
+  because that is where the format is documented), and a new
+  `claim-field-shadowed` (medium) finding names both values, which one was
+  used, and the line carrying the one that was dropped. One finding per
+  attribute, because findings on one line are deduplicated downstream and a
+  loop would report the first and hide the rest. The snapshot of the opening
+  line is taken before the merge, since after it the loser is unrecoverable.
+
+  Why it is now true: `tests/test_cross_layer_attributes.py` (17 tests)
+  covers all five attributes, both directions, the line number of the loser,
+  the silent cases (equal values, body-only keys, fence-only keys, the `ref`
+  `cite` alias pair keeping its own finding), and three end-to-end
+  verdicts. Eleven mutations were run and ten were caught: the finding never
+  produced, the snapshot moved after the merge, the equal values reported,
+  the missing keys reported, the body winning, the line pinned to the
+  fence,
+  the message naming the winner as the loser, only one attribute reported,
+  `places` never filled, and the alias pair pulled into the same-name rule.
+  The eleventh (`x = dict(y)` -> `x = y`) is equivalent: `attrs = merged`
+  rebinds a name and never writes into the dict the callee already holds.
+
+  Not covered: a body attribute inside a list item's indented claim block,
+  where the body line offset is measured against an indented fence; and the
+  comment dialect's one-line form, which has no body lines to shadow
+  anything.
+
