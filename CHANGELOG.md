@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.99] — 2026-11-12
 ### Fixed
 * **Four sentences told the reader to convert a file, and named one that was
   not there.** Each of them printed `path.name`, so a source at
@@ -28,7 +29,6 @@ tag and that file disagree.
   import cycle, and `draft` grew a `manuscript_name` argument because the
   path it uses for identity is not the path it should print. 11 tests, 10
   mutations, all red.
-
 ## [0.22.98] — 2026-11-12
 ### Fixed
 
@@ -5310,7 +5310,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.98...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.99...HEAD
+[0.22.99]: https://github.com/lyear12/citevouch/releases/tag/v0.22.99
 [0.22.98]: https://github.com/lyear12/citevouch/releases/tag/v0.22.98
 [0.22.97]: https://github.com/lyear12/citevouch/releases/tag/v0.22.97
 [0.22.96]: https://github.com/lyear12/citevouch/releases/tag/v0.22.96
