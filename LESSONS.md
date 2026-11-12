@@ -8338,3 +8338,27 @@ How to apply:
 * When you normalise for one reader, check the ones with offsets.  `mask_numbers`
   must keep one placeholder per number, and a function that also collapsed
   whitespace would merge two numbers into one slot.
+
+## A sentinel is only a sentinel if the input cannot supply it
+
+The matcher blanks numbers out and compares the blanks; the numbers tier
+counts the blanks before a match to learn which number the page printed
+there. The blank was `\x00`, and a NUL is a character a PDF extractor can
+leave in the text - six pages among 250 real PDFs had one. One NUL before
+the match shifted every slot by one, so a page printing `9,801` in the
+quoted sentence was reported as printing `7`, which sits two sentences
+later. The verdict flipped on a character no reader can see.
+
+* A marker character is a claim that the input cannot produce it. Write
+  down why that is true, and if the answer is "it cannot" because the
+  sentinel is a control character, measure it against the real corpus.
+  Six pages in 250 is not a rare event; it is a Tuesday.
+* When a marker carries meaning (here: one marker, one number), sanitise
+  the input on the way in rather than trusting the count on the way out.
+  `_without_the_placeholder` is one line, and it makes "a blank means a
+  number" true instead of intended.
+* Removing the sentinel early is not automatically the fix to test: the
+  only character whose NFKC folding yields a NUL is the NUL itself, so
+  removing it before or after folding is the same function. A surviving
+  mutation is sometimes a theorem - measure it, record it, and do not
+  add a test that pretends it was a bug.

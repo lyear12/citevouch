@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **The character that stands for a number was a character a page can
+  contain.**  The matcher blanks every number out as `\x00` and compares the
+  blanks; the numbers tier then counts the blanks before the match to learn
+  *which* number the page printed at that spot.  PDF extraction does keep NUL
+  bytes - six pages among the first 250 PDFs of one real corpus carry one - and
+  a NUL anywhere before the match added one to that count, shifting every slot
+  by one number.  A page reading `A footnote says 9,800 somewhere.\x00We
+  collected 9,801 examples from the corpus. Then 7 more.` was reported as
+  printing `7` *where the quote says 9,800* in a manuscript quoting
+  `We collected 9,800 examples from the corpus.`; the page prints `9,801` in
+  that very sentence, and the same page without the NUL reported `9,801`.  The
+  verdict depended on a character no reader can see.  `matching` now removes
+  the placeholder from the text before masking it
+  (`_without_the_placeholder`), so a blank is written only where a number was.
+
+4021 tests, 7 mutations, 6 red and 1 measured equivalent.
 
 ## [0.22.93] — 2026-11-12
 ### Fixed

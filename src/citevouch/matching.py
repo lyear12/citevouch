@@ -235,6 +235,24 @@ class Match:
         return self.tier in ("exact", "canonical", "hyphen", "pasted", "squashed")
 
 
+def _without_the_placeholder(text: str) -> str:
+    """``text`` in its number-comparison spelling, with no placeholder left in it.
+
+    The placeholder is a real character and a source can supply it: NUL bytes
+    survive PDF extraction (six pages in the first 250 PDFs of one real corpus
+    carry one), and a NUL in the page text then counts as a blanked number.  The
+    numbers tier finds the quote by counting placeholders up to the match, so one
+    stray NUL before the passage shifted every slot by one and the report named
+    the wrong figure: a page printing ``9,801`` in the quoted sentence and ``7``
+    further down was reported as printing ``7`` *where the quote says 9,800*,
+    which is a sentence about the author's claim that the page contradicts.
+    Removing the character here is what makes "a placeholder means a number"
+    true rather than merely intended, and it is honest about what a NUL is: not
+    a character a reader can see, but an extraction artefact.
+    """
+    return fold_number_forms(text).replace(_NUMBER_PLACEHOLDER, "")
+
+
 def mask_numbers(text: str) -> str:
     """Replace every number with a placeholder so two texts can be compared.
 
@@ -245,8 +263,12 @@ def mask_numbers(text: str) -> str:
     numbers tier - whose whole job is to line the quote's numbers up with the
     page's - then compared two lists that were not the same list.  See
     ``textnorm.fold_number_forms``.
+
+    A source's own placeholder characters are removed first, so the count is a
+    count of numbers and not one number plus whatever control characters the
+    extractor left behind.  See ``_without_the_placeholder``.
     """
-    return _NUMBER.sub(_NUMBER_PLACEHOLDER, fold_number_forms(text))
+    return _NUMBER.sub(_NUMBER_PLACEHOLDER, _without_the_placeholder(text))
 
 
 def number_spans(text: str) -> list[tuple[str, int]]:
@@ -259,7 +281,7 @@ def number_spans(text: str) -> list[tuple[str, int]]:
     space thousands-separator ("1 000") that REPORT refuses to invent, because
     masking too much is harmless and reporting a number nobody wrote is not.
     """
-    return [(m.group(0), m.start()) for m in _NUMBER.finditer(fold_number_forms(text))]
+    return [(m.group(0), m.start()) for m in _NUMBER.finditer(_without_the_placeholder(text))]
 
 
 def _numbers_under(text: str, skip: int, want: int) -> tuple[str, ...]:
