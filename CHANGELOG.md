@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **One block, one attribute, two findings that contradicted each other.** A
+  block writing `source=paper` on the opening line and `source: alt` then
+  `source: other` in its body produced two findings about the same
+  attribute:
+
+      [medium] claim-field-shadowed at m.md:4: ... as 'paper' on the
+               opening line and 'alt' in the body; ... the body value
+               was dropped
+      [medium] claim-field-repeated at m.md:5: ... the first, 'alt', was
+               kept and 'other' was dropped
+
+  The two sentences are about one value and disagree: the first says `alt`
+  was dropped, the second says it was kept, and the ledger records a third
+  answer (`paper`). The repeat finding described the body in isolation, as
+  if nothing above it had won. When the opening line already writes that
+  attribute, the sentence now says so, counts the fence among the writings,
+  names the value that won and every body value that lost. A body-only
+  repeat keeps its old sentence, because there nothing above it won.
+
+  9 tests, 10 mutations, all caught.
+
 ## [0.22.89] — 2026-11-12
 ### Fixed
 

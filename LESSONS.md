@@ -8185,3 +8185,38 @@ How to apply:
   before adding a test: if the callee cannot observe the difference, the
   mutation is equivalent and the right record is a note, not a test.
 
+## Two findings about one attribute are one story, and both get read
+
+When one defect has to be reported it is easy to write the sentence from
+the perspective of the code that noticed it, and forget that the author
+reads the whole output top to bottom. A claim block writing one attribute
+on its opening line and twice in its body produced:
+
+    [medium] claim-field-shadowed  ... 'alt' in the body ... was dropped
+    [medium] claim-field-repeated  ... the first, 'alt', was kept ...
+
+One screenful, one value, both sentences. The ledger recorded `paper`.
+Each finding was correct *about its own layer* - the body does keep `alt`
+over `other` - and the pair is a contradiction the author has to resolve
+from nothing.
+
+The shape to watch for is a sentence that is scoped to a layer but read as
+if it were scoped to the block. "the first X was kept" is only true if
+nothing above it overrides X; when something does, the sentence needs that
+fact, the winner's value, and the full list of what lost.
+
+How to apply:
+
+* When a helper emits a finding about part of a structure, pass it what the
+  rest of the structure already decided. Here `_repeated_fields` needed the
+  opening line's values, not just its names, and both call sites had to
+  hand them over - one call site would have fixed half the dialects.
+* Read the output as the user does: every pair of findings on the same line
+  or the same field has to be checked against each other, not just each
+  one against the code. A mutation that removes the cross-finding knowledge
+  has to be among the tests, or it survives.
+* Keep the sentence for the un-shadowed case untouched. A fix that also
+  rewrites the case that was already right is a second change nobody asked
+  for, and its own tests will not notice because they assert the code, not
+  the sentence.
+

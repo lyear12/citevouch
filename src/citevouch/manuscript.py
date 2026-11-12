@@ -720,6 +720,7 @@ def _repeated_fields(
     dropped: list[tuple[int, str, str, str]],
     path: str,
     line: int,
+    taken: dict[str, str] | None = None,
 ) -> list[Finding]:
     """Name each attribute this block wrote twice, keeping the first value.
 
@@ -731,26 +732,54 @@ def _repeated_fields(
     The line is the first repeated spelling, not the block's opening line - the
     author has to go and delete that line, and the opening line is already
     carrying the quote they wrote.
+
+    ``taken`` holds the values the opening line already wrote.  When one of them
+    is repeated in the body, no body value survived: the fence wins the whole
+    attribute, so the sentence must not claim the body's first value was kept
+    while ``claim-field-shadowed`` says that same value was dropped.  Measured
+    on a block writing ``source=paper`` on the fence and ``source: alt`` then
+    ``source: other`` in the body, the two findings disagreed about ``alt`` in
+    one screenful of output.
     """
     by_name: dict[str, list[tuple[int, str, str]]] = {}
     for offset, name, kept, value in dropped:
         by_name.setdefault(name, []).append((offset, kept, value))
-    return [
-        Finding(
-            code="claim-field-repeated",
-            message=(
+    shadowed = taken or {}
+    out: list[Finding] = []
+    for name, values in sorted(by_name.items()):
+        written = _and_list_values([v for _, _, v in values])
+        if name in shadowed:
+            # Every body value lost, including the first one, so the sentence
+            # must not call that first value the kept one.
+            body_values = [values[0][1]] + [v for _, _, v in values]
+            every = _and_list_values(body_values)
+            plural = len(body_values) > 1
+            message = (
+                f"this claim block writes {name} "
+                f"{count_of(len(values) + 2, 'time')}, {written} in the body "
+                f"and {shadowed[name]!r} on the opening line; the opening "
+                f"line's value won, so the body "
+                f"{'values' if plural else 'value'} {every} "
+                f"{'were all dropped' if plural else 'was dropped'} - delete "
+                "the body lines, or move the one you meant up"
+            )
+        else:
+            message = (
                 f"this claim block writes {name} "
                 f"{count_of(len(values) + 1, 'time')}, with different values; "
-                f"the first, {values[0][1]!r}, was kept and "
-                f"{_and_list_values([v for _, _, v in values])} "
+                f"the first, {values[0][1]!r}, was kept and {written} "
                 f"{'was' if len(values) == 1 else 'were'} dropped - delete the "
                 "extra line, or keep the one you meant"
-            ),
-            path=path,
-            line=line + min(offset for offset, _, _ in values),
+            )
+        out.append(
+            Finding(
+                code="claim-field-repeated",
+                message=message,
+                path=path,
+                line=line + min(offset for offset, _, _ in values),
+            )
         )
-        for name, values in sorted(by_name.items())
-    ]
+    return out
 
 
 def _and_list_values(values: list[str]) -> str:
@@ -1150,7 +1179,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 attrs, quote, claim_text, path, start_line, in_body, in_body_places
             )
             more.extend(opened_with)
-            more.extend(_repeated_fields(in_body_lines, path, start_line))
+            more.extend(_repeated_fields(in_body_lines, path, start_line, attrs))
             more.extend(
                 _repeated_fields([(0, n, k, v) for n, k, v in on_the_line], path, start_line)
             )
@@ -1297,7 +1326,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             )
             more.extend(_unknown_attr_findings(head, path, start_line))
             more.extend(_opening_colon_findings(head, path, start_line))
-            more.extend(_repeated_fields(in_body_lines, path, start_line))
+            more.extend(_repeated_fields(in_body_lines, path, start_line, attrs))
             more.extend(
                 _repeated_fields([(0, n, k, v) for n, k, v in on_the_line], path, start_line)
             )
