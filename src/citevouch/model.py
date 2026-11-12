@@ -120,6 +120,18 @@ CODES = {
     # above, and the same reason for existing: without it the verdict depended
     # on the order of two lines, one of which accused the author.
     "claim-field-repeated": "medium",
+    # The same attribute written once on the fence and once in the body.  Both
+    # are the author's text and the fence wins, which is the documented rule;
+    # what was missing is the sentence saying so.  Measured with a quote
+    # printed in `alt.txt` and nowhere in `paper.txt`:
+    #
+    #     source=paper (fence) + source: alt (body)  ->  [high] quote-missing
+    #     source=alt (fence) + source: paper (body)  ->  exit 0, no finding
+    #
+    # One accused the author of quoting a passage that is on the page; the
+    # other dropped a line without a word.  Medium for the same reason as the
+    # two above: the quote is still compared, an instruction was not applied.
+    "claim-field-shadowed": "medium",
     "claim-block-unread": "high",
     # A page hint that is not a number.  The claim is still located by search,
     # so this is a note about an instruction being ignored, not a rejection.

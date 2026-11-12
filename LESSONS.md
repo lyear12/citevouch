@@ -8144,3 +8144,44 @@ How to apply:
   types the comma. The interesting case is always the pair, never one side.
 * When widening a token, pin what must *not* widen in the same file: the
   year rule, the group width, the newline boundary.
+## A merge is a ruling, and a ruling that is not written down is a deletion
+
+Two layers of one claim can name the same attribute: the opening line
+(`id=c1 source=paper page=1`) and the body (`source: alt`). Both are the
+author's own text, so one of them has to win - that is a design decision and
+it did not change (the fence wins; it is where the format is documented).
+What was missing is that the loser left no trace. Measured on a project whose
+quote is printed in `alt.txt` and nowhere in `paper.txt`:
+
+    ```claim id=c1 source=paper page=1
+    quote: |
+      We collected 154,391 examples from the corpus.
+    source: alt
+    ```
+
+gave `[high] quote-missing ... quote not found in paper.txt`, and the same
+block written the other way round verified with no finding at all. The
+difference between `paper` and `alt` - the difference between an accusation
+and a green check - was decided by `merged.update(attrs)`, a line the author
+never sees.
+
+The shape to watch for is not the dict assignment (`claim-field-repeated`
+already covered two writes in one place). It is the *precedence*: wherever
+two sources feed one field, the loser is a statement that was deleted and the
+deletion is invisible by construction. Reading only the winner tells you what
+was used, never what was dropped.
+
+How to apply:
+
+* Before merging two dicts, snapshot the one that will not survive - the
+  snapshot is the only evidence that the other value was ever written.
+  Take it before the merge, with a copy, because `x = merged` rebinds a
+  name and never writes into the dict you already handed out.
+* A precedence rule needs a sentence attached: which value won, which was
+  dropped, and where the dropped one is written. "The fence wins" is a
+  documented rule; "the fence wins and the body value vanished" is a
+  finding.
+* When a mutation test survives `x = dict(y)` -> `x = y`, look for a rebind
+  before adding a test: if the callee cannot observe the difference, the
+  mutation is equivalent and the right record is a note, not a test.
+

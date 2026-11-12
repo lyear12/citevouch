@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **An attribute written on the fence and again in the body silently dropped
+  the body's value.** Measured on a project whose quote is printed in
+  `alt.txt` and nowhere in `paper.txt`:
+
+      ```claim id=c1 source=paper page=1
+      quote: |
+        We collected 154,391 examples from the corpus.
+      source: alt
+      ```
+
+  That block gave `[high] quote-missing ... quote not found in paper.txt` -
+  an accusation against an author who wrote the right source three lines
+  below the fence. Written the other way round (`source=alt` above and
+  `source: paper` below) it verified and said nothing at all, so the body
+  line was gone without a word. The opening line still wins, because the
+  fence is where the format is documented; what is new is
+  `claim-field-shadowed` (medium), one finding per attribute, naming both
+  values, which one won, and the line carrying the one that did not.
+
+  17 tests, 11 mutations (one equivalent), the rest red.
+
 ## [0.22.88] — 2026-11-12
 ### Fixed
 

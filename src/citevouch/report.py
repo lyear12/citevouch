@@ -85,6 +85,10 @@ SARIF_RULES = {
     "claim-field-repeated": (
         "A claim names one attribute twice with different values, so only the first was used."
     ),
+    "claim-field-shadowed": (
+        "A claim names one attribute on the opening line and again in the body with a different "
+        "value, so only the opening line's value was used."
+    ),
     "claim-block-unread": (
         "A claim fence sits where Markdown renders a code sample, so nothing in it was checked."
     ),

@@ -761,6 +761,58 @@ def _and_list_values(values: list[str]) -> str:
     return ", ".join(quoted[:-1]) + " and " + quoted[-1]
 
 
+def _shadowed_fields(
+    opener: dict[str, str],
+    body: dict[str, str],
+    places: dict[str, int] | None,
+    path: str,
+    line: int,
+) -> list[Finding]:
+    """Name an attribute written on both layers with two different values.
+
+    Both layers are the author's own text and the opening line is the one the
+    format documents, so it wins and that rule does not change.  What was
+    missing is the sentence saying the other value was dropped: measured on a
+    project whose quote is printed in ``alt.txt`` and nowhere in ``paper.txt``,
+
+        source=paper (fence) + source: alt (body)  ->  [high] quote-missing
+                                                        "quote not found in
+                                                         paper.txt"
+
+    - an accusation about a passage that is on the page, against an author who
+    wrote the right source three lines below the fence.  Written the other way
+    round it verified and said nothing, so the body line was gone silently.
+
+    One finding per attribute, like ``_repeated_fields``: findings on one line
+    are deduplicated downstream, so a loop would report the first and hide the
+    rest.  ``ref``/``cite`` are two spellings rather than one key and keep
+    their own finding - this only sees the same name written twice.
+    """
+    out: list[Finding] = []
+    for name in sorted(opener):
+        if name not in body:
+            continue
+        chosen, dropped = opener[name], body[name]
+        if chosen == dropped:
+            continue
+        offset = (places or {}).get(name, 0)
+        out.append(
+            Finding(
+                code="claim-field-shadowed",
+                message=(
+                    f"this claim block writes {name} twice, as {chosen!r} on the "
+                    f"opening line and {dropped!r} in the body; the opening line "
+                    "was used and the body value was dropped - the fence is where "
+                    "the format is documented, so delete the body line or move "
+                    "that value up"
+                ),
+                path=path,
+                line=line + offset,
+            )
+        )
+    return out
+
+
 def _claim_from(
     attrs: dict[str, str],
     quote: str,
@@ -768,18 +820,24 @@ def _claim_from(
     path: str,
     line: int,
     body: dict[str, str] | None = None,
+    places: dict[str, int] | None = None,
 ) -> tuple[Claim | None, list[Finding]]:
     """Build the claim, letting the body's attribute lines fill in what is absent.
 
     ``attrs`` comes from the opening line and wins when both name the same key:
     the fence is where the format is documented, and a reader who wrote it in
     both places meant the one next to ``claim``.
+
+    ``places`` holds the body line offset of each attribute name, so the
+    finding about an overridden value can point at the line carrying it.
     """
+    written_next_to_claim = dict(attrs)
     if body:
         merged = dict(body)
         merged.update(attrs)
         attrs = merged
     findings: list[Finding] = []
+    findings.extend(_shadowed_fields(written_next_to_claim, body or {}, places, path, line))
     # Two spellings of one statement, written with different values.  The
     # format accepts both (`ref=` and `cite=`), and the lookup has to pick one -
     # so the pair is a statement the author made twice and the reader applied
@@ -1084,8 +1142,13 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                 j += 1
             closed = j < len(lines) and nested_at is None
             in_body_lines: list[tuple[int, str, str, str]] = []
-            quote, claim_text, in_body, unknown = _split_body(body, in_body_lines)
-            claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            in_body_places: dict[str, int] = {}
+            quote, claim_text, in_body, unknown = _split_body(
+                body, in_body_lines, in_body_places
+            )
+            claim, more = _claim_from(
+                attrs, quote, claim_text, path, start_line, in_body, in_body_places
+            )
             more.extend(opened_with)
             more.extend(_repeated_fields(in_body_lines, path, start_line))
             more.extend(
@@ -1225,8 +1288,13 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
                     j += 1
                 closed = j < len(lines)
             in_body_lines: list[tuple[int, str, str, str]] = []
-            quote, claim_text, in_body, unknown = _split_body(body, in_body_lines)
-            claim, more = _claim_from(attrs, quote, claim_text, path, start_line, in_body)
+            in_body_places: dict[str, int] = {}
+            quote, claim_text, in_body, unknown = _split_body(
+                body, in_body_lines, in_body_places
+            )
+            claim, more = _claim_from(
+                attrs, quote, claim_text, path, start_line, in_body, in_body_places
+            )
             more.extend(_unknown_attr_findings(head, path, start_line))
             more.extend(_opening_colon_findings(head, path, start_line))
             more.extend(_repeated_fields(in_body_lines, path, start_line))
@@ -1460,6 +1528,7 @@ def _at_the_margin(raw: str, margin: int) -> bool:
 def _split_body(
     body: list[str],
     dropped: list[tuple[int, str, str, str]] | None = None,
+    places: dict[str, int] | None = None,
 ) -> tuple[str, str, dict[str, str], list[tuple[int, str]]]:
     """Split a claim body into (quote, claim, attributes, field lines we did not know).
 
@@ -1546,6 +1615,8 @@ def _split_body(
                         dropped.append((index, name, attributes[name], value))
                 else:
                     attributes[name] = value
+                    if places is not None:
+                        places[name] = index
                 current = ""
                 continue
             keyish = _KEYISH.match(raw) or _KEYISH_EQUALS.match(raw)
