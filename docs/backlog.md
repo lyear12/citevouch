@@ -5570,3 +5570,53 @@ each reader falling back to the raw text.
 **Not covered.** A number split across a line break inside a run of pages; a
 fullwidth number inside a table-dialect claim; circled or enclosed numerals,
 which stay non-numbers by design. The measured perf cost is unchanged.
+
+
+- [x] **P1 - a NUL in the page was counted as a blanked number, so the report named the wrong figure (0.22.94)**
+
+What was wrong:
+
+The matcher blanks every number out as `\x00` and compares the blanks; the
+  numbers tier counts the blanks before a match to learn which number the
+  page printed at that spot. PDF extraction keeps NUL bytes - six pages
+  among the first 250 PDFs of one real corpus carry one - and a NUL anywhere
+  before the match added one to the count, shifting every slot by one
+  number. A page reading
+  `A footnote says 9,800 somewhere.\x00We collected 9,801 examples from the corpus. Then 7 more.`
+  was reported as printing `7` where the quote says `9,800`, in a manuscript
+  quoting `We collected 9,800 examples from the corpus.` The page prints
+  `9,801` in that very sentence, and the same page without the NUL reported
+  `9,801`. Same page, same quote, one invisible character apart, two
+  different accusations.
+
+What it does now:
+
+`matching._without_the_placeholder` removes the sentinel from the text
+  before it is masked, so a blank is written only where a number was. Both
+  `mask_numbers` and `number_spans` go through it, so the masker's count and
+  the span reader's tokens stay in step, and `_numbers_under` lands on the
+  number the page actually prints. Twenty tests pin the count, both ends of
+  the end-to-end verdict, and the things that must not change: one blank per
+  number, a fullwidth number is still one number, `2019 2020 2021` is still
+  three years, and a bare space is still a thousands group at most once.
+
+Why it is now true:
+
+Seven mutations: leaving the artefact in place, both readers bypassing the
+  helper, removing only the first artefact, removing only leading artefacts,
+  and the masker forgetting the helper are all red. The seventh - removing
+  the sentinel before rather than after the folding - survived, and that is
+  a theorem rather than a gap: a full scan of 0x110000 found the NUL itself
+  is the only character whose NFKC folding yields a NUL, so the two orders
+  are the same function. Recorded as equivalent, not papered over with a
+  test.
+
+Not covered:
+
+A NUL inside a number (`40\x00688`) is read as one number rather than two;
+  that is the charitable direction and it is tested, but the corpus read did
+  not contain the case. A NUL inside a claim block's own quote text is not
+  covered: the manuscript reader drops control characters before this code
+  sees them, so the tests only cover pages. No audit was made of other
+  characters a page can supply that the masker treats as content; this fix
+  removes the one the masker itself injects.
