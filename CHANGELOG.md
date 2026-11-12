@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.91] — 2026-11-12
 ### Fixed
 
 * **An attribute line was read as quote text whenever the body named no
@@ -36,7 +37,6 @@ tag and that file disagree.
   reader that treats every such line as a field cuts quotations in half.
 
   25 tests, 13 mutations (11 caught, 2 shown equivalent), all caught.
-
 ## [0.22.90] — 2026-11-12
 ### Fixed
 
@@ -5096,7 +5096,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.90...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.91...HEAD
+[0.22.91]: https://github.com/lyear12/citevouch/releases/tag/v0.22.91
 [0.22.90]: https://github.com/lyear12/citevouch/releases/tag/v0.22.90
 [0.22.89]: https://github.com/lyear12/citevouch/releases/tag/v0.22.89
 [0.22.88]: https://github.com/lyear12/citevouch/releases/tag/v0.22.88
