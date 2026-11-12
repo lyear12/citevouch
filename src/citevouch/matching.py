@@ -62,6 +62,7 @@ from .textnorm import (
     canonical_number,
     fold,
     fold_keeping_hyphen,
+    fold_number_forms,
     fold_pasted,
     squash,
     strip_wrapping_quotes,
@@ -235,8 +236,17 @@ class Match:
 
 
 def mask_numbers(text: str) -> str:
-    """Replace every number with a placeholder so two texts can be compared."""
-    return _NUMBER.sub(_NUMBER_PLACEHOLDER, text)
+    """Replace every number with a placeholder so two texts can be compared.
+
+    The digits are folded first, so the placeholder count is a count of
+    *numbers* and not of the spellings a page happened to use.  Reading the raw
+    text instead split a page's fullwidth ``\uff14\uff10\uff0c\uff16\uff18\uff18`` into
+    two placeholders while the quote typing ``40,688`` produced one, and the
+    numbers tier - whose whole job is to line the quote's numbers up with the
+    page's - then compared two lists that were not the same list.  See
+    ``textnorm.fold_number_forms``.
+    """
+    return _NUMBER.sub(_NUMBER_PLACEHOLDER, fold_number_forms(text))
 
 
 def number_spans(text: str) -> list[tuple[str, int]]:
@@ -249,7 +259,7 @@ def number_spans(text: str) -> list[tuple[str, int]]:
     space thousands-separator ("1 000") that REPORT refuses to invent, because
     masking too much is harmless and reporting a number nobody wrote is not.
     """
-    return [(m.group(0), m.start()) for m in _NUMBER.finditer(text)]
+    return [(m.group(0), m.start()) for m in _NUMBER.finditer(fold_number_forms(text))]
 
 
 def _numbers_under(text: str, skip: int, want: int) -> tuple[str, ...]:

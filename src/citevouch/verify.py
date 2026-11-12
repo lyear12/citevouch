@@ -41,6 +41,7 @@ from .textnorm import (
     UNDECODED,
     canonical_number,
     count_of,
+    fold_number_forms,
     is_are,
     numbers_in,
     read_loses_bytes,
@@ -1146,4 +1147,4 @@ def _page_numbers(text: str) -> tuple[str, ...]:
     digits, then exactly three - so a year still cannot start one, and this
     agrees with the answer the canonical tier gives.
     """
-    return tuple(match.group(0) for match in CANON_PATTERN.finditer(text))
+    return tuple(match.group(0) for match in CANON_PATTERN.finditer(fold_number_forms(text)))

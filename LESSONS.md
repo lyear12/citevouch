@@ -8303,3 +8303,38 @@ How to apply:
   `\newcommand*` was spent by an explicit branch and again by
   `_skip_optional_args`; deleting the branch changed nothing, which is how it
   was found.
+
+## Two readers that see the same fact differently are reading different strings
+
+A page printed `４０，６８８` (fullwidth).  The quote typed `40,688`.  One run
+printed both of these about that one sentence:
+
+    [info] quote-found at page.txt:1 (c1): quote found on page 1
+    [high] number-absent-in-quote: claim c1: the quote says 40,688 but page 1
+           of the source does not contain that number
+
+The matcher compares `fold`ed text, where NFKC has already turned the fullwidth
+comma into `,`, so it saw one number and found the quote.  `_page_numbers` used
+`CANON_PATTERN` on the *raw* page, whose separator list holds `,`, `.`, U+066C
+and the space forms but not `，`, so it read two numbers.  Neither reader was
+wrong by its own rule.  The bug was that there were two rules.
+
+How to apply:
+
+* When two parts of a program disagree about one datum, do not ask which one is
+  right - ask what each one is reading.  Trace both back to their input and
+  compare the strings, not the conclusions.
+* Give the sharing a name.  The fix here is `textnorm.fold_number_forms`, a
+  function whose whole body is "apply NFKC, drop format characters".  The five
+  readers call it.  A helper that only exists because five callers need the
+  same *reading* is different from a helper that exists to avoid repetition.
+* Normalise only what is equivalent.  NFKC folds fullwidth digits because they
+  are compatibility spellings of the same character; it does not fold
+  Arabic-Indic digits, and it must not be made to - `numbers_in` promises to
+  report a number the way the document spells it, and adding `_ascii_digits`
+  there silently broke that promise for every non-Latin script.  Value
+  comparison belongs in `canonical_number`, which is a different function
+  because it answers a different question.
+* When you normalise for one reader, check the ones with offsets.  `mask_numbers`
+  must keep one placeholder per number, and a function that also collapsed
+  whitespace would merge two numbers into one slot.

@@ -391,6 +391,43 @@ CANON_PATTERN = re.compile(
 _GROUPING = re.compile(r"[.,]")
 
 
+def fold_number_forms(text: str) -> str:
+    """The text with every character that *is* a digit or a separator folded.
+
+    NFKC, format characters removed, every script's digits to ASCII - and
+    nothing about layout.  Whitespace is left exactly where it was written, so
+    a number that ends a line still cannot swallow the one that starts the next.
+
+    This is the view every number *reader* shares with the matcher, and the
+    reason it exists is a measured disagreement.  A page printed ４０，６８８
+    for forty thousand six hundred and eighty-eight; NFKC turns that into
+    40,688, which is why the matcher certified a quote typing the ASCII form.
+    But ``verify._page_numbers`` scanned the *raw* page text, and its fullwidth
+    comma is not one of the separators ``CANON_PATTERN`` knows, so the page's
+    one number came back as two - ``40`` and ``688`` - and one run printed
+
+        [info] quote-found at page.txt:1 (c1): quote found on page 1
+        [high] number-absent-in-quote ... the quote says 40,688 but page 1
+               does not contain that number
+
+    about one sentence on one page.  Both halves were right by their own rules;
+    they were reading different strings.
+
+    ``fold`` would have been too much: it collapses whitespace, and a
+    collapsed line break turns two numbers into one.
+
+    Script digits are deliberately *not* folded here.  NFKC already turns the
+    fullwidth ``\uff14`` into ``4`` - that is a compatibility spelling of the
+    same character - but Arabic-Indic ``\u0664`` is not, and a reader that
+    returned ``40688`` for a page printing ``\u0664\u0660\u0666\u0668\u0668`` would
+    report a number the page never printed.  Comparing values is
+    :func:`canonical_number`'s job; this function only makes the characters
+    that are the same character the same.
+    """
+    out = unicodedata.normalize("NFKC", text)
+    return strip_format(out)
+
+
 def quote_numbers(quote: str) -> tuple[str, ...]:
     """The numbers a *quote* carries, in order, as written.
 
@@ -410,7 +447,8 @@ def quote_numbers(quote: str) -> tuple[str, ...]:
     """
     if not quote:
         return ()
-    return tuple(match.group(0) for match in CANON_PATTERN.finditer(quote))
+    found = CANON_PATTERN.finditer(fold_number_forms(quote))
+    return tuple(match.group(0) for match in found)
 
 
 def numbers_in(text: str) -> tuple[str, ...]:
@@ -424,7 +462,7 @@ def numbers_in(text: str) -> tuple[str, ...]:
     """
     if not text:
         return ()
-    return tuple(m.group(0) for m in REPORT_PATTERN.finditer(text))
+    return tuple(m.group(0) for m in REPORT_PATTERN.finditer(fold_number_forms(text)))
 
 
 def canonical_number(token: str) -> str:

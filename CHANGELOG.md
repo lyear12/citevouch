@@ -11,6 +11,34 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+* **One sentence on one page came back both found and absent, because two
+  readers were reading two different strings.**  A page printed the fullwidth
+  `４０，６８８` and the quote typed `40,688`.  The matcher compares folded
+  text, so it found the quote and printed `[info] quote-found at page.txt:1
+  (c1): quote found on page 1`.  `verify._page_numbers` scanned the raw page
+  with `CANON_PATTERN`, whose separator list has no fullwidth comma; it read
+  one number as `40` and `688`, so the number layer printed `[high]
+  number-absent-in-quote ... the quote says 40,688 but page 1 of the source
+  does not contain that number`.  Both halves were right by their own rules.
+  The same split made `mask_numbers` write two placeholders where the quote
+  wrote one, so the numbers tier could never line a fullwidth page up with an
+  ASCII quote, and a quote typed in the fullwidth form was read as two
+  numbers.
+* **The five readers now share one reading.**  `textnorm.fold_number_forms`
+  applies NFKC and drops format characters, and nothing else.  The page reader
+  (`verify._page_numbers`), the quote reader (`quote_numbers`), the report
+  reader (`numbers_in`), the masker (`matching.mask_numbers`) and the span
+  reader (`matching.number_spans`) all pass their text through it first.  NFKC
+  is exactly the right amount: it turns `４` and `，` into `4` and `,` because
+  those are compatibility spellings of the same characters, and it leaves
+  whitespace and offsets alone.  It deliberately does *not* translate
+  Arabic-Indic or Devanagari digits - `numbers_in` reports a number the way
+  the document spells it, and `canonical_number` is the one place that
+  compares values.
+
+4001 tests, 10 mutations, all red.
 
 ## [0.22.92] — 2026-11-12
 ### Fixed
