@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.22.94] — 2026-11-12
 ### Fixed
 
 * **The character that stands for a number was a character a page can
@@ -29,7 +31,6 @@ tag and that file disagree.
   (`_without_the_placeholder`), so a blank is written only where a number was.
 
 4021 tests, 7 mutations, 6 red and 1 measured equivalent.
-
 ## [0.22.93] — 2026-11-12
 ### Fixed
 
@@ -5183,7 +5184,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.93...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.94...HEAD
+[0.22.94]: https://github.com/lyear12/citevouch/releases/tag/v0.22.94
 [0.22.93]: https://github.com/lyear12/citevouch/releases/tag/v0.22.93
 [0.22.92]: https://github.com/lyear12/citevouch/releases/tag/v0.22.92
 [0.22.91]: https://github.com/lyear12/citevouch/releases/tag/v0.22.91
