@@ -5717,3 +5717,43 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   library on an otherwise sound project. `scan` and `verify` were not touched;
   they never had this seam.
 
+- [x] **P1 - the commands `doctor` printed did not run: a manuscript at `paper/m.md` got `citevouch draft m.md -o claims.md` (0.22.97)**
+
+**What was wrong.** Each failed check ends with a sentence naming what to
+  type, and that sentence is the whole point of the line. It was assembled
+  from `target.name` - the file name alone - so the directory vanished, and
+  the `--root` the run had been given was dropped the same way.
+  `citevouch draft m.md -o claims.md` answers
+  `citevouch: manuscript m.md does not exist`. The LaTeX branch did the
+  same, and the GBK branch printed a bare `citevouch scan`, which is
+  argparse text rather than a command. `draft` had already fixed exactly
+  this for its own closing advice, four releases earlier, in
+  `cli._check_advice`; the rule existed and the second caller had never
+  heard of it.
+
+**What it does now.** The rule lives in `citevouch.advice`: `shell_word`
+  quotes a value for a shell, `root_words` yields `--root` when the root is
+  not the default, and `citevouch_command` joins them after the program
+  name. `doctor` 's four builders (`_draft_advice`, `_scan_advice`,
+  `_check_advice`, and the `iconv` line for a miscoded file) and `cli` 's
+  `_check_advice` all go through it, so one string cannot drift from the
+  other. A run above the project prints
+  `citevouch draft paper/m.md -o claims.md --root paper`; a run inside it
+  keeps the short form.
+
+**Why it is now true.** `tests/test_doctor_advice_runs.py` takes the
+  command out of the output and runs it with `shlex.split`, from the
+  directory above the project - the one place where printing the bare name
+  and printing the real path give different answers. 14 tests cover the four
+  branches, the `--root` form, the shell-quoting edge cases (space,
+  backslash, apostrophe, empty) and the two commands `draft` prints. 12
+  mutations: dropping the directory, dropping the root from each of the
+  three builders, restoring the bare `citevouch scan`, printing backslashes,
+  printing `--root .`, and three quoting relaxations - all red. Full suite
+  4073 passed, 237 files formatted, demo red line unchanged.
+
+**Not covered.** An absolute `--root` is quoted by the same branch but no
+  test pins that spelling. Shells other than POSIX sh: the quoting is
+  single-quote-with-escape, correct for sh/bash/zsh and PowerShell's
+  argument parser, wrong for `cmd.exe`, which the tool never claims to
+  support.
