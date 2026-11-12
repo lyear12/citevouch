@@ -24,6 +24,8 @@ A helper both callers ask for cannot disagree with itself.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 # The quoting condition treats a backslash as needing quotes, and on Windows it
 # is the ordinary separator rather than an exotic character.  Built through
 # chr() because a literal backslash in a Python source file is one syntax
@@ -52,6 +54,24 @@ def shell_word(value: str) -> str:
     if any(ch.isspace() for ch in value) or any(ch in value for ch in "\"'$`" + _BACKSLASH):
         return "'" + value.replace("'", "'" + _BACKSLASH + "''") + "'"
     return value
+
+
+def shell_path(path: str | Path) -> str:
+    """A path as a shell would need it, with forward slashes.
+
+    Three sentences in this tool print a path for the reader to paste - the
+    two that convert a source and the two that convert a manuscript - and each
+    of them printed ``path.name``.  For a file at ``sources/paper.docx`` that
+    is ``paper.docx``, which is a file that does not exist where the reader is
+    standing, so the copy-paste they were invited to do fails on a path this
+    tool invented.  Forward slashes for the same reason the ledger uses them:
+    the printed line is read on whatever platform the reader has.
+
+    Quoting is not decoration: a directory called ``my papers`` would split
+    into two arguments and the command would fail for a reason unrelated to
+    the file.
+    """
+    return shell_word(Path(path).as_posix())
 
 
 def citevouch_command(*words: str) -> str:

@@ -28,7 +28,7 @@ from . import __version__
 from . import doctor as doctor_module
 from . import draft as draft_module
 from . import latex as latex_module
-from .advice import citevouch_command, root_words, shell_word
+from .advice import citevouch_command, root_words, shell_path, shell_word
 from .bibtex import merge_entries, parse_bib_group
 from .errors import CitevouchError, UsageError, why_not_a_file
 from .manuscript import parse_manuscript
@@ -770,6 +770,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
         # it writes a block that `check` rejects on sight.
         manuscript=str(manuscript),
         manuscript_digest=sha256_file(manuscript),
+        manuscript_name=recorded_path(root, manuscript),
         table=table,
         # The ids the manuscript already uses.  A proposal is a block the author
         # pastes next to the original, so an id the original already has is a
@@ -784,7 +785,9 @@ def cmd_draft(args: argparse.Namespace) -> int:
         manuscript_lost=manuscript_lost,
         bib_unreadable=bib_unreadable,
     )
-    text = draft_module.render(result, manuscript.name, converted=converted, included=included)
+    text = draft_module.render(
+        result, recorded_path(root, manuscript), converted=converted, included=included
+    )
     _write_text_lf(output, text)
     if not args.quiet:
         # What the parser said about the bibliographies, before the summary:
@@ -812,7 +815,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
                     "replacement characters, which is what a decoder writes "
                     "where it could not read a byte, so no citation in it could "
                     "be found. Convert the manuscript to UTF-8 first, for "
-                    f"example `iconv -f GBK -t utf-8 {_shell_word(str(manuscript))} "
+                    f"example `iconv -f GBK -t utf-8 {shell_path(manuscript)} "
                     f"> utf8.md`, then run this command on utf8.md\n",
                     sys.stderr,
                 )

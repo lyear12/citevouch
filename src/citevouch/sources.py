@@ -25,6 +25,7 @@ from pathlib import Path
 from shutil import which
 
 from ._version import __version__
+from .advice import shell_path
 from .errors import UsageError, why_not_a_file
 from .model import Finding, SourceRef
 from .textnorm import (
@@ -442,14 +443,22 @@ def _markup_pages(path: str | Path) -> list[str] | None:
     return [_strip_markup(text)]
 
 
-def _not_text_finding(path: Path, name: str, what: str) -> Finding:
-    """The sentence for a file whose bytes are a document, not words."""
+def _not_text_finding(path: Path, name: str, what: str, root: Path | None = None) -> Finding:
+    """The sentence for a file whose bytes are a document, not words.
+
+    The path in the sentence is the one the ledger would write, so a source at
+    ``sources/paper.docx`` is named ``sources/paper.docx``.  It used to be
+    ``path.name``: the tool said "convert it first" and named ``paper.docx``,
+    a file that is not where the reader is standing, so the command it printed
+    could not be run.
+    """
+    shown = shell_path(_spelled(root, path))
     return Finding(
         code="source-not-text",
         message=(
-            f"{path.name} is {name} - {what} - and citevouch reads PDF, "
+            f"{shown} is {name} - {what} - and citevouch reads PDF, "
             "HTML and plain text.  Convert it first, for example "
-            f"`soffice --convert-to pdf {path.name}`, and point the "
+            f"`soffice --convert-to pdf {shown}`, and point the "
             "claim at the converted file"
         ),
         path=str(path),
@@ -479,7 +488,7 @@ MAX_UNDECODABLE_SHARE = 0.25
 _TEXT_SUFFIXES = (".txt", ".md", ".text", ".html", ".htm", ".xml")
 
 
-def encoding_problem(path: Path, suffix: str) -> Finding | None:
+def encoding_problem(path: Path, suffix: str, root: Path | None = None) -> Finding | None:
     """Refuse a text file whose bytes are not text this tool can decode.
 
     Only the suffixes the plain-text reader owns are judged.  A PDF or a zip
@@ -519,20 +528,23 @@ def encoding_problem(path: Path, suffix: str) -> Finding | None:
     share = invalid_utf8_share(raw)
     if share < MAX_UNDECODABLE_SHARE:
         return None
+    shown = shell_path(_spelled(root, path))
     return Finding(
         code="source-encoding",
         message=(
-            f"{path.name} is not UTF-8: {share:.0%} of its bytes cannot be read "
+            f"{shown} is not UTF-8: {share:.0%} of its bytes cannot be read "
             "as UTF-8, which is the only text encoding this tool reads.  Nothing "
             "in it was read.  Convert it first, for example "
-            f"`iconv -f <its encoding> -t utf-8 {path.name} > utf8.txt`, and "
+            f"`iconv -f <its encoding> -t utf-8 {shown} > utf8.txt`, and "
             "point citevouch at the converted file"
         ),
         path=str(path),
     )
 
 
-def _noisy_format_problem(pages: list[PageText], path: Path, suffix: str) -> Finding | None:
+def _noisy_format_problem(
+    pages: list[PageText], path: Path, suffix: str, root: Path | None = None
+) -> Finding | None:
     """A file read as text whose text is not text, because its name was wrong.
 
     A suffix this tool knows is the author stating the format, and it is
@@ -563,10 +575,12 @@ def _noisy_format_problem(pages: list[PageText], path: Path, suffix: str) -> Fin
     opaque = _opaque_format(path)
     if opaque is None:
         return None
-    return _not_text_finding(path, *opaque)
+    return _not_text_finding(path, *opaque, root=root)
 
 
-def _no_text_problem(pages: list[PageText], path: Path, suffix: str = ".pdf") -> Finding | None:
+def _no_text_problem(
+    pages: list[PageText], path: Path, suffix: str = ".pdf", root: Path | None = None
+) -> Finding | None:
     """A file that yielded no text at all, said in the words that fix it.
 
     Two very different files reach this point looking identical: a scan of a
@@ -584,6 +598,7 @@ def _no_text_problem(pages: list[PageText], path: Path, suffix: str = ".pdf") ->
     """
     if any(page.text.strip() for page in pages):
         return None
+    shown = shell_path(_spelled(root, path))
     if suffix in (".html", ".htm", ".xml"):
         advice = (
             "the markup holds no visible text - every word is inside a tag, a "
@@ -595,13 +610,62 @@ def _no_text_problem(pages: list[PageText], path: Path, suffix: str = ".pdf") ->
         advice = (
             "a scan has no text layer, and OCR is what turns one into a file "
             "that can be searched (for example "
-            f"`ocrmypdf {path.name} out.pdf`)"
+            f"`ocrmypdf {shown} out.pdf`)"
         )
     return Finding(
         code="source-no-text",
-        message=f"found no text at all in {path.name} ({len(pages)} page(s)); {advice}",
+        message=(f"found no text at all in {shown} ({len(pages)} page(s)); {advice}"),
         path=str(path),
     )
+
+
+def recorded_path(root: Path, path: str | Path) -> str:
+    """Store an input path the way a ledger can survive a move.
+
+    An absolute path dies the moment the repository is cloned somewhere else,
+    and a Windows path with backslashes does not resolve on the Linux job that
+    runs the same ledger.  A path relative to ``root``, with forward slashes,
+    is the same string on every platform.  Sources, the manuscript and the
+    bibliography entries all go through here, because one ledger holding two
+    spellings of one file is the same defect as a ledger that only resolves on
+    the machine that wrote it.  A file outside ``root`` cannot be
+    made relative meaningfully; it keeps its absolute form and the ledger is
+    simply not portable, which is the honest outcome.
+
+    That absolute form is the *resolved* one, not the spelling the caller
+    typed.  Returning ``str(path)`` made one file have as many ledger
+    spellings as there were ways to name it: recorded from
+    ``C:\\...\\papers\\m.md``, then asked about the same file spelled
+    ``..\\papers\\m.md`` from inside the project, the two strings differed and
+    the identity guard called one book two books.  Resolving collapses every
+    spelling of one file to one string, which is what a ledger needs in order
+    to compare two of them.
+    """
+    candidate = Path(path)
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        # Nothing to canonicalise: keep the spelling rather than invent one.
+        return str(path)
+    try:
+        relative = resolved.relative_to(root.resolve())
+    except (ValueError, OSError):
+        return str(resolved)
+    return relative.as_posix()
+
+
+def _spelled(root: Path | None, path: Path) -> Path:
+    """The path as the reader's own command would spell it.
+
+    Every sentence that names a file to convert is read next to the command
+    that converts it, so it uses the ledger's spelling - relative to the
+    project root, forward slashes - whenever the root is known.  A caller with
+    no root (a unit test handing in a bare ``Path("scan.pdf")``) keeps exactly
+    what it passed.
+    """
+    if root is None:
+        return path
+    return Path(recorded_path(root, path))
 
 
 def extract_pages(
@@ -631,7 +695,7 @@ def extract_pages(
         # verdict about the author's quote.
         opaque = _opaque_format(path)
         if opaque is not None:
-            return [], _not_text_finding(path, *opaque)
+            return [], _not_text_finding(path, *opaque, root=root)
     if suffix != ".pdf" and _looks_like_pdf(path):
         # The file is a PDF and says so in its first five bytes; only its name
         # disagrees.  Reading it as whatever the name claims produced 206,870
@@ -645,7 +709,7 @@ def extract_pages(
     # first met this file decoded it with replacement characters and stored
     # the result as pages, and every later run would read those pages back
     # without ever looking at the bytes again.
-    undecodable = encoding_problem(path, suffix)
+    undecodable = encoding_problem(path, suffix, root)
     if undecodable is not None:
         return [], undecodable
     if use_cache:
@@ -660,8 +724,8 @@ def extract_pages(
             # A cache holds pages, not a verdict, so a file whose first run
             # stored a zip's bytes as characters has to be judged again here;
             # otherwise every run after the first keeps searching the mojibake.
-            problem = _no_text_problem(cached, path, suffix) or _noisy_format_problem(
-                cached, path, suffix
+            problem = _no_text_problem(cached, path, suffix, root) or _noisy_format_problem(
+                cached, path, suffix, root
             )
             return cached, problem
 
@@ -696,8 +760,8 @@ def extract_pages(
         )
     pages = [PageText(number=i + 1, text=text) for i, text in enumerate(raw)]
     _store_cache(root, sha, pages, used)
-    problem = _no_text_problem(pages, path, suffix) or _noisy_format_problem(
-        pages, path, suffix
+    problem = _no_text_problem(pages, path, suffix, root) or _noisy_format_problem(
+        pages, path, suffix, root
     )
     return pages, problem
 

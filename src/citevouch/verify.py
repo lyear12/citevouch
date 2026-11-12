@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .advice import shell_path
 from .bibtex import field_findings, merge_entries, parse_bib_group
 from .errors import why_not_a_file
 from .evidence import is_the_manuscript, source_is_manuscript_finding
@@ -677,9 +678,9 @@ def verify(
                     message=(
                         f"claim {claim.id}: {count_of(lost, 'character')} of this quote "
                         "were never decoded, so the quote was never searched - "
-                        f"{Path(claim.path).name} cannot be read as UTF-8 without loss. "
-                        "Convert it first, for example "
-                        f"`iconv -f GBK -t utf-8 {Path(claim.path).name} > utf8.md`"
+                        f"{shell_path(claim.path)} cannot be read as UTF-8 "
+                        "without loss. Convert it first, for example "
+                        f"`iconv -f GBK -t utf-8 {shell_path(claim.path)} > utf8.md`"
                     ),
                     claim_id=claim.id,
                     path=claim.path,

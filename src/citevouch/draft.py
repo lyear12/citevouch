@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import display, matching, sources
+from .advice import shell_path
 from .evidence import is_the_manuscript
 from .latex import _GAP, CITATION_NAMES, MULTI_CITATION_NAMES
 from .model import BibEntry
@@ -796,6 +797,11 @@ def draft(
     bib_unreadable: set[str] | None = None,
     manuscript: str = "",
     manuscript_digest: str = "",
+    # The manuscript as the ledger spells it, used only in sentences.  The
+    # `manuscript` above is resolved for identity - it has to compare equal to
+    # whatever path the sources manifest produced - and an absolute path is
+    # not a thing to print at someone who is standing in the project.
+    manuscript_name: str = "",
     # Whether reading the manuscript this tool's way had to replace a byte.
     # It travels beside the text because the sentences judged below came out
     # of that read: in a lossless file a replacement character is one the
@@ -863,7 +869,7 @@ def draft(
         # page was never the problem, so it is not named.
         undecoded = sentence.count(UNDECODED) if manuscript_lost else 0
         if undecoded:
-            name = Path(manuscript).name if manuscript else "the manuscript"
+            name = shell_path(manuscript_name) if manuscript_name else "the manuscript"
             result.skipped.append(
                 Skipped(
                     key=site.key,
@@ -1037,7 +1043,7 @@ def render(
                 f"decoded: {result.undecodable} character(s) of it are "
                 "replacement characters, which is what a decoder writes where "
                 "it could not read a byte. Convert the file to UTF-8 first, for "
-                "example `iconv -f GBK -t utf-8 " + manuscript_name + " > "
+                "example `iconv -f GBK -t utf-8 " + shell_path(manuscript_name) + " > "
                 "utf8.md`, and run this command on the converted file. -->"
             )
         else:

@@ -12,6 +12,23 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+* **Four sentences told the reader to convert a file, and named one that was
+  not there.** Each of them printed `path.name`, so a source at
+  `sources/paper.docx` produced `soffice --convert-to pdf paper.docx`; the
+  file is one directory below where the reader is standing, and the command
+  answers `Error: source file paper.docx does not exist`. Measured for
+  `source-not-text`, `source-encoding`, `source-no-text` and
+  `claim-not-decoded`, across all four languages of the same mistake: a
+  source in a subdirectory, a manuscript in a subdirectory, and a name
+  containing a space. The four now print the path the reader can open - the
+  same root-relative spelling the ledger uses - shell-quoted through the
+  `shell_path` the advice module already had. `recorded_path` moved from
+  `scan.py` to `sources.py` so the sentence builders can reach it without an
+  import cycle, and `draft` grew a `manuscript_name` argument because the
+  path it uses for identity is not the path it should print. 11 tests, 10
+  mutations, all red.
+
 ## [0.22.98] — 2026-11-12
 ### Fixed
 

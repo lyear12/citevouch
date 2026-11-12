@@ -8500,3 +8500,37 @@ file.
   value, not for the function that produces it.
 - A path in a finding is a promise about a file someone will try to open.
   Test it by opening it from the directory the command was run in.
+
+## A "convert it first" sentence names a file the reader has to be able to open
+
+Four findings in this tool tell the author to convert something, and print the
+command that does it. All four printed `path.name`:
+
+    sources/paper.docx is a zip archive - a .docx, .odt, .epub or .xlsx - ...
+    Convert it first, for example `soffice --convert-to pdf paper.docx`, ...
+
+The reader is standing at the project root; `paper.docx` is one directory down.
+The sentence that says "convert it first" hands over a command that answers
+`Error: source file paper.docx does not exist`. Measured for `source-not-text`,
+`source-encoding`, `source-no-text` and `claim-not-decoded` - the same mistake in
+four places, each written by someone who was thinking about the wording rather
+than about the path.
+
+The `Finding.path` was already right in all four. Only the prose was wrong, which
+is why no assertion about the finding caught it and why every existing test was
+green: they asked what the message *said*, not whether the thing it named
+existed.
+
+### How to apply it
+
+- A command in a message is a promise about the reader's filesystem. Take it out
+  of the output, split it, and stat every path in it. Asserting a substring of
+  the sentence tests the wording; running the command tests the claim.
+- Print the value the running code uses, not the name that happens to be in
+  scope. `Path(x).name` is always available and always the wrong layer.
+- When a helper has to be reachable from a module that cannot import the one it
+  lives in, move the helper down, not the import up. `recorded_path` belonged
+  next to the paths it spells, not next to the command that scans.
+- A function whose parameter is an identity is not a function whose parameter is
+  a spelling. `draft` compares the manuscript by resolved path and prints it by
+  recorded path, so it needs both, and one of them has to be passed in.
