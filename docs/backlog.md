@@ -5757,3 +5757,37 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   single-quote-with-escape, correct for sh/bash/zsh and PowerShell's
   argument parser, wrong for `cmd.exe`, which the tool never claims to
   support.
+
+- [x] **P1 - one run named the manuscript twice, and the short name was the one that could not be resolved (0.22.98)**
+
+  **What was wrong.** With `sources.toml` at the repository root and the
+  manuscript in a directory - the layout `action.yml` documents -
+  `check paper/m.md --root .` printed `[high] quote-missing at m.md:3`,
+  while the ledger written by the same run recorded
+  `manuscript: paper/m.md`. Every reader of the manuscript passed
+  `Path.name` to the parser, so a finding lost the directory as soon as the
+  project had one. GitHub code scanning resolves a SARIF `uri` against the
+  repository root, where `m.md` does not exist, so the annotation was
+  dropped and the pull request showed nothing.
+
+  **What it does now.** `scan`, `verify` and `doctor` ask `recorded_path` -
+  the function that already named the file for the ledger, the sources and
+  the bibliography - and hand that one string to `parse_manuscript`, to
+  `scan_unbound_markers`, to `_no_claim_blocks_finding`, to the two
+  `ledger-stale` guards that fire before any parsing, and to the sentences
+  that name the file inline. Sixteen call sites, one spelling.
+
+  **Why it is now true.** A finding's `path` is now byte-identical to the
+  ledger's `manuscript` for the same file, in text, JSON and SARIF, whether
+  the manuscript is at the root, in a directory, or named by an absolute
+  path; `--root paper` correctly yields `m.md`. Twenty tests cover the three
+  verbs and the guards that run before parsing, and nine mutations (dropping
+  the root, keeping the basename in one reader, skipping the stale guards)
+  all go red. The docstring that defended the basename is rewritten: a
+  root-relative path also reads the same in every checkout, and unlike a
+  bare basename it names a file the reader can open.
+
+  **Not covered.** A project on a different drive from the checkout, where
+  `relative_to` raises and `recorded_path` keeps the absolute form - the
+  unchanged fallback. `--root` pointing at a symlink on POSIX. Any future
+  reader that builds a path without going through `parse_manuscript`.
