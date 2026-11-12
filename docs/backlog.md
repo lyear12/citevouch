@@ -5829,3 +5829,44 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   a path, not translated; `-` and `--` leading words in a printed command
   are skipped by the test rather than proven safe; the `report` verb has no
   such sentence.
+- [x] **P1 - the pre-commit hook read the ledger in its comment and not in its arguments (0.22.100)**
+
+  **What was wrong.** `.pre-commit-hooks.yaml` said, in its own header, "It
+  reads the committed ledger by default", and its description promised to
+  fail "when a quote moved, went missing, or the source file is no longer
+  the one the ledger recorded". It ran `citevouch check manuscript.md` with
+  no `--use-recorded`, which scans afresh and never opens the ledger.
+  Measured with a source replaced by another version of the same paper, the
+  quoted sentence still in it: the hook exited 0 with `[info] quote-found`,
+  while `citevouch check manuscript.md --use-recorded` reported
+  `[medium] source-changed`. A ledger that was never committed was worse
+  than silence: the hook printed a clean run where the recorded path exits 2
+  saying there is no ledger at all. The default threshold was the second
+  half - `quote-moved` and `source-changed` are both medium, so even on the
+  recorded path the hook printed the two findings its description names and
+  exited 0.
+
+  **What it does now.** `args` is
+  `["manuscript.md", "--use-recorded", "--fail-on", "medium"]`, with the
+  measured comparison written next to it. The recording hook keeps no
+  `--use-recorded`: `scan` is the command that writes a ledger, and telling
+  it to trust one is the mirror image of the same mistake. Six new tests
+  compose the command out of the YAML and run it against a project that
+  should fail - a replaced source, a quote that moved, a ledger that was
+  never committed - so the file is exercised as the thing pre-commit
+  executes.
+
+  **Why it is now true.** `tests/test_precommit.py` has 21 tests, six of
+  them new; five mutations of the YAML are all red: dropping
+  `--use-recorded`, keeping it but dropping `--fail-on`, putting the
+  threshold back to the default, giving the recording hook `--use-recorded`,
+  and removing the manuscript from `args`. Every mutation changes an exit
+  code rather than a message, because the assertions are on return codes and
+  finding codes.
+
+  **Not covered.** pre-commit itself was not installed and run - the harness
+  stands in for it by composing `entry` + `args` exactly as pre-commit would
+  and executing it in bash. A repository that renames its manuscript away
+  from `manuscript.md` still has to edit `args` by hand, and no test covers
+  that edit. The `medium` threshold was chosen from the codes the
+  description names, not measured against a corpus of real commits.
