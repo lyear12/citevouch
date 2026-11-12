@@ -5415,3 +5415,36 @@ one.
   comment dialect's one-line form, which has no body lines to shadow
   anything.
 
+- [x] **P1 - two findings about one attribute contradicted each other (0.22.90)**
+
+  What was wrong: a claim writing one attribute on its opening line and
+  again, twice, in its body produced two findings about the same value, and
+  they disagreed. On a block with `source=paper` on the fence and
+  `source: alt` then `source: other` in the body, `check` printed
+  `claim-field-shadowed` saying `'alt' in the body ... was dropped` directly
+  above `claim-field-repeated` saying `the first, 'alt', was kept`, while
+  the ledger recorded a third answer, `paper`. Each finding was true of its
+  own layer; read together they left the author to work out which sentence
+  to believe.
+
+  What it does now: `_repeated_fields` takes the opening line's values. When
+  one of them is the name being repeated, the sentence says the fence writes
+  it too, counts the fence among the writings, names the value that won, and
+  lists every body value that lost. A body-only repeat keeps its old
+  sentence, because nothing above it won.
+
+  Why it is now true: `tests/test_two_findings_one_attribute.py` (9 tests)
+  pins both shapes - the both-layers case (no `was kept`, `3 times`,
+  `were all dropped`, the winner named, both losers named) and the body-only
+  control that must not change - plus the two-attribute block (four findings
+  on four lines, none of them claiming a body value survived) and one
+  end-to-end `check`. Ten mutations were run and all ten were caught: the
+  taken values ignored, the fence not counted, singular verb, singular noun,
+  only the first loser named, the winner unnamed, the repeat pointing at the
+  fence instead of its own line, names passed instead of values, one call
+  site forgetting the values, and the unchanged shape silently reworded.
+
+  Not covered: the comment dialect's one-line form, where every attribute is
+  on the opening line and no body repeat exists; and the table dialect,
+  which has no body lines to repeat.
+
