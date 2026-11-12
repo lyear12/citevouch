@@ -5493,3 +5493,42 @@ what the mapping branch does with these six names. The `>>` shape with an
 attribute line between two passages is lifted and the passages stay
 adjacent, but no test pins that interleaving.
 
+
+- [x] **P0 - a definition written in the body gave its template to the paper, and `draft` invented a citation from it (0.22.92)**
+
+**What was wrong.** `latex._definition_end` decided how many brace groups a
+definition takes with two membership tests, `_DOCUMENT_COMMAND` and
+`_ENVIRONMENT_DEFINITION`. Every spelling that had a branch was read
+correctly; every spelling that had no branch fell through to the
+unknown-command rule, which keeps all the arguments because for most
+commands the arguments are the prose. Eighteen definition spellings leaked
+their templates into the paper, and `included_files` - which reads the raw
+source - reported a template's `\input{ghost/sec}` as a file the paper pulls
+in. The worst case was
+`\NewDocumentEnvironment{aside}{m}{The corpus for the study of grammar has \citep{phantom2020}.}{}`,
+which converted to
+`asidemThe corpus for the study of grammar has [@phantom2020].`: the
+template's citation became real, and `draft` proposed a claim block quoting
+a page it had found by keyword overlap. Twenty settings commands were the
+same bug from the other side, pasting font names and lengths into the
+sentence.
+
+**What it does now.** The shape is a number in one table,
+`_DEFINITION_GROUPS` (name, then how many brace groups it takes), and
+`_definition_end` reads it in a loop. `included_files` reads the same table,
+so a template's `\input` is not a file. Twenty settings commands are in
+`_DROP_ALL_ARGUMENTS`. Adding a spelling is now a key, not a branch.
+
+**Why it is now true.** `tests/test_latex_definition_shapes.py` (67 tests)
+covers every leaked spelling in both directions - the template is gone and
+the sentence after it survives - plus the file list, the sixteen spellings
+that already worked, and a `draft` call that asserts the template's citation
+is not a citation. Twelve mutations ran red, including one fewer group and
+one more group than the table says.
+
+**Not covered.** A definition whose body holds a `%` comment before the
+closing brace; `\NewDocumentEnvironment` with an optional argument count
+before the specification; `\tcbset`, a tcolorbox settings command that was
+not among the twenty measured. The mutation check also found two defects in
+this fix itself - a conditional whose arms returned the same value, and a
+star branch duplicating `_skip_optional_args` - both removed.
