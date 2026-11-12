@@ -203,19 +203,39 @@ class TestWhatItChecks:
         assert "no claim blocks" in broken[0].detail
         assert "citevouch draft" in broken[0].fix
 
-    def test_a_manuscript_whose_block_the_parser_refused_is_left_to_check(self, tmp_path: Path):
-        """A refused block is a finding, not a silence.
+    def test_a_block_the_parser_could_not_reach_is_still_reported(self, tmp_path: Path):
+        """An out-of-reach block is a silence this command must not leave.
 
-        The parser found a block and named the line - `claim-uncheckable` for a
-        missing `id=`, `claim-block-unclosed` for a fence.  `doctor` exists to
-        explain silence, so this line stays quiet and lets the next command
-        print the finding it already has in more detail.
+        A fence inside a blockquote or a list is a code sample in Markdown, so
+        the parser produces no claim from it at all - `nothing_to_check` stays
+        true and this line reports `no-claim-blocks`, the same failure `check`
+        exits 1 for.  There is no shape in which a block is unreadable *and*
+        `doctor` may stay quiet: the silence-only exit was for refusals, and
+        refusals are reported below.
+        """
+        text = "> ```claim id=c1 source=a\n> quote: |\n>   alpha beta\n> ```\n"
+        (tmp_path / "manuscript.md").write_text(text, encoding="utf-8")
+        report = doctor._claim_blocks(tmp_path / "manuscript.md")
+        assert not report.ok
+        assert "no claim blocks" in report.detail
+        assert "citevouch draft" in report.fix
+
+    def test_a_block_the_parser_read_and_refused_is_not_left_to_check(self, tmp_path: Path):
+        """A refusal is a decision, and the ledger gets no claim from it.
+
+        Read and refused for want of `id=` or `source=` is not the same silence
+        as a fence nobody could reach: `check` prints `[high] claim-uncheckable`
+        and exits 1, and the ledger holds nothing.  Before this branch existed
+        the file got seven `[ok  ]` lines and the closing sentence "Everything
+        this tool needs is on this machine" while `check` exited 1.
         """
         text = "```claim\nquote: |\n  alpha beta\n```\n"
         (tmp_path / "manuscript.md").write_text(text, encoding="utf-8")
         report = doctor._claim_blocks(tmp_path / "manuscript.md")
-        assert report.ok
-        assert "names why" in report.detail
+        assert not report.ok
+        assert "refused" in report.detail
+        assert "no id= attribute" in report.detail
+        assert report.fix and "citevouch check" in report.fix
 
     def test_a_manuscript_with_blocks_says_how_many(self, tmp_path: Path):
         (tmp_path / "manuscript.md").write_text(GOOD, encoding="utf-8")
@@ -612,9 +632,14 @@ class TestTheCountIsWhatTheFileHolds:
     def test_a_file_whose_blocks_were_all_refused_does_not_say_zero(self, tmp_path: Path):
         # The old `parsed.claims` branch could not be reached here at all, so
         # this is the shape that proves the count is not simply `len(claims)+1`.
+        # Since the refusal is now a failure of its own, the count moved from a
+        # "names why" sentence to the refusal sentence - and the property this
+        # test was written for survives: the file holds one block, and the line
+        # says one, not zero.
         anonymous = "```claim source=a page=1\nquote: |\n  alpha beta gamma\n```"
         report = doctor._claim_blocks(self._blocks(tmp_path, anonymous))
-        assert "names why" in report.detail, report.detail
+        assert report.detail.startswith("1 claim block"), report.detail
+        assert "no id=" in report.detail, report.detail
 
     def test_the_two_counts_disagree_only_by_what_was_refused(self, tmp_path: Path):
         """A file with no refusals has one number, and it is the same number.

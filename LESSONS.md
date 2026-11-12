@@ -8362,3 +8362,44 @@ later. The verdict flipped on a character no reader can see.
   removing it before or after folding is the same function. A surviving
   mutation is sometimes a theorem - measure it, record it, and do not
   add a test that pretends it was a bug.
+
+## A command that explains another command inherits its verdict, not its silence
+
+`doctor` exists to explain a report that looks empty, so its own docstring argued
+that a block the parser refused should stay green here: the refusal already has a
+finding with its own line number, and `doctor` should not pre-empt a message the
+next command will print in more detail.  That argument is true of one shape and
+false of the other, and the module never wrote down which was which.
+
+Measured, on a manuscript whose only block was `fence: claim id=c1` with no
+`source=`:
+
+- `check` printed `[high] claim-uncheckable at m.md:1 (c1): claim c1 names no
+  source=; the quote cannot be looked up`, then `1 claim block - 1 of which this
+  run could not check`, and exited 1.  The ledger held `claims: []`.
+- `doctor --root . --manuscript m.md` printed seven `[ok  ]` lines, exited 0, and
+  closed with "Everything this tool needs is on this machine.  If quotes are
+  still reported missing, the source files are the place to look."
+
+The two shapes that had been folded into one branch differ in exactly one way
+that matters: a block **nobody could reach** (inside a blockquote, a list item,
+an indent) produces no claim and no finding, and `check` reports it as
+`claim-block-unread` beside whatever else the file holds - so `doctor` explaining
+silence is right.  A block the parser **read and refused** produces a decision:
+no claim reaches the ledger, and the run's whole verdict is that failure.  An
+enumeration of 8 openers x 5 bodies x 3 closers x 3 suffixes found no shape that
+reaches the refused-and-checked branch without `claim-uncheckable`.
+
+How to apply:
+
+- When one command explains another, ask which *answers* it is allowed to skip.
+  A finding that names a line is an answer; a finding that decides the exit code
+  is not - copying its silence copies its optimism.
+- Separate "the parser saw nothing" from "the parser saw something and said no".
+  They look identical in `claims == []` and are opposite in what the reader must
+  do next.
+- Re-read the recorded decision before widening a fix.  A file holding one
+  readable block beside a refused one still stays green here, because the run is
+  not vacuous; the new failure covers only the case where every block was
+  refused.  Both halves are pinned by tests so a later fix cannot grow into the
+  other.

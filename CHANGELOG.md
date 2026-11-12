@@ -12,6 +12,26 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **`doctor` said the machine was fine about a manuscript it could not use.**
+  A file whose one claim block was read and refused — no `id=`, no `source=`,
+  no quote — printed seven `[ok  ]` lines, exited 0, and closed with
+  "Everything this tool needs is on this machine. If quotes are still reported
+  missing, the source files are the place to look." The same tree made
+  `check` print `[high] claim-uncheckable` and exit 1, and the ledger held no
+  claim at all: the reader who ran `doctor` *because* the report looked empty
+  was the one being told nothing was wrong, and the last line sent them to
+  inspect source files for a defect in the manuscript. The claims line now
+  fails, counts every refused block, names the line and the fault, and gives
+  the attribute fix; the `sources` and `extraction` lines say "not checked,
+  because the parser refused the blocks this file holds" instead of "no claim
+  names a source" one line under a refusal. A block nobody could reach — inside
+  a blockquote, a list or an indent — still lands in the `no claim blocks`
+  failure, and a file holding one readable block beside a refused one still
+  stays green, which is the documented silence in
+  `tests/test_skipped_claim_blocks.py`. 21 tests, 9 mutations, all red.
+
 ## [0.22.94] — 2026-11-12
 ### Fixed
 

@@ -181,15 +181,20 @@ class TestTheStatesThatAreNotThisProblem:
 
     def test_a_claim_with_no_source_names_nothing(self, tmp_path: Path):
         # A block without `source=` never enters `parsed.claims`; it is reported
-        # as `claim-uncheckable` by `check`, and the `claims` line already said
-        # the file holds a block. This check has nothing to add.
+        # as `claim-uncheckable` by `check`, and the `claims` line now reports
+        # the refusal itself. This check has nothing to add - but it may not
+        # say "no claim names a source" either, because there *is* a claim and
+        # it is named one line up. It points at that line instead.
         body = f"# t\n\n{B3}claim id=c1 page=1\nquote: |\n  alpha beta gamma\n{B3}\n"
         (tmp_path / "manuscript.md").write_text(body, encoding="utf-8", newline="\n")
         (tmp_path / "sources.toml").write_text('[sources]\na = "a.txt"\n', encoding="utf-8")
         (tmp_path / "a.txt").write_text("alpha beta gamma\n", encoding="utf-8")
         report = _sources(tmp_path)
         assert report.ok
-        assert report.detail == "no claim names a source"
+        assert (
+            report.detail
+            == "not checked, because the parser refused the blocks this file holds"
+        )
 
 
 class TestTheDemoStillPasses:

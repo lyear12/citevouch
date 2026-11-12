@@ -36,11 +36,20 @@ from shutil import which
 from . import __version__
 from .errors import why_not_a_file
 from .latex import looks_like_latex
-from .manuscript import parse_manuscript
+from .manuscript import ParseResult, parse_manuscript
 from .model import Finding
 from .scan import _resolve
 from .sources import candidate_files, extract_pages, near_misses, read_source_table
 from .textnorm import UNDECODED, count_of, read_text, read_text_and_loss
+
+# The parser's codes that mean "a block was here and the ledger has no claim
+# from it".  `claim-block-unread` and `claim-block-unclosed` are deliberately
+# absent: the first is a fence nobody could reach (no claim, no finding) and the
+# second still yields a claim the run reports on.  The `claims` line reports
+# every `claim-*` finding it is handed, so this set exists for the two lines
+# below it, which must not say "no claim names a source" about a file whose
+# blocks were refused -- that sentence belongs to a file that holds no block.
+_NO_CLAIM_IN_THE_LEDGER = frozenset({"claim-uncheckable"})
 
 # The versions this package claims to run on, kept next to the check that
 # enforces them rather than only in pyproject, so the two cannot drift apart
@@ -245,6 +254,25 @@ def _project(root: Path, manuscript: str) -> list[Report]:
     return reports
 
 
+def _nothing_named(parsed: ParseResult) -> str:
+    """Why this file names no source, in the words the other line already used.
+
+    Two different files get here: one that holds no claim block at all, and one
+    whose blocks the parser read and refused.  The second used to print "no
+    claim names a source" - the same sentence as the first - while the `claims`
+    line above it said the blocks had been refused.  Both true in isolation and
+    nonsense side by side: the reader is told there are no claims and, one line
+    up, that there are claims the tool would not take.  Naming the second
+    belongs to the line that owns it, so this one points there instead.
+    """
+    refused = [
+        finding for finding in parsed.findings if finding.code in _NO_CLAIM_IN_THE_LEDGER
+    ]
+    if refused:
+        return "not checked, because the parser refused the blocks this file holds"
+    return "no claim names a source"
+
+
 def _claim_sources(target: Path, root: Path) -> Report:
     """Do the source keys this manuscript names actually bind to a file?
 
@@ -288,7 +316,7 @@ def _claim_sources(target: Path, root: Path) -> Report:
     if not named:
         # The `claims` check owns "this file holds nothing"; saying it twice
         # would make one problem look like two.
-        return Report(name="sources", ok=True, detail="no claim names a source")
+        return Report(name="sources", ok=True, detail=_nothing_named(parsed))
 
     table = read_source_table(root)
     if table.manifest_problem:
@@ -369,14 +397,19 @@ def _claim_blocks(target: Path) -> Report:
     that starts with 'claim-'``.  Two readers already had that expression typed
     out separately; that is how this one came to be written without it.
 
-    A block the parser refused is *not* reported as a problem here.  It has its
-    own finding naming the line and the fault, and ``doctor`` exists to explain
-    silence, not to pre-empt a message the next command will print in more
-    detail.  It is still *counted*, though: ``parsed.claims`` holds the blocks
-    the parser accepted while ``parsed.spans`` holds the ones it saw, and a file
-    with one good block and one that forgot ``id=`` contains two.  Reporting the
-    accepted count alone said "1 claim block" about that file - a false statement
-    in the one check whose job is to stop false statements.
+    A block the parser refused *is* reported as a problem here, and the paragraph
+    below used to say the opposite.  The distinction that paragraph missed is
+    between a block nobody could reach (a fence inside a blockquote, a list or an
+    indent - it produces no claim and no finding, and lands in the
+    ``nothing_to_check`` branch with the file that holds no block at all) and a
+    block the parser *read and refused* for want of ``id=`` or ``source=``.  The
+    second is a decision, the ledger gets no claim from it, and ``check`` exits 1
+    on a high-severity finding while this line said ``[ok  ]``.  It is still
+    *counted*, though: ``parsed.claims`` holds the blocks the parser accepted
+    while ``parsed.spans`` holds the ones it saw, and a file with one good block
+    and one that forgot ``id=`` contains two.  Reporting the accepted count alone
+    said "1 claim block" about that file - a false statement in the one check
+    whose job is to stop false statements.
     """
     try:
         text, lost = read_text_and_loss(target)
@@ -446,12 +479,54 @@ def _claim_blocks(target: Path) -> Report:
             ),
         )
     if not parsed.nothing_to_check:
-        # The parser found something and refused it.  That is a finding, not a
-        # silence, and `check` will name the line.
+        # Reaching this line means the parser produced no claim while
+        # `nothing_to_check` is false, which has exactly one cause: it read a
+        # block and refused it.  A fence that is merely out of reach - inside a
+        # blockquote, a list or an indent - produces no claim and no finding, so
+        # it lands in the branch below with the file that holds no block at all.
+        # Enumerated 8 openers x 5 bodies x 3 closers x 3 suffixes looking for a
+        # counterexample: every shape that arrives here carries
+        # `claim-uncheckable`.
+        #
+        # This used to return `ok=True` with "none that the parser could read;
+        # the next command names why", on the theory that a refusal is a finding
+        # with its own line number and `doctor` explains silences rather than
+        # pre-empting a message.  That theory holds for a block nobody could
+        # reach; it does not hold here.  A refused block is a *decision* - the
+        # ledger gets no claim from it, `check` prints `[high]
+        # claim-uncheckable` and exits 1 - and `doctor` said the machine was
+        # fine.  Measured: a manuscript whose one block wrote `claim id=c1` and
+        # no `source=` got seven `[ok  ]` lines, exit 0, and the closing
+        # sentence "Everything this tool needs is on this machine", while
+        # `check` exited 1.  The command a reader runs *because* the report
+        # looked empty was the one telling them nothing was wrong.
+        #
+        # The list is broader than `_NO_CLAIM_IN_THE_LEDGER` on purpose: if some
+        # future parser shape arrives here carrying a different code, this line
+        # reports it rather than falling through to a green tick.  Naming an
+        # unexpected finding is cheap; missing one is what this whole module is
+        # here to prevent.
+        refused = [
+            finding
+            for finding in parsed.findings
+            if finding.code.startswith("claim-") and finding.code != "claim-table-header"
+        ]
+        first = refused[0]
+        where = f"line {first.line}" if first.line else "no line"
         return Report(
             name="claims",
-            ok=True,
-            detail="none that the parser could read; the next command names why",
+            ok=False,
+            detail=(
+                f"{count_of(len(refused), 'claim block')} that the parser read "
+                f"and refused, so no claim from this file can be checked - "
+                f"{where}: {first.message}"
+            ),
+            fix=(
+                "Give every claim block the attributes it needs: `id=` and "
+                "`source=` on the opening fence, then the quoted words under "
+                "`quote: |`. `citevouch check` names each block and the "
+                "attribute it is missing."
+            ),
         )
     return Report(
         name="claims",
@@ -584,7 +659,7 @@ def _extraction(target: Path, root: Path) -> Report:
         )
     named = sorted({claim.source for claim in parsed.claims if claim.source})
     if not named:
-        return Report(name="extraction", ok=True, detail="no claim names a source")
+        return Report(name="extraction", ok=True, detail=_nothing_named(parsed))
 
     table = read_source_table(root)
     if table.manifest_problem:
