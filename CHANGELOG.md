@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.96] — 2026-11-12
 ### Fixed
 
 * **`doctor --format sarif` reported a manuscript problem as a broken
@@ -49,7 +50,6 @@ tag and that file disagree.
   stating a verdict `doctor` never reached.
 
   `15 tests, 13 mutations, all red.`
-
 ## [0.22.95] — 2026-11-12
 ### Fixed
 
@@ -5242,7 +5242,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.95...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.96...HEAD
+[0.22.96]: https://github.com/lyear12/citevouch/releases/tag/v0.22.96
 [0.22.95]: https://github.com/lyear12/citevouch/releases/tag/v0.22.95
 [0.22.94]: https://github.com/lyear12/citevouch/releases/tag/v0.22.94
 [0.22.93]: https://github.com/lyear12/citevouch/releases/tag/v0.22.93
