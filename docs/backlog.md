@@ -5667,3 +5667,53 @@ The table dialect's refused-row-plus-header shape was measured by hand but
   not enumerated. `scan` and `verify` still report the refusal through the
   finding alone, which is right - they name the block - and this entry only
   claims what `doctor` now says.
+
+
+
+- [x] **P1 - `doctor --format sarif` filed a manuscript problem under `check-unavailable`, whose rule line blames the installation (0.22.96)**
+
+What was wrong:
+
+SARIF puts the code on the rule line GitHub prints above the message.
+  `doctor.findings()` chose one constant for every failure it had found,
+  `check-unavailable`, whose short description reads "This machine cannot run
+  the checks at all." A project whose only claim block names no `source=`
+  reaches GitHub as an installation problem while `check` says
+  `claim-uncheckable` and exits 1; a manuscript holding no claim blocks
+  arrives the same way, and so does a source file that is missing. The reader
+  of the code-scanning tab was told to repair their machine and sent to look
+  at the wrong file.
+
+What it does now:
+
+`Report` carries the code it should be filed under, defaulted to
+  `check-unavailable` (only the interpreter, the PDF library and the
+  PDF-to-text tool keep that default, because only they measure the machine).
+  Two codes join it: `manuscript-unusable` when the manuscript is LaTeX, not a
+  file, a directory, or unreadable - `check` exits 2 on all four - and
+  `project-unusable` when the claim blocks, their sources, or the manifest
+  stop the run. `doctor.findings()` reads the field instead of choosing a
+  word, and `--format json` carries the code too, so a script can tell the
+  three apart.
+
+Why it is now true:
+
+`tests/test_doctor_sarif_codes.py` runs `doctor --format sarif` over a
+  refused block, an unbound source key, a manuscript of pure prose, a missing
+  manifest, a manifest that does not parse, a `.tex` manuscript, an unreadable
+  PNG source, and a stubbed-away PDF library, and asserts the ruleId of each.
+  The three rule descriptions are asserted to name their own subject and not
+  each other's, and the codes are asserted to be in `CODES` and `SARIF_RULES`.
+  The two older tests that pinned the single constant now pin
+  `manuscript-unusable`, plus a new one that stubs `_pypdf` and keeps
+  `check-unavailable`. 13 mutations, 13 red: reverting `findings()` to the
+  constant, mislabelling any one check, and changing the default each fail.
+
+Not covered:
+
+The rule lines are verified through the SARIF ruleId, not by reading the
+  prose a code-scanning tab renders. A run holding a machine failure and
+  several project failures at once is unmeasured: the test stubs the PDF
+  library on an otherwise sound project. `scan` and `verify` were not touched;
+  they never had this seam.
+
