@@ -5620,3 +5620,50 @@ A NUL inside a number (`40\x00688`) is read as one number rather than two;
   sees them, so the tests only cover pages. No audit was made of other
   characters a page can supply that the masker treats as content; this fix
   removes the one the masker itself injects.
+
+
+- [x] **P1 - `doctor` called a manuscript it could not use fine, and sent the reader to the wrong files (0.22.95)**
+
+What was wrong:
+
+A manuscript whose only claim block was read and refused - no `id=`, no
+  `source=`, no quote - made `check` print `[high] claim-uncheckable`, count
+  the block as unchecked, and exit 1, while the ledger held no claim at all.
+  `doctor` on the same tree printed seven `[ok  ]` lines, exited 0, and
+  closed with "Everything this tool needs is on this machine. If quotes are
+  still reported missing, the source files are the place to look." The
+  command a reader runs *because* the report looked empty was the one
+  telling them nothing was wrong, and the last line pointed at source files
+  for a defect in the manuscript. One branch had folded two opposite shapes
+  together: a block nobody could reach (blockquote, list item, indent)
+  produces no claim and no finding, but a block the parser read and refused
+  is a decision.
+
+What it does now:
+
+The claims line fails, counts every refused block, names the line and the
+  fault, and gives the attribute fix. The `sources` and `extraction` lines
+  say "not checked, because the parser refused the blocks this file holds"
+  instead of "no claim names a source" printed one line under a refusal.
+
+Why it is now true:
+
+`tests/test_doctor_refused_claim.py` covers three refusal shapes in the
+  fence dialect and one in the comment dialect, each asserted for exit 1,
+  for `[FAIL] claims`, for the message naming the command to run, and for
+  the closing "machine is fine" sentence being absent. It also pins the two
+  boundaries that must not move: a file holding one readable block beside a
+  refused one still exits 0 with "1 of which the parser could read", and a
+  fence out of reach still reports `no claim blocks` rather than "read and
+  refused". 9 mutations of `src/citevouch/doctor.py`, all red: skipping the
+  branch, reporting it ok, counting only the first refusal, counting a table
+  header as a block, dropping the line number, dropping the fault text,
+  dropping the command from the fix, leaving `sources` as it was, and
+  narrowing the refusal set.
+
+Not covered:
+
+The table dialect's refused-row-plus-header shape was measured by hand but
+  not enumerated. `scan` and `verify` still report the refusal through the
+  finding alone, which is right - they name the block - and this entry only
+  claims what `doctor` now says.
