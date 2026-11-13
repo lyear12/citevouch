@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import __version__
+from .advice import shell_path
 from .bibtex import merge_entries, parse_bib_group
 from .errors import UsageError, why_not_a_file
 from .evidence import is_the_manuscript, source_is_manuscript_finding
@@ -451,7 +452,7 @@ def scan(options: ScanOptions) -> tuple[Ledger, list[Finding]]:
                     code="page-out-of-range",
                     message=(
                         f"claim {claim.id} points at page {claim.page} but "
-                        f"{Path(path).name} has pages 1-{len(pages)}"
+                        f"{shell_path(recorded_path(root, path))} has pages 1-{len(pages)}"
                     ),
                     claim_id=claim.id,
                     path=claim.path,

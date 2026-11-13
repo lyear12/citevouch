@@ -8638,3 +8638,42 @@ How to apply:
   a quoted value (`page="1 to 2"`) already has its own finding and must not be
   reported twice; `page=p. 1` leaves a tail that is not a word; a trailing
   `# comment` leaves no value at all.
+
+
+## A sentence that names a file names a place, and a name is not a place
+
+Three findings about a *source* file were written with `Path(path).name`.  The
+name is the last segment; the place is everything in front of it.  A project
+keeping its papers in `papers/` was told:
+
+```text
+[high] quote-missing at m.md:1 (c1): ... quote not found in paper.txt
+```
+
+while the ledger recorded `papers/2020_TayyarMadabushi-etal_CxGBERT.pdf` and no
+file called `paper.txt` existed anywhere the reader could stand.  The claim's
+own path in that same line had been root-relative for many rounds - the fix had
+been applied to the half of the sentence about the manuscript and not to the
+half about its evidence.  The same shape appeared in three places at once:
+
+```text
+quote not found in paper.txt          (verify, the missing branch)
+paper.txt has pages 1-2               (verify and scan, the hint branch)
+paper.txt is a different file than …  (verify, the drift branch)
+```
+
+How to apply:
+
+- `Path(x).name` is "the spelling I happen to have", not "the spelling the run
+  resolved".  A tool that prints a file for a human to open has to print the
+  path it actually opened - which for this project means `recorded_path`, the
+  same helper the ledger, the manuscript and the bibliography already use.
+- Two branches can carry one sentence.  `check` de-duplicates a finding reached
+  by both halves of the run, and the first one wins; so the second copy can
+  regress to the bare name with the whole suite green.  Find a run that reaches
+  only the second copy - here, `check --use-recorded`, which never scans.
+- A path printed inside a command must survive being pasted: shell-quote it,
+  and forward-slash it, or the Windows spelling is a different file to `sh`.
+- "Relative to the root" is not "relative to my shell".  Run the test from the
+  parent directory with `--root proj`; from inside the project the two join
+  rules agree and the defect is invisible.

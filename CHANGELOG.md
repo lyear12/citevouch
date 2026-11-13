@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+**Three sentences named a source file by its bare name, so the directory was
+gone and the file the reader was sent to is not where they are standing.**
+
+Every finding that says something about a source - "quote not found in <file>",
+"<file> has pages 1-N", "<file> is a different file than the one the ledger
+recorded" - used `Path(path).name`, which keeps the last segment and drops the
+rest. A project that keeps its papers in a folder therefore told its author to
+open a file that does not exist:
+
+```text
+$ citevouch check m.md     # sources.toml maps paper -> sources/paper.txt
+[high] quote-missing at m.md:1 (c1): ... - quote not found in paper.txt
+[high] page-out-of-range at m.md:1 (c1): claim c1 points at page 9 but paper.txt has pages 1-2
+[medium] source-changed at m.md:1 (c1): claim c1: paper.txt is a different file than ...
+```
+
+The claim's own path in that same line became root-relative several rounds ago;
+the source half of the sentence was left behind, while the ledger has always
+spelled the file `sources/paper.txt`. All four sites now name it the way
+`recorded_path` names the manuscript, the bibliography and the ledger -
+relative to the root, forward slashes, shell-quoted when it has to survive
+being pasted into a command - and a source at the project root still prints as
+`paper.txt`, because that is its root-relative spelling.
+
+* 10 tests, 6 mutations, all red. The second page-range sentence is reached
+  only by a recorded run: a plain `check` de-duplicates it against the scan
+  copy, so the `verify` copy could have regressed with every test green.
+
 ## [0.22.102] — 2026-11-13
 ### Fixed
 

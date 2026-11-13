@@ -607,8 +607,9 @@ def verify(
                 Finding(
                     code="source-changed",
                     message=(
-                        f"claim {claim.id}: {Path(path).name} is a different file than the "
-                        "one the ledger recorded; re-check this quote by hand"
+                        f"claim {claim.id}: {shell_path(recorded_path(root, path))} is a "
+                        "different file than the one the ledger recorded; re-check this "
+                        "quote by hand"
                     ),
                     claim_id=claim.id,
                     path=claim.path,
@@ -638,7 +639,7 @@ def verify(
                     code="page-out-of-range",
                     message=(
                         f"claim {claim.id} points at page {claim.page} but "
-                        f"{Path(path).name} has pages 1-{len(pages)}"
+                        f"{shell_path(recorded_path(root, path))} has pages 1-{len(pages)}"
                     ),
                     claim_id=claim.id,
                     path=claim.path,
@@ -784,7 +785,7 @@ def verify(
                     code="quote-missing",
                     message=(
                         f"claim {claim.id}: {excerpt(claim.quote)} — {match.reason or 'not found'}"
-                        f" in {Path(path).name}"
+                        f" in {shell_path(recorded_path(root, path))}"
                     ),
                     claim_id=claim.id,
                     path=claim.path,

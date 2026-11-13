@@ -27,7 +27,7 @@ $ cd demo && citevouch verify manuscript.md
 [info] quote-found at manuscript.md:34 (avg-degree): quote found on page 14
 [high] quote-missing at manuscript.md:43 (fcg-editor): The FCG Editor is an innovative environment for
   engineering computational construction gr… — no passage in the source is close to this quote in
-  2020_TayyarMadabushi-etal_CxGBERT.pdf
+  papers/2020_TayyarMadabushi-etal_CxGBERT.pdf
 
 citevouch: 5 claims — 4 verified, 0 moved, 1 missing
 worst severity: high
