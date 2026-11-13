@@ -8573,3 +8573,33 @@ that reads what it says it reads.
 - Prefer running the composed command against a project that should fail. Every
   test in this family builds the command from the YAML and runs it, so a wrong
   flag produces a wrong exit code rather than a green suite.
+
+## A default is a promise the file makes on the reader's behalf
+
+`action.yml` described itself as failing the job "when the evidence behind a
+manuscript's claims has drifted", and shipped `fail-on: high`. The two codes
+that mean drift are `medium`, so the action's own stated reason for existing
+exited 0 - measured with a replaced PDF, and green, until the threshold moved.
+
+The companion defect was fixed one commit earlier in the pre-commit hook, which
+had the same sentence and the same `high`-by-default. Two gates, one sentence
+each, both describing behaviour that neither could produce. Fixing them one at
+a time is how a family hides: the second one still reads as correct until you
+run it.
+
+**How to apply.** When a file ships a default, ask which of its own output the
+default can act on - not which output it prints. A description that names a
+class of findings is a claim that the default reaches that class; assert the
+coupling (`the drift codes are at most <default>`) rather than the literal, so
+the test survives a description that stops making the promise.
+
+A default is only a promise until something runs it: the tests here drive the
+action's shell body with the real CLI against a project whose source was
+replaced, not against `read_action()["inputs"]["fail-on"]["default"]`. Reading
+a default back proves the YAML says the number; it does not prove the number
+fails anything.
+
+And check the second gate. Gates come in families - a pre-commit hook, a
+composite action, a documented three-line CI snippet - and the same false
+sentence will be in all of them, because it was copied. Grep the claim, not the
+file.

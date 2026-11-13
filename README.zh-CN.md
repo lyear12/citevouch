@@ -296,7 +296,7 @@ action 不传 `--bib`，你也不该传：`--use-recorded` 核对的是**账本�
   id: citevouch
   with:
     manuscript: manuscript.md
-    fail-on: high
+    fail-on: medium
 - uses: github/codeql-action/upload-sarif@v3
   with:
     sarif_file: ${{ steps.citevouch.outputs.sarif }}
@@ -311,7 +311,7 @@ action 不传 `--bib`，你也不该传：`--use-recorded` 核对的是**账本�
 - run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
 ```
 
-`--use-recorded` 核对已提交的账本而不是重新解析稿件，所以这个岗位只在「PDF 或稿件在证据脚下动了」时变红——这正是 CI 闸门该盯的事。SARIF 传给 code scanning 后，发现会以行内标注出现在 PR 上。
+`--use-recorded` 核对已提交的账本而不是重新解析稿件，所以这个岗位只在「PDF 或稿件在证据脚下动了」时变红——这正是 CI 闸门该盯的事。action 因此把 `fail-on` 默认成 `medium`：`source-changed` 与 `quote-moved` 都是 `medium`，默认 `high` 会让它自己的描述变成假话。手动跑 CLI 时默认仍是 `high`，因为那时你在读输出。SARIF 传给 code scanning 后，发现会以行内标注出现在 PR 上。
 
 ## 设计取舍
 

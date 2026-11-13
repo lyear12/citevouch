@@ -21,7 +21,11 @@ inputs:
   fail-on:
     description: Lowest severity that fails the job (info, low, medium, high)
     required: false
-    default: high
+    # The CLI defaults to `high` because a person running it can read the
+    # output. This action is a gate: the drift it exists to catch
+    # (`source-changed`, `quote-moved`) is `medium`, so a `high` default made
+    # the description above false - a replaced source file exited 0.
+    default: medium
   format:
     description: Output format for stdout (text, json, sarif, markdown)
     required: false

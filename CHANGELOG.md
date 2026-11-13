@@ -12,6 +12,33 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+* **The action's default threshold could not fail on the drift the action is
+  named for.** `action.yml` says it fails the job when the evidence behind a
+  manuscript's claims has drifted, and the two codes that *mean* drift -
+  `source-changed` and `quote-moved` - are `medium`. The default was `high`,
+  so replacing a PDF with another edition of the same paper printed
+
+  ```
+  [medium] source-changed at m.md:3 (c1): a.txt is a different file than the
+  one the ledger recorded; re-check this quote by hand
+  worst severity: medium
+  ```
+
+  and exited 0. The same project at `--fail-on medium` exits 1. The default is
+  now `medium`, and the reason is written next to it: the CLI keeps `high`
+  because a person running it reads the output, while this action is a gate
+  and the gate has to be able to say no. Both READMEs now say so, and their
+  SARIF examples were pinning `high` too.
+
+  The tests that guard this do not read the default back - a default is only
+  a promise until something runs it. They drive the action's own shell step
+  with the real CLI against a project whose source was replaced, and against a
+  project whose quote moved pages, and require exit 1 both times. A third test
+  couples the two halves: if the description ever stops naming drift, or the
+  default is raised above `medium`, it fails. 6 mutations, all red.
+
 ## [0.22.100] — 2026-11-12
 ### Fixed
 * **The pre-commit hook read evidence it did not read.** Its own header said

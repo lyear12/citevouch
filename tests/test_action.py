@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 ACTION = ROOT / "action.yml"
@@ -57,8 +58,6 @@ def _bash() -> str:
 
 def read_action() -> dict:
     """The action file, with the shell steps kept as text."""
-    import yaml
-
     return yaml.safe_load(ACTION.read_text(encoding="utf-8"))
 
 
@@ -215,8 +214,12 @@ class TestTheFileItself:
         assert read_action()["inputs"]["manuscript"].get("required") is True
         assert "default" not in read_action()["inputs"]["manuscript"]
 
-    def test_the_default_fail_on_is_the_cli_default(self):
-        assert read_action()["inputs"]["fail-on"]["default"] == "high"
+    def test_the_default_fail_on_can_fail_on_the_drift_it_advertises(self):
+        # The CLI defaults to `high` because whoever runs it reads the output.
+        # The action is a gate, and the drift its description names
+        # (`source-changed`, `quote-moved`) is `medium`, so `high` here made a
+        # replaced source file exit 0 - see the run-step test below.
+        assert read_action()["inputs"]["fail-on"]["default"] == "medium"
 
 
 class TestTheInstallStep:
@@ -533,3 +536,116 @@ class TestTheRepositoryWiring:
                     f"step {step.get('name')!r} declares env {key} and never reads it; "
                     f"its body is: {body[:200]!r}"
                 )
+
+
+class TestTheGateFailsOnTheDriftItAdvertises:
+    """The description says "when the evidence has drifted"; make it true.
+
+    `source-changed` and `quote-moved` are `medium`, so the old `high` default
+    turned the action's own stated reason for existing into exit 0. That is
+    measured here through the run step, not by reading the default back: a
+    default is only a promise until something runs it.
+    """
+
+    def _project(self, tmp_path: Path) -> dict[str, str]:
+        paper = tmp_path / "paper"
+        paper.mkdir()
+        source = paper / "note.txt"
+        source.write_text("The corpus contains 154,391 utterances.\n", encoding="utf-8")
+        (paper / "sources.toml").write_text('[sources]\np = "note.txt"\n', encoding="utf-8")
+        (paper / "manuscript.md").write_text(
+            "# Paper\n\n```claim c1 source=p page=1\n"
+            ">> The corpus contains 154,391 utterances.\n```\n",
+            encoding="utf-8",
+        )
+        env = {"PYTHONPATH": str(ROOT / "src"), "PYTHONIOENCODING": "utf-8"}
+        subprocess.run(
+            [sys.executable, "-m", "citevouch", "scan", "manuscript.md", "--root", "."],
+            cwd=str(paper),
+            check=True,
+            capture_output=True,
+            env={**os.environ, **env},
+        )
+        return {
+            "IN_MANUSCRIPT": "paper/manuscript.md",
+            "IN_ROOT": "paper",
+            "IN_LEDGER": "paper/citevouch.lock.json",
+            "IN_FAIL_ON": read_action()["inputs"]["fail-on"]["default"],
+            "IN_FORMAT": "text",
+        }
+
+    def test_a_replaced_source_file_fails_the_job(self, tmp_path: Path):
+        env = self._project(tmp_path)
+        # Same quotation, different document: the exact drift the action says
+        # it fails on, and it was exit 0 while the default was `high`.
+        (tmp_path / "paper" / "note.txt").write_text(
+            "Preface. The corpus contains 154,391 utterances. An appendix follows.\n",
+            encoding="utf-8",
+        )
+        result = run_step(tmp_path, "Run the check", env_extra=env, real_cli=True)
+        assert result["returncode"] == 1, f"{result['stdout']}{result['stderr']}"
+        assert "source-changed" in result["stdout"], result["stdout"]
+
+    def test_a_quote_that_moved_pages_fails_the_job(self, tmp_path: Path):
+        env = self._project(tmp_path)
+        page = tmp_path / "paper" / "note.txt"
+        page.write_text("An opening page.\fThe corpus contains 154,391 utterances.\n", "utf-8")
+        result = run_step(tmp_path, "Run the check", env_extra=env, real_cli=True)
+        assert result["returncode"] == 1, f"{result['stdout']}{result['stderr']}"
+        assert "quote-moved" in result["stdout"], result["stdout"]
+
+    def test_an_unchanged_project_is_still_green(self, tmp_path: Path):
+        env = self._project(tmp_path)
+        result = run_step(tmp_path, "Run the check", env_extra=env, real_cli=True)
+        assert result["returncode"] == 0, f"{result['stdout']}{result['stderr']}"
+        assert "quote-missing" not in result["stdout"]
+
+
+class TestTheWordsAndTheNumberAgree:
+    """The description says "drifted"; the default has to be able to say so.
+
+    `source-changed` and `quote-moved` are `medium`, so a `high` default is a
+    description the file does not keep. The coupling is asserted rather than
+    the literal, because a future `high` default would be honest the day the
+    description stops naming drift - and that day this test should still pass.
+    """
+
+    #: Severities whose findings are what "the evidence drifted" means.
+    DRIFT_IS_AT_MOST = "medium"
+
+    def test_the_description_names_what_the_gate_fails_on(self):
+        # The description is the promise this action makes on the Marketplace.
+        # If it stops naming drift, the coupling below silently stops meaning
+        # anything - a test that returns early is a test that can be deleted
+        # without anyone noticing.
+        assert "drift" in read_action()["description"].lower()
+
+    def test_the_description_does_not_promise_more_than_the_default_can_fail_on(self):
+        action = read_action()
+        default = action["inputs"]["fail-on"]["default"]
+        order = ["info", "low", "medium", "high"]
+        assert order.index(default) <= order.index(self.DRIFT_IS_AT_MOST), (
+            f"the description promises to fail when evidence drifted, but the default is "
+            f"{default!r} and drift is {self.DRIFT_IS_AT_MOST}"
+        )
+
+    @pytest.mark.parametrize("name", ["README.md", "README.zh-CN.md"])
+    def test_every_documented_action_example_uses_the_shipped_default(self, name: str):
+        """A copy-paste example with a different threshold teaches the wrong gate.
+
+        An example may leave `fail-on` out (that is the default) or write the
+        default; what it may not do is write a number the action does not ship,
+        because the reader then gets a gate the description never promised.
+        """
+        default = read_action()["inputs"]["fail-on"]["default"]
+        text = (ROOT / name).read_text(encoding="utf-8")
+        blocks = re.findall(r"```yaml\n(.*?)```", text, re.DOTALL)
+        examples = [block for block in blocks if "uses: lyear12/citevouch" in block]
+        assert examples, f"{name}: no action example found, so nobody can copy one"
+        for block in examples:
+            for step in yaml.safe_load(block) or []:
+                if step.get("uses", "").startswith("lyear12/citevouch"):
+                    written = (step.get("with") or {}).get("fail-on")
+                    assert written in (None, default), (
+                        f"{name}: example writes fail-on: {written}, the action ships {default}"
+                    )

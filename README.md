@@ -336,7 +336,7 @@ is one more step:
   id: citevouch
   with:
     manuscript: manuscript.md
-    fail-on: high
+    fail-on: medium
 - uses: github/codeql-action/upload-sarif@v3
   with:
     sarif_file: ${{ steps.citevouch.outputs.sarif }}
@@ -356,7 +356,9 @@ is the safer form for a gate anyway, because a floating install can change the v
 
 `--use-recorded` verifies the committed ledger instead of re-deriving it, so the job fails only when
 the PDFs or the manuscript moved underneath the evidence — which is exactly what you want a gate to
-watch. Upload the SARIF to code scanning and findings appear inline on the PR.
+watch. The action defaults `fail-on` to `medium` for that reason: `source-changed` and `quote-moved`
+are `medium`, and a `high` default made its own description false. Run the CLI yourself and the
+default is still `high`, because you are reading the output. Upload the SARIF to code scanning and findings appear inline on the PR.
 
 ## Design notes
 
