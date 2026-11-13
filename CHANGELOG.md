@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.104] — 2026-11-13
 ### Fixed
 
 - **A quote running across more page breaks than one run reads was reported as `quote-missing` - the sentence that says the author invented it.** `_page_runs` joins at most `MAX_STITCHED_PAGES` (4) pages before looking, so a sentence quoted verbatim across five or six pages was never compared against anything, and the run then answered the question it had not asked: `[high] quote-missing ... - quote not found in paper.txt`. Measured on a six-page source whose pages carry one sentence in order, quoted across all six:
@@ -25,7 +26,6 @@ tag and that file disagree.
   Not covered: a quote whose words are split by a page break that `fold` does not reduce to a single space, and a source with only one page whose text is longer than the whole-document join.
 
 * 13 tests, 7 mutations, all red.
-
 ## [0.22.103] — 2026-11-13
 ### Fixed
 
@@ -5449,7 +5449,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.103...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.104...HEAD
+[0.22.104]: https://github.com/lyear12/citevouch/releases/tag/v0.22.104
 [0.22.103]: https://github.com/lyear12/citevouch/releases/tag/v0.22.103
 [0.22.102]: https://github.com/lyear12/citevouch/releases/tag/v0.22.102
 [0.22.101]: https://github.com/lyear12/citevouch/releases/tag/v0.22.101
