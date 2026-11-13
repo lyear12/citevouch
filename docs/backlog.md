@@ -6003,3 +6003,40 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   **Not covered** A quote whose words a page break splits without `fold`
   reducing the break to a single space; a one-page source whose text is longer
   than the whole-document join; a source whose page numbers repeat.
+
+- [x] **P1 - four module-level names nothing read, and a guard that only looked at one third of them (0.23.0)**
+
+  **What was wrong** `tests/test_no_dead_functions.py` resolved module-level
+  *functions* against every name the repository reads, and it was green while
+  four other names sat unread: `matching.LIMIT_PROBE_CHARS`, shipped in
+  0.22.104 above eight lines of comment describing a probe design that was
+  abandoned before it landed - and the docstring next to it says that design
+  cannot work, because a probe has to fit on one page and the documents it was
+  for have pages shorter than it; `matching._TOKEN`, the whitespace tokeniser
+  the character-counting rewrite replaced; `sources.SourceText`, a class
+  nothing constructs that promises a `SourceRef` no run ever builds; and
+  `sources._unquote`, a second copy of a helper whose module reads its own
+  quoted groups directly. `matching.MAX_STITCHED_PAGES` also carried three
+  lines claiming a quote over the limit is reported missing, which 0.22.104
+  had made false, citing a test that does not say that.
+
+  **What it does now** The guard enumerates three kinds - functions, constants
+  (both `NAME = value` and `NAME: type = value`) and classes - and resolves
+  each one to a `(module, name)` pair. Four names are gone, along with the
+  abandoned-design comment, and the `MAX_STITCHED_PAGES` comment now names
+  `quote-spans-too-many-pages` and the file that pins it.
+
+  **Why it is now true** 9 mutations, all red. Widening the guard found two
+  holes inside its own resolution, one at a time: `_uses` counted every
+  `ast.Name` including the assignment target, so a dead constant was its own
+  alibi; and a bare-name fallback credited a name to every module that
+  mentioned it, which is exactly the per-module distinction the docstring had
+  promised for three versions - `draft.summarize` was live and
+  `verify.summarize` was dead, and the fallback called both live. The
+  mutations have to add a dead *constant* back, not a dead function: the kind
+  the guard already handled will always die, so it proves nothing.
+
+  **Not covered** A name reachable only from a template or a YAML string; a
+  `TYPE_CHECKING`-only import, which reads as a load and would keep a name
+  nothing runs alive; a module that assigns one name under two different
+  kinds.
