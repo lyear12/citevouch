@@ -643,6 +643,75 @@ def _unknown_attr_findings(blob: str, path: str, line: int) -> list[Finding]:
     return found
 
 
+# Where one attribute stops and the next could start.  A value that is not
+# quoted ends at the first space, so everything between that space and the next
+# `key=` belongs to nobody.  Both spellings count: the colon form is reported by
+# `_opening_colon_findings` and must not also look like a lost tail.
+_NEXT_ATTRIBUTE = re.compile(r"\s+[A-Za-z_][A-Za-z0-9_-]*\s*[=:]")
+
+
+def _truncated_attr_findings(blob: str, path: str, line: int) -> list[Finding]:
+    """Name the words an unquoted attribute value cut off.
+
+    A value is read up to the first space unless it is quoted, which is right
+    for every spelling this format documents - `page=6`, `source=paper`.  What
+    it is not right for is a value the author wrote in more than one word:
+    the first word is kept and the rest is not an attribute, so nothing reads
+    it and nothing mentions it.
+
+    Measured on a two-page source whose quote is on page 1:
+
+    ```text
+    ```claim id=c1 source=paper page=1 to 2   -> page=1, quote-found, exit 0
+    ```claim id=c1 source=paper page=1 and 2  -> page=1, quote-found, exit 0
+    ```claim id=c1 source=paper page=p. 1     -> page='p.', page-unreadable
+    ```claim id=c1 source=paper page="1 to 2" -> page='1 to 2', page-unreadable
+    ```
+
+    The third and fourth lines already speak: the value that survived is one
+    `int()` refuses.  The first two are the ones this reports, because the
+    surviving value is usable and therefore silent - the run answers a question
+    about page 1 and never says that `to 2` was on the line.
+
+    Only the six attributes are checked.  `note=one two three` is not part of
+    this vocabulary, and a format that treats every following word as a lost
+    statement would fire on other tools' annotations.  Only a letter can start
+    the tail: `page=p. 1` leaves `1` behind and already has its own finding,
+    and `page=1 # the second page` leaves a comment, not a value.
+    """
+    scanned = blob or ""
+    found: list[Finding] = []
+    seen: set[str] = set()
+    for m in _ATTR.finditer(scanned):
+        key = (m.group("tight") or m.group("loose")).lower()
+        if key not in _KNOWN_ATTRIBUTES or key in seen:
+            continue
+        value = (m.group("tvalue") or m.group("lvalue") or "").strip()
+        tail = scanned[m.end() :]
+        cut = _NEXT_ATTRIBUTE.search(tail)
+        if cut is not None:
+            tail = tail[: cut.start()]
+        leftover = tail.strip()
+        if not re.match(r"[A-Za-z]", leftover):
+            continue
+        seen.add(key)
+        found.append(
+            Finding(
+                code="claim-field-truncated",
+                message=(
+                    f"this claim block's opening line writes {key}={value} and then "
+                    f"{leftover!r}, which belongs to no attribute; the value was "
+                    f"read as {value!r} and {leftover!r} was dropped - if it is part "
+                    f'of the value, write {key}="{value} {leftover}", and if it is '
+                    "not, delete it"
+                ),
+                path=path,
+                line=line,
+            )
+        )
+    return found
+
+
 def _nearest_attribute(key: str) -> str | None:
     """The known key within one edit of ``key``; ``None`` when there is none."""
     best: str | None = None
@@ -1137,6 +1206,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             attrs = _attrs(m.group("attrs"), on_the_line)
             opened_with = _unknown_attr_findings(m.group("attrs"), path, start_line)
             opened_with.extend(_opening_colon_findings(m.group("attrs"), path, start_line))
+            opened_with.extend(_truncated_attr_findings(m.group("attrs"), path, start_line))
             body: list[str] = []
             j = i + 1
             nested_at: int | None = None
@@ -1326,6 +1396,7 @@ def parse_manuscript(text: str, path: str = "manuscript.md") -> ParseResult:
             )
             more.extend(_unknown_attr_findings(head, path, start_line))
             more.extend(_opening_colon_findings(head, path, start_line))
+            more.extend(_truncated_attr_findings(head, path, start_line))
             more.extend(_repeated_fields(in_body_lines, path, start_line, attrs))
             more.extend(
                 _repeated_fields([(0, n, k, v) for n, k, v in on_the_line], path, start_line)

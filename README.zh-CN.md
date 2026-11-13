@@ -97,6 +97,7 @@ worst severity: high
 | `claim-field-conflict` | medium | claim 同时写了 `ref=` 和 `cite=` 且值不同，其中一个被丢弃 |
 | `claim-field-repeated` | medium | claim 在同一处把同一个属性写了两次（`source: paper` 后接 `source: alt`，或围栏行上 `page=1 page=2`）——用的是第一个值，其余被丢弃 |
 | `claim-field-shadowed` | medium | claim 在围栏行和正文里各写了一次同一个属性、且值不同——用的是围栏行的值，正文那个被丢弃 |
+| `claim-field-truncated` | medium | 围栏行上的属性值由多个词组成且没加引号（`page=1 to 2`）——只用了第一个词，其余被丢弃 |
 | `claim-field-unknown` | medium | 围栏行或 claim 体里有一行看起来是字段，但写错了位置或分隔符（体里的 `Page: 1`、围栏行上的 `pgae=3`、体里的 `page=2`）——它写的东西从未被应用 |
 | `claim-block-unread` | high | claim 块（围栏、`<!-- claim` 注释或表格行）写在引用块、列表项或缩进里，Markdown 会把它渲染成代码示例——里面的内容一个字都没核对 |
 | `page-unreadable` | medium | `page=` 提示不是数字，会被忽略，引文改为按搜索定位 |

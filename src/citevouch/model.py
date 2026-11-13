@@ -132,6 +132,17 @@ CODES = {
     # other dropped a line without a word.  Medium for the same reason as the
     # two above: the quote is still compared, an instruction was not applied.
     "claim-field-shadowed": "medium",
+    # An unquoted value is read up to the first space, so a value written in
+    # more than one word keeps its first word and the rest belongs to nobody.
+    # Measured with the quote on page 2 of a two-page source:
+    #
+    #     page=1 to 2   ->  page=1, [info] quote-found page 2, exit 0
+    #     page=1 and 2  ->  page=1, [info] quote-found page 2, exit 0
+    #
+    # The run answered a question about page 1 and never said that `to 2` was
+    # on the line.  Medium: the quote is still compared, an instruction was not
+    # applied - the same reason as the four above.
+    "claim-field-truncated": "medium",
     "claim-block-unread": "high",
     # A page hint that is not a number.  The claim is still located by search,
     # so this is a note about an instruction being ignored, not a rejection.

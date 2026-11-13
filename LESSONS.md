@@ -8603,3 +8603,38 @@ And check the second gate. Gates come in families - a pre-commit hook, a
 composite action, a documented three-line CI snippet - and the same false
 sentence will be in all of them, because it was copied. Grep the claim, not the
 file.
+
+
+## A value that stops at the first space is a value that answers a shorter question
+
+`_attrs` reads an unquoted attribute up to the first blank, which is exactly
+right for `page=6`.  What it is not right for is a value written in more than
+one word: the first word is kept, and everything after it stops being part of
+the claim at all - it is not quote text, not an unknown field, not a typo
+suggestion.  It just stops existing.
+
+Measured on a two-page source whose quote is printed on page 2:
+
+```text
+```claim id=c1 source=paper page=1 to 2   -> page=1, [info] quote-found page 2, exit 0
+```claim id=c1 source=paper page=p. 1     -> page='p.', [medium] page-unreadable
+```
+
+The second line speaks, because the value that survived is one `int()` refuses.
+The first line is the whole problem: the surviving value was usable, so the run
+answered a question about page 1 and never mentioned `to 2`.
+
+How to apply:
+
+- When a reader cuts a value short, ask what the cut-off part becomes.  If the
+  answer is "nothing reads it", that is a loss, not a parse.
+- A truncation needs both halves in the message: the value that was used and
+  the words that were dropped.  Naming only one of them leaves the author
+  unable to see which spelling produced the answer they got.
+- Guard the fix with the keys the format defines, not with "any `key=` token".
+  `note=one two three` is prose with an equals sign in it, and a format that
+  reports every such tail spends its credibility on other tools' annotations.
+- Test the shapes that must stay quiet as hard as the shapes that must speak:
+  a quoted value (`page="1 to 2"`) already has its own finding and must not be
+  reported twice; `page=p. 1` leaves a tail that is not a word; a trailing
+  `# comment` leaves no value at all.

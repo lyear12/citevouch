@@ -12,6 +12,41 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+**A value written in more than one word kept its first word, and the rest
+was dropped without a word.**
+
+`_attrs` reads an unquoted value only up to the first space, which is right
+for every spelling the format documents (`page=6`, `source=paper`). An
+author who wrote a range or a note got the first word, and the words after
+it belonged to no attribute at all: not appended to the quote, not reported
+as an unknown field, not compared to anything. Measured on a two-page source
+whose quote is printed on page 2:
+
+```text
+```claim id=c1 source=paper page=1 to 2   -> [info] quote-found page 2, exit 0
+```claim id=c1 source=paper page=1 and 2  -> [info] quote-found page 2, exit 0
+```claim id=c1 source=paper page=p. 1     -> page='p.', page-unreadable
+```claim id=c1 source=paper page="1 to 2" -> page='1 to 2', page-unreadable
+```
+
+The third and fourth lines already spoke: the value that survived is one
+`int()` refuses. The first two were the silent ones, because the value that
+survived was usable - the run answered a question about page 1 and never
+said that `to 2` was on the line. The body dialect reads the whole line
+(`page: 1 to 2` gives `page-unreadable`), so this loss was the opening
+line's alone.
+
+New code `claim-field-truncated` (medium) names the value that was kept, the
+words that were dropped, and the quoted spelling that keeps them. It speaks
+only about the six attributes the format defines - `note=one two three` is
+prose that happens to contain an equals sign - and only when the leftover
+starts with a letter, so `page=p. 1` (which has its own finding) and a
+trailing comment stay quiet.
+
+* 20 tests, 8 mutations, all red.
+
 ## [0.22.101] — 2026-11-13
 ### Fixed
 

@@ -100,6 +100,7 @@ rots:
 | `claim-field-conflict` | medium | the claim writes both `ref=` and `cite=` with different values, so one of the two was dropped |
 | `claim-field-repeated` | medium | the claim writes the same attribute twice in the same place (`source: paper` then `source: alt`, or `page=1 page=2` on the fence), so the first value was used and the rest were dropped |
 | `claim-field-shadowed` | medium | the claim writes one attribute on the opening line and again in the body with a different value, so the opening line's value was used and the body's was dropped |
+| `claim-field-truncated` | medium | an attribute value on the fence line is written in more than one word without quotes (`page=1 to 2`), so only the first word was used and the rest was dropped |
 | `claim-field-unknown` | medium | a line on the fence line or in the body looks like a field but is written in the wrong place or with the wrong separator (`Page: 1` in the body, `pgae=3` on the fence, `page=2` in the body), so what it said was never applied |
 | `claim-block-unread` | high | a claim block (a fence, a `<!-- claim` comment or a table row) sits inside a blockquote, a list item or an indent, where Markdown renders it as a code sample - nothing in it was checked |
 | `page-unreadable` | medium | a `page=` hint is not a number, so it is ignored and the quote is located by search |
