@@ -5970,3 +5970,36 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   reads the escaped form back; and the tabular dialect reaches the page-range
   sentence through the same helper, so it is covered by construction rather
   than by a test of its own.
+
+- [x] **P1 - a quote running across more page breaks than one run reads was reported as absent (0.22.104)**
+
+  **What was wrong** `_page_runs` joins at most `MAX_STITCHED_PAGES` (4) pages
+  before it looks for the quotation, so a sentence quoted verbatim across five
+  or six pages was never compared against anything - and the run then reported
+  `[high] quote-missing`, the sentence that says the author invented the
+  quotation, while the words sat on those pages in order. Measured on a
+  six-page source: `quote-found` at two, three and four pages, `quote-missing`
+  at five, six and eight, with the same words found by `str.find` once the
+  breaks were flattened. The tool reported its own reach as a property of the
+  manuscript.
+
+  **What it does now** A third answer instead of a better yes/no.
+  `_whole_document_span` joins the whole document the way the stitcher joins a
+  run, finds the quote in it, and turns the hit's two ends back into page
+  numbers. When the hit covers more breaks than the stitcher reaches, the
+  claim is counted as *skipped*, not missing, and `check` prints
+  `[high] quote-spans-too-many-pages` naming where the quote begins and ends
+  and saying it was never compared page by page. The tally line reads
+  `1 skipped` where it used to read `1 missing`. The width test counts pages
+  of the file read, not page numbers printed in the margin, so an extractor
+  that skips numbers cannot make a compared quote look too wide.
+
+  **Why it is now true** 13 tests in
+  `tests/test_quote_spans_too_many_pages.py`, 7 mutations, all red. The hard
+  part was that the helper is only reachable after every tier has missed, so
+  two of its guards survived seven end-to-end mutations; they only died once
+  the helper was asked directly, from a five-page-number document with gaps.
+
+  **Not covered** A quote whose words a page break splits without `fold`
+  reducing the break to a single space; a one-page source whose text is longer
+  than the whole-document join; a source whose page numbers repeat.
