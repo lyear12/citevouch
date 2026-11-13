@@ -12,6 +12,50 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Removed
+
+- **Four module-level names that nothing read, and the guard that was only
+  looking at one third of them.** `matching.LIMIT_PROBE_CHARS` shipped in
+  this project's own previous release, with eight lines of comment
+  describing a design - find the two ends of an over-long quote with fifty
+  characters from each end - that was abandoned before it landed; the
+  docstring of the function beside it says that design cannot work, because
+  a probe has to fit on one page and the documents it was for have pages
+  shorter than the probe. `matching._TOKEN` was the whitespace tokeniser the
+  CJK rewrite replaced. `sources.SourceText` was a class nothing constructs,
+  carrying a `ref()` method promising a `SourceRef` no run ever built.
+  `sources._unquote` was a second copy of `manuscript._unquote` in a module
+  whose attribute scanner reads its own quoted groups directly, so nothing
+  called it.
+
+  All four are the defect this project finds most often: the comment or the
+  docstring describes an implementation, the reader believes it, and no run
+  ever finds out. The reason they survived is in the guard.
+  `tests/test_no_dead_functions.py` resolved *functions* only, so a dead
+  constant, a dead class and a helper in a module nobody imported were all
+  invisible. It now walks functions, constants (both `NAME = ...` and
+  `NAME: T = ...`) and classes.
+
+  Extending it found a fourth hole immediately, and it was in the guard's
+  own resolution: `_uses` counted every `ast.Name`, including an assignment
+  target, so a dead constant was its own alibi. Counting only loads then
+  exposed a second one - the bare-name fallback credited any name to every
+  module - which is exactly the distinction the guard's docstring had
+  claimed to make for three versions: `draft.summarize` was a live call
+  while `verify.summarize` was dead, and a scan matching on the bare name
+  called both live. Resolution is now strictly `(module, name)`, in every
+  module, including the one that reads its own constants.
+
+  ```
+  citevouch.sources._unquote (function)
+  ```
+
+  Not covered: names that are only reachable from a template or a YAML
+  string, and `TYPE_CHECKING`-only imports, which read as loads and would
+  keep alive a name nothing runs.
+
+* 9 mutations on the guard and the removals, all red.
+
 ## [0.22.104] — 2026-11-13
 ### Fixed
 

@@ -27,7 +27,7 @@ from shutil import which
 from ._version import __version__
 from .advice import shell_path
 from .errors import UsageError, why_not_a_file
-from .model import Finding, SourceRef
+from .model import Finding
 from .textnorm import (
     _noise,
     count_of,
@@ -88,23 +88,6 @@ class PageText:
 
     def to_json(self) -> dict:
         return {"number": self.number, "text": self.text}
-
-
-@dataclass
-class SourceText:
-    key: str
-    path: str
-    pages: list[PageText] = field(default_factory=list)
-    sha256: str = ""
-
-    @property
-    def page_count(self) -> int:
-        return len(self.pages)
-
-    def ref(self) -> SourceRef:
-        return SourceRef(
-            key=self.key, path=self.path, sha256=self.sha256, pages=len(self.pages)
-        )
 
 
 def sha256_file(path: str | Path) -> str:
@@ -903,13 +886,6 @@ _TAG_NAME = re.compile(r"<\s*([a-zA-Z][^\s/>]*)")
 _VOID_ELEMENTS = frozenset(
     "area base br col embed hr img input link meta param source track wbr".split()
 )
-
-
-def _unquote(value: str) -> str:
-    """An attribute value without the quotes it was written in."""
-    if len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]:
-        return value[1:-1]
-    return value
 
 
 #: One attribute of an opening tag: its name and, when written, its value.

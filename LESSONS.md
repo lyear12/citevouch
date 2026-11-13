@@ -8709,3 +8709,42 @@ it is not tested by any end-to-end test, whatever the suite says. Two such guard
 seven end-to-end mutations here; they only died once the helper was asked directly. If a
 function is only reachable after every other tier has missed, its own tests must call it,
 not a command that might reach it.
+
+## A guard that looks at one kind of name is a guard on one third of the module
+
+`tests/test_no_dead_functions.py` resolved every module-level *function* against every name the
+repository reads.  It was green while four other names sat unread: `matching.LIMIT_PROBE_CHARS`
+(a constant shipped in the previous release, above eight lines of comment describing a design
+the neighbouring docstring says cannot work), `matching._TOKEN` (the tokeniser a rewrite
+replaced), `sources.SourceText` (a class nothing constructs, promising a `SourceRef` no run
+built) and `sources._unquote` (a second copy of a helper whose module reads its own quoted
+groups).  A function is what the guard happened to parse; it is not what a module-level name
+is, and the difference was three kinds of name nobody was watching.
+
+Extending the guard found the fourth hole inside the guard: `_uses` counted every `ast.Name`,
+including the assignment target, so a dead constant was its own alibi.  Counting only loads
+exposed the fifth: a bare-name fallback credited a name to every module that mentioned it,
+which destroyed exactly the per-module resolution the docstring had promised for three
+versions - `draft.summarize` was live and `verify.summarize` was dead, and the fallback called
+both live.
+
+**How to apply.** When a guard enumerates "the things of kind K that must be reachable", ask
+what else in that container has a name.  A parser that walks `FunctionDef` has made a claim
+about functions, not about the module; constants, classes, imports and annotations each need
+their own branch or their own sentence saying they are out of scope.  Then ask what the guard
+counts as a *reference*: a definition, an assignment target and a type annotation are all
+`ast.Name` nodes, and only a load is a reader.  A guard whose resolution rule is looser than
+its own docstring promises is a guard that has never been run against its own claim.
+
+**How to apply, part two.** Ship the removal and the widening in the same change.  Deleting
+the dead names without widening the guard leaves the next one free to land, and widening the
+guard without deleting them leaves it red.  The mutation to write is "add a dead constant
+back", not "add a dead function back" - the kind the guard already handled will always die,
+and that is the mutation that proves nothing.
+
+**How to apply, part three.** A comment above unused code is not weaker evidence than a
+docstring above an unused function.  Both describe an implementation to a reader who will
+look for it, and neither is executed.  When a design is abandoned mid-change, the comment that
+explains the abandoned design has to go with it; a comment whose neighbour argues against it
+is the loudest possible form of the defect, because a careful reader will find both and have
+to decide which one to believe.

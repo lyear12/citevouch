@@ -122,7 +122,6 @@ MIN_MASKED_CHARS = 12
 
 _NUMBER = MASK_PATTERN
 _NUMBER_PLACEHOLDER = "\x00"
-_TOKEN = re.compile(r"[^\s]+")
 _LATIN_WORD = re.compile(r"[^\W\d_]+")
 
 
@@ -434,21 +433,13 @@ def _context(page_text: str, needle_index: int, needle_len: int, width: int = 12
 #: page breaks is already unusual; the alternative to a limit is a quadratic
 #: blow-up on a 900-page book for a case that does not occur.
 #:
-#: A quote longer than the limit is reported missing, which is a false
-#: accusation - so the limit is a correctness parameter, not a tuning knob, and
-#: ``tests/test_cross_page_three.py`` says so in a test.
+#: A quote longer than the limit is never compared page by page, so this run
+#: may not call it missing either: ``_whole_document_span`` finds where it
+#: begins and where it ends in the whole document, and the claim is reported
+#: as ``quote-spans-too-many-pages`` and counted under ``skipped``.  That is
+#: what makes the number a correctness parameter rather than a tuning knob;
+#: ``tests/test_quote_spans_too_many_pages.py`` says so in a test.
 MAX_STITCHED_PAGES = 4
-
-#: How much of a quote is used to recognise where it begins and where it ends.
-#:
-#: A quote longer than the stitcher reaches cannot be *matched*, but its two
-#: ends can still be found on their own pages, and that is the difference
-#: between "this quote is not in the source" (a false accusation) and "this
-#: quote runs across more page breaks than I read at once" (a true sentence
-#: about this tool's own limit).  Fifty characters is a phrase, not a word:
-#: short enough to fit on the first page of a quote that starts mid-sentence,
-#: long enough that finding it is evidence rather than coincidence.
-LIMIT_PROBE_CHARS = 50
 
 
 def _number_match(
