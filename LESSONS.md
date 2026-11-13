@@ -8677,3 +8677,35 @@ How to apply:
 - "Relative to the root" is not "relative to my shell".  Run the test from the
   parent directory with `--root proj`; from inside the project the two join
   rules agree and the defect is invisible.
+
+## A limit of the reader is not a fact about what was read
+
+`_page_runs` joins at most `MAX_STITCHED_PAGES` pages before it looks for a quotation. A
+sentence quoted verbatim across six pages of a six-page source was therefore never compared
+against anything - and the run answered `[high] quote-missing ... quote not found in
+paper.txt`, which is the sentence that says the author fabricated the quotation. The words
+were on those pages, in order. Measured: `quote-found` at n=2,3,4; `quote-missing` at
+n=5,6,8, with the same text found by `str.find` once the page breaks were flattened.
+
+The expensive part is not that the reader gave up. It is that it reported its own reach as
+a property of the manuscript, and `quote-missing` is exactly the claim this project exists
+to make only when it is earned.
+
+**How to apply.** When a code path stops early - a limit, a cap, a budget, a "we only look
+at the first N" - the run must not fall through to the answer it would have given had the
+rest been read and found wanting. That fall-through is silent, because the answer is a
+valid answer. Give the early exit its own verdict: name the limit, say what was never
+checked, and count the claim as *skipped* rather than *missing*. A third answer costs one
+code and one branch; pretending is what costs the reader's trust.
+
+**How to apply, part two.** Write the limit's arithmetic in the unit the limit spends. The
+stitcher counts pages of the file it joined; the margin prints page numbers. An extractor
+that skips numbers (scanned front matter, a two-up spread) makes "page 11 minus page 1"
+differ from "pages joined", so a width test written on printed numbers excuses a quote the
+stitcher did compare. Decide in the counter's currency, report in the reader's.
+
+**How to apply, part three.** A guard that cannot be reached from the only path that calls
+it is not tested by any end-to-end test, whatever the suite says. Two such guards survived
+seven end-to-end mutations here; they only died once the helper was asked directly. If a
+function is only reachable after every other tier has missed, its own tests must call it,
+not a command that might reach it.
