@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.102] — 2026-11-13
 ### Fixed
 
 **A value written in more than one word kept its first word, and the rest
@@ -46,7 +47,6 @@ starts with a letter, so `page=p. 1` (which has its own finding) and a
 trailing comment stay quiet.
 
 * 20 tests, 8 mutations, all red.
-
 ## [0.22.101] — 2026-11-13
 ### Fixed
 
@@ -5405,7 +5405,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.101...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.102...HEAD
+[0.22.102]: https://github.com/lyear12/citevouch/releases/tag/v0.22.102
 [0.22.101]: https://github.com/lyear12/citevouch/releases/tag/v0.22.101
 [0.22.100]: https://github.com/lyear12/citevouch/releases/tag/v0.22.100
 [0.22.99]: https://github.com/lyear12/citevouch/releases/tag/v0.22.99
