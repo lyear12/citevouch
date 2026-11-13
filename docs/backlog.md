@@ -5935,3 +5935,38 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   a space, so it survives as one token and `page-unreadable` already speaks);
   the table dialect, whose page cell has its own reader and its own range
   handling.
+
+- [x] **P1 - the sentences about a source named it by its last segment, so the directory was gone (0.22.103)**
+
+  **What was wrong** Three findings name the file a verdict is about:
+  `quote-missing` ends with "quote not found in <file>", `page-out-of-range`
+  says "<file> has pages 1-N", and `source-changed` says "<file> is a
+  different file than the one the ledger recorded". All three used
+  `Path(path).name`. A project that keeps its papers in a folder was therefore
+  pointed at `paper.txt` while the ledger, and the file on disk, spelled
+  `papers/paper.txt` - the reader's next move was to open a file that does not
+  exist.
+
+  **What it does now** All four sites use
+  `shell_path(recorded_path(root, path))`, the rule the manuscript path, the
+  bibliography and the ledger already follow: relative to the root, forward
+  slashes, shell-quoted. A source at the project root still prints as
+  `paper.txt`, because that is its root-relative spelling; a path with a space
+  prints as `'my sources/paper one.txt'`, so the sentence can be pasted into a
+  command.
+
+  **Why it is now true** `tests/test_source_named_where_it_lives.py` runs the
+  four verbs and parses the name out of each sentence, then asserts the file
+  exists from the directory the command was run in - the readme test also
+  regenerated `docs/img/verify.png`, whose sidecar is compared to the demo
+  each run. Six mutations: reverting each site to `Path(path).name`, dropping
+  the shell quoting, and joining the root twice. All six go red. The last one
+  needed a test that runs from the parent directory with `--root proj`,
+  because with `--root .` the doubled join is a no-op.
+
+  **Not covered** A source outside the project root keeps its absolute
+  spelling (that is `recorded_path` 's documented behaviour and is not pinned
+  here); a root-relative path containing a single quote is escaped but nothing
+  reads the escaped form back; and the tabular dialect reaches the page-range
+  sentence through the same helper, so it is covered by construction rather
+  than by a test of its own.
