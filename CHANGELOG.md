@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.101] — 2026-11-13
 ### Fixed
 
 * **The action's default threshold could not fail on the drift the action is
@@ -38,7 +39,6 @@ tag and that file disagree.
   project whose quote moved pages, and require exit 1 both times. A third test
   couples the two halves: if the description ever stops naming drift, or the
   default is raised above `medium`, it fails. 6 mutations, all red.
-
 ## [0.22.100] — 2026-11-12
 ### Fixed
 * **The pre-commit hook read evidence it did not read.** Its own header said
@@ -5370,7 +5370,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.100...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.101...HEAD
+[0.22.101]: https://github.com/lyear12/citevouch/releases/tag/v0.22.101
 [0.22.100]: https://github.com/lyear12/citevouch/releases/tag/v0.22.100
 [0.22.99]: https://github.com/lyear12/citevouch/releases/tag/v0.22.99
 [0.22.98]: https://github.com/lyear12/citevouch/releases/tag/v0.22.98
