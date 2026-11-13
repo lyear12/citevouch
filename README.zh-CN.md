@@ -61,6 +61,7 @@ worst severity: high
 | `quote-found` | info | 引文还在所记页面上 |
 | `quote-moved` | medium | 引文在文档里，但换了页（排版变了） |
 | `quote-fuzzy` | high | 只有近似匹配——**绝不算通过** |
+| `quote-spans-too-many-pages` | high | 引文跨的页比一次运行读的页多，因此从未逐页比对过——不是关于来源的判断 |
 | `quote-missing` | high | 全文找不到与引文接近的段落 |
 | `number-absent-in-quote` | high | 引文里的数字不在所引页面上 |
 | `number-not-in-passage` | high | 引文里的数字在这一页上，但属于另一句 |

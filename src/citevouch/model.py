@@ -22,6 +22,13 @@ SEVERITIES = ("info", "low", "medium", "high")
 # SARIF rule ids are derived from them, so renaming one is a breaking change.
 CODES = {
     "quote-found": "info",
+    # The third answer for a quote that is neither proven nor absent: this tool
+    # reads a bounded number of pages at once, and a quotation spanning more
+    # breaks than that was never compared against anything.  High severity
+    # because it is not advisory - the run genuinely did not check the quote -
+    # and because a project whose manuscript quotes long passages will meet it
+    # on every page until the quotes are shortened.
+    "quote-spans-too-many-pages": "high",
     "quote-moved": "medium",
     "quote-missing": "high",
     # High, not medium. `quote-fuzzy` means "there is text like this nearby and

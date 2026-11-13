@@ -35,6 +35,10 @@ from .verify import VerifyResult
 # The level is now derived from ``model.CODES`` in one place, so there is
 # nothing left to disagree with.
 SARIF_RULES = {
+    "quote-spans-too-many-pages": (
+        "A quote runs across more page breaks than this tool reads at once, so "
+        "it was never compared against the pages it spans."
+    ),
     "quote-missing": "A quoted passage is not in the source.",
     "quote-fuzzy": "A quoted passage is only approximately in the source; nothing proves it.",
     "quote-moved": "A quoted passage is on a different page than recorded.",

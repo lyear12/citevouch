@@ -12,6 +12,20 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A quote running across more page breaks than one run reads was reported as `quote-missing` - the sentence that says the author invented it.** `_page_runs` joins at most `MAX_STITCHED_PAGES` (4) pages before looking, so a sentence quoted verbatim across five or six pages was never compared against anything, and the run then answered the question it had not asked: `[high] quote-missing ... - quote not found in paper.txt`. Measured on a six-page source whose pages carry one sentence in order, quoted across all six:
+
+  ```
+  [high] quote-missing at m.md:1 (c1): alpha beta gamma delta ... - quote not found in paper.txt
+  ```
+
+  while the same words with the page breaks flattened to spaces are found by `str.find`. The new answer is a third one, not a better yes/no: `quote-spans-too-many-pages` (high), counted as *skipped*, saying where the quote begins and ends and that it was never compared page by page. `_whole_document_span` joins the whole document the way the stitcher joins a run, finds the quote in it, and decides in the stitcher's own currency - pages of the file read, not the numbers printed in the margin - so an extractor that skips numbers cannot make a quote the stitcher did compare look too wide.
+
+  Not covered: a quote whose words are split by a page break that `fold` does not reduce to a single space, and a source with only one page whose text is longer than the whole-document join.
+
+* 13 tests, 7 mutations, all red.
+
 ## [0.22.103] — 2026-11-13
 ### Fixed
 

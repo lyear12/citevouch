@@ -439,6 +439,17 @@ def _context(page_text: str, needle_index: int, needle_len: int, width: int = 12
 #: ``tests/test_cross_page_three.py`` says so in a test.
 MAX_STITCHED_PAGES = 4
 
+#: How much of a quote is used to recognise where it begins and where it ends.
+#:
+#: A quote longer than the stitcher reaches cannot be *matched*, but its two
+#: ends can still be found on their own pages, and that is the difference
+#: between "this quote is not in the source" (a false accusation) and "this
+#: quote runs across more page breaks than I read at once" (a true sentence
+#: about this tool's own limit).  Fifty characters is a phrase, not a word:
+#: short enough to fit on the first page of a quote that starts mid-sentence,
+#: long enough that finding it is evidence rather than coincidence.
+LIMIT_PROBE_CHARS = 50
+
 
 def _number_match(
     page: PageText,
@@ -525,6 +536,77 @@ def _page_runs(
                 body += " " + page.text.lstrip()
             numbers = tuple(page.number for page in run)
             yield PageText(number=run[0].number, text=body), numbers[-1], numbers
+
+
+def _whole_document_span(quote_norm: str, pages: list[PageText]) -> tuple[int, int] | None:
+    """Where a quote sits when the whole document is read as one passage.
+
+    The stitcher reads at most ``MAX_STITCHED_PAGES`` pages at a time, so a
+    quotation crossing more breaks than that is never compared against
+    anything - and until this function existed the run then reported it
+    ``quote-missing``, the high-severity sentence that says the author
+    fabricated a quotation, while the words sat on those pages in order.
+    Measured on a source whose six pages carry one sentence quoted verbatim
+    across all six:
+
+        [high] quote-missing ... - quote not found in paper.txt
+
+    The answer to "did this tool simply not read far enough" only exists on the
+    path where every tier has already missed, so it is asked here and paid for
+    once: join the whole document the way ``_page_runs`` joins a run, look for
+    the quote in it, and translate the hit's two ends back into page numbers.
+    A probe built from the quote's first and last fifty characters was tried
+    first and cannot work: the probe has to fit on one page, and a document
+    whose pages are shorter than the probe is exactly the document this
+    function is for.
+
+    Returns ``(first, last)`` only when the quote is really in the document and
+    really spans more pages than the stitcher reaches.  A quote the stitcher
+    did try - one that fits in ``MAX_STITCHED_PAGES`` - keeps its own verdict
+    instead of being excused here.
+
+    There is deliberately no separate "is the document even long enough" guard
+    in front of the join: with the page numbers handed out by the extractor, a
+    document of at most ``MAX_STITCHED_PAGES`` pages cannot span more breaks
+    than that, so the span check below is the whole rule.  A second, weaker
+    guard written first would be unreachable-or-redundant, and nothing would
+    ever fail when it was wrong.
+    """
+    if not quote_norm.strip():
+        return None
+    starts: list[int] = []
+    pieces: list[str] = []
+    offset = 0
+    for page in pages:
+        starts.append(offset)
+        piece = page.folded.strip()
+        pieces.append(piece)
+        offset += len(piece) + 1
+    flat = " ".join(pieces)
+    hits = _bounded_in(flat, quote_norm)
+    if not hits:
+        return None
+    begin = hits[0]
+    finish = begin + len(quote_norm) - 1
+
+    def index_of(position: int) -> int:
+        found = 0
+        for index, start in enumerate(starts):
+            if start <= position:
+                found = index
+            else:
+                break
+        return found
+
+    # The decision is made in the stitcher's currency - how many pages of this
+    # list the quote covers - because that is the thing the stitcher counts.
+    # Page *numbers* only go into the sentence, where the author reads them.
+    # The two differ when an extractor leaves gaps in the numbering, and a rule
+    # written in the wrong currency would excuse a quote the stitcher did try.
+    first_index, last_index = index_of(begin), index_of(finish)
+    if last_index - first_index + 1 <= MAX_STITCHED_PAGES:
+        return None
+    return pages[first_index].number, pages[last_index].number
 
 
 def find_in_pages(
@@ -857,6 +939,25 @@ def _find_in_pages(
         if score >= 0.995:
             break
     if best.similarity < FUZZY_THRESHOLD:
+        # Before saying "not found", ask the one question that can turn this
+        # into a true sentence: is the quote simply longer than the number of
+        # pages this tool reads at once?  Asked here, at the single point where
+        # every tier has already missed, so no verdict that found the quote can
+        # be overwritten by it.
+        span = _whole_document_span(quote_norm, pages)
+        if span is not None:
+            first, last = span
+            return Match(
+                tier="spans",
+                page=first,
+                similarity=0.0,
+                reason=(
+                    f"this quote begins on page {first} and ends on page {last}, "
+                    f"which is {last - first + 1} pages - more page breaks than "
+                    f"this tool reads at once ({MAX_STITCHED_PAGES})"
+                ),
+                spans_to=last,
+            )
         return Match(tier="none", reason=best.reason or "quote not found")
     return best
 

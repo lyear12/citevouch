@@ -740,6 +740,29 @@ def verify(
             # the only point where comparing the claim against it means
             # something: everywhere else the quote itself is in doubt.
             result.findings.extend(_claim_number_checks(claim, pages, match))
+        elif match.tier == "spans":
+            # The quote is in the document and this tool could not read it in
+            # one piece.  Reporting it missing says the author invented a
+            # quotation; reporting it verified says the run checked words it
+            # never compared.  Both are claims about evidence, and the honest
+            # answer is the third one: this run could not decide, and here is
+            # what would let it.  Counted as skipped, not missing, for the same
+            # reason `source-unreadable` is - the file was never searched.
+            result.skipped += 1
+            result.findings.append(
+                Finding(
+                    code="quote-spans-too-many-pages",
+                    message=(
+                        f"claim {claim.id}: {match.reason}; the quote was never "
+                        "compared page-by-page, so this run cannot say whether it "
+                        "is verbatim. Quote a shorter passage, or split this one "
+                        "into a block per page"
+                    ),
+                    claim_id=claim.id,
+                    path=claim.path,
+                    line=claim.line,
+                )
+            )
         elif match.tier == "fuzzy":
             result.missing += 1
             result.findings.append(
