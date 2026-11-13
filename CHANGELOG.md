@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-11-13
 ### Removed
 
 - **Four module-level names that nothing read, and the guard that was only
@@ -55,7 +56,6 @@ tag and that file disagree.
   keep alive a name nothing runs.
 
 * 9 mutations on the guard and the removals, all red.
-
 ## [0.22.104] — 2026-11-13
 ### Fixed
 
@@ -5493,7 +5493,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.104...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/lyear12/citevouch/releases/tag/v0.23.0
 [0.22.104]: https://github.com/lyear12/citevouch/releases/tag/v0.22.104
 [0.22.103]: https://github.com/lyear12/citevouch/releases/tag/v0.22.103
 [0.22.102]: https://github.com/lyear12/citevouch/releases/tag/v0.22.102
