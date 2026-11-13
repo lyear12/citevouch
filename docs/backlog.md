@@ -5870,3 +5870,30 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   from `manuscript.md` still has to edit `args` by hand, and no test covers
   that edit. The `medium` threshold was chosen from the codes the
   description names, not measured against a corpus of real commits.
+- [x] **P1 - the action's default threshold could not fail on the drift the action is named for (0.22.101)**
+
+  **What was wrong.** `action.yml` described itself as failing the job "when
+  the evidence behind a manuscript's claims has drifted", and shipped
+  `fail-on: high`. The two codes that mean drift - `source-changed` and
+  `quote-moved` - are `medium`. Replacing a PDF with another edition of the
+  same paper printed `[medium] source-changed ... worst severity: medium`
+  and exited 0; the same project at `--fail-on medium` exits 1. The
+  pre-commit hook carried the same sentence with the same `high` one commit
+  earlier: two gates, one wrong paragraph.
+
+  **What it does now.** The action defaults to `medium`, with the reason
+  next to the number: the CLI keeps `high` because whoever runs it reads the
+  output, while the action is a gate and a gate has to be able to say no.
+  Both READMEs say so and their SARIF examples no longer pin `high`.
+
+  **Why it is now true.** The tests do not read the default back; they drive
+  the action's own shell step with the real CLI against a project whose
+  source was replaced and against one whose quote moved pages, and require
+  exit 1 from both. A third test couples the description to the default, so
+  raising the threshold again - or dropping the promise from the prose -
+  fails. 6 mutations, all red.
+
+  **Not covered.** A repository that deliberately sets `fail-on: high` still
+  gets a gate that cannot see drift; that is the user's choice and the
+  action honours it. The Marketplace rendering of the description is not
+  exercised, only the string.
