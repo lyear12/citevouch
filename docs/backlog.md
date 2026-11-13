@@ -5897,3 +5897,41 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   gets a gate that cannot see drift; that is the user's choice and the
   action honours it. The Marketplace rendering of the description is not
   exercised, only the string.
+
+
+- [x] **P1 - an opening-line attribute value written in more than one word kept its first word and dropped the rest in silence (0.22.102)**
+
+  **What was wrong.** `_attrs` reads an unquoted value only up to the first
+  space, which is right for `page=6` and `source=paper`. A value written in
+  more than one word therefore kept its first word, and the words after it
+  belonged to no attribute at all: not quote text, not an unknown field, not a
+  typo suggestion. Measured on a two-page source whose quote is printed on
+  page 2, `page=1 to 2` answered `[info] quote-found page 2` and exited 0,
+  with no line saying that `to 2` had been read as nothing. The body dialect
+  reads the whole line, so `page: 1 to 2` already gave `page-unreadable` -
+  this loss was the opening line's alone.
+
+  **What it does now.** New code `claim-field-truncated` (medium) names both
+  halves in one sentence: the value that was used and the words that were
+  dropped, plus the quoted spelling that keeps them. It speaks only about the
+  six attributes the format defines, and only when the leftover starts with a
+  letter - so `note=one two three` stays silent, a quoted `page="1 to 2"` is
+  not reported twice (it already gets `page-unreadable` ), `page=p. 1` is left
+  to its own finding, and a trailing `# comment` is not a lost word.
+
+  **Why it is now true.** 20 tests in `tests/test_truncated_attribute.py` in
+  four groups: the lost words are named (five spellings, each asserting the
+  kept value and the dropped words verbatim), what must stay silent (quoted
+  value, unknown key, comment, non-word tail, misspelt key, trailing spaces),
+  both dialects report the same thing, and the verdict on a real project (the
+  page the run used is still reported honestly, `--fail-on medium` turns it
+  into a failure, a clean claim says nothing). Eight mutations - the tail is
+  never looked at, the next attribute is not cut off, any tail counts, the
+  unknown keys are reported too, the same key is reported twice, the message
+  drops the lost words, the message drops the kept value, the advice drops the
+  quoted spelling - all eight red.
+
+  **Not covered.** A value spanning a line break; `page=1, 2` (a comma is not
+  a space, so it survives as one token and `page-unreadable` already speaks);
+  the table dialect, whose page cell has its own reader and its own range
+  handling.
