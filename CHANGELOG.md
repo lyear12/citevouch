@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.22.103] — 2026-11-13
 ### Fixed
 
 **Three sentences named a source file by its bare name, so the directory was
@@ -41,7 +42,6 @@ being pasted into a command - and a source at the project root still prints as
 * 10 tests, 6 mutations, all red. The second page-range sentence is reached
   only by a recorded run: a plain `check` de-duplicates it against the scan
   copy, so the `verify` copy could have regressed with every test green.
-
 ## [0.22.102] — 2026-11-13
 ### Fixed
 
@@ -5435,7 +5435,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.102...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.22.103...HEAD
+[0.22.103]: https://github.com/lyear12/citevouch/releases/tag/v0.22.103
 [0.22.102]: https://github.com/lyear12/citevouch/releases/tag/v0.22.102
 [0.22.101]: https://github.com/lyear12/citevouch/releases/tag/v0.22.101
 [0.22.100]: https://github.com/lyear12/citevouch/releases/tag/v0.22.100
