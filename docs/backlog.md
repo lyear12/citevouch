@@ -6077,3 +6077,38 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   and the tests were widened rather than the claim narrowed. 29 tests in the
   file, 4194 in the suite; demo still `5 claims — 4 verified, 0 moved, 1
   missing`, worst `high`, exit 1; six reverse mutations, all caught.
+
+- [x] **The docs promised proof the code never produced (CV-002)**
+
+  **What was wrong** The headline, the description that `pyproject.toml` declares,
+  `citevouch --help`, the `draft` help and both READMEs all said the tool binds
+  a claim to the page of the PDF that *proves* it. Nothing in `src/` decides
+  whether a passage supports the sentence quoting it. Measured on the released
+  tree: a page printing `The intervention did not improve accuracy in the
+  controlled study.` beside a claim asserting it did improve accuracy exits `0`
+  with `1 verified`, and a quote of `40,688` behind a claim of `91,234` samples
+  does the same. The comparison table offered "drifted paraphrases" among the
+  things it catches; the LaTeX section called a mangled conversion "never a
+  false pass"; `draft`'s `high` confidence said the case "needs no judgement".
+
+  **What it costs** A reader who trusts the headline files a bug against the
+  matcher ("it found the quote, so it should have noticed"), and then goes
+  looking for a semantic layer that was never written. The tool's actual value
+  - it locates a quote and it never invents one - was buried under the claim it
+  cannot support.
+
+  **Why it is now true** Both READMEs carry a `What it checks, and what it does
+  not` section that separates four questions (where the quote is / is the
+  source the recorded file / do the numbers agree / does the passage support
+  the sentence) and answers the last one with **No**, each with the two
+  measured misses written beside it. The package description, the CLI
+  description and the `draft` help say the same thing. One factual error was
+  corrected on the way: both READMEs said `--use-recorded` never opens a
+  `.bib`, while `verify.verify()` re-reads the files `ledger.bibliographies`
+  names. `tests/test_capability_contract.py` (18 tests) pins the four answers
+  in both languages, the counterexamples, the absolute phrasings that shipped,
+  and the agreement of README, metadata and parser description; sixteen
+  mutations put each sentence back and every one turns the file red. No exit
+  code, ledger field, JSON field or demo line changed: 4212 passed, 247 files
+  formatted, demo still `5 claims — 4 verified, 0 moved, 1 missing`, worst
+  `high`, exit 1.
