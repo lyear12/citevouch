@@ -64,6 +64,7 @@ rots:
 | `quote-found` | info | the passage is on the cited page |
 | `quote-moved` | medium | the passage is in the document, on a different page (layout change) |
 | `quote-fuzzy` | high | only an approximate match exists — never counted as verified |
+| `quote-word-boundaries-unclear` | high | the quote matches only once every space is removed, so this run cannot tell `now here` from `nowhere` — read the page and decide |
 | `quote-spans-too-many-pages` | high | the quote crosses more page breaks than one run reads at once, so it was never compared — not a finding about the source |
 | `quote-missing` | high | no passage close to this quote anywhere in the source |
 | `number-absent-in-quote` | high | a number inside the quote is not on that page |

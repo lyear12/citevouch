@@ -763,6 +763,32 @@ def verify(
                     line=claim.line,
                 )
             )
+        elif match.tier == "squashed":
+            # The third answer again, for the same shape of doubt.  This tier
+            # matched the quote only after removing every space, and the spaces
+            # are the whole of what separates one word from two: a page saying
+            # `nowhere` and a quote saying `now here` flatten to the same
+            # string.  Reporting it missing accuses the author of inventing a
+            # quotation the page very nearly holds; reporting it verified (what
+            # this tool did until it was measured) certifies a claim about words
+            # the page does not print.  Both are claims about evidence, so it is
+            # counted as skipped and handed to a human with the passage so they
+            # can look at the paper themselves.
+            result.skipped += 1
+            result.findings.append(
+                Finding(
+                    code="quote-word-boundaries-unclear",
+                    message=(
+                        f"claim {claim.id}: {match.reason} (page {match.page}): "
+                        f"{excerpt(match.context)} — the source's word boundaries "
+                        "are not the quote's, and this run cannot tell a lost "
+                        "space from a moved one. Read the page and decide"
+                    ),
+                    claim_id=claim.id,
+                    path=claim.path,
+                    line=claim.line,
+                )
+            )
         elif match.tier == "fuzzy":
             result.missing += 1
             result.findings.append(

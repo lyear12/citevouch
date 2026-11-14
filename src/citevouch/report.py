@@ -40,6 +40,11 @@ SARIF_RULES = {
         "it was never compared against the pages it spans."
     ),
     "quote-missing": "A quoted passage is not in the source.",
+    "quote-word-boundaries-unclear": (
+        "A quoted passage matches the source only once all whitespace is "
+        "removed, so this run cannot tell whether the source prints the same "
+        "words."
+    ),
     "quote-fuzzy": "A quoted passage is only approximately in the source; nothing proves it.",
     "quote-moved": "A quoted passage is on a different page than recorded.",
     "quote-found": "A quoted passage is where the ledger says it is.",

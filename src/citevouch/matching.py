@@ -23,10 +23,13 @@ Seven tiers, tried in order, each strictly weaker than the last:
    into a space.  An author quoting that paste writes ``exam- ples``, which
    tier 3 still misses by exactly one space.  Measured on 20 real PDFs quoted
    in a reader's own shapes: 90 quotes, 12 not found, 11 of the 12 this one;
-5. **squashed** — the quote appears once *all* whitespace is removed,
-   which rescues text an extractor ran together or split across columns.  The
-   boundary is gone at this tier by construction, so a minimum length keeps it
-   from certifying a coincidence;
+5. **squashed** — the quote appears once *all* whitespace is removed, which is
+   the only comparison left when an extractor ran words together or cut a
+   column in half.  This tier may **not** certify a quote: removing the
+   whitespace also removes the difference between one word and two, so
+   ``nothing here`` and ``nothinghere`` are the same string and the run cannot
+   tell a bad extraction from a moved space.  It reports what it found and the
+   caller treats it as a question for a human -- see ``Match.found``;
 6. **numbers** — every number in the quote is masked out on both sides
    and the *words* still match at full length while the *values* still differ.
    This is the tier that separates "you typed the statistic wrong" from "the
@@ -37,9 +40,11 @@ Seven tiers, tried in order, each strictly weaker than the last:
 
 Tiers 2, 3 and 4 count as found: the words match and so do the values, and the
 only difference is a separator, or a hyphen plus the break character that the
-page's own layout and the reader's clipboard make ambiguous.  Tiers 6 and 7
-never upgrade a claim to verified - they turn a flat "not found" into an
-actionable "these digits differ" / "these words differ".
+page's own layout and the reader's clipboard make ambiguous.  Tier 5 does not:
+it is the tier that lost the separator entirely, and with it every evidence
+that the quote's word boundaries are the page's.  Tiers 6 and 7 never upgrade a
+claim to verified - they turn a flat "not found" into an actionable "these
+digits differ" / "these words differ".
 
 Every tier that may certify a quote also refuses a match whose span cuts a
 number in half (``_cuts_a_number``).  Tier 1's word-boundary rule alone does
@@ -230,8 +235,20 @@ class Match:
         ``pasted`` belongs here too: the quote and the page hold the same
         words, and the one difference is a space the clipboard put after a
         hyphen the page also has.
+
+        ``squashed`` is deliberately **not** here, and the reason is the tier's
+        own construction rather than its confidence.  Removing all whitespace
+        deletes the only thing that separates one word from two, so a page that
+        says ``nowhere`` and a quote that says ``now here`` become the same
+        string.  Measured on the released behaviour, that pair verified and
+        exited 0: a claim about words the source does not contain, certified by
+        the tool whose whole purpose is to refuse exactly that.  Nothing in the
+        flattened text can tell the two apart -- the extractor that really did
+        run words together and the author who moved a space produce identical
+        evidence -- so the honest verdict is "this run cannot decide", and that
+        is a finding for a human rather than a `quote-found`.
         """
-        return self.tier in ("exact", "canonical", "hyphen", "pasted", "squashed")
+        return self.tier in ("exact", "canonical", "hyphen", "pasted")
 
 
 def _without_the_placeholder(text: str) -> str:

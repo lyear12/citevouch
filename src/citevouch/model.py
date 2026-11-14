@@ -29,6 +29,15 @@ CODES = {
     # and because a project whose manuscript quotes long passages will meet it
     # on every page until the quotes are shortened.
     "quote-spans-too-many-pages": "high",
+    # The other third answer, and the one this tool got wrong for a long time.
+    # A quote that matches only after every space is removed is on the page in
+    # some form, but the spaces are exactly what tells `now here` from `nowhere`
+    # - after flattening, a page that prints one word and a quote that writes
+    # two are the same string.  The release that treated this as found verified
+    # a claim about `nothing anywhere` against a page saying `nothinganywhere`,
+    # and exited 0.  High, and counted as skipped rather than missing, because
+    # neither "the quote is there" nor "the author invented it" is known.
+    "quote-word-boundaries-unclear": "high",
     "quote-moved": "medium",
     "quote-missing": "high",
     # High, not medium. `quote-fuzzy` means "there is text like this nearby and

@@ -671,17 +671,25 @@ def _verbatim_sentence(page_text: str, statement: str) -> str:
 
     The manuscript's sentence and the source's sentence differ in whitespace and
     punctuation at least, so they are compared folded and then recovered from
-    the page by length rather than by an exact string search.
+    the page by length rather than by an exact string search.  `normalize` keeps
+    one space where the page had any run of whitespace, so a line break, a page
+    break and a doubled space are already forgiven by that comparison.
+
+    What it does *not* forgive is a missing boundary, and neither may this
+    function.  A second comparison with all whitespace deleted answers "the
+    same sentence" for a page printing `nowhere` and a manuscript saying
+    `now here`, because deleting the space is the very operation being tested
+    for.  That is the defect `matching.Match.found` was fixed for; proposing
+    such a sentence here as `confidence: high` would reintroduce it one layer
+    up, telling the author that text they must read needs no judgement.  Prose
+    whose boundaries the extractor swallowed is still proposed, at medium
+    confidence, through the shared-terms path like any other reconstruction.
     """
     wanted = statement.strip()
     if not wanted:
         return ""
     for sentence in _sentences_of(page_text):
         if normalize(sentence) == normalize(wanted):
-            return sentence
-    squashed = re.sub(r"\s+", "", normalize(wanted))
-    for sentence in _sentences_of(page_text):
-        if re.sub(r"\s+", "", normalize(sentence)) == squashed:
             return sentence
     return ""
 

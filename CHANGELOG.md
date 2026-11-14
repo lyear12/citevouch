@@ -11,6 +11,49 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A quote that matched only after every space was removed counted as
+  verified.** The `squashed` tier deletes all whitespace before comparing, so
+  a page printing `nowhere` and a quote writing `now here` become the same
+  string. That tier was listed in `Match.found`, so the run added one to
+  `verified` and printed `quote-found`; measured on v0.23.0, the page
+  `The suspect is nowhere in this room.` with the quote `The suspect is now
+  here in this room.` exited **0** with `1 claim — 1 verified`. The tool whose
+  entire purpose is refusing fabricated quotations certified one.
+
+  The tier has to stay reachable — an extractor that really did run words
+  together, and an author who really did move a space, produce identical
+  flattened text, and PDFs that lose spaces are common enough that the tier
+  exists for them. So the answer is the third one this project already gives a
+  quote spanning more pages than one run reads: the run cannot decide. Such a
+  claim is now counted as **skipped**, not `verified` and not `missing`, and
+  raises `quote-word-boundaries-unclear` at **high** with the passage attached
+  so the author has a page to look at. No exit-code special case was added:
+  `--fail-on high` already fails on it, which is why the severity is `high`.
+
+  Three commands read the same verdict, and all three are covered: live
+  `check`, `check --use-recorded`, and `verify`. Cold and warm runs agree.
+
+  `draft` needed its own fix, because it compared whitespace-free text in a
+  second place. `draft._verbatim_sentence` searched the page twice: once
+  folded, and then a second time with every space deleted, so a page
+  printing `nowhere` was returned as the source's own wording of a
+  sentence writing `now here`. The proposal it feeds is labelled
+  `confidence: high` and `1 quoting the sentence verbatim`, which is the
+  tool telling the author that text they must read needs no judgement -
+  the same defect, one layer up. `propose_quote` guarded it in practice by
+  asking `Match.found` first, so the paths that ran were already strict,
+  and a test that only read the written proposal passed while the helper
+  was still wrong. The second search is gone: prose whose word boundaries
+  an extractor swallowed is still proposed, at medium confidence, through
+  the shared-terms path that says `read it before trusting the claim`.
+
+  The comparisons this tool is still allowed to trust are enumerated as
+  positive fixtures in `tests/test_word_boundaries.py` and all still certify:
+  exact, ordinary whitespace normalisation, a hyphen the page itself printed
+  at a line end, CJK, legal number spellings, and a quote running across a
+  page break.
 
 ## [0.23.0] — 2026-11-13
 ### Removed

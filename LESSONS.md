@@ -8748,3 +8748,56 @@ look for it, and neither is executed.  When a design is abandoned mid-change, th
 explains the abandoned design has to go with it; a comment whose neighbour argues against it
 is the loudest possible form of the defect, because a careful reader will find both and have
 to decide which one to believe.
+## A tier that deletes the evidence it compares may not testify
+
+The `squashed` tier removes every space before it looks for a quote, because PDF extractors
+really do run words together and really do cut columns in half. The rescue is legitimate.
+What was not legitimate was the tier's verdict: it was listed in `Match.found`, so a match
+found there added one to `verified` and printed `quote-found`. Measured on the released
+build, a page printing `The suspect is nowhere in this room.` and a quote reading `The
+suspect is now here in this room.` gave `1 claim — 1 verified`, exit 0. The comparison the
+tier performs cannot see the difference it is certifying: removing the whitespace is exactly
+removing the boundary between `nowhere` and `now here`.
+
+**How to apply.** For every matching or normalising step, ask which difference the step
+removes, then ask whether the verdict the step hands up still depends on that difference. A
+step that erases a distinction may report *where* it looked and *what it would need*, but it
+may not report that the thing is proven. This is the same rule as "a limit of the reader is
+not a fact about what was read", one layer down: there the reader stopped early, here the
+reader joined too much, and both were then allowed to answer a question they had not asked.
+The tell is in the docstring - this module's opening paragraph listed the tiers that "count
+as found" and never listed `squashed`, while the property three hundred lines down handed it
+that power. Prose and code disagreed for as long as nobody compared them, and the code was
+the one users ran.
+
+**How to apply, part two.** The third answer is a code, not a branch in the exit path. A
+quote that matched only after flattening is neither "present" nor "invented", so it is
+counted as skipped and reported at `high` with the passage attached; `--fail-on high` then
+fails the run without the exit path learning a single new special case. If you find yourself
+writing `if code == "...": return 1`, the severity table is the place the rule belongs.
+
+**How to apply, part three.** A fix that only refuses is not a fix, and the negative tests
+cannot tell the difference. Every comparison the tool is still allowed to trust has to be
+enumerated as its own fixture - here: exact, ordinary whitespace, a hyphen the page itself
+printed, CJK, legal number spellings, a quote across a page break - because deleting the
+whole tier would have passed every test that only asked "does the bad case now fail?". Write
+the positive table first and let the negatives be the smaller half.
+
+**How to apply, part four.** When one predicate is the gate for several commands, fix it
+once and then prove each command separately. `Match.found` feeds live `check`,
+`check --use-recorded`, `verify` and `draft`; a fix verified through one of them is a fix
+verified for one of them, and this project has repeatedly shipped exactly that mistake.
+
+**How to apply, part five.** Fixing the predicate does not fix the second copy of the
+comparison. `draft._verbatim_sentence` searched a page twice: once with the tool's ordinary
+normalisation, and then again with every space deleted. That second search was not calling
+`Match.found` at all - it was performing the same whitespace-free comparison in a private
+helper, and it returned the page's `The suspect is nowhere in this room.` as the source's own
+wording of a sentence writing `now here`. It fed a proposal stamped `confidence: high`, so
+the tool would have told the author that text they must read needs no judgement: the same
+defect one layer up, and invisible to every test that read the written proposal, because
+`propose_quote` asked `Match.found` first and never reached the helper on a bad pair. When a
+rule is implemented twice, the second implementation is not a caller of the first - grep for
+the operation (`re.sub(r"\s+", "", ...)`, a hand-rolled `normalize`, a local `fold`) rather
+than for the predicate name, and pin the helper directly, because the end-to-end path can be
+guarded while the helper stays wrong.
