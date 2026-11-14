@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.24.3] — 2026-11-14
 ### Fixed
 
 The CI section documented three ways to run the gate, and two of them did not gate the drift the
@@ -40,7 +41,6 @@ drift through and the documented one does not — so removing the flag fails her
 weakening the gate. Reverse validation: 7/7 mutations caught (both snippets, both upload steps, an
 upload naming an undeclared step id, the drift-only paragraph restored, and the action default back to
 `high`).
-
 ## [0.24.2] — 2026-11-14
 ### Fixed
 
@@ -5654,7 +5654,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.3...HEAD
+[0.24.3]: https://github.com/lyear12/citevouch/releases/tag/v0.24.3
 [0.24.2]: https://github.com/lyear12/citevouch/releases/tag/v0.24.2
 [0.24.1]: https://github.com/lyear12/citevouch/releases/tag/v0.24.1
 [0.24.0]: https://github.com/lyear12/citevouch/releases/tag/v0.24.0
