@@ -9,7 +9,7 @@ link as noise and the second one does worse than the first.*
 **Title** (80 char max, HN truncates past 80)
 
 ```
-Show HN: Citevouch – bind every claim to the page of the PDF that proves it
+Show HN: Citevouch – bind every claim to the page of the PDF it cites
 ```
 
 Alternative if the first does not land:

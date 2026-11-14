@@ -1057,8 +1057,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="citevouch",
         description=(
-            "Bind every claim in a manuscript to the page of the local source that "
-            "proves it, and fail CI when that evidence drifts."
+            "Bind every claim in a manuscript to the page of the local source it "
+            "cites, and fail CI when that evidence drifts. This checks where a quote "
+            "is, not whether it supports the sentence around it."
         ),
     )
     parser.add_argument("--version", action="version", version=f"citevouch {__version__}")
@@ -1160,7 +1161,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_draft = sub.add_parser(
         "draft",
-        help="propose claim blocks for a manuscript that cites things but proves nothing",
+        help="propose claim blocks for a manuscript whose citations have no verbatim quote yet",
     )
     p_draft.add_argument("manuscript", help="the manuscript to read (never written to)")
     p_draft.add_argument(

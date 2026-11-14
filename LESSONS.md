@@ -8801,3 +8801,40 @@ rule is implemented twice, the second implementation is not a caller of the firs
 the operation (`re.sub(r"\s+", "", ...)`, a hand-rolled `normalize`, a local `fold`) rather
 than for the predicate name, and pin the helper directly, because the end-to-end path can be
 guarded while the helper stays wrong.
+
+
+## 289 A promise in the headline is a claim about the algorithm, and the algorithm is the thing you measured
+
+The README said the tool binds every claim "to the page of the PDF that proves it". The package
+description said it, `citevouch --help` said it, and the comparison table offered "wrong numbers,
+drifted paraphrases" among the things it catches. Every one of those sentences was about code
+that locates a quote and compares digits; none of them was about code that reads two sentences and
+decides whether one follows from the other, because that code does not exist. The claim survived
+because nothing runs a headline. Tests read functions; prose is the one artefact in the repository
+that no test had ever executed.
+
+The measured counterexample is the whole argument: a page printing `The intervention did not improve
+accuracy in the controlled study.` beside a claim that it *did* improve accuracy exits `0` with
+`1 verified`, and a quote of `40,688` behind a claim of `91,234` samples does the same. A reader who
+trusted the headline would call that a bug in the matcher - "it found the quote, so it should have
+noticed" - and would then go looking for the missing semantic layer. There is no missing layer. The
+honest fix is to shrink the promise to the measurement, not to grow the code to the promise.
+
+How to apply:
+
+1. **A claim about what the tool guarantees is a claim about a function.** Before shipping the
+   sentence, ask which function would go red if it were false. If the answer is "none", the sentence
+   is a wish. The docstring rule ("when a comment describes a safety property, the lie is load-bearing")
+   applies outside the code too, and harder, because prose has no compiler.
+2. **Write the miss down next to the hit.** A capability section that lists only what is caught is a
+   sales page. The four-question table - where is the quote, is the source the recorded one, do the
+   numbers agree, does the passage support the sentence - exists so that "No" for the fourth has
+   somewhere to live instead of being silently implied by silence.
+3. **Separate the entry points, then make them agree.** The user meets the README or `--help` or
+   `pyproject.toml` first, and each was edited by a different person on a different day. The test
+   that matters reads all of them and asserts the same four answers, because fixing one entry point
+   is how the other two keep lying.
+4. **An absolute word is the signal.** "proves", "needs no judgement", "never a false pass" - each is
+   a promise with no measurement behind it. Keep a list of the exact phrasings that shipped, and
+   assert none of them returns; a new phrasing of the same overclaim will get past a list, but the
+   list catches the relapse, which is the realistic failure.

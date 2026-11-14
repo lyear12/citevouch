@@ -2,7 +2,12 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-**Bind every claim in your manuscript to the page of the PDF that proves it — and fail CI when that evidence drifts.**
+**Bind every claim in your manuscript to the page of the PDF it cites — and fail CI when that evidence drifts.**
+
+It answers "is this quote on that page", not "is this sentence true". A claim passes when its verbatim
+passage is found where the block says it is; whether the passage supports the sentence around it is a
+judgement this tool does not make. [What it checks, and what it does not](#what-it-checks-and-what-it-does-not)
+spells out the difference, with counterexamples it misses.
 
 `citevouch` is not another "does this DOI exist" checker. Plenty of those exist, and they answer a
 different question. It answers the question you actually face the night before a deadline:
@@ -42,13 +47,36 @@ it is talking about — the highlighted sentence is what `quote-found on page 6`
 The images are generated from the demo by `tools/make_figures.py`, and `tests/test_figures.py`
 fails if the text in the first one stops matching what the demo prints.
 
+## What it checks, and what it does not
+
+Four different questions hide inside "is this claim backed?". This tool answers the first, part of the
+second, a narrow slice of the third, and by design not the fourth.
+
+| question | answered? | how you see it |
+|---|---|---|
+| **Where is the quote?** Is this exact passage on the page of the file the claim names? | **Yes** — this is the core check | `quote-found`, `quote-moved`, `quote-missing`, `quote-word-boundaries-unclear`, `quote-spans-too-many-pages` |
+| **Is the source the one you recorded?** Same bytes, same pagination, readable at all? | **Partly** — the file is compared with the digest in the ledger and re-read, but a hash the tool itself recorded cannot authenticate a file it has never seen | `source-changed`, `source-missing`, `source-unreadable`, `source-encoding`, `source-not-text`, `source-is-manuscript` |
+| **Are the numbers right?** | **A narrow heuristic only.** A one-character difference in a number of three or more digits that is not a year, where at least one side is a quantity, and where the page does not print that number elsewhere. Two changed digits, or a reworded quantity, are not caught | `number-absent-in-quote`, `number-not-in-passage`, `claim-number-differs` |
+| **Does the passage support the sentence?** Negation, hedging, swapped roles, a number that is real but about something else | **No.** Not implemented, not approximated, not faked | nothing — a passing run says nothing about it |
+
+Read the last row twice, because `verified` is the word that misleads. It counts quotes whose passage
+was located. It does not count claims whose sentence was shown to follow from that passage. Measured on
+this build, a page printing *"the treatment did not improve accuracy"* cited against the claim *"the
+treatment improved accuracy"* exits `0` with `1 verified`, and `40,688` cited as `91,234` does the same.
+Those are counterexamples this tool does not catch, so the honest reading of a green run is "every quote
+was found where it was said to be", never "every sentence is backed".
+
+What follows is practical rather than philosophical: `citevouch` is a locating machine that does not
+blink, and reading the argument stays a human step. It removes the failure where a quote was never on
+that page at all. It does not remove the failure where the quote is real and beside the point.
+
 ## Why this is different
 
 | | what it checks | catches | misses |
 |---|---|---|---|
 | DOI / metadata checkers | the reference resolves in Crossref / OpenAlex | hallucinated references, retractions, wrong year | a real paper quoted wrong |
 | reference managers | formatting, duplicates | - | everything semantic |
-| **citevouch** | **this sentence ← that page of that file** | wrong numbers, drifted paraphrases, PDF swapped for a newer version, a quote that only ever existed in your head | whether the paper itself is good |
+| **citevouch** | **this sentence ← that page of that file** | a quote that is not on the page it names, some one-digit number changes, a PDF swapped for a newer version, a quote that only ever existed in your head | whether the sentence follows from the quote, a reworded or two-digit number, whether the paper itself is good |
 
 The two are complementary. A hallucinated citation passes every local-PDF check because there is no
 local PDF. A real citation with a mangled number passes every DOI check because the DOI is fine.
@@ -264,7 +292,8 @@ Three things it will not do, and says so in the file instead: it never edits you
 proposes a sentence it did not read from the page, and never invents a citation. Keys with no local
 file come back as comments explaining what to add; a citation whose best passage is already proposed
 for an earlier one comes back as a comment too, rather than the same quote twice. `high` confidence
-means your own sentence appears verbatim in the source — that case needs no judgement. `medium`
+means your own sentence appears verbatim in the source: the words are certainly there, though
+whether they back the sentence is still yours to judge. `medium`
 means a real sentence on the right page that you still have to read.
 
 To bind keys the bibliography already knows about, pass `--bib refs.bib`. A Zotero `file` field is
@@ -284,9 +313,11 @@ own paragraph so it does not get glued onto the sentence below it. Notes that ca
 are dropped, because the page number always comes from the PDF, never from your source.
 
 This is a converter, not a TeX parser: a macro that generates text, an `\input`, or an environment
-whose body is not prose will be read as prose or skipped. That costs a weaker proposal, never a
-false pass — the quote in a `claim` block always comes from the PDF, so a mangled sentence cannot
-make a citation look verified. `scan` and `verify` never see LaTeX; only this command does.
+whose body is not prose will be read as prose or skipped. That costs a weaker proposal — a mangled
+sentence usually stops being proposed at all. It cannot manufacture a quote, because the quote always
+comes from the PDF, but it can propose a passage that is genuinely verbatim and still not the one you
+meant; `medium` proposals are proposals, not verdicts. `scan` and `verify` never see LaTeX; only this
+command does.
 
 ### Three claim dialects
 
@@ -324,10 +355,11 @@ citevouch.lock.json; run \`citevouch scan\` first`. That is a setup error, not a
 manuscript, which is why the action stops on it rather than reporting a green job for a check that
 never ran.
 
-The action passes no `--bib`, and neither should you: `--use-recorded` checks the bibliography
-**recorded in the ledger**, so it does not open a `.bib` at all. Passing one there is a usage error
-rather than a silent no-op — the flag used to be accepted and ignored, which meant a typo'd path
-produced a green job whose entire purpose was to be able to fail. Run `citevouch scan --bib
+The action passes no `--bib`, and neither should you: `--use-recorded` verifies the bibliography
+**recorded in the ledger** — the ledger names the files, and the recorded pass re-reads them rather than
+trusting the verdicts it stored, so what you get is a judgement about the `.bib` as it is committed. It
+is still a usage error to pass `--bib` there rather than a silent no-op: the flag used to be accepted
+and ignored, which meant a typo'd path produced a green job whose entire purpose was to be able to fail. Run `citevouch scan --bib
 refs.bib` to record it, or drop `--use-recorded` (`citevouch check --bib refs.bib`) to scan and
 verify in one pass.
 

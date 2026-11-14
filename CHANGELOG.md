@@ -11,6 +11,26 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Changed
+
+- **The documentation now says what the tool does, not what the project
+  wished it did.** The headline, the package description, `citevouch --help`,
+  the `draft` help and both READMEs all promised to bind a claim "to the page
+  that *proves* it".  Measured on this release, the tool never evaluates
+  whether a passage supports the sentence quoting it: a page printing `The
+  intervention did not improve accuracy in the controlled study.` and a claim
+  asserting it *did* improve accuracy exits `0` with `1 verified`, and so does
+  a quote of `40,688` behind a claim of `91,234` samples.  Both READMEs now
+  carry a `What it checks, and what it does not` section that separates four
+  questions - where the quote is, whether the source is the recorded file,
+  whether the numbers agree, and whether the passage supports the sentence -
+  and answers the last one with **No**.  The comparison table no longer claims
+  to catch "drifted paraphrases", `draft`'s `high` confidence no longer says
+  "needs no judgement", and the LaTeX section no longer calls a mangled
+  conversion "never a false pass".  One factual error is corrected on the way:
+  both READMEs said `--use-recorded` never opens a `.bib`, while the recorded
+  pass re-reads the files the ledger names.  No behaviour, exit code, ledger
+  field, JSON field or demo output changes.
 
 ## [0.23.1] — 2026-11-14
 ### Fixed
