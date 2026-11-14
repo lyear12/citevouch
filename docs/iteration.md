@@ -1,6 +1,6 @@
 # DeepSeek 交接：每 30 分钟推进一个有证据的步骤
 
-本交接由 2026-11-14 的项目审查产生。用户要求先完成报告，再切换 DeepSeek 进行每 30 分钟推进。**本次没有创建、恢复或配置定时任务。** 旧心跳已取消；启用新 schedule 前先查现存任务，避免重复。模型切换本身不会自动运行本文协议。
+本交接由 2026-11-14 的项目审查产生。旧心跳已取消，用户随后要求重建一条每 30 分钟的推进心跳：**已创建且仅创建一条** `schedule-4182e19d-f732-41ae-b7c1-00de4854899b`（Asia/Shanghai，每天 08:20–22:50 每 30 分钟，投递到发起它的会话）。创建后再建第二条即为重复，先 `schedule_list` 核对；`schedule_edit` 可改窗口或周期，不要删了重建。
 
 项目：`lyear12/citevouch`。本机仓库位于 `C:/Users/31887/Documents/deepseek-harness/default-workspace/citevouch`；可迁移环境以 `git rev-parse --show-toplevel` 为准。远端名是 `origin`，本机地址使用 SSH Host 别名 github-citevouch；别名不是 remote 名。被审基线 `2a98083` / 包版本 `0.23.0`。
 
@@ -8,9 +8,9 @@
 
 1. 读 [AGENTS](../AGENTS.md)、[code standards](code-standards.md)、[审查结论](review-2026-11-14.md) 和 [roadmap](roadmap.md)。仅针对将修改的模块读相关历史 lessons，避免每轮重读数百 KB 历史。
 2. 读 [iteration-state.json](iteration-state.json)，核对当前 HEAD、工作树、未结束 job、正在运行的 agent 和外部 CI。任务台账的审查基线不是让你 reset 回旧提交。
-3. 当前所有 CV 产品任务均未实施；下一项为 **CV-001：now here / nowhere 的词界假阳性**。报告中的基线测试通过不等于该缺陷已解决。
+3. **CV-001（now here / nowhere 词界假阳性）已于 v0.23.1 交付**，见台账 `last_evidence`；下一项为 **CV-002：把“定位到页”与“主张成立”分开写进中英文档、包描述与两个 `--help`**。台账里 status 不是 done 的任务才算未实施——不要凭这份文件的开头猜进度。
 4. 同一仓库只允许一个 integrator 写代码/提交，一个 publisher 发布。台账 lease 是协作约定，**尚无锁服务或原子领取工具**。由一个外部调度会话串行执行；若发现另一个写入者，先沟通或等待，不靠同时改 JSON 争抢。
-5. 用户确认启用后再建一条每 30 分钟的 schedule，使用当前已选 DeepSeek 会话。不要恢复旧任务；不要在多个会话各建一份。
+5. 心跳已由用户确认启用（见第 3 行）。不要恢复旧任务，也不要在多个会话各建一份；每轮开始时顺带确认 `schedule_list` 里仍然只有一条。
 
 ## 每轮固定三段
 
@@ -88,6 +88,6 @@ ready 为空、依赖未满足或只剩 Owner/外部阻塞时，不做随机代�
 
 ## 可直接交给 DeepSeek 的启动消息
 
-> 继续维护 lyear12/citevouch。先读 docs/iteration.md、docs/roadmap.md、docs/iteration-state.json 和 AGENTS.md；不要恢复旧心跳。用户准备每30分钟推进，请先核对现有schedule并在当前DeepSeek会话只配置一份。每轮先分诊CI/Issue并核对在途任务，再按priority/order领取第一个依赖满足的ready项；当前首项CV-001。每轮最多一个可验收步骤，大任务保存checkpoint；无ready则静默，禁止随机扩解析器或凑提交。按项目最终树门禁和独立critic通过后提交；任何账号权限/设计变化给出具体方案后等待Owner。产品任务目前均未实施。提交与发布分别验收，不将GitHub绿灯等同PyPI成功，最终保护对象是原稿。报告尽量不超过20行，包含证据、剩余与阻塞。
+> 继续维护 lyear12/citevouch。先读 docs/iteration.md、docs/roadmap.md、docs/iteration-state.json 和 AGENTS.md；不要恢复旧心跳。用户准备每30分钟推进，请先核对现有schedule并在当前DeepSeek会话只配置一份。每轮先分诊CI/Issue并核对在途任务，再按priority/order领取第一个依赖满足的ready项；当前首项CV-002（CV-001 已随 v0.23.1 交付）。每轮最多一个可验收步骤，大任务保存checkpoint；无ready则静默，禁止随机扩解析器或凑提交。按项目最终树门禁和独立critic通过后提交；任何账号权限/设计变化给出具体方案后等待Owner。产品任务目前均未实施。提交与发布分别验收，不将GitHub绿灯等同PyPI成功，最终保护对象是原稿。报告尽量不超过20行，包含证据、剩余与阻塞。
 
-这段是供用户切换后使用的交接文字，不是本次已经创建 schedule 的回执。
+这条心跳已于 2026-11-14 创建：`schedule-4182e19d-f732-41ae-b7c1-00de4854899b`，每天 08:20–22:50 每 30 分钟一次，投递到创建它的会话。
