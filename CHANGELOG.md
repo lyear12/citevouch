@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.24.0] — 2026-11-14
 ### Changed
 
 - **The documentation now says what the tool does, not what the project
@@ -31,7 +33,6 @@ tag and that file disagree.
   both READMEs said `--use-recorded` never opens a `.bib`, while the recorded
   pass re-reads the files the ledger names.  No behaviour, exit code, ledger
   field, JSON field or demo output changes.
-
 ## [0.23.1] — 2026-11-14
 ### Fixed
 
@@ -5557,7 +5558,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/lyear12/citevouch/releases/tag/v0.24.0
 [0.23.1]: https://github.com/lyear12/citevouch/releases/tag/v0.23.1
 [0.23.0]: https://github.com/lyear12/citevouch/releases/tag/v0.23.0
 [0.22.104]: https://github.com/lyear12/citevouch/releases/tag/v0.22.104

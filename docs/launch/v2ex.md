@@ -63,7 +63,7 @@ claim: |
 **装**
 
 ```sh
-pip install "git+https://github.com/lyear12/citevouch@v0.23.1"
+pip install "git+https://github.com/lyear12/citevouch@v0.24.0"
 cd demo && citevouch verify manuscript.md
 ```
 
