@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "purpose": "Repository handoff ledger; this is a protocol record, not an implemented worker, lock service, or product evidence schema.",
+  "audit_base_sha": "2a98083",
+  "audit_date": "2026-11-14",
+  "timezone": "Asia/Shanghai",
+  "scheduler": {"enabled_by_this_audit": false, "requested_operator": "DeepSeek after user switches model", "cadence_minutes": 30},
+  "last_tick_at": null,
+  "consecutive_idle_ticks": 0,
+  "integrator": {"owner": null, "task_id": null, "lease_until": null},
+  "release": {"candidate_id": null, "source_sha": null, "release_sha": null, "version": null, "artifact_digests": {}, "state": null, "github": null, "pypi": null, "last_evidence": null},
+  "allowed_statuses": ["ready", "claimed", "implementing", "validating", "review_pending", "pending", "needs_owner", "needs_external", "retry_wait", "deferred", "done"],
+  "global_gates": "Follow AGENTS.md and docs/code-standards.md: full final-tree pytest, ruff check, stage before tools/format_check.sh, demo negative control, reverse validation for behavior fixes, independent critic, commit then check_repo_rules. Source archive and external install checks apply when their inputs change. Never count a started job or a plan as acceptance.",
+  "tasks": [
+    {
+      "id": "CV-001", "order": 1, "priority": "P0", "status": "ready", "title": "Refuse word-boundary false quotation matches",
+      "dependencies": [], "write_scopes": ["src/citevouch/matching.py", "src/citevouch/textnorm.py", "tests/", "CHANGELOG.md", "LESSONS.md"],
+      "acceptance": "On both fixed now here/nowhere fixtures where the source contains only the counterexample, Match.found is false; live check, recorded check and verify emit a high finding requiring human review, count neither verified nor moved, and exit 1 under --fail-on high without exit-code special cases. Enumerate fixtures and expected outcomes for exact text, ordinary whitespace folding, between-word line breaks, justified hyphen recovery, CJK, legal numeric spelling differences and cross-page matches, with cold/warm cache and the demo negative control. Ambiguous within-word line breaks may require review rather than certification; fuzzy negatives must never verify. Reverse the fix and see the regression tests fail.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-002", "order": 2, "priority": "P0", "status": "ready", "title": "Make the current capability contract accurate",
+      "dependencies": [], "write_scopes": ["README.md", "README.zh-CN.md", "pyproject.toml", "src/citevouch/cli.py", "docs/", "tests/"],
+      "acceptance": "English/Chinese docs, package description, CLI top-level help, draft help and key user-facing entry points consistently distinguish quote location, source integrity, limited number heuristics and support not assessed. Execute citevouch --help and citevouch draft --help and compare their promises with both READMEs and package metadata. Remove absolute proves/no-judgement/never-false-pass claims. Preserve legacy JSON fields, exit codes, ledger shape and demo output; record semantic counterexamples without pretending the present algorithm judges support.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-003", "order": 3, "priority": "P0", "status": "ready", "title": "Bind release candidates to the successful source SHA",
+      "dependencies": [], "write_scopes": [".github/workflows/auto-release.yml", ".github/workflows/release.yml", "tools/", "tests/", "docs/maintenance.md", "CHANGELOG.md"],
+      "acceptance": "A green Test for A cannot publish newer B. Exercise the race with controlled git/gh state, record source SHA and generated release-tree SHA, and require the final published tree to satisfy its declared gates. If main moves, wait for its candidate rather than reusing old approval. Checkpoint partial work without closing the task.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-004", "order": 4, "priority": "P1", "status": "ready", "title": "Reject misassociated or incoherent extraction caches",
+      "dependencies": [], "write_scopes": ["src/citevouch/sources.py", "tests/", "CHANGELOG.md", "LESSONS.md"],
+      "acceptance": "Mismatched embedded SHA, duplicate/non-contiguous page numbers, or unacceptable extractor cause a cache miss and re-extraction; valid cache hits remain valid. Cold/warm/no-cache results agree on controlled fixtures. State explicitly that self-reported hashes do not authenticate arbitrary local tampering.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-005", "order": 5, "priority": "P1", "status": "ready", "title": "Make documented CI gates equivalent and keep failure reports",
+      "dependencies": [], "write_scopes": ["README.md", "README.zh-CN.md", "src/citevouch/cli.py", "tests/", "docs/"],
+      "acceptance": "Run actual documented commands in temporary projects: recorded medium gates reject source byte drift and moved pages, manuscript edits are explained, fresh check is not described as preserving a prior baseline. A failing gate still fails while SARIF is uploaded when a file exists. Bibliography re-read explanations match implementation.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-006", "order": 6, "priority": "P1", "status": "ready", "title": "Unify publisher exclusion and verify existing tag identity",
+      "dependencies": [], "write_scopes": [".github/workflows/auto-release.yml", ".github/workflows/release.yml", "tests/", "docs/maintenance.md", "CHANGELOG.md"],
+      "acceptance": "All release entry paths share one effective publisher exclusion without deadlocking reusable calls. Existing annotated/lightweight tags are peeled and compared to the expected commit; a mismatched target stops recovery. Controlled concurrent/retry cases cover behavior, not only YAML presence.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-007", "order": 7, "priority": "P1", "status": "pending", "title": "Resume a single release candidate without replacing shipped assets",
+      "dependencies": ["CV-003", "CV-006"], "write_scopes": [".github/workflows/", "tools/", "tests/", "docs/maintenance.md", "CHANGELOG.md"],
+      "acceptance": "Persist candidate/source/release SHA/version/digests. Resume after main-pushed/tag-missing and upload interruption from the same candidate. Build once and reuse artifacts; existing assets must match digest, otherwise stop rather than clobber. Verify externally retrievable GitHub assets.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-008", "order": 8, "priority": "P1", "status": "ready", "title": "Correct automation and metrics claims",
+      "dependencies": [], "write_scopes": ["docs/maintenance.md", "docs/metrics.md", ".github/workflows/nightly.yml", "tests/"],
+      "acceptance": "Document implemented CI/release/smoke behavior separately from missing issue consumer, review, merge and retrospective executors. Keep original failure categories. Do not infer no users or product success from zero issues/download counts; distinguish bot and independent evidence.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-009", "order": 9, "priority": "P1", "status": "pending", "title": "Establish the supported publishing entry point and OIDC identity",
+      "dependencies": ["CV-003", "CV-006"], "write_scopes": [".github/workflows/", "tests/test_pypi_trust.py", "docs/maintenance.md", "CHANGELOG.md"],
+      "acceptance": "Confirm current official support rules at execution time, implement/test a supported direct publisher entry point and error classification, and give the Owner exact workflow/environment fields based on the actual identity. Tests of static fields do not prove token exchange or index availability.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-010", "order": 10, "priority": "P1", "status": "needs_owner", "title": "Register the verified PyPI publisher identity",
+      "dependencies": ["CV-009"], "write_scopes": [],
+      "acceptance": "Owner confirms registration for the exact identity established by CV-009. Record public configuration confirmation without credentials. Registration alone is not distribution acceptance.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null,
+      "blocker": {"party": "Owner", "release_condition": "CV-009 provides verified fields, then Owner performs the account action", "do_not": "Guess publisher fields, create accounts, or claim pip distribution from a registration receipt"}
+    },
+    {
+      "id": "CV-011", "order": 11, "priority": "P1", "status": "pending", "title": "Verify PyPI distribution from the index",
+      "dependencies": ["CV-007", "CV-010"], "write_scopes": ["docs/", ".github/workflows/", "tests/"],
+      "acceptance": "Fetch the exact candidate version metadata and index files, compare hashes, then install from the index in an external clean environment and complete a first task. Record GitHub and PyPI outcomes independently, preserving failed channel states.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-012", "order": 12, "priority": "P1", "status": "ready", "title": "Demonstrate protection of a final Markdown manuscript",
+      "dependencies": [], "write_scopes": ["docs/", "tests/"],
+      "acceptance": "From an external clean environment using an exact available Git tag or wheel: draft, human-read evidence, copy reviewed blocks back to final original manuscript, scan that manuscript, run recorded CI, then edit unrelated prose, the claim and the source separately and demonstrate review/re-record steps. A proposals-only green is not acceptance. Synthetic workflow proof is distinct from CV-015 user observation.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-013", "order": 13, "priority": "P1", "status": "ready", "title": "Prepare review-workflow alternatives, then obtain the Owner decision",
+      "dependencies": [], "write_scopes": ["docs/"],
+      "acceptance": "Engineering first prepares two concrete alternatives with author steps, content hash binding, old-ledger migration, default behavior and CLI/JSON/SARIF compatibility. Save the proposal and checkpoint, ask one concrete decision, then transition this same task to needs_owner with an explicit release condition; do not mark done or repeat the question while waiting. Owner chooses before product schema implementation. Record the explicit decision to finish this task; any approved implementation becomes a separate bounded task.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-014", "order": 14, "priority": "P1", "status": "pending", "title": "Demonstrate a bounded final LaTeX manuscript workflow",
+      "dependencies": ["CV-012"], "write_scopes": ["docs/", "tests/"],
+      "acceptance": "Declare the converter/include-file boundary and execute a final-original-manuscript route with edits and source swaps. If original TeX cannot currently be protected directly, explain the exact manual binding limitation instead of claiming converted proposals protect it. Any implementation change requires a separately accepted design.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-015", "order": 15, "priority": "P2", "status": "needs_external", "title": "Observe real authors completing their manuscript task",
+      "dependencies": ["CV-012"], "write_scopes": ["docs/metrics.md", "docs/"],
+      "acceptance": "First one independent author completes the final-manuscript workflow, then three differing manuscripts/corpora are examined. Record time to first trustworthy triple, candidate accept/reject reasons, omissions, false passes, false alarms and follow-up use. Obtain permission for materials; developer self-runs and bot issues are not independent use.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null,
+      "blocker": {"party": "Participating author and authorized materials", "release_condition": "CV-012 is ready and an author agrees to observation", "do_not": "Invent participants, send unsolicited invitations, or publish private manuscripts/PDFs"}
+    },
+    {
+      "id": "CV-016", "order": 16, "priority": "P2", "status": "ready", "title": "Define an independent adversarial evidence benchmark",
+      "dependencies": [], "write_scopes": ["tests/", "docs/"],
+      "acceptance": "Separate quote alignment, extraction quality and human support labels. Include polarity, distant numbers, entity/scope, adjacent-sentence and bilingual cases with provenance/licensing. Keep a held-out set and document unknown coverage; semantic labels do not imply the current offline matcher evaluates them.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-017", "order": 17, "priority": "P2", "status": "ready", "title": "Measure matching and extraction performance before optimizing",
+      "dependencies": [], "write_scopes": ["tools/", "tests/", "docs/"],
+      "acceptance": "Measure real PDF, repetitive-text and long-quote workloads with machine/tool/version/cache/claim/page counts and repeat statistics. Separate extraction, normalization and matching stages. Establish budgets from evidence; do not claim typical paper latency from a synthetic benchmark or reduce verification standards on timeout.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-018", "order": 18, "priority": "P2", "status": "pending", "title": "Reduce duplicated CI and propose release batching",
+      "dependencies": ["CV-003", "CV-007", "CV-017"], "write_scopes": [".github/workflows/", "tools/", "tests/", "docs/maintenance.md"],
+      "acceptance": "Retain independent platform, offline, negative-demo and external-sdist proof; collect skip classification from the same sdist run. Measure job elapsed and wall time without calling it a bill. Propose release batching explicitly; until accepted, obey honest Unreleased and the existing auto-release policy.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-019", "order": 19, "priority": "P2", "status": "ready", "title": "Prepare required-check settings, then obtain Owner configuration",
+      "dependencies": [], "write_scopes": ["docs/"],
+      "acceptance": "Engineering first prepares exact current branch/rules evidence and required-check/review settings, saves the proposal and checkpoint, and asks once for the account action. Then transition the same task to needs_owner with an explicit release condition. Owner applies settings or explicitly chooses a documented alternative; verify the resulting enforcement and record that decision before done. Repository templates are not proof of protection and no bypass is allowed; do not repeatedly ask while waiting.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-020", "order": 20, "priority": "P2", "status": "ready", "title": "Prepare bounded RTL alternatives, then obtain the scope decision",
+      "dependencies": [], "write_scopes": ["docs/"],
+      "acceptance": "Engineering first compares the existing bidi word-order and lost-space evidence and writes bounded support alternatives. Save the proposal and checkpoint, ask one concrete scope question, then transition this same task to needs_owner with an explicit release condition. Record Owner's explicit choice before done or runtime changes; approved implementation is a separate bounded task. Do not keep rerunning unchanged probes or repeating the question while waiting.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+    },
+    {
+      "id": "CV-021", "order": 21, "priority": "P3", "status": "deferred", "title": "Revisit video and exposure after a credible author workflow",
+      "dependencies": ["CV-001", "CV-002", "CV-012"], "write_scopes": ["docs/launch/", "docs/metrics.md"],
+      "acceptance": "Reassess audience and measurable benefit only after M1/M2 have evidence. A scheduled tick or a desire for activity is not a reason to produce promotional material.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null,
+      "blocker": {"party": "Deliberate deferral", "release_condition": "Trustworthy final-manuscript workflow exists and exposure has a concrete hypothesis", "do_not": "Use promotion as a substitute for product validation"}
+    }
+  ]
+}

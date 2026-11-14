@@ -5,6 +5,8 @@
 graft tests
 include LICENSE README.md README.zh-CN.md CHANGELOG.md LESSONS.md AGENTS.md
 recursive-include docs *.md
+# The current roadmap links this handoff ledger; an sdist must not ship a dead link.
+include docs/iteration-state.json
 
 # The archive claims to ship a test suite, which is a promise about inputs, not
 # only about test files. Unpacking a released sdist and running its own tests

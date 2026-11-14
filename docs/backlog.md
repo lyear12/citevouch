@@ -1,5 +1,13 @@
 # Backlog
 
+> Historical queue, retained as evidence of earlier work. Since the 2026-11-14
+> audit, current priorities and task status live in [roadmap.md](roadmap.md) and
+> [iteration-state.json](iteration-state.json); use [iteration.md](iteration.md)
+> to resume. The earlier heartbeat was canceled. No new schedule was enabled by
+> the audit. The instructions below describe the historical loop, not the active
+> selection rule; its three remaining items are explicitly blocked or deferred
+> in the current queue.
+
 The 30-minute heartbeat reads this file and takes **the top unfinished item** it
 can finish and verify in one run. Nothing here is a wish: every entry names the
 person who is blocked without it. An entry that cannot answer "who is blocked"
