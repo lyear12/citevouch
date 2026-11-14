@@ -173,6 +173,20 @@ class TestWhatMustStillWork:
         assert match.spanned == (1, 2)
 
 
+FIXTURES = [
+    (
+        "The suspect is nowhere in this room.",
+        "The suspect is now here in this room.",
+        "nowhere in this room",
+    ),
+    (
+        "The evidence is nowhere in the repository.",
+        "The evidence is now here in the repository.",
+        "nowhere in the repository",
+    ),
+]
+
+
 class TestTheThreeCommands:
     """Live check, recorded check and verify must all say the same thing.
 
@@ -180,12 +194,11 @@ class TestTheThreeCommands:
     a guard taught to one of them is a licence for the other two to lie.
     """
 
-    def test_live_check_stops_and_says_why(self, tmp_path, monkeypatch, capsys):
-        root = _project(
-            tmp_path,
-            "The suspect is nowhere in this room.",
-            "The suspect is now here in this room.",
-        )
+    @pytest.mark.parametrize("printed, quoted, excerpt", FIXTURES)
+    def test_live_check_stops_and_says_why(
+        self, tmp_path, monkeypatch, capsys, printed, quoted, excerpt
+    ):
+        root = _project(tmp_path, printed, quoted)
         code, payload, out = _json(root, monkeypatch, capsys, "check", "m.md", "--root", ".")
         assert code == 1, out
         assert payload["summary"]["verified"] == 0
@@ -195,14 +208,13 @@ class TestTheThreeCommands:
         assert payload["findings"][0]["severity"] == "high"
         # The message has to hand the author the passage, or "read the page" is
         # an instruction with no page in it.
-        assert "nowhere in this room" in payload["findings"][0]["message"]
+        assert excerpt in payload["findings"][0]["message"]
 
-    def test_recorded_check_stops_and_says_why(self, tmp_path, monkeypatch, capsys):
-        root = _project(
-            tmp_path,
-            "The suspect is nowhere in this room.",
-            "The suspect is now here in this room.",
-        )
+    @pytest.mark.parametrize("printed, quoted, excerpt", FIXTURES)
+    def test_recorded_check_stops_and_says_why(
+        self, tmp_path, monkeypatch, capsys, printed, quoted, excerpt
+    ):
+        root = _project(tmp_path, printed, quoted)
         assert main(["scan", "m.md", "--root", str(root)]) == 0
         code, payload, out = _json(
             root, monkeypatch, capsys, "check", "m.md", "--root", ".", "--use-recorded"
@@ -212,12 +224,11 @@ class TestTheThreeCommands:
         assert payload["summary"]["skipped"] == 1
         assert [f["code"] for f in payload["findings"]] == ["quote-word-boundaries-unclear"]
 
-    def test_verify_stops_and_says_why(self, tmp_path, monkeypatch, capsys):
-        root = _project(
-            tmp_path,
-            "The suspect is nowhere in this room.",
-            "The suspect is now here in this room.",
-        )
+    @pytest.mark.parametrize("printed, quoted, excerpt", FIXTURES)
+    def test_verify_stops_and_says_why(
+        self, tmp_path, monkeypatch, capsys, printed, quoted, excerpt
+    ):
+        root = _project(tmp_path, printed, quoted)
         assert main(["scan", "m.md", "--root", str(root)]) == 0
         code, payload, out = _json(root, monkeypatch, capsys, "verify", "m.md", "--root", ".")
         assert code == 1, out
@@ -273,12 +284,9 @@ class TestTheCacheDoesNotRescueIt:
         assert payload["summary"]["verified"] == 0
         return [finding["code"] for finding in payload["findings"]]
 
-    def test_cold_then_warm_agree(self, tmp_path):
-        root = _project(
-            tmp_path,
-            "The suspect is nowhere in this room.",
-            "The suspect is now here in this room.",
-        )
+    @pytest.mark.parametrize("printed, quoted, excerpt", FIXTURES)
+    def test_cold_then_warm_agree(self, tmp_path, printed, quoted, excerpt):
+        root = _project(tmp_path, printed, quoted)
         assert self._codes(root, no_cache=True) == ["quote-word-boundaries-unclear"]
         assert self._codes(root, no_cache=False) == ["quote-word-boundaries-unclear"]
 

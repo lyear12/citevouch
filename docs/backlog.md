@@ -6066,10 +6066,14 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   with every space deleted, one layer up behind a `confidence: high` proposal;
   that second search is gone.
 
-  **Why it is now true** `tests/test_word_boundaries.py` (25 tests) pins both
-  counterexamples through live `check`, `check --use-recorded` and `verify`,
+  **Why it is now true** `tests/test_word_boundaries.py` pins both
+  counterexamples — the `suspect`/`room` pair and the `evidence`/`repository`
+  pair — through live `check`, `check --use-recorded` and `verify`, each also
   cold and warm, and enumerates every comparison still trusted as a positive
   fixture: exact text, ordinary whitespace folding, a hyphen the page itself
   printed at a line end, CJK, two legal number spellings, and a quote across a
-  page break. Full suite 4190 passed; demo still `5 claims — 4 verified, 0
-  moved, 1 missing`, worst `high`, exit 1; six reverse mutations, all caught.
+  page break. The first cut of those tests drove both command-level groups from
+  one fixture only; a reviewer caught the gap between the claim and the code,
+  and the tests were widened rather than the claim narrowed. 29 tests in the
+  file, 4194 in the suite; demo still `5 claims — 4 verified, 0 moved, 1
+  missing`, worst `high`, exit 1; six reverse mutations, all caught.
