@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.23.1] — 2026-11-14
 ### Fixed
 
 - **A quote that matched only after every space was removed counted as
@@ -54,7 +56,6 @@ tag and that file disagree.
   exact, ordinary whitespace normalisation, a hyphen the page itself printed
   at a line end, CJK, legal number spellings, and a quote running across a
   page break.
-
 ## [0.23.0] — 2026-11-13
 ### Removed
 
@@ -5536,7 +5537,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.23.1...HEAD
+[0.23.1]: https://github.com/lyear12/citevouch/releases/tag/v0.23.1
 [0.23.0]: https://github.com/lyear12/citevouch/releases/tag/v0.23.0
 [0.22.104]: https://github.com/lyear12/citevouch/releases/tag/v0.22.104
 [0.22.103]: https://github.com/lyear12/citevouch/releases/tag/v0.22.103
