@@ -6183,3 +6183,29 @@ identical to the honest run; cold, warm and `--no-cache` agree on the same proje
 no source file; and the limitation is pinned rather than papered over. Reverse validation: 3/3 mutations of
 `_load_cache` caught, and all 3 also caught by the end-to-end verdict tests alone. Released as v0.24.2
 (`72f01bb`), 4248 passed, demo unchanged.
+
+## Archived 2026-11-14 — CV-005, the documented gate has to be the gate
+
+**What was wrong.** The CI section of both READMEs showed three ways to run the same check. The
+action defaults `fail-on` to `medium`; the hand-written snippets passed no threshold at all, so they
+ran at the CLI default `high`. `source-changed` and `quote-moved` are `medium`. A reader who copied
+the snippet got a step that printed `source-changed`, printed `quote-found`, and exited 0 — a gate
+that computes the finding and then declines to fail on it. The SARIF upload step also sat directly
+after the gate with no `if: always()`, so GitHub skipped it on every run that had annotations to
+publish, and code scanning stayed empty on exactly the pull requests that needed it. And the
+recorded-gate paragraph said the job "fails only when the PDFs or the manuscript moved", which is
+half true: a recorded quote the source never printed comes back `quote-fuzzy` (medium, exit 1) on a
+tree where nothing moved, and an edited manuscript is `ledger-stale` (high) that stops before any
+quote is matched.
+
+**What it costs.** A gate that is documented but does not gate is worse than no gate: the reviewer
+believes the drift was checked. The measured pair differs only by the one flag the document left
+out.
+
+**Why it is now true.** Both snippets carry `--fail-on medium`, both upload steps are
+`if: always()`, and both recorded paragraphs name the two kinds of finding and which one belongs to
+which cause. `tests/test_ci_snippets_gate_drift.py` (12 tests) parses the command each README prints,
+runs it, and asserts the contrast — the default threshold lets the drift through, the documented one
+does not — so deleting the flag fails the suite instead of quietly weakening the gate. 4260 tests
+pass, 250 files are formatted, the demo still reports 5 claims with 4 verified and 1 missing, and
+7 of 7 reverse mutations are caught.
