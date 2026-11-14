@@ -19,7 +19,7 @@
 | 1 CV-001 | P0 **done**（v0.23.1 / `7318e87`） | 修 squashed 词界假阳性 | 两组固定 now here / nowhere 负例 Match.found=false；三命令路径均有 high finding、exit 1，不计 verified 或 moved。列明 exact、普通空白、词间断行、有依据的连字符恢复、CJK、合法数字差异、跨页及 demo 正负例；冷/热缓存一致；反向验证变红 |
 | 2 CV-002 | P0 **done**（v0.24.0 / `e83a1d5`） | 收紧英中 README、包描述与 CLI 入口文案 | 实跑 --help、draft --help，与双语文档和包描述一致声明引文定位不等于支持；去掉“无需判断/不会假通过”等绝对承诺；不改退出码、旧 JSON 字段、demo 摘要或账本形状 |
 | 3 CV-003 | P0 **done**（v0.24.1 / `9eb726d`） | 发布候选绑定绿色源 SHA | checkout 钉住被测 SHA，`ls-remote` 比对 main，分歧即 stand down；`release.yml` 要求候选是祖先且中间恰好一个 bump 提交 |
-| 4 CV-004 | P1 ready | 缓存身份与页号校验 | 内部 SHA 不符、重复或不连续页号、不可接受 extractor 均按 miss 重抽；正常缓存照用；不声称能认证任意本地篡改 |
+| 4 CV-004 | P1 **done**（v0.24.2 / 72f01bb） | 缓存身份与页号校验 | 内部 SHA 不符、重复或不连续页号、不可接受 extractor 均按 miss 重抽；正常缓存照用；不声称能认证任意本地篡改 |
 | 5 CV-005 | P1 ready | 文档每条 CI 命令符合承诺 | recorded + medium 阻止源漂移；fresh/recorded 区别准确；失败后有 SARIF 可上传且原 gate 仍红；书目重读说明符合实现 |
 | 6 CV-006 | P1 ready | 先统一发布锁与 tag 身份检查 | 三个发布入口共用一个 publisher concurrency；现有 tag 必须核对 peeled commit；同名不同目标停止，不能仅凭“存在”继续 |
 | 7 CV-007 | P1 pending，依赖 003/006 | 为中断发布保存并恢复同一候选 | main 已推/tag 未推、上传中断等从同一 SHA/版本恢复；产物构建一次、digest 可核验；已有不同 digest 资产不得 clobber |
@@ -66,4 +66,4 @@ CV-013 是设计决定。先写可审查方案，随后向 Owner 一次说明具
 
 ## 下一次唤醒直接做什么
 
-先按 [iteration](iteration.md) 分诊 CI 和 Issue、核对工作树与上一轮 checkpoint。全部清楚后领取 **CV-004**：让抽取缓存拒绝身份不符或页号不自洽的条目——内部 SHA 与源文件不符、页号重复或不连续、不可接受的 extractor 都按 miss 重抽，正常缓存照用；不声称能认证任意本地篡改。CV-001（v0.23.1）、CV-002（v0.24.0）、CV-003（v0.24.1）已交付，不再列为 open。
+先按 [iteration](iteration.md) 分诊 CI 和 Issue、核对工作树与上一轮 checkpoint。全部清楚后领取 **CV-005**：把文档里承诺的每条 CI 门禁落实成等价的东西——`recorded` + `--fail-on medium` 要真的能挡住源漂移，fresh/recorded 的区别要和实现一致，SARIF 每个 job 都要上传（用 `if: always()`），书目重读的说明要符合 `verify.py` 的实际行为。CV-001（v0.23.1）、CV-002（v0.24.0）、CV-003（v0.24.1）、CV-004（v0.24.2）已交付，不再列为 open。

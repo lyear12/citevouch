@@ -6143,3 +6143,43 @@ number of commits after the test — all turn the suite red. 4226 passed in 156.
 formatted, demo still `5 claims — 4 verified, 0 moved, 1 missing`, worst `high`, exit 1. Both new
 steps ran green in production on the first real release (v0.24.1), which is the only evidence that
 can exist for the happy path; the stand-down path still cannot be provoked deliberately.
+
+## Archived 2026-11-14 — CV-004, a cache entry has to describe the bytes it is filed under
+
+**What was wrong.** `.citevouch/cache/<sha>.json` is named after a digest of the source, and nothing inside
+the file was ever compared against that name. `_store_cache` wrote `"sha256": sha` on every store and
+`_load_cache` never read it, so the one field that could tie an entry to its filename was decoration.
+Four shapes were accepted, each producing a verdict no evidence supported: two pages both numbered 1 (the
+first answered for both, so a quote the second page held was reported `quote-missing`); one page numbered
+7 (`check` printed `quote-moved`, a finding against the author, about a quote that was on the only page
+there was); one page with no `number` (the loader invented one from the list position); and any entry whose
+`sha256` named a different file.
+
+**What it costs.** Every one of those is a verdict about the author's evidence produced by a scratch file
+rather than by the source. `quote-moved` and `quote-missing` are the two sentences this tool exists to say;
+saying either of them because a cache directory was copied is the failure mode the whole design is meant to
+avoid.
+
+**Why it is now true.** `_load_cache` refuses an entry whose `sha256` disagrees with the digest in its
+filename, whose page numbers are not exactly `1..N`, or any page missing `number` or `text`. All three are
+cache misses, not findings — the bytes are still on disk, so the pages are re-extracted and the verdict is
+the one the honest source gives. The `1..N` rule is knowable rather than guessed: `extract_pages` is the only
+writer of this file and re-labels whatever strings the reader returned with `enumerate(raw, start=1)`, which
+is what makes refusing a record that starts at 7 safe. That reversal is recorded in
+`tests/test_damaged_cache.py`, whose old `test_a_page_number_is_taken_from_the_record` protected a reader
+numbering from seven that this tool cannot produce, and a companion `test_the_writer_always_numbers_from_one`
+now pins the premise so it cannot go stale in silence.
+
+What the check is **not** is authentication, and the docstrings, the CHANGELOG and
+`TestTheHashIsNotAuthentication` all say so in as many words: anyone who can rewrite the pages can rewrite
+the hash beside them. Measured, a doctored entry whose pages were replaced with a sentence the source does
+not contain turned `quote-missing` into `quote-found`, and rewriting the hash as well changed nothing. A
+self-reported hash catches an accident — a copied cache directory, a merge that took one side's cache and
+the other side's source, a hand-renamed file — and accident is the whole of what a scratch directory inside
+the author's own checkout is exposed to.
+
+`tests/test_cache_identity.py` adds 19 tests: each doctored shape is a miss; each leaves the verdict
+identical to the honest run; cold, warm and `--no-cache` agree on the same project; a cache hit still reads
+no source file; and the limitation is pinned rather than papered over. Reverse validation: 3/3 mutations of
+`_load_cache` caught, and all 3 also caught by the end-to-end verdict tests alone. Released as v0.24.2
+(`72f01bb`), 4248 passed, demo unchanged.
