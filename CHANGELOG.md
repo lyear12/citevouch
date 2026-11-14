@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.24.2] — 2026-11-14
 ### Fixed
 
 - **A cache entry that does not describe the source's bytes is no longer read.**
@@ -50,7 +51,6 @@ tag and that file disagree.
   `tests/test_cache_identity.py` adds 19 tests: each doctored shape is a miss,
   each leaves the verdict exactly as the honest run left it, cold/warm/`--no-cache`
   agree on the same project, and a cache hit still reads no source file.
-
 ## [0.24.1] — 2026-11-14
 ### Fixed
 
@@ -5625,7 +5625,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.2...HEAD
+[0.24.2]: https://github.com/lyear12/citevouch/releases/tag/v0.24.2
 [0.24.1]: https://github.com/lyear12/citevouch/releases/tag/v0.24.1
 [0.24.0]: https://github.com/lyear12/citevouch/releases/tag/v0.24.0
 [0.23.1]: https://github.com/lyear12/citevouch/releases/tag/v0.23.1
