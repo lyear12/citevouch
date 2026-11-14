@@ -6112,3 +6112,34 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   code, ledger field, JSON field or demo line changed: 4212 passed, 247 files
   formatted, demo still `5 claims — 4 verified, 0 moved, 1 missing`, worst
   `high`, exit 1.
+
+## Archived 2026-11-14 — CV-003, the release candidate is the tested commit
+
+**What was wrong.** `auto-release.yml` is triggered by `workflow_run`, whose payload names the SHA
+whose `Test` run finished green. The job then ran `actions/checkout with ref: main`. Two different
+subjects, one gate, nothing comparing them: a merge landing while the job sat in the queue was
+enough to tag and publish a commit that no run had seen, with a version number read from that
+commit's own changelog. The logs would have looked correct — the run named the successful Test, the
+artifact matched the tag, and the release went out.
+
+**What it costs.** The whole project's claim is that a green build means the shipped tree was
+tested. This is the one place where "was tested" and "was shipped" were allowed to be different
+commits, and it is a silent failure: nobody has to do anything wrong for it to happen, they only
+have to merge.
+
+**Why it is now true.** The decision job pins its checkout to
+`github.event.workflow_run.head_sha` and compares that SHA with `git ls-remote origin refs/heads/main`
+before it plans anything; when they differ it stands down with a `::notice::` and a step-summary
+paragraph naming both SHAs, leaving the newer commit to its own run (an unreadable remote is an
+error, not a match). `workflow_dispatch` has no payload and still checks out `main`. The tag cannot
+equal the tested SHA — the bump commit is made after the test — so `release.yml` takes a `candidate`
+input and requires the candidate to be an ancestor of the release tree with exactly one commit, the
+bump, in between; two commits stops the run, and both SHAs are printed. `tests/test_release_candidate.py`
+(14 tests) runs the freshness step's real shell body against a `git` stub for the decision and builds
+throwaway repositories for the ancestry check, because a stub would only answer this file's beliefs
+about `git merge-base --is-ancestor`. Eleven mutations — restoring `ref: main`, disarming the
+comparison, treating an unreadable remote as a match, dropping the candidate argument, allowing any
+number of commits after the test — all turn the suite red. 4226 passed in 156.84s, 248 files
+formatted, demo still `5 claims — 4 verified, 0 moved, 1 missing`, worst `high`, exit 1. Both new
+steps ran green in production on the first real release (v0.24.1), which is the only evidence that
+can exist for the happy path; the stand-down path still cannot be provoked deliberately.
