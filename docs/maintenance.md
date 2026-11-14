@@ -38,6 +38,24 @@ changed, something changed, and the release is the thing that tells users. What 
 is not a person's judgement but `release.yml`, which runs the whole suite on the exact commit before
 it publishes anything.
 
+## Which commit a release is about
+
+`workflow_run` reports the SHA whose `Test` run finished green. It does not promise that `main` still
+points there: another merge can land while the release job is queued. Checking out `main` by name
+would then publish a commit that no run has ever tested, under a number chosen from its changelog -
+the ordinary way a green build stops meaning anything.
+
+So the decision job pins its checkout to `github.event.workflow_run.head_sha`, then asks the remote
+where `main` is. If the two differ it stands down: the newer commit has its own `Test` run queued or
+running, and that run decides. Nothing is tagged, nothing is published, and the step summary names
+the two SHAs that disagreed.
+
+The tag still cannot point at the tested SHA itself - the version-bump commit is made after the test
+- so `release.yml` checks the next best thing: the candidate is an ancestor of the release tree, and
+exactly one commit (the bump) sits between them. Two commits there means something untested slipped
+in and the run stops. Both SHAs are printed, so a release can be traced back to the run that approved
+it.
+
 ## What CI enforces
 
 | job | fails when |
@@ -45,8 +63,8 @@ it publishes anything.
 | `test` | any test fails, on any of the matrix cells |
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
-| `auto-release` | the changelog says release but the decided version changes no files, or the tag already exists |
-| `release` | the tag does not match `src/citevouch/_version.py`, or the suite is red, or the built wheel cannot scaffold a project and verify it |
+| `auto-release` | the changelog says release but the decided version changes no files, the tag already exists, or `main` moved past the tested SHA |
+| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, or the built wheel cannot scaffold a project and verify it |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a

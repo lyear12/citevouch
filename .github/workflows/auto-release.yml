@@ -22,6 +22,14 @@ name: Auto release
 # itself, on that exact commit, before it builds anything, and a red suite there
 # means the tag exists but nothing is published. The tag is cheap; the release
 # is guarded.
+#
+# A note on which commit this releases: `workflow_run` reports the SHA whose
+# Test finished green, but the event carries no promise that main still points
+# there. Checking out `main` and releasing it would let a green Test for A
+# publish B - a commit nobody has tested - by the ordinary route of one more
+# merge landing while this job was queued. So the checkout is pinned to the
+# SHA the run is about, and a step refuses to go on if `main` has moved: the
+# newer commit has (or will have) its own Test run, and that run decides.
 
 on:
   workflow_run:
@@ -50,11 +58,45 @@ jobs:
     outputs:
       version: ${{ steps.plan.outputs.version }}
       released: ${{ steps.plan.outputs.released }}
+      candidate: ${{ steps.fresh.outputs.candidate }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          # The SHA this run is about, not whatever main happens to say now.
+          # On workflow_dispatch there is no workflow_run and no SHA to pin to,
+          # so main is the only answer available.
+          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
           fetch-depth: 0
+
+      - name: Refuse to release a commit that main has already moved past
+        id: fresh
+        if: github.event_name == 'workflow_run'
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # A green Test for A says nothing about B. If main moved while this
+          # job was queued, releasing here would put an untested tree behind a
+          # number - and B's own Test run is either already queued or about to
+          # be, so stopping costs one wake-up and publishes nothing wrong.
+          #
+          # `git ls-remote` rather than a local ref, because the checkout above
+          # is the tested SHA and cannot see where the branch points.
+          head=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ -z "$head" ]; then
+            echo "::error::could not read refs/heads/main from origin"
+            exit 1
+          fi
+          if [ "$head" != "$TESTED_SHA" ]; then
+            echo "::notice::main is at $head, but the green Test was for $TESTED_SHA - waiting for the newer run instead of releasing untested code"
+            echo "### Not releasing" >> "$GITHUB_STEP_SUMMARY"
+            echo "The green Test was for \`$TESTED_SHA\` but main is at \`$head\`." >> "$GITHUB_STEP_SUMMARY"
+            echo "That commit's own Test run decides whether it ships." >> "$GITHUB_STEP_SUMMARY"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "main is at $head, which is the commit the green Test was for"
+          echo "stale=false" >> "$GITHUB_OUTPUT"
+          echo "candidate=$TESTED_SHA" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
         with:
@@ -72,6 +114,9 @@ jobs:
 
       - name: Decide the next version
         id: plan
+        # A stale candidate must not plan anything: the freshness step above
+        # signs off with released=false and leaves it to the newer run.
+        if: steps.fresh.outputs.stale != 'true'
         run: |
           set +e
           next=$(python tools/next_version.py CHANGELOG.md \
@@ -207,3 +252,4 @@ jobs:
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ needs.decide.outputs.version }}
+      candidate: ${{ needs.decide.outputs.candidate }}

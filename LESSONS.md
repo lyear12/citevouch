@@ -8838,3 +8838,35 @@ How to apply:
    a promise with no measurement behind it. Keep a list of the exact phrasings that shipped, and
    assert none of them returns; a new phrasing of the same overclaim will get past a list, but the
    list catches the relapse, which is the realistic failure.
+
+## 290 A workflow that reports on one commit and ships another has not been gated at all
+
+`auto-release.yml` runs on `workflow_run`, whose payload says *this SHA passed*. It then did
+`actions/checkout with ref: main`. Those are two different subjects, and nothing compared them. One
+merge landing while the job sat in the queue was enough to tag and publish a commit no run had ever
+tested, with a version number read from that commit's changelog. Nothing in the logs would look
+wrong: the run named the successful Test, the artifact matched the tag, the release was published.
+
+The same shape appears three times in this project's history: a guard that asks about the branch
+while the artifact is a commit, a test that asserts a message while the behaviour is a code path, a
+`doctor` that checks the manifest while the command fails on the manuscript. Every one of them is a
+check whose subject is adjacent to the thing it claims to protect.
+
+How to apply:
+
+1. **Write down both subjects before you trust a gate.** "The input to this check is X; the artifact
+   it protects is Y" - then confirm X and Y are the same object. If they are merely related, find the
+   step that relates them and make it fail closed.
+2. **An event's payload is a claim about the past, not about now.** `workflow_run.head_sha` was true
+   when the event fired. Anything read afterwards - a branch name, a tag, a registry, a working tree
+   - has to be re-read and compared, because the world moves between the event and the work.
+3. **Refuse, do not repair, when the two subjects have diverged.** Rewriting the checkout to the
+   newer commit would publish something the user did not ask for, reasoned about by the wrong
+   changelog. Standing down costs one wake-up; a wrong number cannot be withdrawn.
+4. **The nearest provable thing still needs checking.** The bump commit is made after the test, so
+   the tag can never equal the tested SHA. "Candidate is an ancestor and exactly one commit in
+   between" is the strongest true statement available - and it is worth writing down that it is a
+   weaker claim than "this exact tree was tested", so the next reader does not upgrade it.
+5. **A stub answers the file's beliefs; a real repository answers the question.** `git merge-base
+   --is-ancestor` was worth 30 lines of throwaway commits and not worth a fake, because a fake would
+   have agreed with whatever I wrote in it.

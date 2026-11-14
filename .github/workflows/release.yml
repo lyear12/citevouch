@@ -26,6 +26,11 @@ on:
         description: "version to release, e.g. 0.1.4 (no leading v)"
         required: true
         type: string
+      candidate:
+        description: "the commit whose Test run went green, if the caller knows it"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -79,6 +84,40 @@ jobs:
             echo "no tag $tag yet; building the checked-out commit $(git rev-parse --short HEAD)"
             echo "tag_exists=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Record which commit is being released, and whether it descends from the tested one
+        id: tree
+        run: |
+          # The version-bump commit is made *by* auto-release after the green
+          # Test, so the tag never points at the tested SHA itself. What has to
+          # be true is that the tested commit is an ancestor and nothing but the
+          # bump sits between them: that is the only difference the suite did
+          # not see, and it is a version number and a changelog heading.
+          echo "release tree: $(git rev-parse HEAD)"
+          candidate="${{ inputs.candidate }}"
+          if [ -z "$candidate" ]; then
+            echo "::notice::no candidate SHA supplied - this run came from a tag push or a manual dispatch, so the tag is the whole claim"
+            exit 0
+          fi
+          echo "tested commit: $candidate"
+          if ! git cat-file -e "$candidate^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$candidate" 2>/dev/null || true
+          fi
+          if ! git merge-base --is-ancestor "$candidate" HEAD; then
+            echo "::error::the tested commit $candidate is not an ancestor of the tree being released ($(git rev-parse HEAD))"
+            exit 1
+          fi
+          between=$(git rev-list --count "$candidate..HEAD")
+          echo "$between commit(s) between the tested commit and the tag"
+          # One commit - the bump - is the expected shape. More than one means
+          # something else landed after the test, which is exactly the race this
+          # guard exists to notice.
+          if [ "$between" -gt 1 ]; then
+            echo "::error::$between commits landed between the green Test for $candidate and the release tree; the suite never saw $(git rev-list --oneline "$candidate..HEAD" | tail -n +2 | tr '\\n' ' ')"
+            exit 1
+          fi
+          echo "source_sha=$candidate" >> "$GITHUB_OUTPUT"
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Tag and the declared version must agree
         run: |

@@ -11,6 +11,33 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **A green `Test` for one commit can no longer publish a different one.**
+  `auto-release.yml` started from `workflow_run`, which reports the SHA whose
+  tests passed, and then checked out `main` by name. One merge landing while the
+  job was queued was enough to tag and publish a commit that no run had tested,
+  with a version number read from its changelog — a green build that stops
+  meaning anything. The checkout is now pinned to
+  `github.event.workflow_run.head_sha`, and a step compares that SHA with
+  `git ls-remote origin refs/heads/main`; when they differ it stands down,
+  writes which two SHAs disagreed into the step summary, and leaves the newer
+  commit to its own run. An unreadable remote is an error, not a match.
+
+  The tag still cannot point at the tested SHA — the version-bump commit is made
+  after the test — so `release.yml` takes a new `candidate` input from the
+  caller and requires that candidate to be an ancestor of the release tree with
+  exactly one commit (the bump) in between; two commits means something
+  untested slipped in and the run stops. Both SHAs are printed. A tag push and a
+  manual dispatch supply no candidate and behave as before.
+
+  `tests/test_release_candidate.py` (14 tests) runs the freshness step's real
+  shell body against a `git` stub for the decision, and builds throwaway
+  repositories for ancestry, because a stub would only answer this file's
+  beliefs about `git merge-base --is-ancestor`. Eleven mutations of the new
+  behaviour — restoring `ref: main`, disarming the comparison, treating an
+  unreadable remote as a match, dropping the candidate argument, allowing any
+  number of commits after the test — all turn the suite red.
 
 ## [0.24.0] — 2026-11-14
 ### Changed
