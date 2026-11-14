@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.24.1] — 2026-11-14
 ### Fixed
 
 - **A green `Test` for one commit can no longer publish a different one.**
@@ -38,7 +40,6 @@ tag and that file disagree.
   behaviour — restoring `ref: main`, disarming the comparison, treating an
   unreadable remote as a match, dropping the candidate argument, allowing any
   number of commits after the test — all turn the suite red.
-
 ## [0.24.0] — 2026-11-14
 ### Changed
 
@@ -5585,7 +5586,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/lyear12/citevouch/releases/tag/v0.24.1
 [0.24.0]: https://github.com/lyear12/citevouch/releases/tag/v0.24.0
 [0.23.1]: https://github.com/lyear12/citevouch/releases/tag/v0.23.1
 [0.23.0]: https://github.com/lyear12/citevouch/releases/tag/v0.23.0
