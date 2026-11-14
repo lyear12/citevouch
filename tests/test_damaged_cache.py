@@ -198,9 +198,22 @@ class TestAGoodCacheIsStillUsed:
         assert pages is not None and pages[0].text == SOURCE_TEXT
         assert sources._load_cache(root, sha, ("plain",)) is not None
 
-    def test_a_page_number_is_taken_from_the_record(self, tmp_path: Path):
-        """A cache written by a reader that numbers pages from 7 must keep
-        saying 7; renumbering from one would point findings at the wrong page."""
+    def test_a_record_that_numbers_pages_from_seven_is_not_used(self, tmp_path: Path):
+        """This reverses the decision this file used to record.
+
+        It said: a cache written by a reader that numbers pages from 7 must keep
+        saying 7, because renumbering from one would point findings at the wrong
+        page.  The premise is false - ``extract_pages`` is the only writer of
+        this file, and it re-labels whatever the reader returned with
+        ``enumerate(raw, start=1)``, so a list starting at 7 cannot have come
+        from here.  The gap that decision left open was measured: a single page
+        recorded as 7 made ``check`` report ``quote-moved``, a finding against
+        the author, about a quote that was on the only page there was.
+
+        ``test_the_writer_always_numbers_from_one`` below is what keeps the
+        premise honest.  If a future reader is ever given its own numbering, that
+        test goes red and this one has to be reconsidered rather than trusted.
+        """
         root = _project(tmp_path)
         cache = _scan_then_find_cache(root)
         cache.write_text(
@@ -209,4 +222,60 @@ class TestAGoodCacheIsStillUsed:
             newline="\n",
         )
         pages = sources._load_cache(root, cache.stem, ("plain",))
-        assert pages is not None and [page.number for page in pages] == [7]
+        assert pages is None
+
+    def test_the_writer_always_numbers_from_one(self, tmp_path: Path):
+        """The rule above is only justified while this holds.
+
+        A reader's list is arbitrary strings; the writer turns them into pages
+        1, 2, 3, ...  Two pages from a form-fed file is enough to see the
+        numbering without depending on any particular reader.
+        """
+        root = _project(tmp_path)
+        source = root / "a.txt"
+        source.write_text(
+            "first page" + chr(12) + "second page", encoding="utf-8", newline="\n"
+        )
+        pages, problem = sources.extract_pages(source, root)
+        assert problem is None
+        assert [page.number for page in pages] == [1, 2]
+
+        cache = sources.cache_root(root) / f"{sources.sha256_file(source)}.json"
+        blob = json.loads(cache.read_text(encoding="utf-8"))
+        assert [page["number"] for page in blob["pages"]] == [1, 2]
+
+    def test_a_record_that_repeats_a_page_number_is_not_used(self, tmp_path: Path):
+        """Measured: two pages both numbered 1 made the first answer for both,
+        so a quote the second page held was reported missing."""
+        root = _project(tmp_path)
+        cache = _scan_then_find_cache(root)
+        cache.write_text(
+            json.dumps(
+                _shape(
+                    pages=[
+                        {"number": 1, "text": "the first page says something else"},
+                        {"number": 1, "text": SOURCE_TEXT},
+                    ]
+                )
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
+        assert sources._load_cache(root, cache.stem, ("plain",)) is None
+
+    def test_a_record_that_skips_a_page_number_is_not_used(self, tmp_path: Path):
+        root = _project(tmp_path)
+        cache = _scan_then_find_cache(root)
+        cache.write_text(
+            json.dumps(
+                _shape(
+                    pages=[
+                        {"number": 1, "text": SOURCE_TEXT},
+                        {"number": 3, "text": "the third page says something else"},
+                    ]
+                )
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
+        assert sources._load_cache(root, cache.stem, ("plain",)) is None

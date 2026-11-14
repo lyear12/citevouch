@@ -12,6 +12,45 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A cache entry that does not describe the source's bytes is no longer read.**
+  `.citevouch/cache/<sha>.json` is named after a digest of the source, and nothing
+  inside the file was ever compared against that name. Four shapes were accepted
+  and each one produced a verdict no evidence supported. Two pages both numbered
+  `1` made the first answer for both, so a quote the second page held was
+  reported `quote-missing`. A single page numbered `7` made `check` print
+  `quote-moved` — a finding against the author — about a quote that was on the
+  only page there was. A page with no `number` had one invented for it from the
+  list position. And the embedded `sha256`, written by `_store_cache` since the
+  cache was introduced, was never read at all, so the one field that could tie an
+  entry to its filename was decoration.
+
+  `_load_cache` now refuses an entry whose `sha256` disagrees with the digest in
+  its filename, whose page numbers are not exactly `1..N`, or any page missing a
+  `number` or `text`. All three are misses, not findings: the bytes are still on
+  disk, so the pages are simply re-extracted. The `1..N` rule is knowable rather
+  than guessed — `extract_pages` is the only writer of this file and re-labels
+  whatever strings the reader returned with `enumerate(raw, start=1)` — which is
+  why a record starting at `7` can be refused. `tests/test_damaged_cache.py`
+  records that reversal and pins the writer's numbering so the premise cannot go
+  stale silently.
+
+  What this is **not** is authentication. Anyone who can rewrite the pages can
+  rewrite the hash written beside them; measured, a doctored entry whose pages
+  were replaced with a sentence the source does not contain turned
+  `quote-missing` into `quote-found`, and rewriting the hash as well changed
+  nothing. A self-reported hash catches an accident — a copied cache directory, a
+  merge that took one side's cache and the other side's source, a hand-renamed
+  file — and accident is the whole of what a scratch directory inside the
+  author's checkout is exposed to. The docstring says this in as many words, and
+  `TestTheHashIsNotAuthentication` pins the limit so it cannot quietly become a
+  security claim.
+
+  `tests/test_cache_identity.py` adds 19 tests: each doctored shape is a miss,
+  each leaves the verdict exactly as the honest run left it, cold/warm/`--no-cache`
+  agree on the same project, and a cache hit still reads no source file.
+
 ## [0.24.1] — 2026-11-14
 ### Fixed
 

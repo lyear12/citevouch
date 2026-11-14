@@ -8870,3 +8870,32 @@ How to apply:
 5. **A stub answers the file's beliefs; a real repository answers the question.** `git merge-base
    --is-ancestor` was worth 30 lines of throwaway commits and not worth a fake, because a fake would
    have agreed with whatever I wrote in it.
+
+## 291. A cache file is named after its input, and a name is not a check
+
+`.citevouch/cache/<sha>.json` carries the source's digest in its filename, and the
+payload carried it again in a `sha256` field. Nothing compared the two. The field
+was written on every store and read on no load, so the only association between an
+entry and its bytes was the filename — and a filename is the part a copier, a
+merge, or a hand-edit changes without touching the contents.
+
+The four shapes that survived, measured on the released behaviour: two pages
+numbered `1` (the first answered for both, so the second page's quote was
+reported missing), one page numbered `7` (a false `quote-moved`, which is a
+finding against the author), one page with no `number` at all (the loader
+invented one from the list index), and any entry whose `sha256` named a different
+file.
+
+**How to apply.** When a record is filed under a key, find every reader and ask
+whether any of them compares the key to the record — writing the key into the
+payload feels like checking it and is not. Second: when the only writer of a
+format is your own function, its conventions are facts you can read, not guesses
+you must tolerate; `extract_pages` numbers pages `1..N`, so a list that does not
+was not written here, and refusing it is safe. Third: before reversing an old
+test, find out what premise it protects. `test_a_page_number_is_taken_from_the_record`
+protected a reader that starts numbering at seven; no such reader exists, because
+the single writer re-labels with `enumerate`. The test outlived its premise by
+years and held a false finding open. Fourth: say what a check does *not* prove.
+A self-reported hash catches an accident, not a forger who can rewrite both
+halves; `TestTheHashIsNotAuthentication` pins the hole so no later docstring can
+widen it into a security claim.

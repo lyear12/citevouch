@@ -31,10 +31,10 @@
       "owner": null, "lease_until": null, "base_sha": "6a657f7", "attempts": 1, "last_evidence": "9eb726d: auto-release.yml pins checkout to github.event.workflow_run.head_sha and compares it with git ls-remote origin refs/heads/main, standing down with a ::notice:: and a step-summary paragraph when they differ; release.yml takes a candidate input and requires it to be an ancestor with exactly one commit (the bump) between them. tests/test_release_candidate.py 14 tests; C:/tmp/cv003_mutate.py baseline green, 11 of 11 mutants caught. Full suite 4226 passed in 156.84s, ruff clean, 248 files formatted, demo 5 claims - 4 verified, 0 moved, 1 missing / worst high / exit 1. CI Test 43603420348 success; Auto release 43603736391 success, both new steps ran green in production, v0.24.1 published 2026-11-14T14:15:24Z. Not tried: the stand-down path itself cannot be provoked deliberately on a real push.", "next_retry_at": null, "checkpoint": null, "blocker": null
     },
     {
-      "id": "CV-004", "order": 4, "priority": "P1", "status": "ready", "title": "Reject misassociated or incoherent extraction caches",
+      "id": "CV-004", "order": 4, "priority": "P1", "status": "claimed", "title": "Reject misassociated or incoherent extraction caches",
       "dependencies": [], "write_scopes": ["src/citevouch/sources.py", "tests/", "CHANGELOG.md", "LESSONS.md"],
       "acceptance": "Mismatched embedded SHA, duplicate/non-contiguous page numbers, or unacceptable extractor cause a cache miss and re-extraction; valid cache hits remain valid. Cold/warm/no-cache results agree on controlled fixtures. State explicitly that self-reported hashes do not authenticate arbitrary local tampering.",
-      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+      "owner": "lead", "lease_until": "2026-11-14T15:10:00Z", "base_sha": "d291919", "attempts": 1, "last_evidence": null, "next_retry_at": null, "checkpoint": "Measured: duplicated page numbers are honoured (first wins); non-contiguous numbers are honoured and the run says quote-moved; the embedded sha256 field is written by this tool and never read back", "blocker": null
     },
     {
       "id": "CV-005", "order": 5, "priority": "P1", "status": "ready", "title": "Make documented CI gates equivalent and keep failure reports",

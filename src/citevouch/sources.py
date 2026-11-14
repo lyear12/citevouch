@@ -167,6 +167,27 @@ def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[P
     that means "findings at or above --fail-on" - with a traceback. Measured:
     ``TypeError: 'int' object is not iterable``, ``AttributeError: 'NoneType'
     object has no attribute 'get'``, ``ValueError: invalid literal for int()``.
+
+    A recognised shape is still not enough. This file also has to *belong* to
+    the bytes it is filed under, because the filename is the only thing that
+    says so: ``.citevouch/cache/<sha>.json`` is named after a digest of the
+    source, and nothing in the JSON was ever compared against that name. Two
+    checks close that gap: the embedded ``sha256``, and the page numbering,
+    which this tool always writes as ``1..N`` (``extract_pages`` re-labels
+    whatever the reader produced), so anything else did not come from here.
+
+    What the hash check is *not* is authentication. Anyone who can rewrite the
+    pages can rewrite the hash written beside them, so a cache entry is only
+    ever as trustworthy as the directory it sits in; measured, a doctored entry
+    whose pages were replaced with a sentence the source does not contain turned
+    ``quote-missing`` into ``quote-found`` with the hash untouched, and rewriting
+    the hash changed nothing. The claim is narrower and worth stating exactly: a
+    self-reported hash catches an *accident* - a copied cache directory, a merge
+    that took one side's cache and the other side's source, a file renamed by
+    hand - and an accident is the whole of what this directory is exposed to,
+    since it is scratch space inside the author's own checkout. The check would
+    be false comfort if it were announced as a security boundary, so it is not
+    announced as one.
     """
     path = _cache_file(root, sha)
     if not path.exists():
@@ -179,6 +200,12 @@ def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[P
         return None
     if blob.get("schema") != 1:
         return None
+    embedded = blob.get("sha256")
+    if isinstance(embedded, str) and embedded != sha:
+        # The name of this file and the hash it claims to describe disagree, so
+        # it was not written for the bytes now sitting here.  See the docstring
+        # for what this does and does not prove.
+        return None
     if blob.get("tool") != __version__ or blob.get("extractor") not in accepted:
         # Written by another build, or by a reader that is not the one about to
         # run. Re-extracting costs a second; trusting stale text costs a
@@ -189,17 +216,46 @@ def _load_cache(root: str | Path, sha: str, accepted: tuple[str, ...]) -> list[P
     if not isinstance(raw_pages, list):
         return None
     pages: list[PageText] = []
-    for index, raw in enumerate(raw_pages):
+    previous = 0
+    for raw in raw_pages:
         if not isinstance(raw, dict):
             return None
-        number = raw.get("number", index + 1)
+        number = raw.get("number")
         text = raw.get("text", "")
+        # A page this tool wrote always carries both keys: ``PageText.to_json``
+        # writes ``number`` and ``text`` and nothing else.  So a page missing a
+        # number was not written here, and the old default - ``index + 1`` -
+        # invented one, which is how a doctored entry with one unnumbered page
+        # got to answer for page 1.
         # bool is an int to isinstance and is not a page number; a page number
         # below one cannot have come from this tool and would index nothing.
         if isinstance(number, bool) or not isinstance(number, int) or number < 1:
             return None
         if not isinstance(text, str):
             return None
+        if number != previous + 1:
+            # The pages must be 1, 2, 3, ... and nothing else, because that is
+            # what the one function that writes this file produces:
+            # ``extract_pages`` takes whatever strings the reader returned and
+            # re-labels them ``enumerate(raw, start=1)``.  So this is not a
+            # guess about what other readers might do - there is exactly one
+            # writer, and its numbering is knowable by reading it.
+            #
+            # Two measured cases sit behind the rule.  Two pages both numbered
+            # 1 made the first one answer for both, so a quote the second page
+            # held was reported missing.  A single page numbered 7 made
+            # ``check`` say ``quote-moved`` - a finding against the author -
+            # about a quote that was on the only page there was, because the
+            # claim said page 1 and the record said 7.
+            #
+            # Refusing 7 here reverses an earlier decision recorded in
+            # ``tests/test_damaged_cache.py``: keeping the number was meant to
+            # avoid renumbering a record written by a reader that starts at
+            # seven.  No such reader exists in this tool - the re-labelling
+            # above is the reason - so the case that decision protected cannot
+            # occur, while the false ``quote-moved`` it left open can.
+            return None
+        previous = number
         pages.append(PageText(number=number, text=text))
     return pages or None
 
