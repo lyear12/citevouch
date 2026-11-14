@@ -13,10 +13,10 @@
   "global_gates": "Follow AGENTS.md and docs/code-standards.md: full final-tree pytest, ruff check, stage before tools/format_check.sh, demo negative control, reverse validation for behavior fixes, independent critic, commit then check_repo_rules. Source archive and external install checks apply when their inputs change. Never count a started job or a plan as acceptance.",
   "tasks": [
     {
-      "id": "CV-001", "order": 1, "priority": "P0", "status": "ready", "title": "Refuse word-boundary false quotation matches",
+      "id": "CV-001", "order": 1, "priority": "P0", "status": "done", "title": "Refuse word-boundary false quotation matches",
       "dependencies": [], "write_scopes": ["src/citevouch/matching.py", "src/citevouch/textnorm.py", "tests/", "CHANGELOG.md", "LESSONS.md"],
       "acceptance": "On both fixed now here/nowhere fixtures where the source contains only the counterexample, Match.found is false; live check, recorded check and verify emit a high finding requiring human review, count neither verified nor moved, and exit 1 under --fail-on high without exit-code special cases. Enumerate fixtures and expected outcomes for exact text, ordinary whitespace folding, between-word line breaks, justified hyphen recovery, CJK, legal numeric spelling differences and cross-page matches, with cold/warm cache and the demo negative control. Ambiguous within-word line breaks may require review rather than certification; fuzzy negatives must never verify. Reverse the fix and see the regression tests fail.",
-      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+      "owner": null, "lease_until": null, "base_sha": "59158bc", "attempts": 1, "last_evidence": "Commit 7318e87, released as v0.23.1 (Test 43588381852 success, Auto release 43588733679 success). New tests/test_word_boundaries.py has 25 tests; full suite 4190 passed; demo unchanged 4 verified / 0 moved / 1 missing, worst high, exit 1; reverse validation caught 6/6 mutations.", "next_retry_at": null, "checkpoint": "Match.found no longer contains squashed; verify.py counts that tier as skipped with code quote-word-boundaries-unclear (high, no exit-code special case); draft._verbatim_sentence lost its whitespace-free second search.", "blocker": null
     },
     {
       "id": "CV-002", "order": 2, "priority": "P0", "status": "ready", "title": "Make the current capability contract accurate",

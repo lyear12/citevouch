@@ -6048,3 +6048,28 @@ The rule lines are verified through the SARIF ruleId, not by reading the
   `TYPE_CHECKING`-only import, which reads as a load and would keep a name
   nothing runs alive; a module that assigns one name under two different
   kinds.
+
+---
+
+## Archived 2026-11-14 — delivered through the audited queue
+
+- [x] **A quote that matched only after every space was removed counted as
+  verified.** Queue item `CV-001`, delivered as commit `7318e87` and released
+  in **v0.23.1**. The `squashed` tier used to be listed in `Match.found`, so a
+  page printing `The suspect is nowhere in this room.` certified a quote
+  reading `The suspect is now here in this room.`: `1 claim — 1 verified`, exit
+  0, on a tool whose whole purpose is refusing fabricated quotations. That
+  tier now reports the third answer — `skipped`, with
+  `quote-word-boundaries-unclear` at `high` and the passage attached — so
+  `--fail-on high` fails the run with no exit-code special case.
+  `draft._verbatim_sentence` carried the same comparison in a private helper
+  with every space deleted, one layer up behind a `confidence: high` proposal;
+  that second search is gone.
+
+  **Why it is now true** `tests/test_word_boundaries.py` (25 tests) pins both
+  counterexamples through live `check`, `check --use-recorded` and `verify`,
+  cold and warm, and enumerates every comparison still trusted as a positive
+  fixture: exact text, ordinary whitespace folding, a hyphen the page itself
+  printed at a line end, CJK, two legal number spellings, and a quote across a
+  page break. Full suite 4190 passed; demo still `5 claims — 4 verified, 0
+  moved, 1 missing`, worst `high`, exit 1; six reverse mutations, all caught.
