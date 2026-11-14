@@ -12,6 +12,35 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+The CI section documented three ways to run the gate, and two of them did not gate the drift the
+section is about.
+
+- The hand-written "three lines do the same job" snippet left out `--fail-on medium`, so it ran at the
+  CLI default `high` while the action defaults to `medium`. Measured on a project whose ledger and
+  source differed by one appended sentence, with the quoted words and every number untouched: the
+  documented snippet printed `source-changed, quote-found` and **exited 0**, while the same command
+  with `--fail-on medium` exited 1. A CI step that computes findings and then exits zero on them is
+  the failure mode the section exists to prevent.
+- The SARIF upload step came straight after the gate with no `if: always()`. GitHub skips a step after
+  a failed step, so the upload ran only on the runs that had nothing to upload, and code scanning
+  showed nothing on exactly the PRs that needed the annotations. Both READMEs now say why the line is
+  there.
+- The recorded-gate paragraph claimed the job "fails only when the PDFs or the manuscript moved
+  underneath the evidence". That is half of it. `--use-recorded` takes the claim list from the
+  ledger, then re-reads the sources and re-matches every quote, so a quote the ledger holds and the
+  source never printed comes back `quote-fuzzy` (medium) and exits 1 on a tree where nothing moved;
+  an edited manuscript is `ledger-stale` (high) and stops before matching. Both READMEs now name the
+  two halves and which finding belongs to which.
+
+`tests/test_ci_snippets_gate_drift.py` (12 tests) runs the command each README prints instead of
+looking for a flag by name, and asserts the measured contrast — that the default threshold lets the
+drift through and the documented one does not — so removing the flag fails here rather than quietly
+weakening the gate. Reverse validation: 7/7 mutations caught (both snippets, both upload steps, an
+upload naming an undeclared step id, the drift-only paragraph restored, and the action default back to
+`high`).
+
 ## [0.24.2] — 2026-11-14
 ### Fixed
 

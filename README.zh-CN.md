@@ -326,20 +326,27 @@ action 不传 `--bib`，你也不该传：`--use-recorded` 核对的是**账本�
     manuscript: manuscript.md
     fail-on: medium
 - uses: github/codeql-action/upload-sarif@v3
+  # `if: always()` 才是让发现真正到达的那一行。默认情况下，上一步失败后这一步不会运行，
+  # 于是唯独在“有东西可上传”的那次运行里上传被跳过，code scanning 上一片空白、job 却是红的。
+  if: always()
   with:
     sarif_file: ${{ steps.citevouch.outputs.sarif }}
 ```
 
-不想用 action 的话，三行等价：
+不想用 action 的话，三行等价——**包括 `--fail-on medium`**，因为 CLI 默认是 `high`，而这些闸门要盯的漂移正是 `medium`：
 
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
 - run: pip install "git+https://github.com/lyear12/citevouch@v0.24.2"
-- run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
+- run: citevouch check manuscript.md --root . --use-recorded --fail-on medium --format sarif > citevouch.sarif
 ```
 
-`--use-recorded` 核对已提交的账本而不是重新解析稿件，所以这个岗位只在「PDF 或稿件在证据脚下动了」时变红——这正是 CI 闸门该盯的事。action 因此把 `fail-on` 默认成 `medium`：`source-changed` 与 `quote-moved` 都是 `medium`，默认 `high` 会让它自己的描述变成假话。手动跑 CLI 时默认仍是 `high`，因为那时你在读输出。SARIF 传给 code scanning 后，发现会以行内标注出现在 PR 上。
+那个 `--fail-on medium` 不是装饰。没有它，闸门就按 CLI 默认的 `high` 跑，而被替换掉的源文件——`source-changed`，`medium`——会 `exit 0`。在一个账本与源文件差一个字节的工程上实测：不带这个 flag 的片段把发现打印出来然后退出 `0`，同一条命令加上 `--fail-on medium` 退出 `1`。一个算出了发现却对发现退出零的 CI 步骤，正是本节要说的那种失效。
+
+`--use-recorded` 从已提交的账本里取 claim 清单（而不是重新解析稿件），然后重新读被引用的源文件、把每条引文重新匹配一遍。所以它报告的是两类事，不是一类：漂移（`source-changed`、`quote-moved`——PDF 被换掉，或那段引文换到了别的页），**以及**账本里那些 claim 的引文级发现（`quote-fuzzy` 与 `quote-missing` 分别是 `medium` 与 `high`）。它看不见的是「账本写完之后稿件又被改过」：那是 `ledger-stale`（high），在匹配之前就让整趟停下。
+
+后面这一类正是 action 把 `fail-on` 默认成 `medium` 的原因：`source-changed`、`quote-moved`、`quote-fuzzy` 都是 `medium`，默认 `high` 会让它自己的描述变成假话。手动跑 CLI 时默认仍是 `high`，因为那时你在读输出。SARIF 传给 code scanning 后，发现会以行内标注出现在 PR 上。
 
 ## 设计取舍
 

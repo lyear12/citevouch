@@ -8899,3 +8899,34 @@ years and held a false finding open. Fourth: say what a check does *not* prove.
 A self-reported hash catches an accident, not a forger who can rewrite both
 halves; `TestTheHashIsNotAuthentication` pins the hole so no later docstring can
 widen it into a security claim.
+
+## 292 A sample that runs at a different threshold than the thing it samples is a different gate
+
+The README documented three ways to run the same CI gate. One was the action, which defaults
+`fail-on` to `medium`; the others were hand-written commands, one of which said "three lines do
+the same job" while leaving the threshold out. Measured on a project whose ledger and source
+differed by one appended sentence — every quoted word and every number untouched — the documented
+snippet printed `source-changed, quote-found` and exited `0`. The action on the same tree exited
+`1`. The drift the section is about is `medium`, so a snippet that inherits the CLI's `high`
+default computes the finding and then declines to fail on it.
+
+The upload had the same shape one layer up. `upload-sarif` sat directly after the gate with no
+`if: always()`, and GitHub skips a step that follows a failed step — so the annotations reached
+code scanning only on the runs where there was nothing to annotate, which is the one population
+where their absence costs nothing.
+
+Both are documentation defects with the same root: a snippet is a *sample of a decision*, and a
+sample that omits the input which makes the decision can only be tested against the decision
+itself. Nothing in the repository ran the printed command, so nothing noticed that the printed
+command was a different gate.
+
+**How to apply.** When a document shows a command, execute the command the document shows —
+parsed out of the code block, with the flags as printed — rather than searching the file for a
+flag name. Second: when two entry points default the same knob differently (CLI `high`, action
+`medium`), the difference is a claim about *who is reading*, and each side of it needs a test that
+would fail if the default moved. Third: a step that reports on another step must be unconditional,
+because "runs after" is not "runs regardless"; the same skip-on-failure rule makes a cleanup step, a log
+upload or a comment poster silently skippable. Fourth: prefer a test that asserts the measured
+contrast (the default lets it through, the documented value does not) over one that asserts the
+presence of a token, because the contrast is the reason the token is there and it is the thing that
+will be wrong when someone edits the default.

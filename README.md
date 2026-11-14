@@ -373,26 +373,43 @@ is one more step:
     manuscript: manuscript.md
     fail-on: medium
 - uses: github/codeql-action/upload-sarif@v3
+  # `if: always()` is what makes the findings arrive. A step after a failed
+  # step does not run by default, so without this line the upload is skipped
+  # on exactly the runs that have something to upload, and code scanning shows
+  # nothing while the job itself is red.
+  if: always()
   with:
     sarif_file: ${{ steps.citevouch.outputs.sarif }}
 ```
 
-If you would rather not use an action, three lines do the same job:
+If you would rather not use an action, three lines do the same job — **including `--fail-on medium`**,
+because the CLI default is `high` and the drift these gates exist to catch is `medium`:
 
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
 - run: pip install "git+https://github.com/lyear12/citevouch@v0.24.2"
-- run: citevouch check manuscript.md --root . --use-recorded --format sarif > citevouch.sarif
+- run: citevouch check manuscript.md --root . --use-recorded --fail-on medium --format sarif > citevouch.sarif
 ```
 
 Once PyPI publication is set up, the first line shortens to `pip install citevouch`; pinning the tag
 is the safer form for a gate anyway, because a floating install can change the verdict under you.
 
-`--use-recorded` verifies the committed ledger instead of re-deriving it, so the job fails only when
-the PDFs or the manuscript moved underneath the evidence — which is exactly what you want a gate to
-watch. The action defaults `fail-on` to `medium` for that reason: `source-changed` and `quote-moved`
-are `medium`, and a `high` default made its own description false. Run the CLI yourself and the
+That `--fail-on medium` is not decoration. Without it the gate runs at the CLI default `high`, and a
+source file that was replaced — `source-changed`, `medium` — exits `0`. Measured on a project whose
+ledger and source disagreed by one byte: the snippet without the flag printed its findings and exited
+`0`, while the same command with `--fail-on medium` exited `1`. A CI step that computes findings and
+then exits zero on them is the failure mode this whole section is about.
+
+`--use-recorded` takes the list of claims from the committed ledger instead of re-parsing the
+manuscript, then re-reads the cited sources and re-matches every quote against them. So it reports
+two kinds of thing, not one: drift (`source-changed`, `quote-moved` — the PDF was replaced, or the
+passage is now on a different page) **and** any quote-level finding for the claims the ledger holds
+(`quote-fuzzy` and `quote-missing` are `medium` and `high`). What it does not see is a manuscript
+edited since the ledger was written: that is `ledger-stale` (high) and stops the run before matching.
+
+That second half is why the action defaults `fail-on` to `medium`: `source-changed`, `quote-moved`
+and `quote-fuzzy` are all `medium`, and a `high` default made the action's own description false. Run the CLI yourself and the
 default is still `high`, because you are reading the output. Upload the SARIF to code scanning and findings appear inline on the PR.
 
 ## Design notes
