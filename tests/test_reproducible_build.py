@@ -157,20 +157,43 @@ class TestTheClockIsActuallyGone:
 
 
 class TestTheEpochComesFromSomewhereStable:
-    """A normaliser that stamps "now" reproduces nothing."""
+    """A normaliser that stamps "now" reproduces nothing.
 
-    def test_the_commit_time_wins_over_the_clock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    These tests stub the clock sources rather than asking the checkout: the
+    first version asserted that `resolve_epoch(None)` found a commit time, and
+    that is true in a clone and false in an unpacked sdist - where the suite
+    also runs, and where it went red on every job of every platform at once.
+    A test about the order of two sources has no business depending on a third
+    thing (whether this directory has a `.git`) that neither source is.
+    """
+
+    def test_the_repository_time_is_used_when_there_is_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
-        epoch = normalise_artifacts.resolve_epoch(None)
-        assert epoch not in (0, None), (
-            "no epoch was found, so the artefacts were stamped with a sentinel that "
-            "would make every build of every tree look identical in time"
+        monkeypatch.setattr(normalise_artifacts, "epoch_from_git", lambda: 1_600_000_000)
+        assert normalise_artifacts.resolve_epoch(None) == 1_600_000_000
+
+    def test_a_checkout_that_cannot_ask_git_gets_a_fixed_number(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The fallback must be a constant, not the clock.
+
+        Falling back to `time.time()` would reproduce exactly one build, which
+        is the defect this whole module exists to remove.
+        """
+        monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+        monkeypatch.setattr(normalise_artifacts, "epoch_from_git", lambda: None)
+        assert normalise_artifacts.resolve_epoch(None) == normalise_artifacts.FALLBACK_EPOCH
+        assert normalise_artifacts.FALLBACK_EPOCH == 0, (
+            "the sentinel changed; every recorded digest was produced with 0"
         )
 
     def test_the_environment_wins_over_the_repository(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SOURCE_DATE_EPOCH", "1234567890")
+        monkeypatch.setattr(normalise_artifacts, "epoch_from_git", lambda: 1_600_000_000)
         assert normalise_artifacts.resolve_epoch(None) == 1234567890
 
     def test_an_explicit_epoch_wins_over_everything(
@@ -181,7 +204,11 @@ class TestTheEpochComesFromSomewhereStable:
 
     def test_a_bad_environment_value_is_ignored(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("SOURCE_DATE_EPOCH", "not a number")
-        assert normalise_artifacts.resolve_epoch(None) > 0
+        monkeypatch.setattr(normalise_artifacts, "epoch_from_git", lambda: 1_600_000_000)
+        assert normalise_artifacts.resolve_epoch(None) == 1_600_000_000, (
+            "an unparseable SOURCE_DATE_EPOCH was taken over the repository, "
+            "which hides the mistake instead of reporting it"
+        )
 
 
 class TestTheReleaseWorkflowUsesIt:

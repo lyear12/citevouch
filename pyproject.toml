@@ -50,7 +50,11 @@ dependencies = ["pypdf>=4.0"]
 # did not have. Reading a spreadsheet of references is a real feature and it can
 # be added as one; it cannot be added by declaring it.
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "PyYAML>=6.0"]
+# `build` and `setuptools` are named because the suite runs `python -m build
+# --no-isolation` (tests/test_reproducible_build.py): a dependency the tests
+# use and the extra does not promise breaks every clean checkout, which is
+# exactly how this line came to be written.
+dev = ["pytest>=8.0", "ruff>=0.6", "PyYAML>=6.0", "build>=1.0", "setuptools>=77"]
 
 [project.urls]
 Homepage = "https://github.com/lyear12/citevouch"

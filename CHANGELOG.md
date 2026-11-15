@@ -28,6 +28,20 @@ tag and that file disagree.
   epoch moves - a normaliser whose epoch never reaches the bytes normalises nothing. 7/7 mutations
   caught, including one control that must survive.
 
+- The reproducibility work shipped a suite that could not pass on a clean checkout. Two
+  independent reasons, both measured on the run that went red on 11 of 11 jobs: the `dev` extra
+  never promised `build` even though `tests/test_reproducible_build.py` runs `python -m build
+  --no-isolation` (`No module named build`), and the epoch tests asserted that the checkout could
+  be asked for a commit time - true in a clone, false in an unpacked sdist, where `epoch_from_git`
+  returns `None` and the answer is the documented `0`. The `lint` and `sdist` jobs had been green
+  only because they install `build` by hand, which is how the first hole stayed invisible. `dev`
+  now names `build>=1.0` and `setuptools>=77`, the five epoch tests stub `epoch_from_environment`
+  and `epoch_from_git` instead of interrogating the directory (a test about the order of two
+  sources must not depend on a third fact neither source is), and `tests/test_extras.py` gained the
+  guard that would have caught it: every module the suite `-m`-runs must be promised by the extra
+  the tests are installed from. 5/5 mutations caught, plus a comment-only control that must and
+  does survive.
+
 ## [0.24.5] — 2026-11-15
 ### Fixed
 

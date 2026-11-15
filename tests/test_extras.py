@@ -118,6 +118,49 @@ def test_every_run_only_dependency_is_used_by_a_command() -> None:
         )
 
 
+# Only a python interpreter arms `-m`; `git commit -m first` and
+# `pytest -m fixture` use the same flag for something else entirely, and a
+# pattern loose enough to catch those would report a dependency on `first`.
+RUN = re.compile(
+    r'(?:sys\.executable|"python[0-9.]*"|"py")\s*,\s*"-m"\s*,\s*"([A-Za-z_][A-Za-z0-9_]*)"'
+)
+
+
+def _modules_the_suite_runs() -> dict[str, list[str]]:
+    """Every `python -m NAME` the tests invoke, with the files that invoke it.
+
+    A module a test *imports* is caught by the import scan above. One it
+    *runs* is not: `tests/test_reproducible_build.py` calls `python -m build`,
+    and `build` was not in the `dev` extra, so every clean checkout went red on
+    collection while the lint job hid the hole by installing `build` by hand
+    before running pytest. A dependency the suite needs and the extra does not
+    promise is the same defect as a feature declared and not built.
+    """
+    found: dict[str, list[str]] = {}
+    for path in (ROOT / "tests").rglob("*.py"):
+        if path.name == Path(__file__).name:
+            continue
+        for match in RUN.finditer(path.read_text(encoding="utf-8")):
+            found.setdefault(match.group(1), []).append(str(path.relative_to(ROOT)))
+    return found
+
+
+def test_every_module_the_suite_runs_is_promised_by_the_dev_extra() -> None:
+    promised = {_module_of(requirement) for requirement in extras().get(RUN_ONLY, [])}
+    # pytest runs the suite and is named by every runner; stdlib modules are
+    # not installed and not promised, so they are not this test's business.
+    allowed = promised | {"pytest", "pip", "citevouch"}
+    missing: list[str] = []
+    for module, callers in sorted(_modules_the_suite_runs().items()):
+        if module in allowed:
+            continue
+        missing.append(f"{module} (run by {', '.join(sorted(set(callers)))})")
+    assert not missing, (
+        "the suite runs a module the dev extra does not install, so every clean "
+        "checkout fails while a job that pre-installs it stays green:\n" + "\n".join(missing)
+    )
+
+
 def _module_of(requirement: str) -> str:
     """`PyYAML>=6.0` -> `yaml`, `pytest-cov` -> `pytest_cov`."""
     name = re.split(r"[<>=!\\[ ]", requirement, maxsplit=1)[0]
