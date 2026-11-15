@@ -6334,3 +6334,33 @@ the tested commit before re-hashing anything. Only then is the build skipped, an
 together with the record rewrite so attribution is never reassigned. Every doubt, including a failed
 download on a first release, falls back to rebuilding - the optimisation is allowed to be wrong in
 the cautious direction.
+
+## Archived 2026-11-15 — CV-008, the documents describe the machinery that runs
+
+**What was wrong.** Three documents made claims about automation and nobody ran the automation to
+check them. `docs/maintenance.md` drew a loop where the nightly reads the day's commits and promotes
+recurring lessons; `nightly.yml` installs the newest published wheel, replays the documented first
+run, and files an issue when that fails — it has no step that reads a commit. The same page listed
+issue consumption, review and merging as stages of the loop, while nothing consumes an issue, no
+reviewer runs on a pull request (`main` is unprotected with no rulesets) and there is no merge bot.
+`LESSONS.md` opened by saying "Each night the day's commits are reviewed" above a marker reading
+`none`. And `docs/metrics.md`, the file whose purpose is repeatable measurement, documented
+`gh api repos/.../releases`, which returns thirty releases unless asked for more.
+
+**What it costs.** A reader of `maintenance.md` believes a retrospective runs and stops doing it
+themselves; a reader of `metrics.md` copies the documented command, writes down a slice, and cannot
+tell the slice from the total. Measured on 2026-11-15 the bare call reported 30 releases and 83
+downloads while the paginated one reported 255 and 732 — an order of magnitude of missing data
+inside the file that teaches how to look. Both mistakes came from the same habit: describing the
+intention rather than reading the artefact.
+
+**Why it is now true.** The loop diagram marks every stage automated or not and ends with the
+retrospective marked not built; a table names the four unautomated stages and what each one costs;
+the retrospective section says it is not yet automated and that the marker reads `none`. Every
+documented release measurement pins `per_page=100` and `--paginate`, and the file records both the
+truncated and the real totals so the size of the old mistake is visible instead of asserted. Every
+count carries what it cannot support, including the sentence that a zero issue count is not evidence
+that nobody uses the tool — and the admission that with PyPI returning 404, an empty column cannot
+be told apart from a broken funnel. `tests/test_automation_claims.py` reads `nightly.yml` and fails
+the suite if the documents drift back; thirteen restored wordings turn it red, a comment-only control
+stays green.
