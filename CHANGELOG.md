@@ -11,6 +11,29 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- An adversarial benchmark whose expectations are measurements, not hopes.
+  `tests/fixtures/adversarial-cases.json` holds nineteen primary cases and four held-out
+  cases across three axes that are deliberately kept apart: alignment (is this quote on that
+  page - the only question the matcher answers), extraction (did the reader produce the
+  words - a property of the file) and support (does the passage back the sentence - a human
+  label, never computed). Every `expected` block was produced by running the matcher, and
+  `measured_with` records `citevouch 0.28.0`, CPython 3.14.6, pypdf 6.16.1, dated
+  2026-11-15, so the numbers say what machine they describe. The real-PDF cases read the two
+  demo papers through the real extractor with `use_cache=False`; the rest are authored here.
+- The benchmark records one disagreement between design and measurement instead of hiding it.
+  `conll-sentence-as-printed` has intent `should_find` but measures `fuzzy` at similarity
+  0.91: the reader breaks that sentence across four hyphenated lines, so an author who
+  retypes the printed sentence is told the quote is only approximate, while the demo passes
+  because it quotes the reader's own line-broken text. The gap is written into
+  `known_gaps` and pinned in both directions - a quiet gap fails, and a stale gap fails -
+  so closing it requires deleting its entry in the same commit that changes the matcher.
+- `docs/adversarial-benchmark.md` states what the benchmark cannot do: extraction quality on
+  files this repository does not own, any precision or recall for support, any latency
+  number, and any claim that a recorded hash means the source is the file the author meant.
+  README links to it. `tests/test_adversarial_benchmark.py` re-measures all 32 cases on every
+  run, so a deliberate matcher change is a two-line commit and a silent one fails.
 
 ## [0.28.0] — 2026-11-15
 ### Added

@@ -9203,3 +9203,27 @@ How to apply:
   that tells the next person the page is out of date.
 - A flag that relaxes a binding is not a flag that widens it. Read what the binding is to before
   promising the user it now covers a second file.
+
+## 302 A benchmark whose expectations were typed is a wish, and a gap nobody pins is a cover
+
+The CV-016 fixture started as a table of `expected` blocks written by hand from what the
+design intended. Two of the nineteen cases measured differently the moment the matcher ran
+them: `paraphrase-faithful` was meant to be found and is not (correctly - the words are not
+on the page), and `conll-sentence-as-printed` was meant to be found and is not (a real
+cost). A hand-written expectation would have recorded the intent and called the benchmark
+green.
+
+How to apply:
+
+- Generate expectation blocks by running the code, and record the machine that produced
+  them (`measured_with`: tool version, interpreter, dependency, date). An expectation with
+  no provenance is a claim about a machine that nobody ran.
+- When measurement disagrees with design, decide which one is wrong and write the decision
+  down. If the design is the one that should change, that is a code change with its own
+  approval - not a footnote in the data file.
+- Pin a declared gap in both directions: a disagreement that is not declared must fail, and
+  a declaration that no longer describes a disagreement must also fail. Otherwise gaps
+  accumulate quietly in one direction and get closed quietly in the other.
+- Keep the axes separate in the schema, not just in the prose. `support` is a human label
+  with `labelled_by` beside it; giving it a key that looks like the matcher's output is how
+  a benchmark starts claiming a capability it never had.

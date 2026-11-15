@@ -329,6 +329,11 @@ ledger records the Markdown file. What the gate then does and does not catch —
 the edit to the `.tex` it cannot see — is walked step by step in
 [docs/latex-manuscript.md](docs/latex-manuscript.md).
 
+What the tool is measured against - the case families, the two held-out sets, the one open
+disagreement between design and measurement, and the three axes that must not be collapsed into
+one score - is in
+[docs/adversarial-benchmark.md](docs/adversarial-benchmark.md).
+
 ### Three claim dialects
 
 Fenced blocks (above), HTML comments, and table rows. Pick whichever survives your editor.

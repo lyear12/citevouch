@@ -1,0 +1,659 @@
+{
+  "schema": 1,
+  "measured_with": {
+    "citevouch": "0.28.0",
+    "python": "3.14.6",
+    "pypdf": "6.16.1",
+    "date": "2026-11-15"
+  },
+  "axes": {
+    "alignment": "is this quote on that page - the only question the matcher answers",
+    "extraction": "did the reader produce the words at all - a property of the file",
+    "support": "does the passage back the sentence - a human judgement, never computed"
+  },
+  "cases": [
+    {
+      "id": "exact-hit-en",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "The intervention did not improve accuracy in the controlled study.",
+      "pages": [
+        "The intervention did not improve accuracy in the controlled study."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "the quoted sentence is printed verbatim on the page"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "whitespace-collapse",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "We collected 40,688 examples from the corpus.",
+      "pages": [
+        "We  collected   40,688 examples from the corpus."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "only the spacing differs; ordinary normalisation is allowed to forgive this"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "line-wrap-hyphen",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "the con-struction inventory",
+      "pages": [
+        "the con-\nstruction inventory"
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "a word split across a line break with a hyphen is still the same word"
+      },
+      "expected": {
+        "tier": "hyphen",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "cjk-exact",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "\u6211\u4eec\u6536\u96c6\u4e86\u56db\u4e07\u96f6\u516d\u767e\u516b\u5341\u516b\u4e2a\u6784\u5f0f\u3002",
+      "pages": [
+        "\u6211\u4eec\u6536\u96c6\u4e86\u56db\u4e07\u96f6\u516d\u767e\u516b\u5341\u516b\u4e2a\u6784\u5f0f\u3002"
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "unknown",
+        "labelled_by": "this project",
+        "note": "same script, same words; whether it backs the claim is a human question"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "cross-page-run",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "We collected 40,688\nexamples from the corpus.",
+      "pages": [
+        "We collected 40,688",
+        "examples from the corpus."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "unknown",
+        "labelled_by": "this project",
+        "note": "the sentence runs across a page break, which is layout and not wording"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1,
+          2
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "squashed-boundary-lost",
+      "set": "primary",
+      "intent": "undecidable",
+      "quote": "The suspect is now here in this room.",
+      "pages": [
+        "The suspect is nowhere in this room."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "not_supported",
+        "labelled_by": "this project",
+        "note": "the page prints one word where the quote writes two; only a reader can tell which"
+      },
+      "expected": {
+        "tier": "squashed",
+        "found": false,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "quote-absent",
+      "set": "primary",
+      "intent": "should_not_find",
+      "quote": "Accuracy improved under the intervention in every arm of the study.",
+      "pages": [
+        "The intervention did not improve accuracy in the controlled study."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "not_supported",
+        "labelled_by": "this project",
+        "note": "the sentence is not on the page at all"
+      },
+      "expected": {
+        "tier": "none",
+        "found": false,
+        "page": null,
+        "spanned": [],
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "number-wrong-in-quote",
+      "set": "primary",
+      "intent": "should_not_find",
+      "quote": "We collected 9,800 examples for training.",
+      "pages": [
+        "We collected 40,688 examples for training."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "not_supported",
+        "labelled_by": "this project",
+        "note": "one number of three or more digits is different"
+      },
+      "expected": {
+        "tier": "numbers",
+        "found": false,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "wrapped-in-quotes",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "\u201cWe collected 40,688 examples for training.\u201d",
+      "pages": [
+        "We collected 40,688 examples for training."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "the author wrapped a verbatim sentence in typographic quotation marks"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "adjacent-sentence-second",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "The model fails on short inputs.",
+      "pages": [
+        "The model fails on long inputs. The model fails on short inputs."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "the second of two near-identical sentences"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "entity-scope-narrow",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "Adults in the treatment arm recovered faster than the control group.",
+      "pages": [
+        "Adults in the treatment arm recovered faster than the control group. Children in the treatment arm showed no difference."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "a scope-restricted sentence beside its opposite for a different population"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "cjk-negation-exact",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "\u8be5\u5e72\u9884\u672a\u80fd\u6539\u5584\u51c6\u786e\u7387\u3002",
+      "pages": [
+        "\u8be5\u5e72\u9884\u672a\u80fd\u6539\u5584\u51c6\u786e\u7387\u3002"
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "the negated Chinese sentence, printed verbatim"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "cjk-negation-dropped",
+      "set": "primary",
+      "intent": "should_not_find",
+      "quote": "\u8be5\u5e72\u9884\u6539\u5584\u4e86\u51c6\u786e\u7387\u3002",
+      "pages": [
+        "\u8be5\u5e72\u9884\u672a\u80fd\u6539\u5584\u51c6\u786e\u7387\u3002"
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "not_supported",
+        "labelled_by": "this project",
+        "note": "the quote drops the negation; the page prints the negated form"
+      },
+      "expected": {
+        "tier": "none",
+        "found": false,
+        "page": null,
+        "spanned": [],
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "paraphrase-faithful",
+      "set": "primary",
+      "intent": "should_not_find",
+      "quote": "Accuracy did not improve under the intervention in that study.",
+      "pages": [
+        "The intervention did not improve accuracy in the controlled study."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "NOT on the page, yet a faithful rendering: alignment and support disagree here"
+      },
+      "expected": {
+        "tier": "none",
+        "found": false,
+        "page": null,
+        "spanned": [],
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "conll-extracted-lines",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "The resulting grammar consists of a network of\n40,688 constructions, of which 9,800 are frame-\nevoking constructions, 22,568 are argument struc-\nture constructions and 8,320 are roleset construc-\ntions.",
+      "pages": null,
+      "source": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+      "provenance": {
+        "kind": "real-pdf",
+        "path": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+        "licence": "ACL Anthology open access; see demo/papers/README.md"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "the lines as this project's reader produces them, joined by newlines"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 6,
+        "spanned": [
+          6
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "conll-sentence-as-printed",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "The resulting grammar consists of a network of 40,688 constructions, of which 9,800 are frame-evoking constructions, 22,568 are argument structure constructions and 8,320 are roleset constructions.",
+      "pages": null,
+      "source": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+      "provenance": {
+        "kind": "real-pdf",
+        "path": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+        "licence": "ACL Anthology open access; see demo/papers/README.md"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "the sentence as the paper prints it, flattened the way an author would retype it"
+      },
+      "expected": {
+        "tier": "fuzzy",
+        "found": false,
+        "page": 6,
+        "spanned": [
+          6
+        ],
+        "similarity": 0.913
+      }
+    },
+    {
+      "id": "conll-wrong-number",
+      "set": "primary",
+      "intent": "should_not_find",
+      "quote": "The resulting grammar consists of a network of 9,800 constructions, of which 9,800 are frame-evoking constructions, 22,568 are argument structure constructions and 8,320 are roleset constructions.",
+      "pages": null,
+      "source": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+      "provenance": {
+        "kind": "real-pdf",
+        "path": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+        "licence": "ACL Anthology open access; see demo/papers/README.md"
+      },
+      "human_support": {
+        "label": "not_supported",
+        "labelled_by": "this project",
+        "note": "a real sentence with one real number swapped for another number on the same page"
+      },
+      "expected": {
+        "tier": "fuzzy",
+        "found": false,
+        "page": 6,
+        "spanned": [
+          6
+        ],
+        "similarity": 0.913
+      }
+    },
+    {
+      "id": "conll-absent-sentence",
+      "set": "primary",
+      "intent": "should_not_find",
+      "quote": "The FCG Editor is an innovative environment for engineering computational construction grammars.",
+      "pages": null,
+      "source": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+      "provenance": {
+        "kind": "real-pdf",
+        "path": "demo/papers/2026_VanEecke-Beuls_CoNLL2026_large-scale-CxG.pdf",
+        "licence": "ACL Anthology open access; see demo/papers/README.md"
+      },
+      "human_support": {
+        "label": "not_supported",
+        "labelled_by": "this project",
+        "note": "the sentence the demo exists to refuse; its words appear in a reference"
+      },
+      "expected": {
+        "tier": "fuzzy",
+        "found": false,
+        "page": 13,
+        "spanned": [
+          13
+        ],
+        "similarity": 0.9167
+      }
+    },
+    {
+      "id": "cxgbert-abstract",
+      "set": "primary",
+      "intent": "should_find",
+      "quote": "While lexico-semantic elements no doubt capture a large amount of linguistic information, it has been argued that they do not capture all information contained in text.",
+      "pages": null,
+      "source": "demo/papers/2020_TayyarMadabushi-etal_CxGBERT.pdf",
+      "provenance": {
+        "kind": "real-pdf",
+        "path": "demo/papers/2020_TayyarMadabushi-etal_CxGBERT.pdf",
+        "licence": "CC BY 4.0 as stated on the paper; see demo/papers/README.md"
+      },
+      "human_support": {
+        "label": "supported",
+        "labelled_by": "this project",
+        "note": "a sentence from the second demo paper, verbatim"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    }
+  ],
+  "held_out": [
+    {
+      "id": "heldout-adjacent-second-latin",
+      "set": "held_out",
+      "intent": "should_find",
+      "quote": "The model fails on short inputs.",
+      "pages": [
+        "The model fails on long inputs. The model fails on short inputs."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "unknown",
+        "labelled_by": "this project",
+        "note": "adjacent-sentence discrimination in a non-CJK script"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "heldout-figure-caption",
+      "set": "held_out",
+      "intent": "should_find",
+      "quote": "Accuracy rose with more data.",
+      "pages": [
+        "Figure 3 shows the ablation. Accuracy rose with more data."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "unknown",
+        "labelled_by": "this project",
+        "note": "a sentence that follows a caption rather than a paragraph"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "heldout-tabular",
+      "set": "held_out",
+      "intent": "should_find",
+      "quote": "Table 2 reports 1,204 constructions in the dev split.",
+      "pages": [
+        "Table 2 reports 1,204 constructions in the dev split."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "unknown",
+        "labelled_by": "this project",
+        "note": "a table reading written as prose"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    },
+    {
+      "id": "heldout-rtl-adjacent",
+      "set": "held_out",
+      "intent": "should_find",
+      "quote": "\u05d4\u05de\u05d5\u05d3\u05dc \u05e0\u05db\u05e9\u05dc \u05d1\u05e7\u05dc\u05d8 \u05e7\u05e6\u05e8.",
+      "pages": [
+        "\u05d4\u05de\u05d5\u05d3\u05dc \u05e0\u05db\u05e9\u05dc \u05d1\u05e7\u05dc\u05d8 \u05d0\u05e8\u05d5\u05da. \u05d4\u05de\u05d5\u05d3\u05dc \u05e0\u05db\u05e9\u05dc \u05d1\u05e7\u05dc\u05d8 \u05e7\u05e6\u05e8."
+      ],
+      "source": null,
+      "provenance": {
+        "kind": "authored",
+        "note": "written for this benchmark; no third-party text"
+      },
+      "human_support": {
+        "label": "unknown",
+        "labelled_by": "this project",
+        "note": "right-to-left script; reading real RTL PDFs is a separate open question"
+      },
+      "expected": {
+        "tier": "exact",
+        "found": true,
+        "page": 1,
+        "spanned": [
+          1
+        ],
+        "similarity": 1.0
+      }
+    }
+  ],
+  "known_gaps": [
+    {
+      "id": "conll-sentence-as-printed",
+      "measured": "Measured 2026-11-15 on v0.28.0: the reader breaks this sentence across four lines with hyphens, so the flattened form an author would retype matches at similarity 0.91 and the tier is `fuzzy`; the run reports `quote-fuzzy` at high and the claim is counted missing. The demo passes because it quotes the reader's own line-broken text, which matches exactly. An author who retypes the printed sentence is told the quote is only approximate. Closing this means teaching the hyphen tier to absorb a whole sentence's worth of line breaks, which is a matching change and needs its own accepted design."
+    }
+  ]
+}
