@@ -153,16 +153,21 @@ class TestTheDocumentedAnswersAreTheRealAnswers:
         assert "[medium] source-changed" in section
         assert "only it has the old digest" in section
 
-    def test_the_page_warns_against_scanning_the_proposals_file(self) -> None:
+    def test_the_page_says_the_bare_scan_is_refused(self) -> None:
         flat = _flat(_section("## 2. Read the proposals"))
-        assert re.sub(r"[*`]", "", flat).count("Do not run citevouch scan claims.md here") >= 1
-        assert "replaces the record of the manuscript" in flat, (
-            "the reason matters more than the prohibition: scan writes whichever "
-            "document it was pointed at into the ledger it is given"
-        )
+        # The warning used to be a prohibition the tool did not enforce, and
+        # `draft`'s own header walked the reader straight into it. Both halves
+        # are fixed, so the page now describes a refusal rather than asking for
+        # restraint - and it must keep naming the ledger that works.
+        assert "A bare `citevouch scan claims.md` is refused" in flat
         assert "scan claims.md --ledger claims.lock.json" in flat, (
-            "a prohibition without the working alternative just stops the reader"
+            "the reason matters more than the rule: a separate ledger is how a "
+            "reader keeps both records"
         )
+        assert "Do not run" not in flat, (
+            "the prohibition is gone because the tool refuses the command itself"
+        )
+        assert "ledger-stale" in flat, "what it used to cost is the reason the guard exists"
 
     def test_the_gate_explains_why_the_flag_is_required(self) -> None:
         flat = _flat(_section("## 5. Gate the pull request"))

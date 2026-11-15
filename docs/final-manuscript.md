@@ -37,14 +37,18 @@ without touching the project's ledger, because `check` never records anything. I
 `check` cannot tell you whether the passage backs the sentence, which is the judgement you are here
 to make. Read the `medium` entries yourself and delete the ones you do not accept.
 
-Do **not** run `citevouch scan claims.md` here. `scan` writes the document it was pointed at into
-whichever ledger it is given, so a bare `scan` of the proposals file replaces the record of the
-manuscript the project is actually about. If you want a ledger for the proposals — for instance to
-compare two drafts of them — name a separate one:
+If you want a ledger for the proposals — to compare two drafts of them, say — name a separate one:
 
 ```bash
 citevouch scan claims.md --ledger claims.lock.json
 ```
+
+A bare `citevouch scan claims.md` is refused, and the refusal names both documents. It used to
+succeed: `scan` wrote whichever document it was pointed at into the ledger it was given, so scanning
+the proposals replaced the record of the manuscript the project is about, with nothing on stderr,
+and the next `check --use-recorded` reported `[high] ledger-stale` about a manuscript nobody had
+touched. The proposals file itself still says which ledger to use, so following its header cannot
+land you there either.
 
 ## 3. Copy the accepted blocks into `final.md`
 

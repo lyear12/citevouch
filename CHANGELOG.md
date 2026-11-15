@@ -12,6 +12,27 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- `scan` no longer retargets a ledger that already describes another document, and `draft` no
+  longer prints the command that did it. `scan` writes whichever file it is pointed at into
+  whichever ledger it is given, so on a project recorded from `final.md`, `citevouch scan
+  claims.md` replaced the record of the manuscript with a record of the proposals: exit 0, nothing
+  on stderr, and the next `check final.md --use-recorded` reported `[high] ledger-stale` about a
+  manuscript nobody had touched. Worse, it was `draft`'s own advice - the generated proposals file
+  said to run exactly that, so following the tool's instructions landed the author in it (walked
+  and measured in `docs/final-manuscript.md`, which is why that page had a "do not run this"
+  warning instead of a working command). Both halves are repaired: a `scan` whose target ledger
+  already names a different document stops with exit 2 and a message naming both documents and the
+  command that keeps both records, and the proposals header now prints `citevouch scan claims.md
+  --ledger claims.lock.json` (with `--root` when the run needed one), so the advice it gives runs
+  and leaves the project ledger alone. Only a *proved* difference is refused: a target that cannot
+  be read as a ledger, or a ledger that names no document, is still replaced, because `scan` is the
+  repair for a damaged record and a file that cannot say what it is about cannot be about something
+  else. The page's warning is gone, since the tool now enforces it; `tests/test_scan_ledger_owner.py`
+  walks the refusal, the advice, the `--dry-run` exemption and the damaged-ledger repair, and
+  `tests/test_final_manuscript_doc.py` now pins the refusal sentence rather than a prohibition.
+
 ## [0.27.0] — 2026-11-15
 ### Added
 

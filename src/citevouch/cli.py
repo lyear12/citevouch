@@ -290,6 +290,46 @@ def _read_ledger(path: Path) -> Ledger:
         raise UsageError(f"{path}: {exc}") from exc
 
 
+def _refuse_a_ledger_about_another_document(
+    out: Path, manuscript: str, root: Path, root_given: str = "."
+) -> None:
+    """A ledger that already describes a different document is not overwritten.
+
+    ``scan`` writes whatever document it was pointed at into whatever ledger it
+    was given, so ``scan claims.md`` on a project whose ledger describes
+    ``final.md`` replaced the record of the manuscript with a record of the
+    proposals - exit 0, no warning, and the next ``check final.md
+    --use-recorded`` says ``[high] ledger-stale``.  ``draft``'s own output used
+    to print that command as advice, which made the trap reachable by following
+    the tool's instructions (measured in docs/final-manuscript.md, task
+    CV-022).
+
+    Only a *proved* difference is refused: the target must be readable as a
+    ledger and must name another document.  A file that cannot be read that way
+    is left to the writer, which is what it has always been, and re-recording
+    the same document is the ordinary repair path.
+    """
+    if not out.is_file():
+        return
+    try:
+        blob = json.loads(read_text(out))
+    except (OSError, ValueError, RecursionError):
+        return
+    if not isinstance(blob, dict) or "claims" not in blob:
+        return
+    previous = blob.get("manuscript")
+    if not isinstance(previous, str) or not previous:
+        return
+    if _resolve(root, previous) == _resolve(root, manuscript):
+        return
+    raise UsageError(
+        f"{out} already records {previous}, not {manuscript}. Scanning another "
+        f"document into it would replace that record without saying so - run "
+        f"`{citevouch_command('scan', manuscript, *root_words(root_given), '--ledger', 'claims.lock.json')}` "
+        f"to keep both, or delete {out} if this project now means {manuscript}"
+    )
+
+
 def cmd_scan(args: argparse.Namespace) -> int:
     ledger, findings = scan(_options(args))
     out = _ledger_path(args)
@@ -327,6 +367,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
             ),
             "another --ledger (citevouch.lock.json is the default)",
         )
+        _refuse_a_ledger_about_another_document(out, ledger.manuscript, root, args.root)
         _write_ledger(ledger, out)
     payload = _render(findings, ledger, args)
     _emit(payload)
@@ -637,6 +678,32 @@ def _check_advice(output: Path, root: str) -> str:
     return citevouch_command("check", output.as_posix(), *root_words(root))
 
 
+def _scan_advice(output: Path, root: Path) -> str:
+    """The `scan` command that records proposals into a ledger of their own.
+
+    The proposals file is not the manuscript, and the ledger the other commands
+    read says which document the project is about.  Recording the proposals in
+    that ledger replaced its subject: measured before this existed,
+    ``draft final.md`` then ``scan claims.md`` left the ledger describing
+    ``claims.md``, with exit 0 and nothing on stderr, and the next
+    ``check final.md --use-recorded`` reported ``[high] ledger-stale``.
+
+    So the advice names a second ledger beside the project's.  Both paths are
+    spelled the way the ledger spells them - relative to ``--root``, forward
+    slashes - rather than as the absolute paths this run happened to use.  A
+    ``draft`` is supposed to be a function of the manuscript: the same project
+    drafted from inside its directory and from the directory above it must
+    produce the same bytes, and an absolute path in the header broke that
+    (measured: three suite failures, `tests/test_line_endings.py` and
+    `tests/test_draft_from_above.py`).  The root-relative spelling still runs
+    from above the project, because every path this tool takes is resolved
+    against ``--root`` - it is the diffable spelling *and* the working one.
+    """
+    return citevouch_command(
+        "scan", recorded_path(root, output), "--ledger", "claims.lock.json"
+    )
+
+
 def cmd_draft(args: argparse.Namespace) -> int:
     """Propose claim blocks for a manuscript that has none.
 
@@ -786,7 +853,11 @@ def cmd_draft(args: argparse.Namespace) -> int:
         bib_unreadable=bib_unreadable,
     )
     text = draft_module.render(
-        result, recorded_path(root, manuscript), converted=converted, included=included
+        result,
+        recorded_path(root, manuscript),
+        converted=converted,
+        included=included,
+        scan_advice=_scan_advice(output, root),
     )
     _write_text_lf(output, text)
     if not args.quiet:

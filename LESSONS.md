@@ -9148,3 +9148,36 @@ a hazard you are not fixing this round, write the hazard in the page and name th
 because a footnote is cheap and a silent ledger replacement is not. And when a page documents a
 workflow, hold the page to the executable version of itself: the test that runs the commands will
 also fail when the prose stops matching them.
+
+## 300 Advice that names a command is a promise about that command's effect
+
+`draft` printed "run `citevouch scan` on this file" in the header of every
+proposals file it wrote. The command is real, it runs, and it exits 0 - and it
+replaced the project's ledger, because `scan` records whichever document it was
+handed into whichever ledger it was given. The advice was correct about syntax
+and silent about consequence, and the consequence was the one thing the reader
+could not see: the proposals file was new, the ledger was not, and nothing on
+the screen changed.
+
+The page that documented the workflow did not have this problem: it carried a
+"Do not run `citevouch scan claims.md` here" warning, because whoever walked the
+workflow found the trap. Two documents about the same command, one of which knew
+and one of which did not - and the one that did not was the one the tool wrote
+itself, on every run, into a file the reader is told to open next.
+
+How to apply:
+
+- When you emit a command as advice, ask what it does to the files the reader
+  already has. "It works" is a claim about argv; the reader needs a claim about
+  their project.
+- A warning is not a fix. If the tool can refuse the destructive case, the
+  warning should become a sentence about a refusal, and the test should assert
+  the refusal - a prohibition in prose is unenforceable and rots the moment the
+  risky path becomes convenient.
+- Refuse only what is proved. The guard here fires when the target ledger names
+  a *different* document; a damaged ledger names none, and refusing that would
+  turn every corrupt record into a project that can no longer be recorded at all.
+- Whenever a fix has a "we could not tell" branch, write the test that exercises
+  it - the mutation "refuse the unreadable case too" survives a suite that only
+  tests the happy refusal, and it is precisely the mutation that turns a repair
+  into a dead end.
