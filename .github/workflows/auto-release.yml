@@ -197,8 +197,19 @@ jobs:
           VERSION: ${{ steps.plan.outputs.version }}
         run: |
           tag="v$VERSION"
+          ours=$(git rev-parse HEAD)
+          # A tag that already exists is not automatically an error: the same
+          # commit being released twice is a re-run, and re-running a release
+          # that got as far as the tag is the documented repair. What decides
+          # is where the tag points, so peel it to a commit (annotated and
+          # lightweight tags both answer here) and compare.
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "::error::tag $tag already exists"
+            theirs=$(git rev-parse "refs/tags/$tag^{commit}")
+            if [ "$theirs" = "$ours" ]; then
+              echo "::notice::$tag already stands at this release's commit $ours; nothing to do"
+              exit 0
+            fi
+            echo "::error::tag $tag already exists and points at $theirs, not at this release's commit $ours. Refusing to move it."
             exit 1
           fi
           git tag -a "$tag" -m "citevouch $VERSION" \
@@ -221,12 +232,42 @@ jobs:
           done
           if [ "$pushed" -ne 1 ]; then
             # A push can be accepted and still report failure, so the remote is
-            # what settles this, not which attempt returned zero.
-            if git ls-remote --tags --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
-              echo "::notice::$tag is on the remote even though no attempt exited zero"
-              exit 0
+            # what settles this, not which attempt returned zero. Two things
+            # that look like that check and are not:
+            #
+            #  * `git rev-parse refs/tags/$tag` - the tag above was created
+            #    locally, so this asks the runner what the runner just did.
+            #    Measured: with the remote deleted entirely, the local answer
+            #    still matched and the step exited 0.
+            #  * `git ls-remote --tags` exiting zero - that says the *name* is
+            #    on the remote. Every run that decided to release this number
+            #    would have written that name, so a re-run after a concurrent
+            #    release finds somebody else's tag and accepts it, leaving this
+            #    run's bump commit on main with nothing pointing at it.
+            #
+            # So ask the remote for the tag *and* for its peeled form, and
+            # compare the commit. `refs/tags/x^{}` answers for annotated tags;
+            # a lightweight tag appears on the plain line only, which is a
+            # commit already.
+            # The repair advice is the same in both failures: the bump commit is
+            # already on main, so the Unreleased section is empty and a re-run of
+            # this workflow decides there is nothing to release. Whatever the
+            # remote says, the reader has to be told that, because the obvious
+            # next move - run it again - cannot work.
+            repair="the bump is already on main, so re-running this workflow will decide there is nothing to release. Tag it by hand: git fetch origin main && git tag -a $tag -m 'citevouch $VERSION' origin/main && git push origin $tag"
+            if remote=$(git ls-remote --tags --exit-code origin "refs/tags/$tag" "refs/tags/$tag^{}" 2>/dev/null); then
+              theirs=$(printf '%s\n' "$remote" | awk -v p="refs/tags/$tag^{}" '$2 == p { print $1 }')
+              if [ -z "$theirs" ]; then
+                theirs=$(printf '%s\n' "$remote" | awk -v n="refs/tags/$tag" '$2 == n { print $1 }')
+              fi
+              if [ "$theirs" = "$ours" ]; then
+                echo "::notice::$tag is on the remote at $ours even though no attempt exited zero"
+                exit 0
+              fi
+              echo "::error::$tag is on the remote but points at ${theirs:-an object this run cannot name}, not at this release's commit $ours; this run published nothing. Release from that tag if it is the right one, or delete it and re-run if it is not. If you repair it by hand, $repair"
+              exit 1
             fi
-            echo "::error::could not push $tag after 3 attempts, and the bump is already on main, so re-running this workflow will decide there is nothing to release. Tag it by hand: git fetch origin main && git tag -a $tag -m 'citevouch $VERSION' origin/main && git push origin $tag"
+            echo "::error::could not push $tag after 3 attempts, and $repair"
             exit 1
           fi
 

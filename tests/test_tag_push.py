@@ -35,6 +35,9 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 WORKFLOW = REPO / ".github" / "workflows" / "auto-release.yml"
 
+# The commit the step under test believes it is releasing.
+HEAD = "a" * 40
+
 # The stub, and the two files it keeps state in. Relative names, because an
 # absolute Windows path reaching bash arrives with backslashes that MSYS does
 # not read as separators - the first version lost its counters that way.
@@ -47,7 +50,14 @@ sleep() {
 git() {
   case "$1" in
     rev-parse)
-      return 1
+      # The step asks two different questions with this command: where the
+      # tag is (a refusal means "no local tag yet") and what HEAD is. A stub
+      # that answers one of them and not the other silently turns the step
+      # into a no-op under `set -e`.
+      case "$*" in
+        *--verify*) return 1 ;;
+        *) echo "$STUB_HEAD"; return 0 ;;
+      esac
       ;;
     tag)
       echo "TAGGED $*" >> stub_log.txt
@@ -65,7 +75,21 @@ git() {
       return 1
       ;;
     ls-remote)
+      # `git ls-remote --tags origin refs/tags/x refs/tags/x^{}` prints the
+      # tag object and its peeled commit for an annotated tag, and one line
+      # for a lightweight one. A stub that only answers "yes" cannot tell
+      # the step which commit the remote tag is at, which is the whole point
+      # of asking.
       echo "LSREMOTE $*" >> stub_log.txt
+      if [ "$STUB_LSREMOTE" = "0" ]; then
+        printf '%s\trefs/tags/v9.9.9\n' "$STUB_REMOTE_OBJECT"
+        # Real git only answers the peeled ref when it was asked for it, so
+        # the stub does the same: a step that queries the name alone gets a
+        # tag object and cannot say which commit it points at.
+        case "$*" in
+          *'refs/tags/v9.9.9^{}'*) printf '%s\trefs/tags/v9.9.9^{}\n' "$STUB_REMOTE_TARGET" ;;
+        esac
+      fi
       return "$STUB_LSREMOTE"
       ;;
   esac
@@ -117,8 +141,11 @@ def _run_tag_step(
     *,
     succeeds_on: int,
     lsremote: int,
+    remote_target: str | None = None,
 ) -> tuple[int, str, str, list[str]]:
     """Run the real shell body of `Tag it` with the stub in scope."""
+    if remote_target is None:
+        remote_target = HEAD
     script = tmp_path / "tag_step.sh"
     script.write_text(STUB + _tag_step(), encoding="utf-8", newline="\n")
 
@@ -127,6 +154,9 @@ def _run_tag_step(
         "VERSION": "9.9.9",
         "STUB_SUCCEEDS_ON": str(succeeds_on),
         "STUB_LSREMOTE": str(lsremote),
+        "STUB_HEAD": HEAD,
+        "STUB_REMOTE_OBJECT": "b" * 40,
+        "STUB_REMOTE_TARGET": remote_target,
     }
     # `-e` because that is what GitHub's `shell: bash` uses; a body that only
     # works without it would pass here and fail there.
@@ -200,6 +230,33 @@ class TestAClaimedFailureIsCheckedAgainstTheRemote:
         code, out, _err, log = _run_tag_step(tmp_path, succeeds_on=99, lsremote=0)
         assert code == 0, f"the remote had the tag, so there was nothing left to do: {log}"
         assert "on the remote" in out
+
+
+class TestTheRemoteIsAskedForThePeeledCommit:
+    def test_the_query_names_the_peeled_ref(self, tmp_path: Path) -> None:
+        """`ls-remote` must ask for `^{}` or it only learns the tag's name.
+
+        Real git prints the peeled commit only when the peeled ref was
+        requested, so asking for the name alone leaves the step unable to
+        say which commit the remote tag is at - which is the whole point of
+        the recovery check. The string assertion is here as well because the
+        behavioural one below cannot see *why* it passed.
+        """
+        step = _tag_step()
+        query = [line for line in step.splitlines() if "ls-remote" in line]
+        assert query, "the step no longer asks the remote anything"
+        assert any("refs/tags/$tag^{}" in line for line in query), (
+            f"the remote is asked only for the tag's name: {query}"
+        )
+
+    def test_a_remote_tag_at_another_commit_needs_the_peeled_answer(
+        self, tmp_path: Path
+    ) -> None:
+        code, out, err, _log = _run_tag_step(
+            tmp_path, succeeds_on=99, lsremote=0, remote_target="c" * 40
+        )
+        assert code == 1, f"another run's tag was accepted: {out}{err}"
+        assert "c" * 40 in out, f"the refusal did not name the other commit: {out}{err}"
 
 
 class TestTheRecoveryIsWrittenDown:

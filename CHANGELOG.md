@@ -12,6 +12,31 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- Three ways into `release.yml` shared no lock, and the tag steps identified a tag by its name. A tag
+  that already existed was treated as `tag already exists` and a failure, even when it stood at the
+  very commit being released - so the documented repair (re-run the release) could not work. Worse,
+  when all three push attempts were rejected the recovery step asked the remote whether the *name*
+  was there and, finding it, exited 0. Measured against a real remote holding `v9.9.9` at another
+  run's commit: the step printed `::notice::v9.9.9 is on the remote even though no attempt exited
+  zero`, exited 0, and left this run's bump commit on `main` with nothing pointing at it - a
+  stranded version number, which is exactly what the retry loop exists to prevent. Both comparisons
+  now peel to a commit. Locally, `refs/tags/vX^{commit}` is compared with this release's HEAD: equal
+  is a re-run and succeeds, different stops the run and names the commit it found. Remotely,
+  `git ls-remote --tags origin refs/tags/vX refs/tags/vX^{}` supplies both the tag object and its
+  peeled commit (a lightweight tag answers on the plain line, which is already a commit); the peeled
+  commit is compared and a mismatch fails. A remote that cannot be read is a failure, not an
+  agreement. Both failures end in the hand-repair command, because the bump is already on `main` and
+  re-running the workflow would decide there is nothing to release.
+- `release.yml` gained `concurrency: group: publisher` so its three doors - tag push, manual
+  dispatch, and the reusable call - cannot publish at once. The group is deliberately not
+  `auto-release`: a reusable workflow does not inherit its caller's group, so the same name would
+  leave the caller holding the lock and the callee waiting on it.
+- `tests/test_release_publisher.py` runs the real step body against a real `git` and a bare remote
+  (11 tests), and `tests/test_tag_push.py`'s stub now answers the two questions the step actually
+  asks instead of returning `1` for every `rev-parse`. Six mutations, six red.
+
 ## [0.24.3] — 2026-11-14
 ### Fixed
 

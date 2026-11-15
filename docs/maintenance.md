@@ -56,6 +56,29 @@ exactly one commit (the bump) sits between them. Two commits there means somethi
 in and the run stops. Both SHAs are printed, so a release can be traced back to the run that approved
 it.
 
+### One publisher, and a tag is identified by what it points at
+
+`release.yml` carries `concurrency: group: publisher`. It has three doors - a tag push, a manual
+dispatch, and the reusable call from `auto-release.yml` - and without the group two of them could
+run at once and race over the same release. The group is deliberately **not** called `auto-release`.
+A reusable workflow does not inherit its caller's group, so if the two names matched the caller
+would hold the lock and the callee would wait on it: the release would block until the caller
+finished, and the caller is waiting for the callee. Two names is what makes the doors exclude each
+other without deadlocking the ordinary path.
+
+The tag steps compare *targets*, not names. `git ls-remote --tags refs/tags/vX` exiting zero only
+says the name exists, and every run that decided to release that number would have written that same
+name; the local `rev-parse` a few lines earlier asks about a tag this run just created, so it cannot
+disagree. Both are answers a run gives itself. What settles it is the peeled commit: the local tag is
+read as `refs/tags/vX^{commit}`, and the remote is asked for both `refs/tags/vX` and
+`refs/tags/vX^{}` (an annotated tag answers on the peeled line, a lightweight one on the plain line,
+which is already a commit) and the two commits are compared. A tag at this release's commit is a
+re-run and succeeds; a tag at any other commit stops the run and says which commit it found.
+
+The failure text ends in a repair command, because the bump commit is already on `main` by then: the
+Unreleased section is empty, so re-running the workflow decides there is nothing to release. The
+number would be stranded with nothing in the log saying so.
+
 ## What CI enforces
 
 | job | fails when |
@@ -63,7 +86,7 @@ it.
 | `test` | any test fails, on any of the matrix cells |
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
-| `auto-release` | the changelog says release but the decided version changes no files, the tag already exists, or `main` moved past the tested SHA |
+| `auto-release` | the changelog says release but the decided version changes no files, the tag points at a different commit than this release, or `main` moved past the tested SHA |
 | `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, or the built wheel cannot scaffold a project and verify it |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory

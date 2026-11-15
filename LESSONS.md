@@ -8930,3 +8930,41 @@ upload or a comment poster silently skippable. Fourth: prefer a test that assert
 contrast (the default lets it through, the documented value does not) over one that asserts the
 presence of a token, because the contrast is the reason the token is there and it is the thing that
 will be wrong when someone edits the default.
+
+## 293. A name is not an identity, and a tag is a name
+
+`auto-release.yml` pushes the tag, and if all three attempts report failure it asks the remote
+whether the tag is there. It asked `git ls-remote --tags --exit-code origin refs/tags/vX`, got zero,
+printed `::notice::vX is on the remote even though no attempt exited zero`, and exited 0. Measured
+against a real remote holding `v9.9.9` at a different run's commit: that is exactly what it did. The
+run's own bump commit, already pushed to `main`, was then pointed at by nothing - a stranded version
+number, the one outcome the retry loop exists to prevent.
+
+Two separate mistakes wore the same clothes:
+
+- **The name was taken for the thing.** `refs/tags/vX` is a name every run that decided to release
+  that number would write. Asking whether the name exists answers "did somebody release this
+  version", not "did *I* publish *this* commit".
+- **The local answer was taken for a remote fact.** An earlier line of the same step could have run
+  `git rev-parse refs/tags/vX` - but that tag was created a dozen lines above, on the same runner. A
+  measured probe deleted the remote entirely and the local answer still matched: the step was asking
+  itself.
+
+The repair is `refs/tags/vX^{commit}` locally and `refs/tags/vX` plus `refs/tags/vX^{}` on the
+remote, comparing commits rather than names. A lightweight tag answers on the plain line, which is
+already a commit; an annotated one answers on the peeled line. The same rule applies to the
+"already exists" branch above: a tag at this release's commit is a re-run and may proceed, a tag
+anywhere else stops the run.
+
+How to apply:
+- First, name the question the check answers in the vocabulary of *identity* ("is the remote's tag
+  the commit I am releasing") and see whether the code actually asks that. "Does a ref with this
+  name exist" and "is this ref mine" have different answers whenever two writers can choose the same
+  name - versions, tags, branch names, cache keys, lock names.
+- Second, for any check that runs after a write the same job performed, ask whether it could pass
+  before the write happened at all. If yes, it is a sentence about the runner, not about the world.
+- Third, prefer the answer from the far side. Peel `^{}`, compare digests, read the object - anything
+  that forces the remote to say what it holds rather than that it holds something.
+- Fourth, when a failure is unrepairable by re-running (the bump commit is already on `main`), say so
+  *and* print the command that would repair it. A reader who re-runs a workflow that decides
+  "nothing to release" has lost the number silently.

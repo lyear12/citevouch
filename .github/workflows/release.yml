@@ -36,6 +36,24 @@ permissions:
   contents: write
   id-token: write
 
+# One publisher, whichever door the release came through: a tag push, a
+# `workflow_dispatch` by hand, or `workflow_call` from auto-release.yml. Two
+# runs that both believe they own this version would race on the same tag, the
+# same draft release and the same PyPI upload; the loser's failure is
+# indistinguishable from a real defect, and the winner's assets can be
+# replaced by `--clobber` in the recovery step below.
+#
+# The group is deliberately NOT the one auto-release.yml uses (`auto-release`).
+# A reusable workflow inherits nothing from its caller, but a caller that holds
+# a group while its called workflow waits for the same group would deadlock:
+# the run that would free the lock is the one blocked on it. Keeping the two
+# names apart is what makes the exclusion effective without wedging the usual
+# path, and it is why this comment exists — renaming either one to match the
+# other looks like tidying and stops every release.
+concurrency:
+  group: publisher
+  cancel-in-progress: false
+
 jobs:
   release:
     name: build and publish
