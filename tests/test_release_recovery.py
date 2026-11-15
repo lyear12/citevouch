@@ -54,6 +54,14 @@ gh() {
           *--json*isDraft*)
             cat stub_draft 2>/dev/null || echo "false"
             ;;
+          *--json*assets*)
+            # One `name<TAB>digest` line per published asset, or nothing when
+            # the release has none - which is the case the real API reports as
+            # an empty list, not as an error.
+            if [ -f stub_assets ]; then
+              cat stub_assets
+            fi
+            ;;
         esac
         return 0
         ;;
@@ -128,16 +136,38 @@ def _recovery_step() -> str:
     raise AssertionError("no `Re-attach` step in release.yml")
 
 
+WHEEL = "citevouch-9.9.9-py3-none-any.whl"
+SDIST = "citevouch-9.9.9.tar.gz"
+WHEEL_BYTES = b"the wheel this run built\n"
+SDIST_BYTES = b"the sdist this run built\n"
+
+
+def _published(name: str, payload: bytes) -> str:
+    """What the API reports for an asset whose bytes are `payload`."""
+    import hashlib
+
+    return f"{name}\tsha256:{hashlib.sha256(payload).hexdigest()}"
+
+
 def _run_recovery(
     tmp_path: Path,
     *,
     exists: bool,
     draft: bool,
     publish_works: bool = True,
+    assets: list[str] | None = None,
 ) -> tuple[int, str, str, list[str]]:
     """Run the real shell body of the recovery step with the stub in scope."""
     (tmp_path / "stub_exists").write_text("1" if exists else "0", encoding="utf-8")
     (tmp_path / "stub_draft").write_text("true" if draft else "false", encoding="utf-8")
+    if assets is not None:
+        (tmp_path / "stub_assets").write_text("\n".join(assets) + "\n", encoding="utf-8")
+    # The step attaches `dist/*`, and the build always produced it. Creating it
+    # here keeps the stub from being the only thing that says "upload" - the
+    # glob has to find real files for the digest comparison to mean anything.
+    (tmp_path / "dist").mkdir(exist_ok=True)
+    (tmp_path / "dist" / WHEEL).write_bytes(WHEEL_BYTES)
+    (tmp_path / "dist" / SDIST).write_bytes(SDIST_BYTES)
     if not publish_works:
         # Publishing is attempted and the release stays a draft, which is the
         # shape of a partial repair: the API refuses and nothing else changes.
@@ -215,6 +245,97 @@ class TestADraftIsNotARecoveredRelease:
         )
         assert code == 1, f"a release left as a draft was reported as a success: {out}{err}"
         assert "still a draft" in out, f"the failure did not say what is wrong: {out}"
+
+
+class TestAPublishedAssetIsNotReplacedSilently:
+    """`--clobber` on every artefact is a licence to publish a different build.
+
+    An interrupted release resumed after a rebuild produces exactly one asset
+    name with two different sets of bytes. The old body uploaded unconditionally
+    and said nothing, so the digest a downloader could check described a build
+    no run had chosen.
+    """
+
+    def test_a_different_digest_stops_the_run(self, tmp_path: Path) -> None:
+        code, out, err, log = _run_recovery(
+            tmp_path,
+            exists=True,
+            draft=False,
+            assets=[_published(WHEEL, b"a build nobody chose\n")],
+        )
+        assert code == 1, f"a published asset was replaced without asking: {out}{err}"
+        assert not any(line.startswith("UPLOAD") for line in log), (
+            f"the step overwrote bytes it had just refused: {log}"
+        )
+        assert "Refusing to replace" in out, f"the failure did not explain itself: {out}"
+
+    def test_the_failure_names_both_digests(self, tmp_path: Path) -> None:
+        """A reader has to be able to tell which build is which."""
+        _code, out, err, _log = _run_recovery(
+            tmp_path,
+            exists=True,
+            draft=False,
+            assets=[_published(WHEEL, b"a build nobody chose\n")],
+        )
+        theirs = _published(WHEEL, b"a build nobody chose\n").split("\t")[1]
+        ours = _published(WHEEL, WHEEL_BYTES).split("\t")[1]
+        assert theirs in out and ours in out, f"one of the two digests is missing: {out}{err}"
+
+    def test_a_matching_digest_is_not_uploaded_again(self, tmp_path: Path) -> None:
+        code, out, err, log = _run_recovery(
+            tmp_path,
+            exists=True,
+            draft=False,
+            assets=[
+                _published(WHEEL, WHEEL_BYTES),
+                _published(SDIST, SDIST_BYTES),
+            ],
+        )
+        assert code == 0, f"a resumed release failed: {out}{err}"
+        assert not any(line.startswith("UPLOAD") for line in log), (
+            f"an asset that was already published was replaced: {log}"
+        )
+        assert "already published with the digest this run built" in out, out
+
+    def test_a_missing_asset_is_still_uploaded(self, tmp_path: Path) -> None:
+        """Only the artefacts that are already right may be skipped."""
+        code, out, err, log = _run_recovery(
+            tmp_path,
+            exists=True,
+            draft=False,
+            assets=[_published(WHEEL, WHEEL_BYTES)],
+        )
+        assert code == 0, f"a resumed release failed: {out}{err}"
+        uploads = [line for line in log if line.startswith("UPLOAD")]
+        assert uploads, f"nothing was attached: {log}"
+        assert SDIST in uploads[0], f"the missing sdist was not attached: {log}"
+        assert WHEEL not in uploads[0], f"the wheel was attached twice: {log}"
+
+    def test_an_asset_with_no_recorded_digest_stops_the_run(self, tmp_path: Path) -> None:
+        """ "I cannot tell whether these are the same bytes" is not a yes."""
+        code, out, err, log = _run_recovery(
+            tmp_path,
+            exists=True,
+            draft=False,
+            assets=[f"{WHEEL}\t"],
+        )
+        assert code == 1, f"an unverifiable asset was overwritten: {out}{err}"
+        assert not any(line.startswith("UPLOAD") for line in log), log
+        assert "(none recorded)" in out, f"the failure invented a digest: {out}"
+
+    def test_a_draft_with_matching_assets_is_published_not_reuploaded(
+        self, tmp_path: Path
+    ) -> None:
+        """Finishing a draft and resuming its upload are different repairs."""
+        code, out, err, log = _run_recovery(
+            tmp_path,
+            exists=True,
+            draft=True,
+            assets=[_published(WHEEL, WHEEL_BYTES), _published(SDIST, SDIST_BYTES)],
+        )
+        assert code == 0, f"a draft with the right assets failed: {out}{err}"
+        assert not any(line.startswith("UPLOAD") for line in log), log
+        assert any(line.startswith("EDIT") for line in log), f"it stayed a draft: {log}"
 
 
 class TestTheMissingReleaseStaysRed:

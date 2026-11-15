@@ -8968,3 +8968,33 @@ How to apply:
 - Fourth, when a failure is unrepairable by re-running (the bump commit is already on `main`), say so
   *and* print the command that would repair it. A reader who re-runs a workflow that decides
   "nothing to release" has lost the number silently.
+
+## 294. `--clobber` is an assertion that the bytes are the same, and nothing checked
+
+The release repair step ended in `gh release upload "$tag" dist/* --clobber`. That flag is not a
+tidy-up; it is the sentence "the file I am holding and the file already published are the same
+file". Nothing in the step had established it. When an upload is interrupted and the tree is rebuilt
+before resuming, the same asset name carries two different builds, and the run published whichever
+one it happened to hold while reporting success.
+
+What makes this class expensive is that the artefact is the *product*. A wrong quote in a report is
+a bad afternoon; a wheel published under a version number that no run chose is a supply-chain fact,
+and the digest a downloader checks is exactly the thing that was overwritten.
+
+How to apply:
+
+- First, find every `--force` / `--clobber` / `overwrite=true` in a workflow and ask what established
+  the equality it asserts. If the answer is "the names match", it asserted nothing. `--clobber` is
+  only honest after comparing the bytes.
+- Second, a missing digest is a stop, not a pass. "I cannot tell whether these are the same" is the
+  same epistemic state as "these are different" for the purpose of an irreversible write. Fail
+  closed on unverifiable, even when the unverifiable case is the common one.
+- Third, skip only what is already right, and keep going for the rest. Refusing the whole run because
+  one asset matched turns a resumable upload into an unrepairable one; the guard should be a filter
+  over artefacts, not a gate on the step.
+- Fourth, prefer the far side's answer. `sha256sum` on the local file is the local claim; the
+  published `digest` is the remote's. Comparing them is the check. Reading only the local one proves
+  nothing about what is published.
+- Fifth, test the workflow step with real files and a stub that answers the question the step asks.
+  A stub that returns the same shape for every query cannot catch "we asked the wrong question" -
+  and here the stub also had to *not* answer before it was asked.

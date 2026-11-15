@@ -79,6 +79,28 @@ The failure text ends in a repair command, because the bump commit is already on
 Unreleased section is empty, so re-running the workflow decides there is nothing to release. The
 number would be stranded with nothing in the log saying so.
 
+### A published asset is identified by its bytes
+
+The release job creates the GitHub release with `continue-on-error`, then a second step repairs the
+two ways that can fail: the release exists but is still a draft, or the upload was interrupted after
+the release was created. That repair path used to end in `gh release upload --clobber`, which
+replaces an asset of the same name without looking at it. An interrupted release resumed after a
+rebuild produces exactly one asset name with two different sets of bytes, so the "-clobber" was a
+licence to publish a build no run had chosen, silently.
+
+The repair step now reads `gh release view --json assets`, which reports a `digest` per asset, and
+compares it against `sha256sum` of the file this run built:
+
+| what GitHub reports for that name | what the step does |
+|---|---|
+| nothing (name absent) | uploads it |
+| the same `sha256:` digest | leaves it alone and says so |
+| a different digest | stops the run, names both digests, and gives the `gh release delete-asset` command |
+| no digest recorded | stops the run - "I cannot tell whether these are the same bytes" is not a yes |
+
+Only the artefacts that are already right are skipped; whatever is missing is still attached, so a
+half-finished upload still finishes.
+
 ## What CI enforces
 
 | job | fails when |
@@ -87,7 +109,7 @@ number would be stranded with nothing in the log saying so.
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
 | `auto-release` | the changelog says release but the decided version changes no files, the tag points at a different commit than this release, or `main` moved past the tested SHA |
-| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, or the built wheel cannot scaffold a project and verify it |
+| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, the built wheel cannot scaffold a project and verify it, or the release already publishes an asset with a different digest than this run built |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a

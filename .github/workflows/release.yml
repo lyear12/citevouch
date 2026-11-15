@@ -247,7 +247,39 @@ jobs:
           tag="${{ steps.v.outputs.tag }}"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "release $tag already exists; re-attaching artefacts"
-            gh release upload "$tag" dist/* --clobber
+            # An asset with this name may already be published with *different*
+            # bytes: an interrupted upload resumed after a rebuild produces
+            # exactly that. `gh release upload --clobber` would replace it
+            # silently, and the digest the world can verify would then describe
+            # a build nobody chose. So the published digest is what decides -
+            # equal is a resumed release, anything else stops the run. A
+            # published asset whose digest GitHub does not report is also a
+            # stop: "I cannot tell whether these are the same bytes" is not a
+            # licence to overwrite.
+            published=$(gh release view "$tag" --json assets \
+              --jq '.assets[] | "\(.name)\t\(.digest // "")"' 2>/dev/null || true)
+            set --
+            for path in dist/*; do
+              [ -f "$path" ] || continue
+              name=$(basename "$path")
+              if ! printf '%s\n' "$published" | awk -F '\t' -v n="$name" '$1 == n { found = 1 } END { exit !found }'; then
+                set -- "$@" "$path"
+                continue
+              fi
+              theirs=$(printf '%s\n' "$published" \
+                | awk -F '\t' -v n="$name" '$1 == n { print $2; exit }')
+              ours="sha256:$(sha256sum "$path" | cut -d' ' -f1)"
+              if [ "$theirs" != "$ours" ]; then
+                echo "::error::$tag already publishes $name with digest ${theirs:-(none recorded)}, but this run built $ours. Refusing to replace a published asset. If the new build is the right one, delete the old asset (gh release delete-asset $tag $name) and re-run."
+                exit 1
+              fi
+              echo "$name is already published with the digest this run built"
+            done
+            if [ "$#" -gt 0 ]; then
+              gh release upload "$tag" "$@" --clobber
+            else
+              echo "every artefact is already published with the digest this run built"
+            fi
           else
             echo "::error::release $tag could not be created and does not exist"
             exit 1

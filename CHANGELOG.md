@@ -11,6 +11,24 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- The release repair step replaced a published asset without comparing it. When a release existed
+  but its upload had been interrupted, the step ended in `gh release upload "$tag" dist/* --clobber`
+  - which overwrites an asset of the same name without looking at it. Rebuilding before resuming
+  produces exactly one asset name with two different sets of bytes, so the run published a build no
+  run had chosen; measured with a stub `gh` and a real `dist/`, the step exited 0 after logging
+  `UPLOAD upload v9.9.9 dist/*.whl dist/*.tar.gz --clobber` while the release already carried a
+  different digest. The step now reads `gh release view --json assets` (whose `digest` field gh
+  2.97.0 does report) and compares each published `sha256:` against `sha256sum` of the file this run
+  built: absent names are uploaded, matching digests are left alone and named in the log, a
+  different digest stops the run with both digests and the `gh release delete-asset` repair, and an
+  asset whose digest GitHub does not report also stops it, because "I cannot tell whether these are
+  the same bytes" is not a licence to overwrite. Only the artefacts that are already right are
+  skipped, so a half-finished upload still finishes. `tests/test_release_recovery.py` grew six tests
+  over real files and a `gh` stub that now answers `--json assets`; six mutations of the guard
+  (no comparison, upload anyway, missing digest counts as a match, different digest only warns, the
+  digest not computed from the built file, unconditional re-upload) all go red.
 
 ## [0.24.4] — 2026-11-15
 ### Fixed
