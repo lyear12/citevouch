@@ -6317,3 +6317,20 @@ in 190.83s / 255 formatted with the demo negative unchanged (4 verified, 1 missi
 exit 1).
 
 Still open in CV-007: build once and reuse the artefacts across a resumed run.
+
+## Archived 2026-11-15 — CV-007, a resumed release reads before it rebuilds
+
+What was wrong: a release re-run rebuilt the artefacts and hoped they matched what the tag already
+served. That hope only became load-bearing when the digest guard from v0.24.5 started refusing to
+replace a published asset whose bytes differ - a correct guard that made an honest re-run impossible
+whenever the toolchain moved.
+
+What it costs: the honest path through a resumed release was to produce byte-identical output or give
+up, and the release had no way to tell which of those it was doing until after the build.
+
+Why it is now true: the step before `Build` downloads what the tag already publishes and asks the
+record whether those bytes are the ones this release is about to produce, checking version, tag and
+the tested commit before re-hashing anything. Only then is the build skipped, and it is skipped
+together with the record rewrite so attribution is never reassigned. Every doubt, including a failed
+download on a first release, falls back to rebuilding - the optimisation is allowed to be wrong in
+the cautious direction.
