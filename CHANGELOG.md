@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.26.1] — 2026-11-15
 ### Fixed
 
 - Three documents described machinery nobody had run. `docs/maintenance.md` drew a loop in which the
@@ -30,7 +31,6 @@ tag and that file disagree.
   review that never runs. `tests/test_automation_claims.py` reads `nightly.yml` and asserts that the
   documents describe it rather than the loop they wished for; ten tests, and each of thirteen
   restored wordings turns them red (a fourteenth, comment-only edit stays green).
-
 ## [0.26.0] — 2026-11-15
 ### Added
 
@@ -5786,7 +5786,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.26.1...HEAD
+[0.26.1]: https://github.com/lyear12/citevouch/releases/tag/v0.26.1
 [0.26.0]: https://github.com/lyear12/citevouch/releases/tag/v0.26.0
 [0.25.0]: https://github.com/lyear12/citevouch/releases/tag/v0.25.0
 [0.24.6]: https://github.com/lyear12/citevouch/releases/tag/v0.24.6
