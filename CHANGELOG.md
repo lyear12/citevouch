@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Added
+
+- `docs/branch-protection-proposal.md` records what `main` actually enforces,
+  measured rather than remembered: `gh api repos/lyear12/citevouch/branches/main`
+  returns `"protected": false`, the protection endpoint answers `Branch not
+  protected` (404), `rulesets` is `[]`, and `collaborators` is `1`. The page lists
+  the eleven job names the `Test` workflow reports, recommends the three that
+  answer questions nothing else does (`lint`, `test (ubuntu-latest, 3.10)`,
+  `test (windows-latest, 3.12)`), and sets out three alternatives with their real
+  costs.
+- The page names the two blockers that make full protection hard here: required
+  status checks gate *merges*, not pushes, and every commit in this project's
+  history is a direct push, so on a single-account repository Alternative A
+  changes the paperwork rather than the risk; and `auto-release.yml` pushes its
+  bump commit straight to `main` before tagging, so the "no bypass" clause and the
+  release path have to be reconciled out loud rather than by exempting a token.
+- `docs/maintenance.md` now says the list under "What stops a merge" is enforced in
+  review and CI, not by a branch setting, and links the proposal. A reader who asks
+  "is main protected?" can now find the measured answer instead of inferring it
+  from the existence of a workflow.
+- `tests/test_protection_proposal.py` pins the page to the repository: the quoted
+  API answer has to be the measured one, every `test (...)` cell the page names has
+  to be a cell the workflow reports, the single-collaborator count has to be stated,
+  the direct-push caveat cannot be softened, and the acceptance has to be an API
+  readback rather than a screenshot.
+- The decision itself is not made here. CV-019 moves to `needs_owner` with one
+  question (A: protect pull requests and write down that direct pushes bypass it;
+  B: full protection with a second account or a documented release-token exemption;
+  C: leave it open and say so in the README).
+
 ## [0.30.0] — 2026-11-15
 ### Added
 

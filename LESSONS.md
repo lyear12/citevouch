@@ -9254,3 +9254,31 @@ How to apply:
 - A test may assert the *shape* (a cache hit beats a cold read; per-page cost is flat)
   but not a millisecond figure, because the second is a fact about the runner and the
   first is a fact about the code.
+
+## 304 A control that exists in a file is not a control that exists in the account
+
+This project has a `.github/workflows/test.yml` that runs eleven jobs, an
+`auto-release.yml` that refuses to publish on red, and a `docs/maintenance.md` that
+described the whole thing as a loop with gates. Reading only the repository, it
+looks gated. Asking GitHub, `main` is `"protected": false`, has no rulesets, and
+accepts a direct push from its one collaborator - which is how every commit in its
+history arrived.
+
+The repository is the source of truth for what *runs*; it is not the source of
+truth for what *cannot happen*. Those are different claims, and only one of them
+can be read out of the tree.
+
+How to apply:
+
+- When a document says a gate exists, ask which system enforces it and read that
+  system's answer back. For GitHub that is the protection endpoint, not the
+  presence of a workflow file.
+- Write the measured answer into the document, including its shape: `404`, `[]`,
+  `false`. A prose summary of an API answer is a memory, and memories drift.
+- Name the mechanism's actual scope. Required status checks gate merges; if the
+  project pushes directly, they gate nothing, and saying "protected" would be
+  worse than saying nothing.
+- When the fix needs something the repository cannot contain - a second account, a
+  settings change, a decision about bypass lists - stop at a proposal with one
+  lettered question. Engineering that impersonates the missing authority produces
+  a document that lies in a new way.

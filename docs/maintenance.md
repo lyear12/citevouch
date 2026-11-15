@@ -222,6 +222,15 @@ tool that does not work.
 
 ## What stops a merge
 
+The list below is what this project enforces *in review and in CI*. It is not a
+branch setting: `main` accepts a direct push from any collaborator and has no
+required status checks (`gh api repos/lyear12/citevouch/branches/main` returns
+`"protected": false`). What actually gates a release is the `Test` workflow
+running after the push and `auto-release` refusing to publish on a red run.
+[docs/branch-protection-proposal.md](branch-protection-proposal.md) records the
+measured settings, the two honest ways to change them, and the one Owner
+decision that is waiting.
+
 Any of these, and the change does not go in that day:
 
 - a test that was changed to pass instead of code that was changed to be right (the commit must say
