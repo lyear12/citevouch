@@ -6244,3 +6244,44 @@ remote, including the concurrent-release regression and a lightweight tag; `test
 stub now answers the two questions the step actually asks instead of returning 1 for every
 `rev-parse`. Six mutations, six red. 4273 tests pass, 251 files formatted, and the deliberate
 false-quote demo still reports `5 claims — 4 verified, 0 moved, 1 missing`, worst `high`, exit 1.
+
+
+## CV-007 (continued) — one tree has to produce one set of bytes, and the extra has to promise what the suite runs
+
+**What was wrong.** Two things, both measured rather than assumed.
+
+The guard added in v0.24.5 refuses to replace a published asset whose digest differs. That guard is
+only useful if rebuilding the same tree gives the same bytes — otherwise a resumed release can never
+match what it published, and the guard becomes a permanent block. It did not: two builds two seconds
+apart gave wheel digests `dce5bd60…` vs `52eaddf2…` and sdist digests `8f7f7b56…` vs `16ca8704…`,
+while every extracted member of both archives was byte-equal. The clock lives in three places: zip
+member times in the wheel, member mtimes in the sdist, and the sdist's gzip header, which is not a
+member at all and so is invisible to any member-level comparison.
+
+Second, shipping that work turned the whole Test workflow red on 11 of 11 jobs, for two reasons that
+have nothing to do with reproducibility. The `dev` extra never promised `build` although
+`tests/test_reproducible_build.py` runs `python -m build --no-isolation`, so every clean checkout
+died with `No module named build` — the `lint` and `sdist` jobs stayed green only because they
+install `build` by hand, which is exactly what kept the hole invisible. And the epoch tests asserted
+that the checkout could be asked for a commit time: true in a clone, false in an unpacked sdist,
+where `epoch_from_git` answers `None` and the documented answer is `0`.
+
+**What it costs.** Without the first fix, the digest guard turns a recoverable release into a
+permanent one: the run is stuck between "the asset differs" and "the build differs every time".
+Without the second, the repository cannot pass its own gate on a clean machine, which makes every
+downstream claim about green CI conditional on a job that pre-installs something the project does
+not declare.
+
+**Why it is now true.** New `tools/normalise_artifacts.py` rewrites both archives to a single epoch —
+`SOURCE_DATE_EPOCH` if set, else the `HEAD` commit time, else `0` — touching mtimes, ownership and
+the gzip header but never member contents, and `release.yml` runs it between the build and the wheel
+smoke test, so the digest that is published belongs to the wheel that was installed. Measured after
+the change: both builds give wheel `2230171c…` and sdist `681131a1…`. `tests/test_reproducible_build.py`
+builds the tree twice and compares digests, asserts normalising leaves every member's sha256
+unchanged, reads the gzip header's own `mtime` (a same-second digest comparison cannot see it), and
+requires the digest to change when the epoch moves. `dev` now names `build>=1.0` and
+`setuptools>=77`; the five epoch tests stub the two clock sources instead of interrogating the
+directory; and `tests/test_extras.py` gained the guard that would have caught the first hole — every
+module the suite `-m`-runs must be promised by the extra the tests are installed from. 4291 tests
+pass, 253 files formatted, the demo still reports `5 claims — 4 verified, 0 moved, 1 missing`, worst
+`high`, exit 1. Five mutations caught plus a comment-only control that must and does survive.
