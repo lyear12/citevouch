@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-11-15
 ### Added
 
 - `docs/rtl-proposal.md` re-measures the two right-to-left pipelines named in the
@@ -41,7 +42,6 @@ tag and that file disagree.
   the joined reading is re-counted, the RTL shares and the threshold are recomputed
   from the constants, the number-only outcome is re-run through the CLI, and the
   ledger's pending state is asserted from the page.
-
 ## [0.31.0] — 2026-11-15
 ### Added
 
@@ -5954,7 +5954,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/lyear12/citevouch/releases/tag/v0.32.0
 [0.31.0]: https://github.com/lyear12/citevouch/releases/tag/v0.31.0
 [0.30.0]: https://github.com/lyear12/citevouch/releases/tag/v0.30.0
 [0.29.0]: https://github.com/lyear12/citevouch/releases/tag/v0.29.0
