@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.24.4] — 2026-11-15
 ### Fixed
 
 - Three ways into `release.yml` shared no lock, and the tag steps identified a tag by its name. A tag
@@ -36,7 +37,6 @@ tag and that file disagree.
 - `tests/test_release_publisher.py` runs the real step body against a real `git` and a bare remote
   (11 tests), and `tests/test_tag_push.py`'s stub now answers the two questions the step actually
   asks instead of returning `1` for every `rev-parse`. Six mutations, six red.
-
 ## [0.24.3] — 2026-11-14
 ### Fixed
 
@@ -5679,7 +5679,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.3...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.4...HEAD
+[0.24.4]: https://github.com/lyear12/citevouch/releases/tag/v0.24.4
 [0.24.3]: https://github.com/lyear12/citevouch/releases/tag/v0.24.3
 [0.24.2]: https://github.com/lyear12/citevouch/releases/tag/v0.24.2
 [0.24.1]: https://github.com/lyear12/citevouch/releases/tag/v0.24.1
