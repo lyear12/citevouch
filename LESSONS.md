@@ -9181,3 +9181,25 @@ How to apply:
   it - the mutation "refuse the unreadable case too" survives a suite that only
   tests the happy refusal, and it is precisely the mutation that turns a repair
   into a dead end.
+
+## A file the tool cannot record is a file the gate cannot cover
+
+`draft` reads `paper.tex`; `scan` refuses it, because claim blocks live in Markdown. So the accepted
+blocks go in `evidence.md`, the ledger says `manuscript: evidence.md`, and the gate is pointed at
+`evidence.md`. Measured on 0.27.1: editing the quote in `evidence.md` stops the run (`ledger-stale`,
+high, 0 verified, 1 skipped), swapping the page stops it (`source-changed` and `quote-fuzzy`, both
+medium), and changing `40,688` to `91,234` **inside `paper.tex`** leaves it at exit 0 with one
+verified claim. Nothing in the ledger names `paper.tex`; `--allow-stale` relaxes the binding to the
+ledger's own subject, not to a second file. The tool was never lying — it was answering a question
+about a different file — but a reader who assumes "the gate covers my manuscript" is wrong in the
+most expensive direction, and no message said so.
+
+How to apply:
+- When a format is read-only for one verb and writable for another, write down which file each verb
+  is about, and say it where the two answers differ.
+- Measure the blind spot instead of describing it. "The gate does not cover the `.tex`" is an
+  opinion until you have the exit code and the verified count in the same table.
+- Make the measurement an assertion: a test that fails when the blind spot closes is also the test
+  that tells the next person the page is out of date.
+- A flag that relaxes a binding is not a flag that widens it. Read what the binding is to before
+  promising the user it now covers a second file.

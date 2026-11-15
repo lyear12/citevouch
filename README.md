@@ -324,6 +324,11 @@ comes from the PDF, but it can propose a passage that is genuinely verbatim and 
 meant; `medium` proposals are proposals, not verdicts. `scan` and `verify` never see LaTeX; only this
 command does.
 
+That leaves the accepted blocks in a Markdown file while your manuscript stays in `.tex`, and the
+ledger records the Markdown file. What the gate then does and does not catch — measured, including
+the edit to the `.tex` it cannot see — is walked step by step in
+[docs/latex-manuscript.md](docs/latex-manuscript.md).
+
 ### Three claim dialects
 
 Fenced blocks (above), HTML comments, and table rows. Pick whichever survives your editor.

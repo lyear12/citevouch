@@ -12,6 +12,21 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Added
+
+- A walked page for the case the tool cannot close: a `.tex` final manuscript. `draft` accepts
+  `paper.tex`, but `scan` refuses it with exit 2 ("claim blocks ... live in Markdown"), so the
+  accepted blocks live in a second Markdown file and that file is what the ledger records.
+  `docs/latex-manuscript.md` walks the five steps against a scratch project and tabulates what the
+  recorded gate catches on it: an edited quote in the mirror file gives `ledger-stale` (high, 0
+  verified, 1 skipped), a source swap gives `source-changed` and `quote-fuzzy` (both medium, which is
+  why `--fail-on medium` is load-bearing), and **changing `40,688` to `91,234` inside `paper.tex`
+  leaves the gate at exit 0 with one verified claim**, because nothing in the ledger names
+  `paper.tex`. The page states that limitation as a measurement rather than a caveat, lists the two
+  options that would close it, and points at the open decision that covers the same shape of problem.
+  `tests/test_latex_manuscript_route.py` walks the same route in tests and fails if the page stops
+  saying any of it, including a test that the `.tex`-only edit stays invisible — the measurement is
+  the assertion. The README's LaTeX section now links the page.
 ## [0.27.1] — 2026-11-15
 ### Fixed
 

@@ -37,7 +37,7 @@ CV-001 只对列明 fixture 承诺预期结果；无法区分词内排版断行�
 | CV-012 | P1 **done**（v0.27.0 / b987474） | 先补最终 Markdown 原稿的工作流验收 | 仓库外安装现有确切交付物；draft→阅证→回填原稿→scan 原稿→recorded CI；普通改稿、claim 改动、换源有明确复审步骤；不能只验证 proposals 文件 |
 | CV-022 | P0 **done**（v0.27.1 / bd027e2） | 先停掉会静默换掉账本的写入 | `scan claims.md` 不能无声把记录 `final.md` 的账本换成 `claims.md`；要么写入拒绝并说明账本属于哪个文档，要么 proposals 文件不再印那条建议；`check claims.md` 与 `scan claims.md --ledger claims.lock.json` 必须继续可用 |
 | CV-013 | P1 **needs_owner**（方案已备：docs/review-state-proposal.md） | 准备人工审查状态/原稿绑定方案，再取得决定 | 先提交两个明确方案：保留手工回填，或持久化审查与内容 hash 绑定；比较用户负担、迁移及兼容性；保存方案/checkpoint 并询问一次后才等待；Owner 决定前不改 schema |
-| CV-014 | P1 ready，依赖 012 | 完成限定范围的 LaTeX 最终原稿路径 | 写清 TeX 转换限制与包含文件范围；以最终原稿为验收对象演示改稿/换源；无法承诺的情况说明未知，不把转换文本当原稿已保护 |
+| CV-014 | P1 **implementing**（本轮） | 完成限定范围的 LaTeX 最终原稿路径 | 写清 TeX 转换限制与包含文件范围；以最终原稿为验收对象演示改稿/换源；无法承诺的情况说明未知，不把转换文本当原稿已保护 |
 
 CV-012 可以使用现有 Git tag 或 GitHub wheel 在 PyPI 阻塞时推进，记录实际安装来源及 digest。走完这条路时发现了 CV-022：`draft` 产出的 proposals 文件自己建议对它跑 `citevouch scan`，而 `scan` 会把被指向的文档写进被给的账本——实测这一步让记录 `final.md` 的账本变成 `claims.md`，退出码仍是 0 且没有任何警告。页面已写下危险与安全写法；工作流本身（步骤、恢复路径、三种改动的应答）已验收并发布为 v0.27.0，CV-022 负责把这个洞本身补上，在那之前页面保留警告。它不承诺系统自动理解支持关系；阅证动作由作者执行，合成测试证明程序状态转换，真实作者观察另归 CV-015。
 
