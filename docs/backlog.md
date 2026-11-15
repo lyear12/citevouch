@@ -6395,3 +6395,25 @@ stays green.
 **What it cost.** The one file that says what the project is about could be retargeted by following the tool's own instructions, and the damage surfaced later, as a high finding against a manuscript that had not changed.
 
 **Why it is now true.** A `scan` whose target ledger names a different document stops with exit 2 and a message naming both documents and the command that keeps both records; only a proved difference is refused, so a damaged ledger is still repairable. The proposals header prints `citevouch scan claims.md --ledger claims.lock.json`, spelled the way the ledger spells it, so the advice runs and leaves the project ledger alone. The page's "do not run this" warning is gone because the tool now enforces it.
+
+## Archived 2026-11-15 — CV-014, the gate covers the file it is pointed at
+
+**What was wrong.** `draft` reads a `.tex` manuscript; `scan`, `check` and `verify` refuse one
+(exit 2, "claim blocks ... live in Markdown"). The accepted blocks therefore live in a second
+Markdown file, and that file - not the `.tex` - is what the ledger records. Nothing said so in one
+place an author would read, and the README's LaTeX section stopped at "pass the `.tex` file".
+
+**What it costs.** Measured on 0.27.1 with one claim: editing the quote in the mirror file stops the
+recorded gate (`ledger-stale`, high, 0 verified, 1 skipped) and swapping the page stops it
+(`source-changed` and `quote-fuzzy`, both medium), but changing `40,688` to `91,234` inside
+`paper.tex` leaves the gate at exit 0 with one verified claim. A reader who assumes the gate covers
+their manuscript is wrong in the expensive direction, and no message said otherwise. `--allow-stale`
+does not help: it relaxes the binding to the ledger's own subject, not to a second file.
+
+**Why it is now true.** `docs/latex-manuscript.md` walks the five steps against a scratch project and
+tabulates the four measurements above next to their exit codes; it states the limitation as a
+measurement, names the two options that would close it, and points at the open decision that covers
+the same shape of problem. `tests/test_latex_manuscript_route.py` walks the same route and fails if
+the page stops saying any of it - the blind-spot measurement is itself an assertion, so closing the
+gap later will fail that test and force the page to be updated. The README's LaTeX section links the
+page.
