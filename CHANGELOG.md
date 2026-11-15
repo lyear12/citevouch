@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-11-15
 ### Added
 
 - A walked page for the case the tool cannot close: a `.tex` final manuscript. `draft` accepts
@@ -5846,7 +5847,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/lyear12/citevouch/releases/tag/v0.28.0
 [0.27.1]: https://github.com/lyear12/citevouch/releases/tag/v0.27.1
 [0.27.0]: https://github.com/lyear12/citevouch/releases/tag/v0.27.0
 [0.26.1]: https://github.com/lyear12/citevouch/releases/tag/v0.26.1
