@@ -6417,3 +6417,25 @@ the same shape of problem. `tests/test_latex_manuscript_route.py` walks the same
 the page stops saying any of it - the blind-spot measurement is itself an assertion, so closing the
 gap later will fail that test and force the page to be updated. The README's LaTeX section links the
 page.
+
+## Archived 2026-11-15 — CV-016, an adversarial benchmark whose expectations were measured
+
+**What was wrong.** Every statement about the matcher lived in a docstring or a
+unit test written by whoever last changed the matcher. Nothing recorded what the
+tool does to a sentence a reader would call faithful but that is not on the page,
+to a number printed elsewhere on the same page, or to Chinese punctuation.
+
+**What it costs.** Without a measured record, the honest limits of the tool are
+indistinguishable from the flattering ones. Two specific costs were invisible
+before this: a faithful paraphrase scores zero and is reported as
+`quote-missing` (correct, but nobody had written it down), and an author who
+retypes the printed sentence of a hyphenated passage gets `quote-fuzzy` at
+similarity 0.91 while the demo passes, because the demo quotes the reader's own
+line-broken text.
+
+**Why it is now true.** `tests/fixtures/adversarial-cases.json` carries 19 primary
+and four held-out cases over three axes the schema keeps apart, with every
+`expected` block produced by running the matcher and `measured_with` recording the
+machine. `known_gaps` holds the one disagreement in both directions: a quiet gap
+fails, and a stale gap fails. `docs/adversarial-benchmark.md` says what the
+numbers cannot support. Delivered in v0.29.0 (`266030c`).
