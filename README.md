@@ -296,6 +296,11 @@ means your own sentence appears verbatim in the source: the words are certainly 
 whether they back the sentence is still yours to judge. `medium`
 means a real sentence on the right page that you still have to read.
 
+The whole path — draft, read, copy the blocks you accept into the manuscript you intend to
+submit, record it, gate the pull request on the record — is walked step by step in
+[docs/final-manuscript.md](docs/final-manuscript.md), which says which of the two decisions is
+yours and which one the CI job is allowed to make.
+
 To bind keys the bibliography already knows about, pass `--bib refs.bib`. A Zotero `file` field is
 used when the key is not in `sources.toml`, and the file prints the `[sources]` line to paste.
 

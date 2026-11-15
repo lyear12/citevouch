@@ -11,6 +11,30 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- `docs/final-manuscript.md`, the workflow this tool exists for, written in the order a writer
+  performs it: draft proposals for the manuscript they intend to submit, read them, copy the
+  accepted blocks back, record, then gate the pull request on the record. Every command on the page
+  is executed by `tests/test_final_manuscript_workflow.py`, so the page cannot drift away from the
+  CLI without turning the suite red. The walk produced the first end-to-end evidence that the loop
+  a writer actually runs closes: on `citevouch 0.26.1` installed into a clean virtual environment
+  from the published wheel, the project is green, editing one unrelated sentence makes
+  `check --use-recorded --fail-on medium` exit 1 with `[high] ledger-stale`, and re-running
+  `citevouch scan` — the documented recovery — turns it green again. The same page records the two
+  edits that are answered by the claim rather than by the digest: a page hint the source does not
+  have is reported as `page-out-of-range` instead of being quietly answered from page 1, and a
+  replaced source file is reported as `source-changed` by the recorded run only, because only the
+  record holds the old digest. `tests/test_final_manuscript_doc.py` holds the page to the CLI and
+  keeps it from describing itself as a review: `check` answers whether the passage is on the page
+  and cannot say whether it backs the sentence.
+- The page also documents a trap that was measured while walking it and is **not** yet repaired:
+  the proposals file `draft` writes tells the reader to run `citevouch scan` on it, and `scan`
+  writes whichever document it was pointed at into whichever ledger it is given, so following that
+  advice replaces the project's record of the manuscript. `scan claims.md --ledger claims.lock.json`
+  is the safe form and the page says so, but the advice inside the generated file still points at
+  the unsafe one. Guarding the write itself is `CV-022` in `docs/iteration-state.json`.
+
 
 ## [0.26.1] — 2026-11-15
 ### Fixed

@@ -9121,3 +9121,30 @@ about one page. When a document says a stage exists, name the file and step that
 next reader can check without trusting you. And when an absence appears in a table — zero issues,
 zero downloads — write down what that absence cannot distinguish, because the temptation to read a
 zero as a conclusion is strongest exactly where the funnel is broken.
+
+## 299. A workflow is only tested where it is walked, and the walk is where the advice bites
+
+
+Every step of this tool had a test, and the workflow that strings the steps together had none. That
+is the ordinary shape of a gap: unit tests cover commands, nothing covers the seams between them, and
+a seam fails silently because each side of it is doing exactly what its own test says.
+
+Walking this workflow for the first time — draft, read, copy back, record, gate, then edit prose, the
+claim and the source separately — produced two things that no unit test was ever going to produce. It
+proved the loop closes: a prose edit makes the recorded gate exit 1 with `ledger-stale`, and
+re-recording clears it, which is the recovery a writer is told to perform and nothing had ever
+performed. And it found the tool handing out advice that damages the project: the proposals file says
+"run `citevouch scan` on this file", and `scan` writes whichever document it was pointed at into
+whichever ledger it is given, so the advice replaces the record of the manuscript with a record of
+the suggestions. Neither fact is a bug in any single command. Both live in the sentence that tells
+the reader what to do next.
+
+**How to apply.** When a feature is a sequence, write the sequence down and run it before you
+believe it: a list of commands where each one's output is the next one's input, executed against a
+clean project. Treat the advice your own output prints as part of the interface — if a file tells the
+reader to run a command, that command has to be safe in the directory the file was written to, and
+"safe" means it does not destroy something the reader cannot regenerate. When the walked path reveals
+a hazard you are not fixing this round, write the hazard in the page and name the task that fixes it,
+because a footnote is cheap and a silent ledger replacement is not. And when a page documents a
+workflow, hold the page to the executable version of itself: the test that runs the commands will
+also fail when the prose stops matching them.

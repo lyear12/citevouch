@@ -80,10 +80,10 @@
       "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
     },
     {
-      "id": "CV-012", "order": 12, "priority": "P1", "status": "ready", "title": "Demonstrate protection of a final Markdown manuscript",
+      "id": "CV-012", "order": 12, "priority": "P1", "status": "implementing", "title": "Demonstrate protection of a final Markdown manuscript",
       "dependencies": [], "write_scopes": ["docs/", "tests/"],
       "acceptance": "From an external clean environment using an exact available Git tag or wheel: draft, human-read evidence, copy reviewed blocks back to final original manuscript, scan that manuscript, run recorded CI, then edit unrelated prose, the claim and the source separately and demonstrate review/re-record steps. A proposals-only green is not acceptance. Synthetic workflow proof is distinct from CV-015 user observation.",
-      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null, "blocker": null
+      "owner": "lead", "lease_until": "2026-11-15T14:20:00+08:00", "base_sha": "9bb7c27", "attempts": 1, "last_evidence": null, "next_retry_at": null, "checkpoint": "docs/final-manuscript.md and its two guards are written and green; the walk found that the proposals file's own advice (run `citevouch scan` on it) replaces the project ledger silently.  That repair is CV-022, so this task stays open until CV-022 lands and the page can drop its warning.", "blocker": null
     },
     {
       "id": "CV-013", "order": 13, "priority": "P1", "status": "ready", "title": "Prepare review-workflow alternatives, then obtain the Owner decision",
@@ -140,6 +140,12 @@
       "acceptance": "Reassess audience and measurable benefit only after M1/M2 have evidence. A scheduled tick or a desire for activity is not a reason to produce promotional material.",
       "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": null,
       "blocker": {"party": "Deliberate deferral", "release_condition": "Trustworthy final-manuscript workflow exists and exposure has a concrete hypothesis", "do_not": "Use promotion as a substitute for product validation"}
+    },
+    {
+      "id": "CV-022", "order": 22, "priority": "P0", "status": "ready", "title": "Never replace a ledger that describes another document",
+      "dependencies": [], "write_scopes": ["src/citevouch/scan.py", "src/citevouch/draft.py", "tests/", "CHANGELOG.md"],
+      "acceptance": "`citevouch scan claims.md` on a project whose ledger records final.md must not silently replace that ledger.  Either the write refuses and names the document the ledger is about, or the proposals file stops telling the reader to run a command that does it; at least one, and the page must lose its warning exactly when the danger is gone.  The two commands that are safe today must keep working: `check claims.md` writes no ledger, and `scan claims.md --ledger claims.lock.json` leaves the project ledger untouched.  Reverse the guard and watch the new tests go red, including the end-to-end walk in tests/test_final_manuscript_workflow.py.",
+      "owner": null, "lease_until": null, "base_sha": null, "attempts": 0, "last_evidence": null, "next_retry_at": null, "checkpoint": "Measured on 0.26.1 from a clean venv: draft wrote a proposals file that says 'run citevouch scan on this file'; running it rewrote citevouch.lock.json from final.md to claims.md with exit 0 and no warning, after which check final.md --use-recorded reported [high] ledger-stale.", "blocker": null
     }
   ]
 }
