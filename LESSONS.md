@@ -9227,3 +9227,30 @@ How to apply:
 - Keep the axes separate in the schema, not just in the prose. `support` is a human label
   with `labelled_by` beside it; giving it a key that looks like the matcher's output is how
   a benchmark starts claiming a capability it never had.
+
+## 303 Two numbers that differ by two orders of magnitude must both be printed
+
+The first version of the benchmark measured one manuscript shape and called it
+"a manuscript". It happened to use claims that are not on the page, so it reported
+2.8 seconds for 30 claims over 100 pages. The same 30 claims, when their text is on
+the page, cost 2.7 milliseconds - a thousand times less, because a hit stops at the
+tier that found it and a miss runs every tier against every page.
+
+A benchmark that prints only one of those numbers is not measuring the tool; it is
+measuring the fixture it chose. And the choice is not neutral: an author whose claims
+are accurate gets the fast path, and the slow path appears exactly when something is
+wrong - which is when a slow gate is most annoying but also most justified.
+
+How to apply:
+
+- When two plausible inputs differ by orders of magnitude, both are the measurement.
+  Print them side by side and name which is which; a single number invites the reader
+  to assume it describes their case.
+- Measure the stages apart. Extraction, normalisation and matching scale with
+  different quantities, and a total that moves does not say which one moved.
+- Put the context in the record, not in the prose: machine, interpreter, dependency
+  version, cache state, page count, claim count, and the repeat count behind every
+  median. A number without those is a rumour with a decimal point.
+- A test may assert the *shape* (a cache hit beats a cold read; per-page cost is flat)
+  but not a millisecond figure, because the second is a fact about the runner and the
+  first is a fact about the code.

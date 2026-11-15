@@ -12,6 +12,29 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Added
+
+- `tools/benchmark.py` measures the three stages separately, because they scale
+  with different things: extraction with the file (cold / warm), normalisation with
+  characters, matching with pages and quote length. Every report carries the machine,
+  interpreter, reader, tool version, cache state, page count and claim count, and every
+  figure is a median over stated repeats.
+- The first measurement, on this machine, says two things worth knowing: a warm
+  extraction is about twenty times cheaper than a cold one (that is what the cache is
+  for), and a claim that is not on the page costs two orders of magnitude more than one
+  that is, because the miss runs every tier against every page. Both are reported, so
+  neither the flattering number nor the worst case stands alone.
+- `docs/performance.md` records the numbers and what they cannot say: the 100-page
+  synthetic manuscript is not a measurement of anybody's paper, there is no baseline
+  from an earlier version so the page shows a shape rather than a regression, and no
+  verification is time-limited - the only deadlines in the package are the 180 second
+  limits on the external `pdftotext` child.
+- `tests/test_performance_budget.py` asserts the shape of the curve rather than any
+  millisecond figure: a cache hit beats a cold read, a hit beats a miss, per-page cost
+  stays flat as pages grow, and a longer quote is measurably slower. A generous ceiling
+  on the whole-manuscript fixture is a tripwire for a complexity regression, not a
+  service level.
+
 ## [0.29.0] — 2026-11-15
 ### Added
 

@@ -334,6 +334,10 @@ disagreement between design and measurement, and the three axes that must not be
 one score - is in
 [docs/adversarial-benchmark.md](docs/adversarial-benchmark.md).
 
+What it costs, on one machine, measured stage by stage and with the two shapes a
+manuscript can take - is in
+[docs/performance.md](docs/performance.md).
+
 ### Three claim dialects
 
 Fenced blocks (above), HTML comments, and table rows. Pick whichever survives your editor.
