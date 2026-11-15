@@ -6285,3 +6285,35 @@ directory; and `tests/test_extras.py` gained the guard that would have caught th
 module the suite `-m`-runs must be promised by the extra the tests are installed from. 4291 tests
 pass, 253 files formatted, the demo still reports `5 claims — 4 verified, 0 moved, 1 missing`, worst
 `high`, exit 1. Five mutations caught plus a comment-only control that must and does survive.
+
+## Archived 2026-11-15 — CV-007 (continued), the release says which commit produced which bytes
+
+**What was wrong.** A release page named files and gave digests, but nothing tied those bytes to a
+commit. Someone holding a downloaded wheel could learn the tag and nothing else: not which commit
+built it, not whether the other files in the same release came from the same tree. A resumed release
+could only *assume* its rebuild was the same build, so the v0.24.5 digest guard could refuse a
+different build without any definition of what the same build was.
+
+**What it costs.** Every claim about a published artefact was a claim about the local build, and the
+one failure only a publisher can have - the release page serving bytes other than the ones uploaded -
+was the one thing nothing read. A resume that rebuilt differently would either stop with no way
+forward or, before v0.24.5, silently replace what had shipped.
+
+**Why it is now true.** `tools/release_candidate.py` writes `dist/release-candidate.json` before the
+smoke test, so the record travels with the artefacts: version, tag, candidate/source/release commits,
+and `sha256` plus size for every file in `dist` except itself (a file cannot carry its own digest, so
+`check` demands the record separately instead of skipping an unrecorded file). `release.yml` writes it
+after normalising the artefacts, and a new final step downloads what the release actually serves
+(`gh release download`) and runs `check` on that directory - the only place in the pipeline where the
+published thing is read instead of written. Determinism is load-bearing: the digest guard refuses
+differing bytes, so an honest re-run of one tag must produce identical bytes to finish.
+
+First production evidence, taken the same night against the real API: `gh release download v0.25.0`
+then `python tools/release_candidate.py check` printed `matches its record: version 0.25.0, 2
+artefact(s), release b53380fe319da027cd0ba3da3112aa184113ddab`, exit 0, with candidate
+`f0b756fdcef1751e6fa90a7cfaa989c34ec3e58f`. `tests/test_release_candidate_record.py` holds 24 tests,
+9/9 mutations were caught plus a comment-only control that survived, and the run measured 4315 passed
+in 190.83s / 255 formatted with the demo negative unchanged (4 verified, 1 missing, worst `high`,
+exit 1).
+
+Still open in CV-007: build once and reuse the artefacts across a resumed run.
