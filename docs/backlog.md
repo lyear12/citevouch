@@ -6335,6 +6335,29 @@ together with the record rewrite so attribution is never reassigned. Every doubt
 download on a first release, falls back to rebuilding - the optimisation is allowed to be wrong in
 the cautious direction.
 
+## CV-012 (partial) — the workflow is walked, and the walk found the advice
+
+**What was wrong.** `docs/final-manuscript.md` did not exist: the commands each had tests, the
+sequence a writer runs had no end-to-end walk and no external-environment installation record.  The
+walk, run from a clean virtual environment on the released `0.26.1` wheel, found two things no unit
+test was going to find.  It confirmed the loop closes — a prose edit makes
+`check --use-recorded --fail-on medium` exit 1 with `[high] ledger-stale`, and re-running
+`citevouch scan` clears it.  And it found the tool handing out advice that damages the project: the
+proposals file `draft` writes says to run `citevouch scan` on it, and `scan` writes whichever
+document it was pointed at into whichever ledger it is given, so following that advice replaced the
+record of `final.md` with a record of `claims.md` — exit 0, no warning.
+
+**What it costs.** The advice lives in the one file the tool tells an author to read, and following
+it silently exchanges the object being protected.  The recorded gate then reports `ledger-stale` on
+the manuscript that was fine, which is the tool blaming the author for obeying it.
+
+**Why it is now true (partly).** The page exists, is linked from both READMEs, and every command on
+it is executed by `tests/test_final_manuscript_workflow.py`; `tests/test_final_manuscript_doc.py`
+holds the prose to the CLI and refuses to let the page describe itself as a review.  The page records
+the hazard and the safe form (`scan claims.md --ledger claims.lock.json`), and `CV-022` is filed to
+close it.  This task stays `implementing` until that lands, because the page's warning is a
+workaround, not a repair.
+
 ## Archived 2026-11-15 — CV-008, the documents describe the machinery that runs
 
 **What was wrong.** Three documents made claims about automation and nobody ran the automation to
