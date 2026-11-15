@@ -6439,3 +6439,26 @@ and four held-out cases over three axes the schema keeps apart, with every
 machine. `known_gaps` holds the one disagreement in both directions: a quiet gap
 fails, and a stale gap fails. `docs/adversarial-benchmark.md` says what the
 numbers cannot support. Delivered in v0.29.0 (`266030c`).
+
+## Archived 2026-11-15 — CV-017, the cost of the tool measured stage by stage
+
+**What was wrong.** There was no performance measurement at all. Every statement
+about speed - in the README, in a review, in a decision about whether a change
+was safe - was an opinion about a program nobody had timed.
+
+**What it costs.** Two failure modes are indistinguishable without numbers. A
+gate that takes seconds per claim makes CI unusable and invites people to disable
+it; a gate that appears fast because it was measured only on claims that hit says
+nothing about the run that matters, which is the one where something is wrong.
+The first version of this benchmark made exactly that second mistake: it measured
+an absent-claim manuscript and reported 2.8 s as if it were the typical case,
+while the same 30 claims cost 2.7 ms when their text is on the page.
+
+**Why it is now true.** `tools/benchmark.py` measures extraction (cold and warm),
+normalisation and matching separately, over fixtures named in the record, with
+medians over stated repeats and the machine written down. `docs/performance.md`
+publishes the numbers with the four things they cannot say. A cache hit costs
+about a twentieth of a cold read; a miss costs a thousand times a hit; per-page
+cost is flat from 1 to 128 pages, which is the linear shape the implementation
+claims. `tests/test_performance_budget.py` asserts only that shape, so no runner
+upgrade can fail the build. Delivered in v0.30.0 (`a126983`).
