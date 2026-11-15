@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-11-15
 ### Added
 
 - `tools/benchmark.py` measures the three stages separately, because they scale
@@ -34,7 +35,6 @@ tag and that file disagree.
   stays flat as pages grow, and a longer quote is measurably slower. A generous ceiling
   on the whole-manuscript fixture is a tripwire for a complexity regression, not a
   service level.
-
 ## [0.29.0] — 2026-11-15
 ### Added
 
@@ -5894,7 +5894,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/lyear12/citevouch/releases/tag/v0.30.0
 [0.29.0]: https://github.com/lyear12/citevouch/releases/tag/v0.29.0
 [0.28.0]: https://github.com/lyear12/citevouch/releases/tag/v0.28.0
 [0.27.1]: https://github.com/lyear12/citevouch/releases/tag/v0.27.1
