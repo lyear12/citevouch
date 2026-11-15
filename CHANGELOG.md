@@ -12,6 +12,36 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Added
+
+- `docs/rtl-proposal.md` re-measures the two right-to-left pipelines named in the
+  backlog and finds that two of the earlier conclusions no longer hold. Producer A
+  (`pymupdf insert_htmlbox`) returns five of six Hebrew words as exact reverses and
+  a sixth reversed with its full stop detached, so a correct Hebrew quote is
+  `[high] quote-missing`, `0 verified`, **exit 1**. Producer B (LibreOffice headless)
+  returns correct order with the spaces between Hebrew words gone, so the same quote
+  is `[high] quote-word-boundaries-unclear`, `0 verified`, `1 skipped` - the third
+  answer, not an accusation. The earlier note's claim that quoting the number alone
+  fails did not reproduce on either file: `40,688` alone is `quote-found`,
+  `1 verified`, **exit 0** on both.
+- The page records a cheap detector for the case that matters: the share of letters
+  in Unicode right-to-left ranges is 0.50 on both damaged pages, 0.00 on the demo's
+  two real papers, and 0.148 on a mixed-script English sentence, so a 0.30 threshold
+  separates everything measured - on one page per producer and three controls, which
+  the page says explicitly is not a corpus.
+- Three bounded answers are written down with what each promises and costs: say the
+  page may be reordered and stop accusing (A, no dependency); read the page a second
+  way with an extractor that emits logical order (B, needs a package in `src/`); or
+  document the gap and change nothing (C). None is applied.
+- `README.md` now says outright that a right-to-left page is not supported, names the
+  two measured outcomes, and links the proposal. A capability gap that only lives in
+  a proposal page is a gap the reader never meets.
+- `tests/test_rtl_proposal.py` pins the page to its own measurements: every Hebrew
+  word it calls a reverse is re-checked character by character, the space count on
+  the joined reading is re-counted, the RTL shares and the threshold are recomputed
+  from the constants, the number-only outcome is re-run through the CLI, and the
+  ledger's pending state is asserted from the page.
+
 ## [0.31.0] — 2026-11-15
 ### Added
 

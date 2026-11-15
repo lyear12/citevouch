@@ -9282,3 +9282,34 @@ How to apply:
   settings change, a decision about bypass lists - stop at a proposal with one
   lettered question. Engineering that impersonates the missing authority produces
   a document that lies in a new way.
+
+## 305 A re-measurement is the only thing that keeps a backlog entry honest
+
+The right-to-left entry in `docs/backlog.md` was written on 2026-11-01 and was
+correct then: two producers, two defects, and a number-only quote that failed. On
+2026-11-15 both files were rebuilt on this machine and re-measured. Five of the six
+Hebrew words were still reverses (the sixth had lost its full stop), the joined
+producer no longer lost the space next to the number but lost the spaces between
+Hebrew words instead, and a number-only quote now verifies on both files. Two of the
+four conclusions had quietly stopped being true in a week, one because the extractor
+changed and one because this project's own CV-001 made the whitespace-free tier stop
+certifying quotes.
+
+A backlog note is a measurement with a date, and the date is the part that rots. A
+proposal that asks someone to decide has to carry fresh numbers, because the decision
+is about the defect as it is, not as it was when it was first noticed.
+
+How to apply:
+
+- Before writing a proposal from a recorded defect, re-run the measurement that
+  recorded it. Keep the old numbers in the page with the date that produced them,
+  and say where the new ones differ and why.
+- Prefer stating a count that a test can recompute (five of six words, eight spaces,
+  a share of 0.50) over a sentence that only summarises it. Prose that can be
+  recounted is prose that can be corrected.
+- When a defect's shape changed, say which option changed with it. Option (b) here
+  covered producer A and never covered producer B; that asymmetry is the finding,
+  not a footnote to it.
+- Make the falsified claims visible rather than deleting them: `Not reproduced on
+  either file` is a stronger statement than silence, and it stops the next reader
+  from re-running the same four-day-old experiment.

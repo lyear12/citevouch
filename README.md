@@ -70,6 +70,13 @@ What follows is practical rather than philosophical: `citevouch` is a locating m
 blink, and reading the argument stays a human step. It removes the failure where a quote was never on
 that page at all. It does not remove the failure where the quote is real and beside the point.
 
+One consequence worth saying out loud: a right-to-left page is **not supported**. The reader this
+project uses can reverse every Hebrew or Arabic word, or join them together, and the tool then
+reports what it was given rather than what is printed. Measured on 2026-11-15, a correct Hebrew
+quote from one pipeline is `quote-missing` and from another is `quote-word-boundaries-unclear`.
+Three bounded answers, none of them applied, are written down in
+[docs/rtl-proposal.md](docs/rtl-proposal.md); the decision is not mine to make.
+
 ## Why this is different
 
 | | what it checks | catches | misses |
