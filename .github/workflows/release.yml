@@ -159,6 +159,13 @@ jobs:
         run: |
           python -m pip install build
           python -m build
+          # `python -m build` stamps each archive member with the wall clock and
+          # the sdist's gzip header with it too, so two builds of one tree used
+          # to differ in bytes while agreeing in content. The repair step below
+          # refuses to replace a published asset whose digest differs, which is
+          # right - and without this line it would also make a resumed release
+          # impossible, since the rebuild can never match what was published.
+          python tools/normalise_artifacts.py dist
 
       - name: Smoke-test the built wheel in a clean directory
         run: |

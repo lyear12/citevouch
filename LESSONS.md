@@ -8998,3 +8998,34 @@ How to apply:
 - Fifth, test the workflow step with real files and a stub that answers the question the step asks.
   A stub that returns the same shape for every query cannot catch "we asked the wrong question" -
   and here the stub also had to *not* answer before it was asked.
+
+## 295. A guard that refuses different bytes needs a build that produces the same bytes
+
+The published-digest guard from lesson 294 refuses to replace an asset whose digest differs from the
+one this run built. That is the right refusal. It was also, for one release, an unrecoverable one:
+`python -m build` stamps every archive member with the wall clock, and `tarfile.open(..., "w:gz")`
+writes the current time into the sdist's gzip header as well. Two builds of one tree differ in
+bytes while agreeing in content, so the honest refusal became a permanent block - a resumed release
+could never match what it had already published.
+
+The general shape: when you add a check that compares bytes, you have also made a claim that those
+bytes are stable. If they are not, the check is not "strict", it is "always fails", and the failure
+looks like diligence for as long as nobody has to get past it.
+
+How to apply:
+
+- First, after adding any byte-identity check, run the producing step twice and compare. If it does
+  not repeat, either the check is wrong or the builder is; do not ship the check alone.
+- Second, know which part of the archive holds the clock. Zip member times are the obvious one; the
+  gzip header is the one nobody thinks of because it is not a member, and normalising members alone
+  leaves it. Read the header's own `mtime` back in the test - comparing two builds in the same
+  second cannot see the difference.
+- Third, pin the epoch to something the repository itself can answer (`SOURCE_DATE_EPOCH`, then the
+  `HEAD` commit time), never to "now". A normaliser that stamps the current time reproduces
+  exactly one build: this one.
+- Fourth, prove the knob reaches the bytes. A test that only asserts "two equal builds are equal"
+  passes when the normaliser is a no-op, because a no-op is also deterministic within one second.
+  Move the epoch by a second and require the digest to change.
+- Fifth, keep a control mutation that must *not* be caught. If every mutation is caught, the suite
+  is measuring "did I edit a file", not "did the behaviour change" - and a comment-only edit that
+  goes red is the same bug as a real defect that goes green.

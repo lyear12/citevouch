@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- Two builds of one tree produced different bytes, which would have made the published-digest
+  guard a permanent block rather than a guard. `python -m build` stamps every archive member with
+  the wall clock and `tarfile.open(..., "w:gz")` writes the current time into the sdist's gzip
+  header too; measured, two builds two seconds apart gave different wheel and sdist digests while
+  every extracted member was byte-equal (the wheel differed only in zip member times, the sdist
+  additionally in its gzip header). New `tools/normalise_artifacts.py` rewrites both archives to a
+  single timestamp - `SOURCE_DATE_EPOCH` if set, else the `HEAD` commit time, else `0` - touching
+  mtimes, ownership and the gzip header but never member contents, and `release.yml`'s build step
+  runs it before the smoke test so the wheel that is installed is the wheel whose digest is
+  published. `tests/test_reproducible_build.py` (10 tests) builds the tree twice and compares
+  digests, asserts normalising leaves every member's sha256 unchanged, reads the gzip header's own
+  `mtime` (a same-second comparison cannot see it), and requires the digest to change when the
+  epoch moves - a normaliser whose epoch never reaches the bytes normalises nothing. 7/7 mutations
+  caught, including one control that must survive.
 
 ## [0.24.5] — 2026-11-15
 ### Fixed

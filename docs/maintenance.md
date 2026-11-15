@@ -101,6 +101,26 @@ compares it against `sha256sum` of the file this run built:
 Only the artefacts that are already right are skipped; whatever is missing is still attached, so a
 half-finished upload still finishes.
 
+### Rebuilding must give the same bytes
+
+The digest guard above only works if one tree has one set of bytes. It did not:
+`python -m build` stamps every archive member with the wall clock, and
+`tarfile.open(..., "w:gz")` writes the current time into the sdist's gzip
+header as well. Measured, two builds two seconds apart produced different wheel
+and sdist digests while every extracted member was byte-for-byte equal - so a
+resumed release could never have matched what was already published, and the
+honest refusal to overwrite would have become a permanent block.
+
+`tools/normalise_artifacts.py` rewrites both archives to one timestamp after
+the build. The epoch is `SOURCE_DATE_EPOCH` if set, else the `HEAD` commit time,
+else `0`; contents are never touched, only mtimes, ownership and the gzip
+header. The build step in `release.yml` calls it before the smoke test, so the
+wheel that gets installed is the wheel whose digest is published.
+
+The tests do not trust a same-second comparison: one reads the gzip header's
+own `mtime`, and another moves the epoch by a second and requires the digest to
+change - a normaliser whose epoch never reaches the bytes normalises nothing.
+
 ## What CI enforces
 
 | job | fails when |
@@ -109,7 +129,7 @@ half-finished upload still finishes.
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
 | `auto-release` | the changelog says release but the decided version changes no files, the tag points at a different commit than this release, or `main` moved past the tested SHA |
-| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, the built wheel cannot scaffold a project and verify it, or the release already publishes an asset with a different digest than this run built |
+| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, the built wheel cannot scaffold a project and verify it, the artefacts are not reproducible from the tree, or the release already publishes an asset with a different digest than this run built |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a
