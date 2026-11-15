@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-11-15
 ### Added
 
 - A release published files nobody could tie back to a commit. The tag named a commit and the release
@@ -32,7 +33,6 @@ tag and that file disagree.
   missing file, an unrecorded extra file, a truncated file, a missing record, unreadable JSON, a
   missing field and an unknown schema, and pins the workflow's three placements. 9/9 mutations
   caught plus a comment-only control that must and does survive.
-
 ## [0.24.6] — 2026-11-15
 ### Fixed
 
@@ -5750,7 +5750,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.6...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/lyear12/citevouch/releases/tag/v0.25.0
 [0.24.6]: https://github.com/lyear12/citevouch/releases/tag/v0.24.6
 [0.24.5]: https://github.com/lyear12/citevouch/releases/tag/v0.24.5
 [0.24.4]: https://github.com/lyear12/citevouch/releases/tag/v0.24.4
