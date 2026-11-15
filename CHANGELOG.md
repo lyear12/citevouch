@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.24.5] — 2026-11-15
 ### Fixed
 
 - The release repair step replaced a published asset without comparing it. When a release existed
@@ -29,7 +31,6 @@ tag and that file disagree.
   over real files and a `gh` stub that now answers `--json assets`; six mutations of the guard
   (no comparison, upload anyway, missing digest counts as a match, different digest only warns, the
   digest not computed from the built file, unconditional re-upload) all go red.
-
 ## [0.24.4] — 2026-11-15
 ### Fixed
 
@@ -5697,7 +5698,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.4...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.5...HEAD
+[0.24.5]: https://github.com/lyear12/citevouch/releases/tag/v0.24.5
 [0.24.4]: https://github.com/lyear12/citevouch/releases/tag/v0.24.4
 [0.24.3]: https://github.com/lyear12/citevouch/releases/tag/v0.24.3
 [0.24.2]: https://github.com/lyear12/citevouch/releases/tag/v0.24.2
