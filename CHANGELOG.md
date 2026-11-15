@@ -11,6 +11,22 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- A resumed release rebuilt its artefacts and hoped they matched what was already published. Since
+  v0.24.5 the recovery step refuses to replace a published asset whose digest differs, so "hoped"
+  became a hard requirement: an honest re-run has to produce byte-identical output, which a changed
+  toolchain or a different Python patch release quietly makes false. New `reuse` subcommand in
+  `tools/release_candidate.py` answers the narrower question - are these bytes the ones this release
+  is about to produce? - by demanding that the record name this version, this tag and, when the
+  caller knows it, this tested commit, then re-hashing every file; a record from another release
+  passes `check` and is still the wrong release. A new step before `Build` downloads what the tag
+  already serves and sets `reusable=true` only when that command succeeds. `Build` and the record
+  step are then skipped together: a downloaded directory already carries the record of the run that
+  built it, and rewriting it would attribute those bytes to a run that built nothing. A failed
+  download is the first-release path, not an error, and any doubt falls back to rebuilding - reuse is
+  an optimisation whose slow path is the old behaviour. Covered by `tests/test_release_reuse.py`,
+  which exercises the command, the workflow wiring and the step body itself against a `gh` stub.
 
 ## [0.25.0] — 2026-11-15
 ### Added

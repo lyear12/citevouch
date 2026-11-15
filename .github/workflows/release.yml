@@ -155,7 +155,41 @@ jobs:
           ruff check .
           ruff format --check .
 
+      - name: Reuse the published artefacts if this release already has them
+        id: reuse
+        # A resumed release rebuilt the tree and then hoped the rebuild matched
+        # what was published. That is the wrong way round: the published bytes
+        # are the ones the record describes, so when the release page already
+        # serves them, building is work that can only make the outcome worse -
+        # a rebuild that differs stops at the digest guard, and the guard is
+        # right to stop. Download first, compare, build only when the release
+        # carries nothing this run can use.
+        continue-on-error: true
+        run: |
+          tag="${{ steps.v.outputs.tag }}"
+          mkdir -p dist
+          # A release that does not exist yet is not a failure, it is a first
+          # release: `gh release download` says so with a non-zero exit.
+          if ! gh release download "$tag" --dir dist --clobber 2>/dev/null; then
+            echo "::notice::$tag serves nothing yet, so this run builds the artefacts"
+            echo "reusable=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if python tools/release_candidate.py reuse dist \
+              --version "${{ steps.v.outputs.version }}" \
+              --tag "$tag" \
+              --candidate "${{ inputs.candidate }}"; then
+            echo "::notice::$tag already serves the bytes this release would build; not rebuilding"
+            echo "reusable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$tag serves something this run cannot reuse; building instead"
+            echo "reusable=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build
+        # Skipped only when the release page already serves exactly these
+        # artefacts: reusing is the continuation, rebuilding is the fallback.
+        if: steps.reuse.outputs.reusable != 'true'
         run: |
           python -m pip install build
           python -m build
@@ -169,6 +203,11 @@ jobs:
 
       - name: Record which commit produced these bytes
         id: record
+        if: steps.reuse.outputs.reusable != 'true'
+        # Skipped when `dist/` was downloaded rather than built: a reused
+        # directory already carries the record of the run that produced it, and
+        # rewriting that would replace a statement about the run that built
+        # these bytes with a statement about a run that built nothing.
         # The workflow resolves three commits - the tested one, the source one
         # and the release one - and until now they lived only in this run's log.
         # A file in `dist/` is uploaded by the very next step, so the record

@@ -272,15 +272,20 @@ class TestTheWorkflowUsesIt:
         smoke = names.index("Smoke-test the built wheel in a clean directory")
         assert build < record < smoke
 
-    def test_neither_new_step_is_conditional(self) -> None:
-        # `if:` on either step would make the record optional or the retrieval
-        # check optional, and an optional proof is not a proof. This catches the
-        # shape a careless edit takes: adding a condition to quiet a failure.
-        for name in (
-            "Record which commit produced these bytes",
-            "Fetch the published assets back and check them against the record",
-        ):
-            assert "if" not in self._named(name), name
+    def test_the_retrieval_check_is_never_conditional(self) -> None:
+        # An optional proof is not a proof: a condition here would be the shape
+        # a careless edit takes when a step starts failing.
+        assert "if" not in self._named(
+            "Fetch the published assets back and check them against the record"
+        )
+
+    def test_the_record_is_written_only_when_these_bytes_were_built(self) -> None:
+        # The one exception, and it is the opposite of optionality: a reused
+        # `dist/` arrives carrying the record of the run that built it, and
+        # rewriting that with a run that built nothing deletes the fact worth
+        # keeping. Any other condition would make the record skippable.
+        conditional = self._named("Record which commit produced these bytes")
+        assert conditional.get("if") == "steps.reuse.outputs.reusable != 'true'"
 
     def test_the_record_carries_the_three_commits_and_the_version(self) -> None:
         body = self._named("Record which commit produced these bytes")["run"]

@@ -9064,3 +9064,38 @@ How to apply:
 - Write down what the record is not. It is metadata about one run, not a lock and not an
   authentication of the bytes against someone who edits both the file and the record.
 
+## 297. A rebuild is a guess about bytes that are already published
+
+For four releases this project's own recovery path built the artefacts a second time and uploaded
+them, and the only reason that was ever safe is that the second build happened to produce the same
+bytes. Nothing said so, nothing checked, and the same "it worked" was available when the second build
+differed - until v0.24.5's digest guard turned "happens to match" into "must match". At that point the
+release stopped being able to resume whenever a toolchain changed, and the fix was not a better guard
+but a different order of operations: read the released bytes before deciding to build any.
+
+The general shape is a distinction between producing a fact and recovering one. When an earlier run
+already published the answer, the cheap correct move is to fetch that answer and verify it against
+the identity you now hold - version, tag, tested commit - rather than to recompute it and compare.
+Recomputing looks safer because it re-derives everything from source, but it silently makes every
+determinism assumption load-bearing, and a build is one of the least deterministic things a project
+owns.
+
+Two details decide whether reuse is actually safe. First, the identity check must be narrower than
+the integrity check: a record from a different release passes every digest comparison and is still
+the wrong release, so `reuse` demands version and tag (and tested commit when known) *before* handing
+over to `check`. Second, the fallback must be the old behaviour, not an error: a failed download is
+a first release, and any doubt rebuilds. An optimisation whose slow path is the previously correct
+code is allowed to be wrong in the cautious direction.
+
+How to apply:
+
+- When a step can either recompute or fetch, write down which one is authoritative and check the
+  fetched answer's *identity* before its contents.
+- Ask what the recompute path assumes. A rebuild assumes reproducibility; if a guard elsewhere
+  forbids differing bytes, that assumption just became a hard requirement.
+- Make reuse fail toward the slow path. A skipped optimisation must never be able to fail a release
+  that would otherwise have worked.
+- Cover the decision where it is made, not where it is described: a YAML assertion that the step
+  mentions `reusable=true` has not shown that any run sets it.
+- Do not rewrite a record that you did not produce. Attribution is part of the artefact, and a
+  directory downloaded from a release carries the run that built it.

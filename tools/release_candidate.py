@@ -143,6 +143,44 @@ def describe(dist: Path) -> dict:
     return _load(dist)
 
 
+def reuse(
+    dist: Path,
+    *,
+    version: str,
+    tag: str,
+    candidate: str = "",
+) -> list[str]:
+    """Everything wrong with reusing `dist` as this release. Empty means it can.
+
+    This is the whole point of the record. A resumed release downloads what the
+    release page already serves and asks one question: are these the bytes this
+    version, this tag and this tested commit produced? If they are, there is
+    nothing to build - rebuilding would risk a different result and the digest
+    guard would then refuse to publish, which is a stop where reuse is a
+    continuation.
+
+    It is stricter than `check`, which only knows whether the files match the
+    record beside them. A record lifted from another release would pass `check`
+    and still be the wrong release, so the identities are compared first.
+    """
+    problems: list[str] = []
+    payload = _load(dist)
+    if payload.get("version") != version:
+        problems.append(
+            f"the published record is version {payload.get('version')}, but this run releases {version}"
+        )
+    if payload.get("tag") != tag:
+        problems.append(
+            f"the published record is for tag {payload.get('tag')}, but this run releases {tag}"
+        )
+    if candidate and payload.get("candidate") != candidate:
+        problems.append(
+            f"the published record names candidate {payload.get('candidate')}, "
+            f"but the Test run that triggered this release was {candidate}"
+        )
+    return problems + check(dist)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -161,6 +199,21 @@ def main(argv: list[str] | None = None) -> int:
 
     verify = commands.add_parser("check", help="recompute every digest and report what differs")
     verify.add_argument("dist", type=Path)
+
+    # Named apart from the `reuse` function on purpose: `write` and `check` are
+    # parsers called `record` and `verify` for the same reason, and shadowing
+    # one here produced `TypeError: 'ArgumentParser' object is not callable`
+    # the first time this command existed.
+    decide = commands.add_parser(
+        "reuse",
+        help="decide whether published artefacts can stand in for a rebuild",
+    )
+    decide.add_argument("dist", type=Path)
+    decide.add_argument("--version", required=True)
+    decide.add_argument("--tag", required=True)
+    decide.add_argument(
+        "--candidate", default="", help="the tested commit, empty for a tag push"
+    )
 
     show = commands.add_parser("show", help="print one field of the record")
     show.add_argument("dist", type=Path)
@@ -192,6 +245,24 @@ def main(argv: list[str] | None = None) -> int:
         payload = _load(args.dist)
         print(
             f"{args.dist} matches its record: version {payload['version']}, "
+            f"{len(payload['artifacts'])} artefact(s), release {payload['release_sha']}"
+        )
+        return 0
+
+    if args.command == "reuse":
+        problems = reuse(
+            args.dist,
+            version=args.version,
+            tag=args.tag,
+            candidate=args.candidate,
+        )
+        if problems:
+            for problem in problems:
+                print(f"::error::{problem}")
+            return 1
+        payload = _load(args.dist)
+        print(
+            f"{args.dist} is what {payload['tag']} published: version {payload['version']}, "
             f"{len(payload['artifacts'])} artefact(s), release {payload['release_sha']}"
         )
         return 0

@@ -155,6 +155,31 @@ python tools/release_candidate.py show dist release_sha
 ```
 
 
+### A release that already exists is read, not rebuilt
+
+Re-running the release for a tag that is already out used to rebuild the artefacts and hope the
+bytes matched. That hope only became load-bearing when the recovery step started refusing to
+replace a published asset whose digest differs: an honest re-run now has to produce byte-identical
+output, and a toolchain update or a different Python patch release quietly makes that false.
+
+So the step before `Build` asks the release what it already serves. `gh release download` fills
+`dist/`, and `tools/release_candidate.py reuse` answers one question: are these bytes the ones this
+release is about to produce? It refuses unless the record names **this** version, **this** tag and,
+when the caller knows it, **this** tested commit - a record from another release passes `check` and
+is still the wrong release - and then it hands over to `check`, which re-hashes every file. Only
+then does `reusable=true` skip the build.
+
+Two details are deliberate rather than incidental. A download that fails is not an error: a tag
+with no release yet is the first-release path, and the step records `reusable=false` and lets the
+build run. And when the build is skipped the record step is skipped too, because a directory
+downloaded from the release already carries the record of the run that built it; rewriting it would
+attribute those bytes to a run that built nothing.
+
+The fallback is rebuild, not fail. If anything about the published directory is unreadable or
+unexpected, the release builds again - with normalised timestamps it produces the same bytes, and if
+it does not, the digest guard stops before replacing anything. Reuse is an optimisation with a
+correct slow path, which is why it may be wrong in the cautious direction and still be safe.
+
 ## What CI enforces
 
 | job | fails when |
