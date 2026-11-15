@@ -167,6 +167,33 @@ jobs:
           # impossible, since the rebuild can never match what was published.
           python tools/normalise_artifacts.py dist
 
+      - name: Record which commit produced these bytes
+        id: record
+        # The workflow resolves three commits - the tested one, the source one
+        # and the release one - and until now they lived only in this run's log.
+        # A file in `dist/` is uploaded by the very next step, so the record
+        # travels with the artefacts: someone holding the wheel can read which
+        # commit built it and what the other files in the release weigh, and a
+        # resumed run can compare instead of guessing whether the rebuild is the
+        # same build.
+        #
+        # `steps.tree` writes its outputs only on the candidate path; a tag push
+        # or a manual dispatch has no tested commit to name, and the honest
+        # answer there is the tree being released, which is what the fallback
+        # says rather than an empty field that reads like a missing fact.
+        run: |
+          release_sha="$(git rev-parse HEAD)"
+          source_sha="${{ steps.tree.outputs.source_sha }}"
+          if [ -z "$source_sha" ]; then
+            source_sha="$release_sha"
+          fi
+          python tools/release_candidate.py write dist \
+            --version "${{ steps.v.outputs.version }}" \
+            --tag "${{ steps.v.outputs.tag }}" \
+            --candidate "${{ inputs.candidate }}" \
+            --source-sha "$source_sha" \
+            --release-sha "$release_sha"
+
       - name: Smoke-test the built wheel in a clean directory
         run: |
           python -m venv /tmp/clean
@@ -307,6 +334,23 @@ jobs:
           fi
           echo "release $tag is published"
 
+      - name: Fetch the published assets back and check them against the record
+        # A digest on a release page is a claim by the service that hosts the
+        # file. This step stops taking that on faith: it downloads what the
+        # release actually serves and recomputes every hash against the record
+        # this run wrote. An upload that reported success and stored a truncated
+        # body, an asset attached to the wrong release, a record that disagrees
+        # with the bytes - all of them fail here, which is the only place in the
+        # workflow where the published thing is read rather than written.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.v.outputs.tag }}"
+          rm -rf retrieved && mkdir retrieved
+          gh release download "$tag" --dir retrieved --clobber
+          python tools/release_candidate.py check retrieved
+          echo "::notice::$tag serves back the bytes this run built"
+
       - name: Summarise
         run: |
           echo "### Released ${{ steps.v.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
@@ -320,4 +364,9 @@ jobs:
                  >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate record (uploaded as \`release-candidate.json\`):" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat dist/release-candidate.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           ls -la dist >> "$GITHUB_STEP_SUMMARY"

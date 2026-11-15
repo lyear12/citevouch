@@ -121,6 +121,40 @@ The tests do not trust a same-second comparison: one reads the gzip header's
 own `mtime`, and another moves the epoch by a second and requires the digest to
 change - a normaliser whose epoch never reaches the bytes normalises nothing.
 
+### The release says which commit produced which bytes
+
+A tag names a commit and a release page lists files. Neither says which commit produced those files,
+and until v0.24.7 nothing did: a person holding a downloaded wheel could learn the tag and no more,
+and a resumed release could only *assume* its rebuild was the same build.
+
+`tools/release_candidate.py` writes `dist/release-candidate.json` before the smoke test, so the
+record is uploaded with the artefacts it describes. It carries `version`, `tag`, `candidate` (the
+tested commit), `source_sha`, `release_sha` and, for every file in `dist` except itself, its
+`sha256` and size. The record deliberately cannot describe itself - writing a digest into a file
+changes that digest - and `check` demands the file separately rather than silently skipping an
+unrecorded one.
+
+The last step of the workflow downloads what the release actually serves (`gh release download`)
+and runs `check` against that directory. That is the only place in the pipeline where the published
+thing is read rather than written, so it is the only place that can notice an upload which reported
+success and stored something else.
+
+Two properties are load-bearing rather than tidy. The record is deterministic - sorted keys, sorted
+artefacts, no timestamp - because the recovery step's digest guard refuses to replace a published
+asset whose bytes differ, and an honest re-run of the same tag therefore has to produce a
+byte-identical record. And the record is metadata, not a lock: it says what one run built, and
+`check` says whether the bytes in front of you are still those bytes. It does not say who is
+allowed to publish, and it does not authenticate a file against a hostile editor who controls both
+the file and the record.
+
+Run it by hand against any directory of artefacts:
+
+```console
+python tools/release_candidate.py check dist
+python tools/release_candidate.py show dist release_sha
+```
+
+
 ## What CI enforces
 
 | job | fails when |
@@ -129,7 +163,7 @@ change - a normaliser whose epoch never reaches the bytes normalises nothing.
 | `lint` | `ruff check` or `ruff format --check` reports a difference |
 | `acceptance` | the documented first run (`init-demo`) or the demo project stops producing its expected result |
 | `auto-release` | the changelog says release but the decided version changes no files, the tag points at a different commit than this release, or `main` moved past the tested SHA |
-| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, the built wheel cannot scaffold a project and verify it, the artefacts are not reproducible from the tree, or the release already publishes an asset with a different digest than this run built |
+| `release` | the tag does not match `src/citevouch/_version.py`, the suite is red, more than one commit landed after the tested SHA, the built wheel cannot scaffold a project and verify it, the artefacts are not reproducible from the tree; the published assets are not what a downloaded directory actually contains, or the release already publishes an asset with a different digest than this run built |
 
 The `acceptance` job is the important one. It runs the same command a new user runs, from a directory
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a

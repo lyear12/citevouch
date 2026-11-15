@@ -12,6 +12,27 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Added
+
+- A release published files nobody could tie back to a commit. The tag named a commit and the release
+  page listed names and digests, so a person holding a downloaded wheel could learn the tag and
+  nothing else - not which commit built it, not whether the other files in the same release came from
+  the same tree - and a resumed release had no way to say whether its rebuild was the same build; the
+  digest guard from v0.24.5 could stop a *different* build but nothing defined what the same build
+  was. New `tools/release_candidate.py` writes `dist/release-candidate.json` before the smoke test,
+  so the record is uploaded with the artefacts it describes: version, tag, the tested, source and
+  release commits, and the `sha256` plus size of every file except itself. The record cannot describe
+  itself - writing a digest into a file changes that digest - and `check` demands the file rather than
+  skipping an unrecorded one. A new final step downloads what the release actually serves
+  (`gh release download`) and runs `check` on that directory, which is the only place in the pipeline
+  where the published thing is read instead of written. The record is deterministic (sorted keys,
+  sorted artefacts, no timestamp) because the recovery step's digest guard refuses differing bytes,
+  so an honest re-run of one tag has to produce a byte-identical record; a test asserts exactly that.
+  `tests/test_release_candidate_record.py` (24 tests) recomputes digests, refuses a changed byte, a
+  missing file, an unrecorded extra file, a truncated file, a missing record, unreadable JSON, a
+  missing field and an unknown schema, and pins the workflow's three placements. 9/9 mutations
+  caught plus a comment-only control that must and does survive.
+
 ## [0.24.6] — 2026-11-15
 ### Fixed
 

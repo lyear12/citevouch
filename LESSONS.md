@@ -9029,3 +9029,38 @@ How to apply:
 - Fifth, keep a control mutation that must *not* be caught. If every mutation is caught, the suite
   is measuring "did I edit a file", not "did the behaviour change" - and a comment-only edit that
   goes red is the same bug as a real defect that goes green.
+
+## 296. A record that cannot describe itself is the only record worth checking
+
+`tools/release_candidate.py` writes a digest for every file in `dist` except its own record. That
+lookup is not a convenience: a file containing its own `sha256` cannot contain it, because writing
+the digest changes the digest. Every scheme that has tried - "hash everything except the hash field",
+"zero the field first" - replaces a checkable claim with a procedure the reader has to trust. The
+record's answer is to name only what it can name and make `check` demand the record file separately,
+so "the record does not name this file" becomes an error instead of silent acceptance.
+
+The second half is where the check runs. The record is written next to the bytes it describes and is
+uploaded in the same `gh release upload` call; the last step of the workflow then downloads the
+release (`gh release download`) and runs `check` on that directory. Until that step existed, every
+statement about the published artefacts was a statement about the *local* build, and the one thing
+that can go wrong - a release page serving bytes other than the ones uploaded - was the one thing
+nothing read.
+
+Determinism is load-bearing rather than tidy. v0.24.5's digest guard refuses to replace a published
+asset whose bytes differ, so a resumed release that cannot rebuild the same bytes can never finish;
+the record therefore has sorted keys, sorted artefacts and no timestamp, and a test asserts two
+honest runs produce identical bytes rather than asserting the fields it happens to care about.
+
+How to apply:
+
+- When a file carries digests, ask which files it cannot carry and make the reader demand those
+  separately; "except itself" is a real category, not an edge case to skip.
+- Put the check where the artefact is *read* rather than where it is written. A pipeline that only
+  ever writes has no place where its own output can be found wrong.
+- If a guard refuses differing bytes, the production step owes you a second identical run. Prove it
+  with a digest, not with a reviewer's belief that the build is reproducible.
+- A record that exists to make a later run possible has to survive being re-run: assert the second
+  write, because the first one is trivially safe (the file does not exist yet).
+- Write down what the record is not. It is metadata about one run, not a lock and not an
+  authentication of the bytes against someone who edits both the file and the record.
+
