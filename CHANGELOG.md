@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.27.1] — 2026-11-15
 ### Fixed
 
 - `scan` no longer retargets a ledger that already describes another document, and `draft` no
@@ -32,7 +33,6 @@ tag and that file disagree.
   else. The page's warning is gone, since the tool now enforces it; `tests/test_scan_ledger_owner.py`
   walks the refusal, the advice, the `--dry-run` exemption and the damaged-ledger repair, and
   `tests/test_final_manuscript_doc.py` now pins the refusal sentence rather than a prohibition.
-
 ## [0.27.0] — 2026-11-15
 ### Added
 
@@ -5831,7 +5831,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/lyear12/citevouch/releases/tag/v0.27.1
 [0.27.0]: https://github.com/lyear12/citevouch/releases/tag/v0.27.0
 [0.26.1]: https://github.com/lyear12/citevouch/releases/tag/v0.26.1
 [0.26.0]: https://github.com/lyear12/citevouch/releases/tag/v0.26.0
