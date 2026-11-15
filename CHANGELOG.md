@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-11-15
 ### Added
 
 - `docs/branch-protection-proposal.md` records what `main` actually enforces,
@@ -41,7 +42,6 @@ tag and that file disagree.
   question (A: protect pull requests and write down that direct pushes bypass it;
   B: full protection with a second account or a documented release-token exemption;
   C: leave it open and say so in the README).
-
 ## [0.30.0] — 2026-11-15
 ### Added
 
@@ -5924,7 +5924,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/lyear12/citevouch/releases/tag/v0.31.0
 [0.30.0]: https://github.com/lyear12/citevouch/releases/tag/v0.30.0
 [0.29.0]: https://github.com/lyear12/citevouch/releases/tag/v0.29.0
 [0.28.0]: https://github.com/lyear12/citevouch/releases/tag/v0.28.0
