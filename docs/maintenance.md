@@ -6,21 +6,47 @@ operational half: who runs what, and which failures stop the line.
 
 ## The loop
 
+The loop this project is built around, with every stage marked by whether it **runs today** or is
+only an intention:
+
 ```
-issue  ──►  agent reads AGENTS.md + LESSONS.md + docs/code-standards.md
-       ──►  reproduces the report as a failing test
-       ──►  fixes the class, runs the acceptance criteria
-       ──►  opens one commit that names the failing case
-       ──►  CI: tests on every OS/version pair where the interpreter exists (8 cells)
-       ──►  green on main  ──►  auto-release reads CHANGELOG's Unreleased section
-       ──►  tools/next_version.py picks the number, writes it, commits, tags
-       ──►  release workflow: suite, build, clean-venv smoke test, publish, release notes
-       ──►  nightly: the day's commits are reviewed, lessons that recur are promoted
+issue  ──►  a person reads it and decides it is worth fixing         ← a person, by design
+       ──►  agent reads AGENTS.md + LESSONS.md + code-standards     ← not automated
+       ──►  reproduces the report as a failing test                 ← not automated
+       ──►  fixes the class, runs the acceptance criteria           ← not automated
+       ──►  opens one commit that names the failing case            ← not automated
+       ──►  CI: every OS/version pair the interpreter exists on     ← automated
+       ──►  green on main ──► auto-release reads Unreleased         ← automated
+       ──►  next_version.py picks the number, commits, tags         ← automated
+       ──►  release workflow: suite, build, smoke, publish, notes   ← automated
+       ──►  nightly: installs the newest wheel, replays the
+            documented first run, files an issue if it fails        ← automated
+       ──►  retrospective: reads the day's commits, promotes
+            lessons that recur                                      ← **not built**
 ```
 
-There is exactly one place where a human is required: someone has to decide that a reported issue is
-worth fixing. Everything after that — reproducing it as a test, the fix, the commit, the version
-bump, the tag, the release — is mechanical enough to be a rule.
+### What is automated, and what is not
+
+Automated, and exercised on every change: the test matrix, the sdist suite, the acceptance run, the
+version decision, the tag, the release, and the nightly install of the published wheel.
+
+**Not automated, and not to be described as if it were:**
+
+| stage | state today | what that costs |
+|---|---|---|
+| reading a new issue | nothing consumes it | a report sits until a person points an agent at it |
+| reviewing an incoming change | no reviewer runs on a pull request | GitHub reports `main` as unprotected with no rulesets; the review rules are text, not enforcement |
+| merging | a person merges, or the agent pushes to `main` | there is no merge bot and no auto-approval |
+| the retrospective | `LESSONS.md` still says `reviewed-through: none` | lessons are written by whoever wrote the fix, not harvested afterwards |
+
+The nightly job is named `Nightly dogfood` and does one thing: it installs the newest published wheel
+in a clean environment, replays the first commands the documentation shows, and opens an issue when
+that stops working. It does not read commits and it does not promote lessons, so anything in this
+document that says it does is describing the intention rather than the pipeline.
+
+There is exactly one place where a human is required **by design**: someone has to decide that a
+reported issue is worth fixing. Everything after that decision is written down as rules so it can be
+mechanical — and most of it is — but written down as a rule is not the same as running.
 
 ## What decides a version
 
@@ -206,17 +232,21 @@ Any of these, and the change does not go in that day:
 - an exit code other than 0, 1, 2;
 - a change to `citevouch.lock.json`'s shape without a `schema` bump.
 
-## Nightly review
+## The retrospective (not yet automated)
 
-Each night the day's commits are read back with three questions:
+The three questions are the point of the loop, which is why they live in their own section instead
+of in the pipeline above: nothing runs them yet. When a retrospective does happen — a person doing
+it, or an agent asked to — it asks:
 
 1. What had to be fixed again? → becomes a lesson if it recurs three times.
 2. What should not have merged? → becomes a rule in the code standards.
 3. What was verified too thinly? → becomes a test, and the commit message that overstated it is
    noted in `LESSONS.md` as evidence.
 
-The review writes to [../LESSONS.md](../LESSONS.md) under a `reviewed-through` marker at the top of
-the file, so an interrupted review resumes instead of starting over.
+A run writes to [../LESSONS.md](../LESSONS.md) under a `reviewed-through` marker at the top of the
+file, so an interrupted one resumes instead of starting over. That marker currently reads `none`,
+which is the honest statement of how much of this has happened: every lesson in the file was written
+by the change that produced it, and none has been harvested from a day's commits after the fact.
 
 ## Version policy
 

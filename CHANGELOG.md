@@ -12,6 +12,25 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- Three documents described machinery nobody had run. `docs/maintenance.md` drew a loop in which the
+  nightly reads the day's commits and promotes recurring lessons; `nightly.yml` installs the newest
+  published wheel, replays the documented first run, and files an issue when that fails — it never
+  reads a commit, and `LESSONS.md` still says `reviewed-through: none`. The same page described issue
+  consumption, review and merging as stages of the loop; nothing consumes an issue, no reviewer runs
+  on a pull request (`main` is unprotected with no rulesets), and there is no merge bot. And
+  `docs/metrics.md`, a file whose purpose is repeatable measurement, documented
+  `gh api repos/.../releases`, which returns thirty releases by default: measured 2026-11-15, that
+  command reported 30 releases and 83 downloads while the paginated one reported 255 and 732. The
+  documents now separate what runs from what is intended, the measurement commands pin
+  `per_page=100` and `--paginate`, every count states what it cannot support (this project's own
+  nightly downloads are indistinguishable from a person at that granularity, and a zero count is not
+  evidence that nobody uses the tool), and `LESSONS.md` no longer opens by describing a nightly
+  review that never runs. `tests/test_automation_claims.py` reads `nightly.yml` and asserts that the
+  documents describe it rather than the loop they wished for; ten tests, and each of thirteen
+  restored wordings turns them red (a fourteenth, comment-only edit stays green).
+
 ## [0.26.0] — 2026-11-15
 ### Added
 

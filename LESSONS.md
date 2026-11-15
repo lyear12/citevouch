@@ -2,16 +2,17 @@
 
 <!-- reviewed-through: none (pre-1.0, no nightly review yet) -->
 
-`citevouch` is written, reviewed and released by agents. Each night the day's commits are reviewed
-for what had to be fixed again, what should not have merged, and what was verified too thinly. What
-we learned is kept here. Read this before changing code.
+`citevouch` is written, reviewed and released by agents. A retrospective is supposed to review the
+day's commits for what had to be fixed again, what should not have merged, and what was verified too
+thinly. **That retrospective does not run yet** - the marker above says `none` and means it - so
+everything below was written by the change that produced it, at the moment it was learned. Read this
+before changing code.
 
 Each lesson is a rule, then why, then the evidence. "Seen" counts the separate days a review found
 it. A lesson seen on three or more separate days moves into [docs/code-standards.md](docs/code-standards.md).
 
-This file starts from the lessons that were already paid for during the first build of the tool,
-before any nightly review existed. The evidence below is real: each entry names the file or the
-command output that produced it.
+This file starts from the lessons that were already paid for during the first build of the tool.
+The evidence below is real: each entry names the file or the command output that produced it.
 
 ## Reading this file
 
@@ -9099,3 +9100,24 @@ How to apply:
   mentions `reusable=true` has not shown that any run sets it.
 - Do not rewrite a record that you did not produce. Attribution is part of the artefact, and a
   directory downloaded from a release carries the run that built it.
+
+## 298. A sentence about what a machine does is a claim that has to be run
+
+
+A document that describes automation is a claim about a program, and the program is the thing that
+decides whether the sentence is true. Every other kind of claim in this repository is measured before
+it is written down: a quote is matched against a page, a release asset is downloaded and hashed, a
+test is reverted to watch it go red. A paragraph about what the nightly does was the one claim nobody
+executed, in a project whose entire premise is that claims get executed.
+
+The same defect showed up twice in one file. `docs/maintenance.md` described a retrospective stage
+that has no step in `nightly.yml`, and `docs/metrics.md` documented a command whose default page
+size silently measured 30 of 255 releases. Both were written by someone reading their own intention
+instead of the artefact; both were believed because they were specific.
+
+**How to apply.** When you write "the workflow does X", open the workflow and find X. When you
+document a command, paste its output and not its shape — a number with no `--paginate` is a number
+about one page. When a document says a stage exists, name the file and step that performs it, so the
+next reader can check without trusting you. And when an absence appears in a table — zero issues,
+zero downloads — write down what that absence cannot distinguish, because the temptation to read a
+zero as a conclusion is strongest exactly where the funnel is broken.
