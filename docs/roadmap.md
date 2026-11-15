@@ -35,7 +35,7 @@ CV-001 只对列明 fixture 承诺预期结果；无法区分词内排版断行�
 | CV-010 | P1 needs_owner，依赖 009 | Owner 登记 PyPI publisher | 仅 Owner 进行账号操作；按 009 的实际身份登记，记录可公开配置确认，不记录 token；登记不是分发完成 |
 | CV-011 | P1 pending，依赖 007/010 | 从 PyPI 真正取回交付物 | 指定版本 JSON 可取；文件 hash 与候选一致；仓库外新环境从索引下载安装并完成首个任务；GitHub 与 PyPI 分别记录状态 |
 | CV-012 | P1 **done**（v0.27.0 / b987474） | 先补最终 Markdown 原稿的工作流验收 | 仓库外安装现有确切交付物；draft→阅证→回填原稿→scan 原稿→recorded CI；普通改稿、claim 改动、换源有明确复审步骤；不能只验证 proposals 文件 |
-| CV-022 | P0 ready | 先停掉会静默换掉账本的写入 | `scan claims.md` 不能无声把记录 `final.md` 的账本换成 `claims.md`；要么写入拒绝并说明账本属于哪个文档，要么 proposals 文件不再印那条建议；`check claims.md` 与 `scan claims.md --ledger claims.lock.json` 必须继续可用 |
+| CV-022 | P0 **done**（v0.27.1 / bd027e2） | 先停掉会静默换掉账本的写入 | `scan claims.md` 不能无声把记录 `final.md` 的账本换成 `claims.md`；要么写入拒绝并说明账本属于哪个文档，要么 proposals 文件不再印那条建议；`check claims.md` 与 `scan claims.md --ledger claims.lock.json` 必须继续可用 |
 | CV-013 | P1 ready；方案完成后 needs_owner | 准备人工审查状态/原稿绑定方案，再取得决定 | 先提交两个明确方案：保留手工回填，或持久化审查与内容 hash 绑定；比较用户负担、迁移及兼容性；保存方案/checkpoint 并询问一次后才等待；Owner 决定前不改 schema |
 | CV-014 | P1 pending，依赖 012 | 完成限定范围的 LaTeX 最终原稿路径 | 写清 TeX 转换限制与包含文件范围；以最终原稿为验收对象演示改稿/换源；无法承诺的情况说明未知，不把转换文本当原稿已保护 |
 
@@ -67,4 +67,4 @@ CV-013 是设计决定。先写可审查方案，随后向 Owner 一次说明具
 
 ## 下一次唤醒直接做什么
 
-先按 [iteration](iteration.md) 分诊 CI 和 Issue、核对工作树与上一轮 checkpoint。全部清楚后**领取 CV-022**（先停掉会静默换掉账本的写入：`scan` 必须拒绝把记录别的文档的账本换掉，或 proposals 文件不再印那条建议）。CV-012 已交付（v0.27.0），CV-022 落地后即可删掉页面上的警告。CV-001…CV-008 已交付（v0.23.1、v0.24.0、v0.24.1、v0.24.2、v0.24.3、v0.24.4、v0.24.5/v0.24.6/v0.25.0/v0.26.0、v0.26.1），不再列为 open；CV-007 的四条验收已全部闭合，续跑路径现在是先下载已发布字节、能对上就不再构建；CV-008 之后文档不再把意图写成机制，且指标命令会分页。
+先按 [iteration](iteration.md) 分诊 CI 和 Issue、核对工作树与上一轮 checkpoint。全部清楚后**领取 CV-013**（P1：先写成可审方案，保存 checkpoint 后向 Owner 询问一次，再转 needs_owner 等待决定；不要为写方案请求许可，也不要在等待中挡住其他 ready 项）。CV-022 已交付（v0.27.1），页面上的警告已删除、由工具本身拒绝；CV-012 已交付（v0.27.0）。CV-001…CV-008 已交付（v0.23.1、v0.24.0、v0.24.1、v0.24.2、v0.24.3、v0.24.4、v0.24.5/v0.24.6/v0.25.0/v0.26.0、v0.26.1），不再列为 open；CV-007 的四条验收已全部闭合，续跑路径现在是先下载已发布字节、能对上就不再构建；CV-008 之后文档不再把意图写成机制，且指标命令会分页。

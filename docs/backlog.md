@@ -6387,3 +6387,11 @@ that nobody uses the tool — and the admission that with PyPI returning 404, an
 be told apart from a broken funnel. `tests/test_automation_claims.py` reads `nightly.yml` and fails
 the suite if the documents drift back; thirteen restored wordings turn it red, a comment-only control
 stays green.
+
+## Archived 2026-11-15 — CV-022, a ledger is about one document
+
+**What was wrong.** `scan` wrote whichever document it was pointed at into whichever ledger it was given. On a project recorded from `final.md`, `citevouch scan claims.md` replaced the record of the manuscript with a record of the proposals: exit 0, nothing on stderr, and the next `check final.md --use-recorded` reported `[high] ledger-stale` about a manuscript nobody had touched. The proposals header that `draft` writes told the reader to run exactly that command.
+
+**What it cost.** The one file that says what the project is about could be retargeted by following the tool's own instructions, and the damage surfaced later, as a high finding against a manuscript that had not changed.
+
+**Why it is now true.** A `scan` whose target ledger names a different document stops with exit 2 and a message naming both documents and the command that keeps both records; only a proved difference is refused, so a damaged ledger is still repairable. The proposals header prints `citevouch scan claims.md --ledger claims.lock.json`, spelled the way the ledger spells it, so the advice runs and leaves the project ledger alone. The page's "do not run this" warning is gone because the tool now enforces it.
