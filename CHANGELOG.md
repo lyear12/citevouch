@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.24.6] — 2026-11-15
 ### Fixed
 
 - Two builds of one tree produced different bytes, which would have made the published-digest
@@ -41,7 +43,6 @@ tag and that file disagree.
   guard that would have caught it: every module the suite `-m`-runs must be promised by the extra
   the tests are installed from. 5/5 mutations caught, plus a comment-only control that must and
   does survive.
-
 ## [0.24.5] — 2026-11-15
 ### Fixed
 
@@ -5728,7 +5729,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.5...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.24.6...HEAD
+[0.24.6]: https://github.com/lyear12/citevouch/releases/tag/v0.24.6
 [0.24.5]: https://github.com/lyear12/citevouch/releases/tag/v0.24.5
 [0.24.4]: https://github.com/lyear12/citevouch/releases/tag/v0.24.4
 [0.24.3]: https://github.com/lyear12/citevouch/releases/tag/v0.24.3
