@@ -6209,3 +6209,38 @@ runs it, and asserts the contrast — the default threshold lets the drift throu
 does not — so deleting the flag fails the suite instead of quietly weakening the gate. 4260 tests
 pass, 250 files are formatted, the demo still reports 5 claims with 4 verified and 1 missing, and
 7 of 7 reverse mutations are caught.
+
+## Archived 2026-11-15 — CV-006, a tag is an identity and three doors need one lock
+
+**What was wrong.** `auto-release.yml` decided whether a tag existed with `git rev-parse -q --verify
+refs/tags/$tag`, and after three rejected pushes it asked `git ls-remote --tags --exit-code origin
+refs/tags/$tag` whether the tag was on the remote. Both answer a question about a *name*. The first
+asks about a tag this run created a dozen lines earlier - the runner's own note-to-self - and the
+second says only that some run wrote that name. Measured against a real bare remote holding `v9.9.9`
+at another run's commit: the step printed `::notice::v9.9.9 is on the remote even though no attempt
+exited zero`, exited 0, and left this run's bump commit on `main` with nothing pointing at it. The
+existing-tag branch was wrong in the other direction: a tag standing at the very commit being
+released was reported as `tag already exists` and failed, so the documented repair - re-run the
+release - could not work. Separately, `release.yml` had no `concurrency` at all while the workflow
+that calls it did, so its three doors (tag push, manual dispatch, reusable call) could publish at
+once.
+
+**What it costs.** A stranded version number whose failure message says success: the next release
+decides there is nothing to release, because the Unreleased section was emptied by the bump commit
+that no tag points at. The number has to be burned or the tag moved by hand, and nothing in the log
+says so. The publisher race is the same failure one step earlier: two runs building and uploading
+the same release.
+
+**Why it is now true.** Both comparisons peel to a commit. Locally `refs/tags/$tag^{commit}` is
+compared with this release's HEAD: equal is a re-run and succeeds, different stops the run and names
+the commit it found. Remotely the step asks for `refs/tags/$tag` *and* `refs/tags/$tag^{}` and
+compares the peeled commit; a lightweight tag answers on the plain line, which is already a commit.
+An unreadable remote is a failure rather than an agreement, and both failures end in the hand-repair
+command, because the bump is already on `main`. `release.yml` carries `concurrency: group:
+publisher`, deliberately not named `auto-release`: a reusable workflow does not inherit its caller's
+group, so one name would leave the caller holding the lock while the callee waits on it.
+`tests/test_release_publisher.py` runs the real step body against a real git repository and a bare
+remote, including the concurrent-release regression and a lightweight tag; `tests/test_tag_push.py`'s
+stub now answers the two questions the step actually asks instead of returning 1 for every
+`rev-parse`. Six mutations, six red. 4273 tests pass, 251 files formatted, and the deliberate
+false-quote demo still reports `5 claims — 4 verified, 0 moved, 1 missing`, worst `high`, exit 1.
