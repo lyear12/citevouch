@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.27.0] — 2026-11-15
 ### Added
 
 - `docs/final-manuscript.md`, the workflow this tool exists for, written in the order a writer
@@ -34,8 +36,6 @@ tag and that file disagree.
   advice replaces the project's record of the manuscript. `scan claims.md --ledger claims.lock.json`
   is the safe form and the page says so, but the advice inside the generated file still points at
   the unsafe one. Guarding the write itself is `CV-022` in `docs/iteration-state.json`.
-
-
 ## [0.26.1] — 2026-11-15
 ### Fixed
 
@@ -5810,7 +5810,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/lyear12/citevouch/releases/tag/v0.27.0
 [0.26.1]: https://github.com/lyear12/citevouch/releases/tag/v0.26.1
 [0.26.0]: https://github.com/lyear12/citevouch/releases/tag/v0.26.0
 [0.25.0]: https://github.com/lyear12/citevouch/releases/tag/v0.25.0

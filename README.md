@@ -158,7 +158,7 @@ Not on PyPI yet — the release workflow publishes there once a trusted publishe
 this repository, and reports whether it did. Until then, install from GitHub:
 
 ```bash
-pip install "git+https://github.com/lyear12/citevouch@v0.26.1"
+pip install "git+https://github.com/lyear12/citevouch@v0.27.0"
 # or, from a clone:
 pip install .
 ```
@@ -348,7 +348,7 @@ sample" unambiguously.
 The shortest form is the action. It installs the tag it is pinned to and runs the gate:
 
 ```yaml
-- uses: lyear12/citevouch@v0.26.1
+- uses: lyear12/citevouch@v0.27.0
   with:
     manuscript: manuscript.md
 ```
@@ -372,7 +372,7 @@ It writes a SARIF file and exposes its path as the `sarif` output, so adding a c
 is one more step:
 
 ```yaml
-- uses: lyear12/citevouch@v0.26.1
+- uses: lyear12/citevouch@v0.27.0
   id: citevouch
   with:
     manuscript: manuscript.md
@@ -393,7 +393,7 @@ because the CLI default is `high` and the drift these gates exist to catch is `m
 ```yaml
 - uses: actions/setup-python@v5
   with: { python-version: "3.12" }
-- run: pip install "git+https://github.com/lyear12/citevouch@v0.26.1"
+- run: pip install "git+https://github.com/lyear12/citevouch@v0.27.0"
 - run: citevouch check manuscript.md --root . --use-recorded --fail-on medium --format sarif > citevouch.sarif
 ```
 
