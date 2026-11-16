@@ -11,6 +11,47 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Added
+
+- **`tools/ci_cost.py` says what a CI run cost in elapsed time, and refuses to
+  call it a bill.** It reads the jobs of one run through the API and prints each
+  job's elapsed seconds plus the wall time from the first start to the last
+  finish, so the two numbers a person actually cares about - what they wait for
+  and what the machines spend - stop being confused. GitHub bills a job after
+  rounding up to the minute and multiplying by an operating-system factor
+  (Linux 1, Windows 2, macOS 10 on the hosted runners); a sum of seconds is
+  therefore not money, not a quota and not a price, and the tool prints the
+  factors it deliberately did not apply rather than leaving a reader to assume
+  them. Measured on run `43807438040`: eleven jobs, `1952 s` of job time,
+  `272 s` of wall time - a factor of seven, because almost everything runs in
+  parallel.
+- **`docs/ci-batching-proposal.md` records three options for spending less and
+  one recommendation, with what each costs.** `auto-release.yml` releases on
+  every green commit that carries a changelog entry, and the release job is
+  roughly a `Test` run's worth of work (full suite, build, wheel smoke test, the
+  PyPI attempt, the `gh release` round trip, the digest re-verification, the
+  `publish.yml` decision). The page states a release train, a nightly release,
+  and keeping one release per commit, recommends the third because the release
+  rate is a symptom of the change rate rather than a cost of its own, and says
+  in bold that nothing is in effect until the Owner says otherwise - the
+  existing policy keeps running exactly as written.
+- **`tests/test_ci_cost.py`** pins the arithmetic (per-job elapsed, wall time as
+  first-start-to-last-finish rather than a sum, a skipped job staying unknown
+  rather than becoming zero, paging past the API's default page), the workflow
+  shape, and the recommendation's own honesty. Ten mutations were each caught
+  and one control stayed green.
+
+### Changed
+
+- **The `sdist` job runs the archive's suite once, not twice.** It used to
+  unpack the archive twice and run the whole suite in each copy: once to prove
+  it passes, then again with `-rs` to read the skip reasons. The second run
+  measured nothing the first had not, and the suite takes about a minute, so
+  every push paid for the same proof twice. Now there is one unpack and one
+  `pytest -rs`; the skip-classification step reads the log that run wrote and
+  fails loudly if there is no log to read. The two reasons it accepts are
+  unchanged, so the job refuses exactly what it refused before.
+
 
 ## [0.32.2] — 2026-11-16
 ### Fixed

@@ -220,6 +220,13 @@ The `acceptance` job is the important one. It runs the same command a new user r
 that contains nothing, and asserts on the exit code. A tool that only works in its own checkout is a
 tool that does not work.
 
+**What a run costs, and what that number is not.** `python tools/ci_cost.py --run <id>` prints each
+job's elapsed time and the wall time of the run, read from the API. Those are seconds: GitHub bills a
+job after rounding up to the minute and multiplying by an operating-system factor, so the table is not
+a bill, not a quota forecast and not a price. [docs/ci-batching-proposal.md](ci-batching-proposal.md)
+records one measurement and the three options for spending less; while the release policy stays
+one-release-per-commit, nothing in that page is in effect.
+
 ## What stops a merge
 
 The list below is what this project enforces *in review and in CI*. It is not a

@@ -9375,3 +9375,39 @@ PyPI's troubleshooting page states the rule directly and links warehouse#11096.
    exist / does PyPI lack it" retries a version nobody will ever accept, every half hour,
    and goes red on a schedule. Read the watched run's own job conclusions (`actions: read`)
    and stop green when that run published nothing. Seen 1.
+
+## A measurement that could be read as a bill will be read as a bill
+
+`tools/ci_cost.py` prints elapsed seconds per job and the wall time of one run.
+GitHub bills a job after rounding it up to the whole minute and multiplying by
+an operating-system factor (Linux 1, Windows 2, macOS 10 on the hosted runners),
+and the free allowance is consumed in those units. A sum of seconds therefore
+carries no information about money, quota or "how much is left" - but it sits in
+a table next to a word like "cost", and any reader who wants a budget will do the
+multiplication the tool did not do, with factors they guessed.
+
+The same run measured two ways: `1952 s` of job time and `272 s` of wall time.
+The first is what the machines spend, the second is what a person waits, and
+they differ by a factor of seven because almost everything runs in parallel.
+Quoting either one alone as "how long CI takes" is wrong in a different direction.
+
+How to apply:
+
+1. A number about a platform's billing is only about billing if the platform's
+   rounding and multipliers are in it. If they are not, say so **next to the
+   number** - a note in another file is a note nobody reads at the moment of
+   misunderstanding.
+2. Print the factors you did not apply, in the output. `{"linux": 1, "windows": 2,
+   "macos": 10}` costs one line and turns a silent assumption into a visible one.
+3. Separate the two measurements a run has: sum of job time, and wall time from
+   the first start to the last finish. A sum is never a wait; a wait is never a
+   total.
+4. A job with no timestamps did not take zero seconds, it did not run. Unknown is
+   a value; zero is a claim.
+5. When a proposal quotes a measurement, quote the identifier of what was
+   measured (`run 43807438040`) and assert both numbers in a test, so the page
+   cannot drift away from the tool that produced it.
+6. Before proposing that a process run less often, check whether the cost is the
+   process or the change rate behind it. Here the release pipeline is expensive
+   because the repository changes several times a day on purpose; batching would
+   hide that, not reduce it.
