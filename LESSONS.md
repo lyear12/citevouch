@@ -9313,3 +9313,49 @@ How to apply:
 - Make the falsified claims visible rather than deleting them: `Not reproduced on
   either file` is a stronger statement than silence, and it stops the next reader
   from re-running the same four-day-old experiment.
+
+---
+
+## 306 A workflow name is not a workflow, and a form is not a file
+
+**Rule.** When a document tells a person to type an identifier into someone
+else's system, the identifier must be read from the thing that will actually be
+presented to that system - not from the file whose name looks relevant. And when
+a reusable workflow is involved, the presented identity is not its name at all.
+
+**Why.** `docs/maintenance.md` told the Owner to register `release.yml` on PyPI.
+The name is correct as a filename and wrong as an identity: PyPI refuses reusable
+workflows as trusted publishers, and `release.yml` is only ever reached through
+`workflow_call`. The token that arrives at PyPI therefore describes
+`auto-release.yml` while the file being registered is `release.yml`, and the
+exchange answers `invalid-publisher`. Nothing in the repository could notice,
+because the test compared the documented string to `release.yml`'s filename -
+both said the same wrong thing. The only human step in the whole pipeline had
+been pointing at an unusable name for as long as it had existed, and every check
+was green.
+
+**Evidence.** Run 43395199793: `workflow_ref =
+lyear12/citevouch/.github/workflows/auto-release.yml@refs/heads/main`,
+`job_workflow_ref =
+lyear12/citevouch/.github/workflows/release.yml@refs/heads/main`, then
+`Trusted publishing exchange failure` with `invalid-publisher: valid token, but
+no corresponding publisher (Publisher with matching claims was not found)`.
+PyPI's troubleshooting page states the rule directly and links warehouse#11096.
+`curl https://pypi.org/pypi/citevouch/json` still answers 404. Seen 1.
+
+**How to apply.**
+
+1. Before writing an identifier into a document, find the place the system reads
+   it, and copy it from there. If no such place exists, the document is describing
+   an intention rather than a mechanism - say so.
+2. A filename is not an identity. Anything reached through `workflow_call`,
+   `uses:`, a wrapper script or a proxy presents the *caller's* identity, and a
+   test that compares two names will confirm the mistake rather than find it.
+3. When one step can fail without failing the run, the failure is only visible if
+   a later step reads `steps.<id>.outcome` and names the outcome. Two outcomes
+   ("not configured yet" and "the exchange was rejected") need two sentences.
+4. Do not publish from the workflow that builds. Publish from the workflow that is
+   triggered, so the identity on the token is the identity on the form.
+5. If a trigger's behaviour is unproven, add the door that does not depend on it
+   and write down which one is unproven - a manual `workflow_dispatch` costs one
+   command and removes a class of silent no-op.

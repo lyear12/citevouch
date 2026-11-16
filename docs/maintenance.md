@@ -271,19 +271,55 @@ rather than remembered.
 A release is a tag, and since the auto-release workflow exists, usually nobody types it. The release
 workflow still accepts a hand-pushed tag and a `workflow_dispatch` with an explicit version, because
 the machine that decides versions can be wrong and the fix for a wrong version is a person pushing
-the right one. It attaches the sdist and wheel, publishes to PyPI when a trusted publisher is
-configured, and copies the release notes from the range between the previous tag and this one. If the tag and
-`src/citevouch/_version.py` disagree, the release fails before publishing, not after.
+the right one. It builds and attaches the sdist and wheel and copies the release notes from the range
+between the previous tag and this one; a separate workflow, `publish.yml`, uploads those same bytes to
+PyPI. If the tag and `src/citevouch/_version.py` disagree, the release fails before publishing, not after.
 
-### The one thing a workflow cannot do for itself
+### Why publishing is its own workflow
 
-`pip install citevouch` does not work yet, and no commit can change that. Publishing needs a
-*trusted publisher* registered on PyPI against this repository, which is an account action. The
-release workflow is already written for it and will start publishing on the next tag once the entry
-exists — `release.yml` prints `PyPI: published.` or `PyPI: **not published** (the trusted publisher
-is not registered for this repository yet)` into the run summary so the state is never guessed at.
+`pip install citevouch` does not work yet, and no commit can change that: publishing needs a *trusted
+publisher* registered on PyPI against this repository, which is an account action. But the entry had a
+second problem, and it is the one that mattered: for a while the click-path said to register
+`release.yml`, and PyPI would never have accepted that name.
 
-The click-path (about a minute, done once):
+PyPI's own troubleshooting page says it directly:
+
+> Reusable workflows cannot currently be used as the workflow in a Trusted Publisher. This is a
+> practical limitation, and is being tracked in warehouse#11096.
+> — <https://docs.pypi.org/trusted-publishers/troubleshooting/>
+
+`release.yml` is a reusable workflow: `auto-release.yml` reaches it through `workflow_call`, so its runs
+report two different identities. Run `43395199793` recorded both, and the exchange failed:
+
+```
+workflow_ref     = .../auto-release.yml@refs/heads/main
+job_workflow_ref = .../release.yml@refs/heads/main
+invalid-publisher: valid token, but no corresponding publisher
+(Publisher with matching claims was not found)
+```
+
+No value typed into the form could have fixed that, because the token described a workflow that is not
+the file being registered.
+
+So publishing lives in `publish.yml`, which nothing calls:
+
+| workflow | job | what it does |
+|---|---|---|
+| `release.yml` | `release` | builds the wheel and sdist, attaches them to the GitHub release, records and re-reads their digests |
+| `publish.yml` | `publish` | downloads the release's assets, checks them against the candidate record, uploads those bytes to PyPI |
+
+`publish.yml` runs after `Release` completes (`workflow_run`) and can also be started by hand:
+
+```console
+$ gh workflow run publish.yml -f tag=v0.32.0
+```
+
+That second door exists because the first one is not proven. A tag pushed with `GITHUB_TOKEN` does not
+start a workflow, and a release created with `GITHUB_TOKEN` does not fire `release: published` either;
+whether `workflow_run` is suppressed the same way is **not** verified by anything in this repository, so
+the manual run is the path that does not depend on the answer.
+
+### The click-path
 
 1. Sign in at <https://pypi.org/manage/account/publishing/>.
 2. **Add a new pending publisher** with exactly these values:
@@ -293,25 +329,33 @@ The click-path (about a minute, done once):
    | PyPI Project Name | `citevouch` |
    | Owner | `lyear12` |
    | Repository name | `citevouch` |
-   | Workflow name | `release.yml` |
+   | Workflow name | `publish.yml` |
    | Environment name | *(leave empty)* |
 
-3. Save. Nothing else: `release.yml` already declares `permissions: id-token: write`, and the
-   publish step pins no `environment:`, so an environment name here would make the OIDC subject
-   disagree and the publish would fail rather than silently skip.
+3. Save. Nothing else: `publish.yml` declares `permissions: id-token: write` and pins no `environment:`,
+   so an environment name here would make the OIDC subject disagree and the publish would fail rather
+   than silently skip.
+4. Run `gh workflow run publish.yml -f tag=v0.32.0` (or wait for the next release).
 
-To check whether it worked without cutting a release:
+The run's summary tells the three outcomes apart, because they need three different repairs:
+
+- `Published 0.32.0 to PyPI.` — done.
+- `invalid-publisher` — the form does not match this workflow's identity; re-read the table above.
+- `invalid-payload` or `invalid-token` — the token exchange itself failed, which is about that run and
+  not about the form.
+
+To check whether it worked without publishing again:
 
 ```console
-$ curl -s -o /dev/null -w '%{http_code}
-' https://pypi.org/pypi/citevouch/json
+$ curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/citevouch/json
 404        # before the first publish (expected today)
-200        # after the next tag has published
+200        # after publish.yml has succeeded once
 $ pip download --no-deps citevouch -d /tmp/x && ls /tmp/x
 ```
 
 `404` here is not a failure of the project; it is the absence of a distribution, which is what a
-pending publisher is for.
+pending publisher is for. The GitHub release carries the same wheel and sdist either way, so
+`pip install <url of the attached wheel>` works before PyPI is set up.
 
 ## Reporting a problem
 

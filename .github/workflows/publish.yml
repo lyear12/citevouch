@@ -1,0 +1,156 @@
+name: Publish
+
+# PyPI is published from *this* workflow and not from release.yml, because PyPI's
+# trusted publishing does not accept a reusable workflow as the workflow in a
+# publisher.  Its own troubleshooting page says so plainly:
+#
+#   "Reusable workflows cannot currently be used as the workflow in a Trusted
+#    Publisher. This is a practical limitation, and is being tracked in
+#    warehouse#11096."
+#   -- https://docs.pypi.org/trusted-publishers/troubleshooting/
+#
+# release.yml is a reusable workflow: auto-release.yml calls it through
+# `workflow_call`, and a single call - not just the called file - is what the
+# token exchange describes.  Run 43395199793 recorded exactly that, before this
+# file existed:
+#
+#   workflow_ref     = .../auto-release.yml@refs/heads/main
+#   job_workflow_ref = .../release.yml@refs/heads/main
+#   invalid-publisher: valid token, but no corresponding publisher
+#   (Publisher with matching claims was not found)
+#
+# So the previous arrangement could not publish no matter what the Owner typed
+# on pypi.org, and the click-path in docs/maintenance.md named release.yml - a
+# file that could never be the answer.  A workflow that is triggered directly,
+# like this one, has workflow_ref == job_workflow_ref and can be registered.
+#
+# Nothing here builds or tests: release.yml already did both, and the assets on
+# the release are the ones it published.  This workflow downloads them, checks
+# them against the candidate record release.yml uploaded, and uploads those
+# bytes.  If the check fails it publishes nothing.
+
+on:
+  # Fires when the Release workflow finishes.  `workflow_run` is the one trigger
+  # available here that is not the tag push (auto-release.yml pushes the tag with
+  # GITHUB_TOKEN, and a GITHUB_TOKEN push does not start a workflow) and not
+  # `release: published` (a release created by GITHUB_TOKEN does not start one
+  # either).  Whether `workflow_run` survives that same suppression is *not*
+  # verified by anything in this repository - see the fallback below, and
+  # docs/maintenance.md, which says so rather than assuming.
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  # The fallback that does not depend on the answer:
+  #   gh workflow run publish.yml -f tag=v0.32.0
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "the tag whose release assets to publish, e.g. v0.32.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+# One publisher.  Deliberately the same group release.yml uses: while this
+# workflow uploads, a second release must not be building the same version, and
+# a second publish of the same version is a race PyPI resolves by rejecting the
+# loser.  The group name matches release.yml's on purpose here - both are called
+# workflows with no caller holding the lock, so there is no deadlock to avoid
+# (unlike auto-release.yml, whose group is deliberately different).
+concurrency:
+  group: publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: upload the released bytes to PyPI
+    runs-on: ubuntu-latest
+    # A failed Release run has nothing to publish.  A successful one has assets.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve the tag
+        id: v
+        run: |
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ]; then
+            # A workflow_run payload names the run, not the tag; the tag is the
+            # head branch of that run, because release.yml checks the tag out.
+            tag="${{ github.event.workflow_run.head_branch }}"
+          fi
+          if [ -z "$tag" ] || [ "${tag#v}" = "$tag" ]; then
+            echo "::error::could not resolve a v-prefixed tag from '$tag'; pass one with -f tag=vX.Y.Z"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the assets the release already carries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.v.outputs.tag }}"
+          rm -rf dist
+          mkdir -p dist
+          if ! gh release download "$tag" --dir dist --clobber; then
+            echo "::error::$tag has no release assets to publish; publish the GitHub release first"
+            exit 1
+          fi
+          ls -la dist
+
+      - name: The bytes about to be uploaded must be the bytes the release recorded
+        run: |
+          # The candidate record is uploaded with the release, so this compares
+          # the downloaded bytes against the digests written by the run that
+          # built them.  A missing or mismatched record stops the upload: PyPI
+          # versions are immutable, so "close enough" is not a recoverable answer.
+          python tools/release_candidate.py check dist
+
+      - name: Publish to PyPI
+        id: pypi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Deliberately NOT continue-on-error: this workflow exists only to
+        # publish, so a failure here is the whole result.  A red run is the
+        # honest signal, and re-running it after the Owner registers the
+        # publisher is the repair - nothing is rebuilt and nothing moves.
+        with:
+          packages-dir: dist
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### PyPI: ${{ steps.v.outputs.tag }}"
+            echo ""
+            if [ "${{ steps.pypi.outcome }}" = "success" ]; then
+              echo "Published \`${{ steps.v.outputs.version }}\` to PyPI."
+              echo ""
+              echo "Verify from outside this machine:"
+              echo ""
+              echo '```console'
+              echo "curl -s -o /dev/null -w '%{http_code}' https://pypi.org/pypi/citevouch/json"
+              echo '```'
+            else
+              echo "**Not published.**  The run above says why.  The two failures"
+              echo "worth telling apart:"
+              echo ""
+              echo "* \`invalid-publisher\` - the trusted publisher registered on"
+              echo "  pypi.org does not match this workflow's identity.  The form"
+              echo "  must name workflow \`publish.yml\`, repository \`lyear12/citevouch\`,"
+              echo "  and no environment."
+              echo "* \`invalid-payload\` or \`invalid-token\` - the token exchange itself"
+              echo "  failed, which is about this run and not about the form."
+              echo ""
+              echo "The GitHub release still carries the same wheel and sdist:"
+              echo "\`pip install\` from that URL works either way."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

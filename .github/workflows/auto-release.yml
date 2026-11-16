@@ -289,7 +289,10 @@ jobs:
     if: needs.decide.outputs.released == 'true'
     permissions:
       contents: write
-      id-token: write
+      # A called workflow can never have more permission than its caller, so
+      # this block is a ceiling rather than a grant. There is no id-token here
+      # because release.yml no longer publishes to PyPI; publish.yml holds that
+      # permission itself, on the workflow that is actually triggered.
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ needs.decide.outputs.version }}

@@ -2,7 +2,7 @@
 
 `docs/maintenance.md` tells the owner what to enter on pypi.org for the trusted
 publisher, and names two facts about the workflow that make the entry work:
-`release.yml` grants `id-token: write`, and its publish step pins no
+`publish.yml` grants `id-token: write`, and its publish step pins no
 `environment:`.  Both are true today and neither is checked by anything.  The
 day someone adds `environment: release` to the job for tidiness, the documented
 fields become wrong in a way that produces a *failed publish* rather than a
@@ -22,13 +22,13 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-RELEASE = ROOT / ".github" / "workflows" / "release.yml"
+PUBLISH = ROOT / ".github" / "workflows" / "publish.yml"
 MAINTENANCE = ROOT / "docs" / "maintenance.md"
 
 
 def _workflow() -> dict:
     yaml = pytest.importorskip("yaml")
-    return yaml.safe_load(RELEASE.read_text(encoding="utf-8"))
+    return yaml.safe_load(PUBLISH.read_text(encoding="utf-8"))
 
 
 def _publish_step() -> dict:
@@ -36,7 +36,7 @@ def _publish_step() -> dict:
         for step in job.get("steps", []):
             if "pypi" in str(step.get("uses", "")).lower():
                 return step
-    raise AssertionError("release.yml has no PyPI publish step")
+    raise AssertionError("publish.yml has no PyPI publish step")
 
 
 def _documented_fields() -> dict[str, str]:
@@ -107,7 +107,7 @@ class TestTheDocumentedFieldsStillDescribeThisRepository:
         assert fields["Repository name"].strip("`") == urls.group(2)
 
     def test_the_documented_workflow_is_the_one_that_publishes(self) -> None:
-        assert _documented_fields()["Workflow name"].strip("`") == RELEASE.name
+        assert _documented_fields()["Workflow name"].strip("`") == PUBLISH.name
 
     def test_the_environment_field_is_documented_as_empty(self) -> None:
         value = _documented_fields()["Environment name"]

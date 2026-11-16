@@ -34,7 +34,11 @@ on:
 
 permissions:
   contents: write
-  id-token: write
+  # No id-token: this workflow does not talk to PyPI any more. Publishing is
+  # publish.yml's job, because PyPI's trusted publishing refuses a reusable
+  # workflow as the publisher, and this file is only ever reached through
+  # workflow_call. An unused OIDC permission is an invitation to add the publish
+  # step back here, where it cannot work.
 
 # One publisher, whichever door the release came through: a tag push, a
 # `workflow_dispatch` by hand, or `workflow_call` from auto-release.yml. Two
@@ -244,18 +248,6 @@ jobs:
           cd /tmp && /tmp/clean/bin/citevouch init-demo smoke
           cd /tmp/smoke && /tmp/clean/bin/citevouch verify manuscript.md
 
-      - name: Publish to PyPI
-        id: pypi
-        uses: pypa/gh-action-pypi-publish@release/v1
-        # PyPI publication needs a trusted publisher registered on pypi.org for
-        # this repository, which is an account action this workflow cannot take
-        # for itself. It is therefore allowed to fail without failing the
-        # release: the GitHub release carries the same artefacts and is the
-        # distribution that always works. The step *after* this one records
-        # which of the two happened, so "PyPI is not set up yet" is visible in
-        # the run instead of being swallowed by continue-on-error.
-        continue-on-error: true
-
       - name: Create the release
         id: create
         # The recovery step below decides whether this failure is fine (the
@@ -394,14 +386,15 @@ jobs:
         run: |
           echo "### Released ${{ steps.v.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.pypi.outcome }}" = "success" ]; then
-            echo "PyPI: published." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "PyPI: **not published** (the trusted publisher is not registered for" \
-                 "this repository yet). The GitHub release below carries the same wheel" \
-                 "and sdist: \`pip install citevouch\` does not work until PyPI is set up." \
-                 >> "$GITHUB_STEP_SUMMARY"
-          fi
+          # PyPI is published by .github/workflows/publish.yml, not here. PyPI's
+          # trusted publishing does not accept a reusable workflow as the
+          # workflow in a publisher, and this file is only ever reached through
+          # `workflow_call` (from auto-release.yml) - so a publish step in this
+          # file could be registered under no name at all. See publish.yml's
+          # header for the measured evidence.
+          echo "PyPI: published by \`publish.yml\`, which runs after this release." \
+               "If it has not, that workflow's run names the reason." \
+               >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Candidate record (uploaded as \`release-candidate.json\`):" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

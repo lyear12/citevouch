@@ -12,6 +12,46 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The one account action this project asks of a human named a file PyPI could never
+  accept.** `docs/maintenance.md` told the Owner to register `release.yml` as the
+  trusted publisher, and PyPI refuses reusable workflows as the workflow in a
+  publisher - its troubleshooting page says so outright ("Reusable workflows cannot
+  currently be used as the workflow in a Trusted Publisher", tracked in
+  warehouse#11096). `release.yml` is only ever reached through `workflow_call` from
+  `auto-release.yml`, so its runs report two different identities. Run 43395199793
+  recorded both of them, and the exchange failed:
+
+  ```
+  workflow_ref     = .../auto-release.yml@refs/heads/main
+  job_workflow_ref = .../release.yml@refs/heads/main
+  invalid-publisher: valid token, but no corresponding publisher
+  (Publisher with matching claims was not found)
+  ```
+
+  No value typed into the form could have fixed that, because the token described a
+  workflow that is not the file being registered. Publishing now lives in
+  `.github/workflows/publish.yml`, which nothing calls: it downloads the release's
+  assets, checks them against the candidate record `release.yml` uploaded, and
+  uploads those bytes to PyPI under `packages-dir: dist`. It deliberately does *not*
+  carry `continue-on-error` - this workflow exists only to publish, so a red run is
+  the honest result, and re-running it after the Owner registers the publisher is the
+  repair. It shares `release.yml`'s `concurrency: publisher` group (two uploads of
+  one version race on an immutable index) and it is triggered by `workflow_run` on
+  `Release` **and** by `workflow_dispatch -f tag=vX.Y.Z`, because whether
+  `workflow_run` survives the same GITHUB_TOKEN suppression that kills the tag-push
+  and `release: published` doors is not verified by anything in this repository.
+  `release.yml` lost its publish step and its now-unused `id-token: write`;
+  `auto-release.yml`'s `release` job lost it too (a called workflow can never hold
+  more than its caller, so that block was a ceiling on a permission nothing needs).
+  `tests/test_publish_entry_point.py` runs the step bodies under real bash and holds
+  the four things that matter: nothing calls `publish.yml`, nothing else publishes,
+  the digest check runs before the upload, and the summary tells `invalid-publisher`
+  apart from `invalid-payload`/`invalid-token`. `tests/test_pypi_trust.py` now reads
+  the documented fields against `publish.yml`.
+
+
 ## [0.32.0] — 2026-11-15
 ### Added
 
