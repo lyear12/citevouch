@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.33.0] — 2026-11-16
 ### Added
 
 - **`tools/ci_cost.py` says what a CI run cost in elapsed time, and refuses to
@@ -51,8 +53,6 @@ tag and that file disagree.
   `pytest -rs`; the skip-classification step reads the log that run wrote and
   fails loudly if there is no log to read. The two reasons it accepts are
   unchanged, so the job refuses exactly what it refused before.
-
-
 ## [0.32.2] — 2026-11-16
 ### Fixed
 
@@ -6072,7 +6072,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.32.2...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/lyear12/citevouch/releases/tag/v0.33.0
 [0.32.2]: https://github.com/lyear12/citevouch/releases/tag/v0.32.2
 [0.32.1]: https://github.com/lyear12/citevouch/releases/tag/v0.32.1
 [0.32.0]: https://github.com/lyear12/citevouch/releases/tag/v0.32.0
