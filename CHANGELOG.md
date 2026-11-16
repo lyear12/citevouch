@@ -12,6 +12,7 @@ tag and that file disagree.
 
 ## [Unreleased]
 
+## [0.32.1] — 2026-11-16
 ### Fixed
 
 - **The one account action this project asks of a human named a file PyPI could never
@@ -50,8 +51,6 @@ tag and that file disagree.
   the digest check runs before the upload, and the summary tells `invalid-publisher`
   apart from `invalid-payload`/`invalid-token`. `tests/test_pypi_trust.py` now reads
   the documented fields against `publish.yml`.
-
-
 ## [0.32.0] — 2026-11-15
 ### Added
 
@@ -5994,7 +5993,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.32.1...HEAD
+[0.32.1]: https://github.com/lyear12/citevouch/releases/tag/v0.32.1
 [0.32.0]: https://github.com/lyear12/citevouch/releases/tag/v0.32.0
 [0.31.0]: https://github.com/lyear12/citevouch/releases/tag/v0.31.0
 [0.30.0]: https://github.com/lyear12/citevouch/releases/tag/v0.30.0
