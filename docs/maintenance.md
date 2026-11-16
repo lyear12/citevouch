@@ -321,17 +321,27 @@ Run 43793698436 shows where a release actually lives: the jobs `publish the tag 
 *inside* an `Auto release` run. Naming `Release` in a `workflow_run` trigger therefore matches nothing,
 which is exactly what the first version of `publish.yml` did.
 
-Most `Auto release` runs decide there is nothing to release, so `publish.yml` checks twice before doing
-any work: whether that tag has a GitHub release at all, and whether PyPI already serves that version. If
-either answer says "nothing to do" it reports that and exits green, because a workflow that goes red
-every half hour is a workflow everyone learns to ignore. A tag it cannot reach the index for is the only
-ordinary case, and that is the run the Owner reads.
+The tag comes from the release, not from the tree. A `workflow_run` payload names the commit that
+**started** the watched run, which is the commit before the version bump, so reading
+`src/citevouch/_version.py` at that commit answers with the previous release's number. The first
+production run of this workflow (43801727572) did exactly that: it announced `v0.32.1` and then tried to
+publish it from a tree that still said `0.32.0`. The release that was just created is the only thing that
+knows its own tag, so the tag is read from `gh release view`.
 
-What is measured: `Auto release` itself runs on `workflow_run`, 49 times in the 100 most recent runs, so
-that trigger does fire in this repository. What is **not** verified: whether a run that was itself started
-by `workflow_run` can start another one. Nothing here has watched that chain - `publish.yml` has never
-had a run of its own - so the manual `gh workflow run` door stays the path that does not depend on the
-answer, and it is the only door for a tag older than this workflow.
+Most `Auto release` runs decide there is nothing to release, and every one of them still starts this
+workflow. Retrying a version PyPI will never accept is neither useful nor honest, so the gate first reads
+the watched run's own conclusion through the API (the `publish the tag` job) and stops quietly when that
+run published no tag. Then it checks whether that tag has a GitHub release and whether PyPI already serves
+it. Any "nothing to do" answer prints which one it is and exits green, because a workflow that goes red
+every half hour is a workflow everyone learns to ignore. Asking for `actions: read` is what makes the
+first check possible.
+
+What is measured now: run 43801727572 was started by `workflow_run` on a run that was itself started by
+`workflow_run`, and it reached the publish step, so the chain does fire. It failed with
+`invalid-publisher` - `workflow_ref` and `job_workflow_ref` both read
+`.github/workflows/publish.yml@refs/heads/main`, which is the identity the form has to match. Registering
+the publisher is the remaining step, and the manual `gh workflow run` door is still the one for a tag
+older than this workflow.
 
 ### The click-path
 

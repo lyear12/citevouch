@@ -136,6 +136,25 @@ comes from `sh tools/format_check.sh` (tracked files) and never from `ruff forma
 working tree). A rule that lives only in a document is a rule that fails at the exact moment nobody
 thinks to look it up.
 
+## Workflows and published identities
+
+- A workflow name is not a workflow, and a form is not a file. When a document tells a person to
+  type an identifier into someone else's system, copy it from the thing that system will actually
+  receive. A filename that merely looks relevant is how `release.yml` came to be registered on PyPI
+  while the token said `auto-release.yml`.
+- Name a trigger after something that has runs. A `workflow_call`-only file never appears in
+  `gh run list`, so `workflow_run: workflows: [<that file>]` matches nothing and reads correctly.
+  Check candidate names against `gh run list --json name` before trusting the YAML.
+- Read a value from the object that owns it. `workflow_run.head_branch` is a branch;
+  `workflow_run.head_sha` is the commit that *started* the watched run, which for a release is the
+  commit before the bump. Both look like the thing you want and neither is.
+- A workflow triggered by every upstream run must ask what that run did. Reading the watched run's
+  job conclusions needs `actions: read`; without it, a job that releases nothing gets retried on a
+  schedule and turns a quiet no-op into a red workflow.
+- Publish from the workflow that is triggered, never from the reusable one it calls, so the identity
+  on the token is the identity on the form. If a trigger's behaviour is unproven, keep the manual
+  `workflow_dispatch` door and write down which half is unmeasured.
+
 ## Commits
 
 - The subject says what was wrong. The body says how you know the fix is right.

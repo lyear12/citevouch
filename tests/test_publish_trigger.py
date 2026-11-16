@@ -99,7 +99,12 @@ class TestTheTriggerNamesAWorkflowThatHasRuns:
 
 class TestMostRunsDoNothingAndStayGreen:
     def _run_gate(
-        self, tmp_path: Path, *, release: str | None, index: str
+        self,
+        tmp_path: Path,
+        *,
+        release: str | None,
+        index: str,
+        run_jobs: str = "success",
     ) -> tuple[int, str, str]:
         """Run the gate with `gh` and `curl` replaced by bash functions.
 
@@ -113,12 +118,16 @@ class TestMostRunsDoNothingAndStayGreen:
         body = _step("Stop quietly")["run"]
         body = body.replace("${{ steps.v.outputs.tag }}", "v9.9.9")
         body = body.replace("${{ steps.v.outputs.version }}", "9.9.9")
+        body = body.replace("${{ github.repository }}", "lyear12/citevouch")
+        body = body.replace("${{ github.event.workflow_run.id }}", "12345")
         stub = (
             "set -eu\n"
             f'release_tag="{release or ""}"\n'
+            f'run_jobs="{run_jobs}"\n'
             "used=$(pwd)/tools_used.txt\n"
             "gh() {\n"
             '  echo "gh $*" >> "$used"\n'
+            '  if [ "$1" = "api" ]; then echo "$run_jobs"; return 0; fi\n'
             '  if [ "$1 $2" = "release view" ]; then\n'
             '    if [ -n "$release_tag" ]; then echo "ok"; return 0; fi\n'
             '    echo "release not found" >&2\n'
@@ -154,17 +163,26 @@ class TestMostRunsDoNothingAndStayGreen:
             timeout=180,
         )
         used = (tmp_path / "tools_used.txt").read_text(encoding="utf-8")
-        assert "gh release view" in used, (
+        assert "gh " in used, (
             "the step reached a tool other than the stub; on Windows Git Bash "
             "finds curl.exe and gh.exe before any script on PATH, which is how "
             "this gate was measured here and failed on CI"
         )
-        if release is not None:
-            assert "curl" in used, "the index gate never ran its curl stub"
         return (
             done.returncode,
             done.stdout + done.stderr,
             outputs.read_text(encoding="utf-8"),
+        )
+
+    def test_a_run_that_published_no_tag_does_nothing(self) -> None:
+        code, printed, written = self._run_gate(
+            _fake(), release="v9.9.9", index="404", run_jobs="skipped"
+        )
+        assert code == 0, printed
+        assert "publish=false" in written
+        assert "published no tag" in printed, (
+            "the first production run retried a version released minutes "
+            f"earlier; the watched run's own conclusion answers this.  Got {printed!r}"
         )
 
     def test_an_unreleased_tag_does_nothing_and_exits_zero(self) -> None:
@@ -210,12 +228,20 @@ class TestTheVersionComesFromTheCommit:
             "main publishes whatever it says by the time the run starts"
         )
 
-    def test_the_tag_is_derived_from_the_version_file(self) -> None:
+    def test_the_tag_comes_from_the_release_not_the_version_file(self) -> None:
         body = _step("Resolve the tag")["run"]
-        assert "src/citevouch/_version.py" in body, (
-            "a workflow_run payload names a branch, not a tag; the version file "
-            "is the single place a version is written"
+        assert "gh release view --json tagName" in body, (
+            "the payload names the commit that *started* the watched run, which "
+            "is the commit before the version bump; reading the version file "
+            "there offers the previous number, which is what run 43801727572 did"
         )
+        assert "src/citevouch/_version.py" not in body, (
+            "the version file is the right answer to a different question"
+        )
+
+    def test_a_tree_without_a_release_is_a_usage_error(self) -> None:
+        body = _step("Resolve the tag")["run"]
+        assert "no release to publish" in body
 
     def test_a_branch_name_is_still_refused(self) -> None:
         body = _step("Resolve the tag")["run"]

@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -92,23 +93,66 @@ def _bash() -> str:
     pytest.fail("no bash on this machine, so no step body could be run")
 
 
+def _fake_path() -> Path:
+    """A throwaway directory for one step run.
+
+    Not `tmp_path`: several of these tests run a step twice and compare what it
+    wrote, and a shared directory would let the first run answer for the second.
+    """
+    return Path(tempfile.mkdtemp())
+
+
 def _run_step(
-    step_name: str, tmp_path: Path, *, tag: str = "", inputs_tag: str = ""
+    step_name: str,
+    tmp_path: Path,
+    *,
+    inputs_tag: str = "",
+    canned_tag: str = "v9.9.9",
+    download_ok: bool = False,
+    run_jobs: str = "success",
 ) -> tuple[int, str]:
     """Run one step's shell body with the GitHub expressions substituted.
 
     A step body is the only place the behaviour lives; asserting on YAML keys
-    would pass while the script did the opposite.
+    would pass while the script did the opposite.  `gh` and `curl` are shell
+    functions rather than files on `PATH`, because under Git Bash on Windows a
+    script named `curl` loses to `curl.exe` and the step would measure the real
+    network instead of the stub.
     """
     body = _step(step_name)["run"]
     body = body.replace("${{ inputs.tag }}", inputs_tag)
-    body = body.replace("${{ github.event.workflow_run.head_branch }}", tag)
+    body = body.replace("${{ github.repository }}", "lyear12/citevouch")
+    body = body.replace("${{ github.event.workflow_run.id }}", "12345")
     body = body.replace("${{ steps.gate.outputs.publish }}", "true")
     body = body.replace("${{ steps.v.outputs.tag }}", "v9.9.9")
     body = body.replace("${{ steps.v.outputs.version }}", "9.9.9")
     body = body.replace("${{ steps.pypi.outcome }}", "success")
+    view = (
+        f"    printf '%s\\n' \"{canned_tag}\"; return 0"
+        if canned_tag
+        else '    echo "release not found" >&2; return 1'
+    )
+    download = "    return 0" if download_ok else '    echo "no assets" >&2; return 1'
+    stub = (
+        "set -eu\n"
+        f'used="{tmp_path / "tools_used.txt"}"\n'
+        'touch "$used"\n'
+        "gh() {\n"
+        '  echo "gh $*" >> "$used"\n'
+        '  if [ "$1" = "api" ]; then printf \'%s\\n\' "' + run_jobs + '"; return 0; fi\n'
+        '  if [ "$1 $2" = "release view" ]; then\n'
+        f"{view}\n"
+        "  fi\n"
+        '  if [ "$1 $2" = "release download" ]; then\n'
+        f"{download}\n"
+        "  fi\n"
+        '  echo "unexpected gh: $*" >&2\n'
+        "  return 1\n"
+        "}\n"
+        "curl() { printf '404'; return 0; }\n"
+    )
     script = tmp_path / "step.sh"
-    script.write_text(body, encoding="utf-8", newline=chr(10))
+    script.write_text(stub + body, encoding="utf-8", newline=chr(10))
     outputs = tmp_path / "outputs.txt"
     summary = tmp_path / "summary.md"
     env = {
@@ -275,32 +319,38 @@ class TestTheTagIsResolvedRatherThanAssumed:
         assert code != 0
         assert "could not resolve a v-prefixed tag" in printed
 
-    def test_an_empty_tag_is_refused(self) -> None:
-        code, printed = _run_step("Resolve the tag", _fake_path())
+    def test_an_automatic_run_takes_the_tag_from_the_release(self) -> None:
+        path = _fake_path()
+        code, printed = _run_step("Resolve the tag", path, canned_tag="v7.8.9")
+        assert code == 0, printed
+        written = (path / "outputs.txt").read_text(encoding="utf-8")
+        assert "tag=v7.8.9" in written, (
+            "a workflow_run payload names the commit that started the watched "
+            f"run, which is the commit before the version bump; got {written!r}"
+        )
+        assert "version=7.8.9" in written
+
+    def test_the_version_file_is_not_the_source_of_the_tag(self) -> None:
+        # There is no src/citevouch/_version.py in this directory at all, so a
+        # step that still read it would fail rather than quietly agree.
+        path = _fake_path()
+        code, printed = _run_step("Resolve the tag", path, canned_tag="v7.8.9")
+        assert code == 0, printed
+        assert "version=7.8.9" in (path / "outputs.txt").read_text(encoding="utf-8"), (
+            "the first production run of this workflow offered to publish the "
+            "previous version's number; the release knows its own tag"
+        )
+
+    def test_no_release_at_all_is_a_usage_error(self) -> None:
+        code, printed = _run_step("Resolve the tag", _fake_path(), canned_tag="")
         assert code != 0
-        assert "could not resolve a v-prefixed tag" in printed
+        assert "no release to publish" in printed
 
     def test_the_version_drops_the_v(self) -> None:
         path = _fake_path()
         _run_step("Resolve the tag", path, inputs_tag="v1.2.3")
         written = (path / "outputs.txt").read_text(encoding="utf-8")
         assert "version=1.2.3" in written
-
-    def test_an_automatic_run_reads_the_version_out_of_the_commit(self) -> None:
-        path = _fake_path()
-        declared = path / "src" / "citevouch"
-        declared.mkdir(parents=True)
-        (declared / "_version.py").write_text(
-            '__version__ = "4.5.6"\n', encoding="utf-8", newline=chr(10)
-        )
-        code, printed = _run_step("Resolve the tag", path)
-        assert code == 0, printed
-        written = (path / "outputs.txt").read_text(encoding="utf-8")
-        assert "tag=v4.5.6" in written, (
-            "a workflow_run payload carries the run's branch, not a tag; the "
-            f"version file is the only source of truth, and this run wrote {written!r}"
-        )
-        assert "version=4.5.6" in written
 
 
 class TestTheDocumentedFormNamesTheFileThatRuns:
@@ -328,24 +378,15 @@ class TestTheDocumentedFormNamesTheFileThatRuns:
             "the page has to give the command that works regardless"
         )
 
-    def test_the_page_does_not_claim_the_automatic_trigger_is_proven(self) -> None:
+    def test_the_page_reports_what_the_first_production_run_proved(self) -> None:
         text = MAINTENANCE.read_text(encoding="utf-8")
-        # The sentence carries Markdown emphasis around "not", so the mark
-        # characters have to go before the words can be compared.
         flat = " ".join(text.replace("*", "").split())
-        assert "What is **not** verified".replace("*", "") in flat, (
-            "the page has to say which half of the chain was measured and which "
-            "half was not; if the trigger were proven, this sentence would be "
-            "stale, and while it is not, silence here reads as a promise"
+        assert "43801727572" in flat, (
+            "the page's claim about the trigger is now backed by a real run; the "
+            "run id is what lets a reader check it instead of trusting prose"
         )
-        assert "has never" in flat and "a run of its own" in flat, (
-            "the unverified part is specifically that publish.yml has never run, "
-            "and that is the fact a reader can check with `gh run list`"
+        assert "invalid-publisher" in flat, (
+            "that run failed only at the publisher exchange; saying so keeps the "
+            "page from reading as if publishing already works"
         )
-
-
-def _fake_path() -> Path:
-    """A scratch directory shaped like GH_OUTPUT/GH_SUMMARY need."""
-    import tempfile
-
-    return Path(tempfile.mkdtemp())
+        assert "Registering the publisher is the remaining step" in flat

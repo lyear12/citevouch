@@ -9364,5 +9364,14 @@ PyPI's troubleshooting page states the rule directly and links warehouse#11096.
    and the file reads correctly while doing nothing. Check the name against
    `gh run list --json name` before trusting the YAML.
 7. A payload field is not the value you hope for. `workflow_run.head_branch` is a
-   branch, so deriving a tag from it fails every time; read the version from the one
-   file that declares it, at the run's commit. Seen 2 (the same CR-009 pass).
+   branch, so deriving a tag from it fails every time. And `head_sha` is not "the run's
+   commit" either: it is the commit that *started* the watched run, which for a release
+   workflow is the commit before the bump - run 43801727572 announced `v0.32.1` while
+   reading `0.32.0` out of that tree. Read the value from the object that owns it (here,
+   `gh release view --json tagName`), not from the nearest field that mentions it. Seen 3
+   (43801727572, the first production run of the file written to fix this).
+8. A workflow that runs on every upstream run must ask what that run actually did. Most
+   `Auto release` runs release nothing, so a publish gate that only asks "does a release
+   exist / does PyPI lack it" retries a version nobody will ever accept, every half hour,
+   and goes red on a schedule. Read the watched run's own job conclusions (`actions: read`)
+   and stop green when that run published nothing. Seen 1.

@@ -11,6 +11,27 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+### Fixed
+
+- **The first production run of `publish.yml` proved the trigger and then found two more
+  defects in it.** Run 43801727572 was started by a `workflow_run` on a run that was itself
+  started by `workflow_run`, and it reached the upload step, so the chain does fire; it
+  failed with `invalid-publisher`, and both `workflow_ref` and `job_workflow_ref` read
+  `.github/workflows/publish.yml@refs/heads/main`, which is the identity the registration
+  form has to match. What the log also showed: (a) the tag was read from
+  `src/citevouch/_version.py` at `github.event.workflow_run.head_sha`, and that SHA is the
+  commit that *started* the watched run - the commit before the version bump - so the run
+  announced `v0.32.1` and would have uploaded it from a tree that still said `0.32.0`; the
+  tag now comes from `gh release view --json tagName`, because the release that was just
+  created is the only thing that knows its own tag; (b) every `Auto release` run starts
+  this workflow, including the ones that decide there is nothing to release, and the gate
+  only asked whether a release existed and whether PyPI served it - so a version PyPI will
+  never accept was retried every half hour; the gate now reads the watched run's own
+  `publish the tag` job conclusion through the API and stops quietly when that run published
+  no tag, which is why the workflow asks for `actions: read`. `tests/test_publish_entry_point.py`
+  and `tests/test_publish_trigger.py` run both steps under a stubbed `gh`, and two mutations -
+  reading the version file again, and disabling the watched-run check - each turn the suite
+  red, with one control held.
 
 ## [0.32.1] — 2026-11-16
 ### Fixed

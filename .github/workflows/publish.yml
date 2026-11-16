@@ -53,6 +53,10 @@ on:
 
 permissions:
   contents: read
+  # `actions: read` is what lets the gate ask GitHub whether the watched run
+  # actually published a tag.  Without it the gate would have to guess, and the
+  # first production run showed where guessing leads.
+  actions: read
   id-token: write
 
 # One publisher.  Deliberately the same group release.yml uses: while this
@@ -84,14 +88,22 @@ jobs:
 
       - name: Resolve the tag
         id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ inputs.tag }}"
           if [ -z "$tag" ]; then
-            # A workflow_run payload names the run's branch (`main`), not a tag,
-            # so the tag comes from the version file at that same commit - the
-            # single place a version is written.
-            version=$(python -c 'import pathlib, re; text = pathlib.Path("src/citevouch/_version.py").read_text(encoding="utf-8"); print(re.search(r"__version__ = \"([^\"]+)\"", text).group(1))')
-            tag="v$version"
+            # The payload of a workflow_run names the commit that *started* the
+            # watched run, which is the commit before the version bump - so the
+            # version in that file is the previous release's number, not this
+            # one's.  The first production run of this workflow did exactly that
+            # and offered to publish v0.32.1 while attempting it from a tree that
+            # still said 0.32.0.  The release that was just created is the only
+            # thing that knows its own tag.
+            if ! tag=$(gh release view --json tagName --jq .tagName 2>/dev/null) || [ -z "$tag" ]; then
+              echo "::error::no release to publish; pass a tag with -f tag=vX.Y.Z"
+              exit 1
+            fi
           fi
           case "$tag" in
             v?*) ;;
@@ -114,6 +126,22 @@ jobs:
           # decide not to release.  Saying "nothing to publish" and exiting 0 is
           # the honest outcome; going red would train everyone to ignore this
           # workflow, which is the failure this whole file exists to avoid.
+          #
+          # The first production run (43801727572) proved the trigger fires and
+          # then showed this gap: it retried v0.32.1 minutes after that version
+          # was released, because the release existed and PyPI did not have it.
+          # Whether *this* run published anything is a fact GitHub already holds,
+          # so it is read rather than inferred.
+          run_id="${{ github.event.workflow_run.id }}"
+          if [ -n "$run_id" ]; then
+            released=$(gh api "repos/${{ github.repository }}/actions/runs/$run_id/jobs" \
+              --jq '[.jobs[] | select(.name | startswith("publish the tag")) | .conclusion] | first // "none"')
+            if [ "$released" != "success" ]; then
+              echo "::notice::Auto release $run_id published no tag ($released), so this run has nothing to publish"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
           if ! gh release view "$tag" >/dev/null 2>&1; then
             echo "::notice::$tag is not released yet, so there is nothing to publish"
             echo "publish=false" >> "$GITHUB_OUTPUT"
