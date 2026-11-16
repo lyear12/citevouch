@@ -6462,3 +6462,25 @@ about a twentieth of a cold read; a miss costs a thousand times a hit; per-page
 cost is flat from 1 to 128 pages, which is the linear shape the implementation
 claims. `tests/test_performance_budget.py` asserts only that shape, so no runner
 upgrade can fail the build. Delivered in v0.30.0 (`a126983`).
+
+## Archived 2026-11-16 — CV-009, the publisher is a workflow PyPI will accept
+
+**What was wrong.** `docs/maintenance.md` told the Owner to register `release.yml` on PyPI. PyPI refuses
+reusable workflows as trusted publishers, and `release.yml` is only ever reached through `workflow_call`,
+so the exchange answered `invalid-publisher` on every attempt (run 43395199793: `workflow_ref` named
+`auto-release.yml`, `job_workflow_ref` named `release.yml`). The test that "covered" this compared the
+documented string to the same file's name, so both sides said the same wrong thing and stayed green.
+
+**What it cost.** The only human action in the pipeline pointed at a name that could never work, which
+meant no release could ever reach PyPI - and the docs invited the Owner to spend that action.
+
+**Why it is now true.** `publish.yml` is the triggered workflow: nothing calls it, it asks for
+`id-token: write`, pins no environment, and shares the `publisher` concurrency group with the release.
+Its first production run (43801727572) proved the trigger chain fires and that `workflow_ref`,
+`job_workflow_ref` both read `.github/workflows/publish.yml@refs/heads/main`, which is the identity the
+form must match; that run also exposed two more defects, both fixed in v0.32.2 - the tag now comes from
+`gh release view --json tagName` rather than a version file read at the commit that started the watched
+run, and the gate reads the watched run's own job conclusions so a run that released nothing stops green
+instead of retrying a version PyPI will never accept. Run 43805476641 shows the whole path working up to
+the upload, which failed only because no publisher is registered yet. Registering `publish.yml` is now
+CV-010, and it is the last step.
