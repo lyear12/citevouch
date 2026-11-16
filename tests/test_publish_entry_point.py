@@ -103,6 +103,7 @@ def _run_step(
     body = _step(step_name)["run"]
     body = body.replace("${{ inputs.tag }}", inputs_tag)
     body = body.replace("${{ github.event.workflow_run.head_branch }}", tag)
+    body = body.replace("${{ steps.gate.outputs.publish }}", "true")
     body = body.replace("${{ steps.v.outputs.tag }}", "v9.9.9")
     body = body.replace("${{ steps.v.outputs.version }}", "9.9.9")
     body = body.replace("${{ steps.pypi.outcome }}", "success")
@@ -285,6 +286,22 @@ class TestTheTagIsResolvedRatherThanAssumed:
         written = (path / "outputs.txt").read_text(encoding="utf-8")
         assert "version=1.2.3" in written
 
+    def test_an_automatic_run_reads_the_version_out_of_the_commit(self) -> None:
+        path = _fake_path()
+        declared = path / "src" / "citevouch"
+        declared.mkdir(parents=True)
+        (declared / "_version.py").write_text(
+            '__version__ = "4.5.6"\n', encoding="utf-8", newline=chr(10)
+        )
+        code, printed = _run_step("Resolve the tag", path)
+        assert code == 0, printed
+        written = (path / "outputs.txt").read_text(encoding="utf-8")
+        assert "tag=v4.5.6" in written, (
+            "a workflow_run payload carries the run's branch, not a tag; the "
+            f"version file is the only source of truth, and this run wrote {written!r}"
+        )
+        assert "version=4.5.6" in written
+
 
 class TestTheDocumentedFormNamesTheFileThatRuns:
     def test_the_documented_workflow_is_the_triggered_one(self) -> None:
@@ -316,11 +333,14 @@ class TestTheDocumentedFormNamesTheFileThatRuns:
         # The sentence carries Markdown emphasis around "not", so the mark
         # characters have to go before the words can be compared.
         flat = " ".join(text.replace("*", "").split())
-        assert "not verified by anything in this repository" in flat or (
-            "not verified" in flat and "workflow_run" in flat
-        ), (
-            "if the trigger were proven, this sentence would be stale; while it "
-            "is not, silence here reads as a promise"
+        assert "What is **not** verified".replace("*", "") in flat, (
+            "the page has to say which half of the chain was measured and which "
+            "half was not; if the trigger were proven, this sentence would be "
+            "stale, and while it is not, silence here reads as a promise"
+        )
+        assert "has never" in flat and "a run of its own" in flat, (
+            "the unverified part is specifically that publish.yml has never run, "
+            "and that is the fact a reader can check with `gh run list`"
         )
 
 

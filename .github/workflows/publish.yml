@@ -19,10 +19,8 @@ name: Publish
 #   invalid-publisher: valid token, but no corresponding publisher
 #   (Publisher with matching claims was not found)
 #
-# So the previous arrangement could not publish no matter what the Owner typed
-# on pypi.org, and the click-path in docs/maintenance.md named release.yml - a
-# file that could never be the answer.  A workflow that is triggered directly,
-# like this one, has workflow_ref == job_workflow_ref and can be registered.
+# A workflow that is triggered directly, like this one, has
+# workflow_ref == job_workflow_ref and can be registered.
 #
 # Nothing here builds or tests: release.yml already did both, and the assets on
 # the release are the ones it published.  This workflow downloads them, checks
@@ -30,17 +28,21 @@ name: Publish
 # bytes.  If the check fails it publishes nothing.
 
 on:
-  # Fires when the Release workflow finishes.  `workflow_run` is the one trigger
-  # available here that is not the tag push (auto-release.yml pushes the tag with
-  # GITHUB_TOKEN, and a GITHUB_TOKEN push does not start a workflow) and not
-  # `release: published` (a release created by GITHUB_TOKEN does not start one
-  # either).  Whether `workflow_run` survives that same suppression is *not*
-  # verified by anything in this repository - see the fallback below, and
-  # docs/maintenance.md, which says so rather than assuming.
+  # The trigger names `Auto release`, not `Release`, and that is a correction
+  # rather than a style choice.  The first version of this file said
+  # `workflows: ["Release"]` and could never have fired: release.yml is reusable,
+  # so it has no runs of its own.  Measured on 2026-11-16 over the repository's
+  # 100 most recent runs: `Auto release` 49, `Test` 48, `Nightly dogfood` 3,
+  # `Release` 0 - and run 43793698436 shows where release.yml actually lands,
+  # as the jobs `publish the tag / build and publish` inside an Auto release run.
+  #
+  # A `workflow_run` trigger on a run that itself came from `workflow_run` does
+  # fire: `Auto release` is exactly that, started by `Test` completing.
   workflow_run:
-    workflows: ["Release"]
+    workflows: ["Auto release"]
     types: [completed]
-  # The fallback that does not depend on the answer:
+  # The door that does not depend on any of this being true, and the one to use
+  # when republishing a tag that predates this workflow:
   #   gh workflow run publish.yml -f tag=v0.32.0
   workflow_dispatch:
     inputs:
@@ -56,9 +58,9 @@ permissions:
 # One publisher.  Deliberately the same group release.yml uses: while this
 # workflow uploads, a second release must not be building the same version, and
 # a second publish of the same version is a race PyPI resolves by rejecting the
-# loser.  The group name matches release.yml's on purpose here - both are called
-# workflows with no caller holding the lock, so there is no deadlock to avoid
-# (unlike auto-release.yml, whose group is deliberately different).
+# loser.  Both are workflows with no caller holding the lock, so there is no
+# deadlock to avoid (unlike auto-release.yml, whose group is deliberately
+# different).
 concurrency:
   group: publisher
   cancel-in-progress: false
@@ -67,11 +69,13 @@ jobs:
   publish:
     name: upload the released bytes to PyPI
     runs-on: ubuntu-latest
-    # A failed Release run has nothing to publish.  A successful one has assets.
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
+          # The run that just finished, not whatever `main` says now: the bytes
+          # belong to the commit whose release exists.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
@@ -83,18 +87,53 @@ jobs:
         run: |
           tag="${{ inputs.tag }}"
           if [ -z "$tag" ]; then
-            # A workflow_run payload names the run, not the tag; the tag is the
-            # head branch of that run, because release.yml checks the tag out.
-            tag="${{ github.event.workflow_run.head_branch }}"
+            # A workflow_run payload names the run's branch (`main`), not a tag,
+            # so the tag comes from the version file at that same commit - the
+            # single place a version is written.
+            version=$(python -c 'import pathlib, re; text = pathlib.Path("src/citevouch/_version.py").read_text(encoding="utf-8"); print(re.search(r"__version__ = \"([^\"]+)\"", text).group(1))')
+            tag="v$version"
           fi
-          if [ -z "$tag" ] || [ "${tag#v}" = "$tag" ]; then
-            echo "::error::could not resolve a v-prefixed tag from '$tag'; pass one with -f tag=vX.Y.Z"
-            exit 1
-          fi
+          case "$tag" in
+            v?*) ;;
+            *)
+              echo "::error::could not resolve a v-prefixed tag from '$tag'; pass one with -f tag=vX.Y.Z"
+              exit 1
+              ;;
+          esac
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Stop quietly if there is nothing for this run to publish
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.v.outputs.tag }}"
+          version="${{ steps.v.outputs.version }}"
+          # Every push to main finishes an Auto release run, and most of them
+          # decide not to release.  Saying "nothing to publish" and exiting 0 is
+          # the honest outcome; going red would train everyone to ignore this
+          # workflow, which is the failure this whole file exists to avoid.
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            echo "::notice::$tag is not released yet, so there is nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Idempotence, and the reason a re-run is harmless: PyPI serves an
+          # immutable version, so an existing one is already done.  This is also
+          # the check docs/maintenance.md prints, so the run and the reader use
+          # the same evidence.
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/citevouch/$version/json")
+          if [ "$code" = "200" ]; then
+            echo "::notice::PyPI already serves $version, so this run leaves it alone"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "PyPI answers $code for $version, so this run publishes it"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
       - name: Download the assets the release already carries
+        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -108,6 +147,7 @@ jobs:
           ls -la dist
 
       - name: The bytes about to be uploaded must be the bytes the release recorded
+        if: steps.gate.outputs.publish == 'true'
         run: |
           # The candidate record is uploaded with the release, so this compares
           # the downloaded bytes against the digests written by the run that
@@ -117,6 +157,7 @@ jobs:
 
       - name: Publish to PyPI
         id: pypi
+        if: steps.gate.outputs.publish == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         # Deliberately NOT continue-on-error: this workflow exists only to
         # publish, so a failure here is the whole result.  A red run is the
@@ -131,7 +172,10 @@ jobs:
           {
             echo "### PyPI: ${{ steps.v.outputs.tag }}"
             echo ""
-            if [ "${{ steps.pypi.outcome }}" = "success" ]; then
+            if [ "${{ steps.gate.outputs.publish }}" != "true" ]; then
+              echo "Nothing was uploaded.  Either that tag has no release yet, or"
+              echo "PyPI already serves it - the step above says which."
+            elif [ "${{ steps.pypi.outcome }}" = "success" ]; then
               echo "Published \`${{ steps.v.outputs.version }}\` to PyPI."
               echo ""
               echo "Verify from outside this machine:"

@@ -15,6 +15,22 @@ tag and that file disagree.
 ## [0.32.1] — 2026-11-16
 ### Fixed
 
+- **The publishing workflow watched a name that no run ever has.** The first version of
+  `publish.yml` triggered on `workflow_run: workflows: ["Release"]`, and `release.yml` is
+  `workflow_call`-only, so it never gets a run of its own: over this repository's 100 most
+  recent runs the names are `Auto release` 49, `Test` 48, `Nightly dogfood` 3 and `Release`
+  **zero**. Run 43793698436 shows where a release actually lives - the jobs
+  `publish the tag / build and publish` sit inside an `Auto release` run. The trigger now
+  names `Auto release`. The same step also read `github.event.workflow_run.head_branch` as
+  the tag, which a `workflow_run` payload sets to `main`, so even a firing run would have
+  stopped at "could not resolve a v-prefixed tag"; the tag is now derived from
+  `src/citevouch/_version.py` at the finished run's commit, its single place. Because most
+  `Auto release` runs decide there is nothing to release, the workflow gained an explicit
+  gate - no GitHub release, or PyPI already serving that version, means the run reports
+  which and exits green - and the three work steps read that gate, so a quiet run downloads
+  nothing. `tests/test_publish_trigger.py` holds the trigger against the workflows that
+  exist and runs both gates under stub `gh`/`curl`; nine mutations of the trigger, the two
+  gates, the version source and the page are caught, with one control held.
 - **The one account action this project asks of a human named a file PyPI could never
   accept.** `docs/maintenance.md` told the Owner to register `release.yml` as the
   trusted publisher, and PyPI refuses reusable workflows as the workflow in a

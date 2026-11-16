@@ -308,16 +308,30 @@ So publishing lives in `publish.yml`, which nothing calls:
 | `release.yml` | `release` | builds the wheel and sdist, attaches them to the GitHub release, records and re-reads their digests |
 | `publish.yml` | `publish` | downloads the release's assets, checks them against the candidate record, uploads those bytes to PyPI |
 
-`publish.yml` runs after `Release` completes (`workflow_run`) and can also be started by hand:
+`publish.yml` runs after `Auto release` completes (`workflow_run`) and can also be started by hand:
 
 ```console
 $ gh workflow run publish.yml -f tag=v0.32.0
 ```
 
-That second door exists because the first one is not proven. A tag pushed with `GITHUB_TOKEN` does not
-start a workflow, and a release created with `GITHUB_TOKEN` does not fire `release: published` either;
-whether `workflow_run` is suppressed the same way is **not** verified by anything in this repository, so
-the manual run is the path that does not depend on the answer.
+The trigger names `Auto release` and not `Release`, which is worth explaining because the obvious guess
+is wrong. `release.yml` is reusable, so it has no runs of its own - `gh run list` over this repository's
+100 most recent runs returns `Auto release` 49, `Test` 48, `Nightly dogfood` 3, and `Release` **zero**.
+Run 43793698436 shows where a release actually lives: the jobs `publish the tag / build and publish` sit
+*inside* an `Auto release` run. Naming `Release` in a `workflow_run` trigger therefore matches nothing,
+which is exactly what the first version of `publish.yml` did.
+
+Most `Auto release` runs decide there is nothing to release, so `publish.yml` checks twice before doing
+any work: whether that tag has a GitHub release at all, and whether PyPI already serves that version. If
+either answer says "nothing to do" it reports that and exits green, because a workflow that goes red
+every half hour is a workflow everyone learns to ignore. A tag it cannot reach the index for is the only
+ordinary case, and that is the run the Owner reads.
+
+What is measured: `Auto release` itself runs on `workflow_run`, 49 times in the 100 most recent runs, so
+that trigger does fire in this repository. What is **not** verified: whether a run that was itself started
+by `workflow_run` can start another one. Nothing here has watched that chain - `publish.yml` has never
+had a run of its own - so the manual `gh workflow run` door stays the path that does not depend on the
+answer, and it is the only door for a tag older than this workflow.
 
 ### The click-path
 
@@ -337,12 +351,15 @@ the manual run is the path that does not depend on the answer.
    than silently skip.
 4. Run `gh workflow run publish.yml -f tag=v0.32.0` (or wait for the next release).
 
-The run's summary tells the three outcomes apart, because they need three different repairs:
+The run's summary tells the four outcomes apart, because they need four different responses:
 
 - `Published 0.32.0 to PyPI.` — done.
-- `invalid-publisher` — the form does not match this workflow's identity; re-read the table above.
+- `Nothing was uploaded` — either that tag has no release yet, or PyPI already serves it; the step above
+  the summary says which, and neither needs anyone to do anything.
+- `invalid-publisher` — the form does not match this workflow's identity; re-read the table above. This is
+  the one that asks the Owner to act.
 - `invalid-payload` or `invalid-token` — the token exchange itself failed, which is about that run and
-  not about the form.
+  not about the form; re-running is the response.
 
 To check whether it worked without publishing again:
 

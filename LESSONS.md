@@ -9359,3 +9359,10 @@ PyPI's troubleshooting page states the rule directly and links warehouse#11096.
 5. If a trigger's behaviour is unproven, add the door that does not depend on it
    and write down which one is unproven - a manual `workflow_dispatch` costs one
    command and removes a class of silent no-op.
+6. A `workflow_run` trigger names a workflow that **has runs**. A reusable workflow
+   (`workflow_call`) never appears in the run list, so watching it matches nothing -
+   and the file reads correctly while doing nothing. Check the name against
+   `gh run list --json name` before trusting the YAML.
+7. A payload field is not the value you hope for. `workflow_run.head_branch` is a
+   branch, so deriving a tag from it fails every time; read the version from the one
+   file that declares it, at the run's commit. Seen 2 (the same CR-009 pass).
