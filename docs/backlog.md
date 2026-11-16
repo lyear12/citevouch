@@ -6484,3 +6484,34 @@ run, and the gate reads the watched run's own job conclusions so a run that rele
 instead of retrying a version PyPI will never accept. Run 43805476641 shows the whole path working up to
 the upload, which failed only because no publisher is registered yet. Registering `publish.yml` is now
 CV-010, and it is the last step.
+
+## Archived 2026-11-16 — CV-018, a run's cost measured, and the same suite run once
+
+**What was wrong.** Two things, both about paying twice for one answer. The
+`sdist` job unpacked the archive twice and ran the whole suite in each copy -
+once to prove it passes, then again with `-rs` to read the skip reasons - so
+every push bought the same proof twice. And nothing in the repository could say
+what a run cost: the numbers anyone quoted came from reading the Actions UI by
+eye, mixing "job time" with "wall time" that differ by a factor of seven here
+because almost everything runs in parallel.
+
+**What it costs.** The duplicated run is invisible on a fast machine and obvious
+on a bad day: `sdist` was the longest job in the matrix (272 s of a 272 s wall in
+run 43807438040), so the slowest thing in CI was doing paperwork. The
+measurement gap is quieter: a proposal to "make CI cheaper" can be argued for
+years while nobody can state the current number, and the first number anyone
+finds is the one the UI sorts by, which is not a cost at all.
+
+**Why it is now true.** `sdist` unpacks once and runs `pytest -rs` once; the
+skip-classification step reads that log and fails when there is no log, so the
+two reasons it accepts are still enforced and everything else is still an error.
+`tools/ci_cost.py` prints per-job elapsed seconds and the wall time from first
+start to last finish, together with the operating-system factors it deliberately
+did not apply, because GitHub rounds each job up to the minute before anything is
+billable - a sum of seconds is not money, quota or price, and the tool says so in
+its own output. `docs/ci-batching-proposal.md` records the measurement (eleven
+jobs, 1952 s of job time, 272 s of wall time) and three options for spending
+less, and recommends the third - one release per commit - because the release
+rate is a symptom of the change rate rather than a cost of its own. Until the
+Owner answers, the existing policy keeps running exactly as written.
+
