@@ -101,40 +101,46 @@ class TestMostRunsDoNothingAndStayGreen:
     def _run_gate(
         self, tmp_path: Path, *, release: str | None, index: str
     ) -> tuple[int, str, str]:
+        """Run the gate with `gh` and `curl` replaced by bash functions.
+
+        A stub on `PATH` is not enough on Windows: Git Bash resolves `curl` to the
+        real `curl.exe` before it looks at a script named `curl`, so the suite
+        measured this machine's network instead of the step - which passed here
+        and failed on all three Windows CI jobs.  Shell functions win over
+        executables for a non-builtin name, so the step cannot reach the real
+        tools at all.
+        """
         body = _step("Stop quietly")["run"]
         body = body.replace("${{ steps.v.outputs.tag }}", "v9.9.9")
         body = body.replace("${{ steps.v.outputs.version }}", "9.9.9")
-        stub = tmp_path / "gh"
-        stub.write_text(
-            "#!/bin/sh\n"
+        stub = (
+            "set -eu\n"
             f'release_tag="{release or ""}"\n'
-            'if [ "$1 $2" = "release view" ]; then\n'
-            '  [ -n "$release_tag" ] || { echo "release not found" >&2; exit 1; }\n'
-            '  echo "ok"\n'
-            "  exit 0\n"
-            "fi\n"
-            'echo "unexpected gh: $*" >&2\n'
-            "exit 1\n",
-            encoding="utf-8",
-            newline=chr(10),
+            "used=$(pwd)/tools_used.txt\n"
+            "gh() {\n"
+            '  echo "gh $*" >> "$used"\n'
+            '  if [ "$1 $2" = "release view" ]; then\n'
+            '    if [ -n "$release_tag" ]; then echo "ok"; return 0; fi\n'
+            '    echo "release not found" >&2\n'
+            "    return 1\n"
+            "  fi\n"
+            '  echo "unexpected gh: $*" >&2\n'
+            "  return 1\n"
+            "}\n"
+            "curl() {\n"
+            '  echo "curl $*" >> "$used"\n'
+            f"  printf %s '{index}'\n"
+            "  return 0\n"
+            "}\n"
         )
-        stub.chmod(0o755)
-        curl = tmp_path / "curl"
-        curl.write_text(
-            f'#!/bin/sh\nprintf %s "{index}"\n',
-            encoding="utf-8",
-            newline=chr(10),
-        )
-        curl.chmod(0o755)
         script = tmp_path / "gate.sh"
-        script.write_text(f"set -eu\n{body}", encoding="utf-8", newline=chr(10))
+        script.write_text(stub + body, encoding="utf-8", newline=chr(10))
         outputs = tmp_path / "out.txt"
         outputs.write_text("", encoding="utf-8", newline=chr(10))
         env = {
             **os.environ,
             "GITHUB_OUTPUT": str(outputs),
             "GITHUB_STEP_SUMMARY": str(tmp_path / "summary.md"),
-            "PATH": f"{tmp_path}{os.pathsep}" + os.environ.get("PATH", ""),
             "PYTHONIOENCODING": "utf-8",
         }
         done = subprocess.run(
@@ -147,7 +153,19 @@ class TestMostRunsDoNothingAndStayGreen:
             errors="replace",
             timeout=180,
         )
-        return done.returncode, done.stdout + done.stderr, outputs.read_text(encoding="utf-8")
+        used = (tmp_path / "tools_used.txt").read_text(encoding="utf-8")
+        assert "gh release view" in used, (
+            "the step reached a tool other than the stub; on Windows Git Bash "
+            "finds curl.exe and gh.exe before any script on PATH, which is how "
+            "this gate was measured here and failed on CI"
+        )
+        if release is not None:
+            assert "curl" in used, "the index gate never ran its curl stub"
+        return (
+            done.returncode,
+            done.stdout + done.stderr,
+            outputs.read_text(encoding="utf-8"),
+        )
 
     def test_an_unreleased_tag_does_nothing_and_exits_zero(self) -> None:
         code, printed, written = self._run_gate(_fake(), release=None, index="404")
