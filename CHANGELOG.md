@@ -11,6 +11,8 @@ into `src/citevouch/_version.py` (the single place a version is written), commit
 tag and that file disagree.
 
 ## [Unreleased]
+
+## [0.32.2] — 2026-11-16
 ### Fixed
 
 - **The first production run of `publish.yml` proved the trigger and then found two more
@@ -32,7 +34,6 @@ tag and that file disagree.
   and `tests/test_publish_trigger.py` run both steps under a stubbed `gh`, and two mutations -
   reading the version file again, and disabling the watched-run check - each turn the suite
   red, with one control held.
-
 ## [0.32.1] — 2026-11-16
 ### Fixed
 
@@ -6030,7 +6031,8 @@ two real PDFs before the version number was written down.
   and a different class of tool answers "does this paper exist".
 - **No writing beyond the ledger and the cache.** The tool never edits a manuscript.
 
-[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.32.1...HEAD
+[Unreleased]: https://github.com/lyear12/citevouch/compare/v0.32.2...HEAD
+[0.32.2]: https://github.com/lyear12/citevouch/releases/tag/v0.32.2
 [0.32.1]: https://github.com/lyear12/citevouch/releases/tag/v0.32.1
 [0.32.0]: https://github.com/lyear12/citevouch/releases/tag/v0.32.0
 [0.31.0]: https://github.com/lyear12/citevouch/releases/tag/v0.31.0
